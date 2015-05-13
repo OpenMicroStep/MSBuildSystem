@@ -2,7 +2,32 @@
 
 ## Introduction
 
-## Current state
+This build system was made with the idea of making easy to build/test/debug projects that targets multiple platforms.
+It's design is made around the idea of cross-compilation, remote-builds, remote-testing and remote-debugging.
+
+For now on, the first part (the build system) is done.
+
+
+## Toolchains
+
+Due it's cross-compilation approach, sysroot & toolchains are required to build things. 
+For now, the only toolchains provided only run from a Mac OSX host.
+A toolchain is defined by a the quadruple :
+ - architecture: x86_64, i386, armv7, ...
+ - platform: darwin, win32, linux, bsd, ...
+ - sysroot: osx10.10, osx10.9, debian7, debian8, mingw, mingw64, windows7, windows8.1, windows10, ...
+ - compiler: clang, gcc, msvc, tcc, ...
+
+
+At least the platform must be specified, other are optional.
+But the toolchain must follow this pattern : `arch-platform-sysroot-compiler`
+Examples: 
+ - `x86_64-linux-debian7-clang`
+ - `x86_64-linux-debian7-`, by default, debian7 use the gcc compiler, so the toolchain does the same
+ - `x86_64-darwin--`, by default, darwin in x86_64 use the OSX10.10 SDK with the clang compiler
+ - `-darwin--`, by default, darwin compile both i386 and x86_64 arch and merge them with lipo
+ - `-x86_64|i386-darwin--`, darwin is the only toolchain for the moment that allow providing multiple archs, that once built are merged with lipo
+  
 
 ## Examples
 

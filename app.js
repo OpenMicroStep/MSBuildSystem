@@ -8,9 +8,7 @@ global.BuildSystem = BuildSystem;
 if(process.argv.length < 2) {
   console.warn("Usage: " + process.argv[0] + " make [options] workspace");
   console.warn("Options:");
-  console.warn("  --target=name        Only build the given target");
-  console.warn("  --toolchain=name     Name of the toolchain to use for the build, if given multiple times, then multiple toolchains are used for the build");
-  console.warn("  --livebuild          Watch for file change and rebuild every times it's needed");
+  console.warn("  --env=name        Only build the given environment");
 }
 
 var workspace = Workspace.getShared(process.argv.pop());
@@ -23,14 +21,14 @@ function startWith(arg, str) {
 }
 
 var action = null;
-var toolchains = [];
+var environments = [];
 var targets = [];
 process.argv.forEach(function(arg) {
   var v;
   if((v = startWith(arg, "--target=")))
     targets.push(v);
-  else if((v = startWith(arg, "--toolchain=")))
-    toolchains.push(v);
+  else if((v = startWith(arg, "--env=")))
+    environments.push(v);
   else if(arg === "make")
     action = "run";
   else if(arg === "clean")
@@ -41,37 +39,22 @@ process.argv.forEach(function(arg) {
 console.info("Action:", action);
 console.info("Workspace:", workspace.path);
 console.info("Targets:", targets);
-console.info("Toolchains:", toolchains);
-if(toolchains.length) {
-  toolchains.forEach(function (toolchain) {
-    console.time('buildGraph' + toolchain);
-    workspace.buildGraph({
-      targets: targets,
-      toolchain: toolchain
-    }, function (err, inputs, outputs) {
-      console.timeEnd('buildGraph' + toolchain);
-      if (err) console.error(err);
-      else {
-        console.time('buildRun' + toolchain);
-        (new TaskGraph(inputs, outputs))[action](new Runner(), function (err) {
-          console.timeEnd('buildRun' + toolchain);
-          process.exit(err);
-        });
-      }
+console.info("Environments:", environments);
+
+console.time('buildGraph');
+workspace.buildGraph({
+  targets: targets,
+  environments: environments
+}, function (err, graph) {
+  console.timeEnd('buildGraph');
+  if (err) console.error(err);
+  else {
+    console.time('buildRun');
+    graph.debugPrint();
+    console.timeEnd('buildRun');
+    graph[action](new Runner(), function (err) {
+      process.exit(err);
     });
-  });
-}
-else {
-  console.time('buildGraph');
-  workspace.buildSupportedVariantsGraph(function(err, inputs, outputs) {
-    console.timeEnd('buildGraph');
-    if (err) console.error(err);
-    else {
-      console.time('buildRun');
-      (new TaskGraph(inputs, outputs))[action](new Runner(), function (err) {
-        console.timeEnd('buildRun');
-        process.exit(err);
-      });
-    }
-  });
-}
+  }
+});
+
