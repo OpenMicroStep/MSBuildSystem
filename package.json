@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "dependencies": {
     "dateformat": "^1.0.11",
+    "es6-shim": "^0.31.2",
     "fs-extra": "^0.18.2",
     "underscore": "^1.8.3"
   }

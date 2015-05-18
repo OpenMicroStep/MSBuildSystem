@@ -1,7 +1,6 @@
 var BuildSystem = require('./lib/BuildSystem');
 var Workspace = require('./lib/core/Workspace');
-var TaskGraph = require('./lib/core/Task').Graph;
-var Runner = require('./lib/core/Task').Runner;
+var Graph = require('./lib/core/Graph');
 
 global.BuildSystem = BuildSystem;
 
@@ -30,9 +29,9 @@ process.argv.forEach(function(arg) {
   else if((v = startWith(arg, "--env=")))
     environments.push(v);
   else if(arg === "make")
-    action = "run";
+    action = Graph.Action.RUN;
   else if(arg === "clean")
-    action = "clean";
+    action = Graph.Action.CLEAN;
 
 });
 
@@ -41,20 +40,19 @@ console.info("Workspace:", workspace.path);
 console.info("Targets:", targets);
 console.info("Environments:", environments);
 
-console.time('buildGraph');
+
+console.trace("Building workspace graph");
+console.time("Built workspace graph");
 workspace.buildGraph({
   targets: targets,
   environments: environments
 }, function (err, graph) {
-  console.timeEnd('buildGraph');
+  graph.reset();
   if (err) console.error(err);
   else {
     console.time('buildRun');
-    graph.debugPrint();
-    console.timeEnd('buildRun');
-    graph[action](new Runner(), function (err) {
-      process.exit(err);
-    });
+    console.log(graph.description());
+    graph.start(action);
   }
 });
 
