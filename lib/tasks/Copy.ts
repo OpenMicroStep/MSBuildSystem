@@ -57,5 +57,7 @@ class CopyTask extends Task {
     });
   }
 }
+Task.registerClass(CopyTask, "Copy");
+
 
 export = CopyTask;

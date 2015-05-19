@@ -21,6 +21,7 @@ interface GroupInfo {
 
 interface BuildGraphContext {
   environments: Map<string, EnvironmentTask>;
+  targets: Map<string, Target>;
   directory: string;
   variant: string;
 }
@@ -173,6 +174,7 @@ class Workspace {
           console.warn("ignoring invalid environment '" + env + "'");
       }
       else {
+        console.warn("Couldn't find env " + env);
         console.warn("TODO: create a global environment system");
       }
     });
@@ -183,7 +185,7 @@ class Workspace {
   buildGraph(options:{targets?: string[]; directory?: string; environments?: string[]; variant: string}, callback:BuildGraphCallback) {
     var context:BuildGraphContext = {
       environments: new Map<string, EnvironmentTask>(),
-      targets: {},
+      targets: new Map<string, Target>(),
       directory: options.directory || this.directory,
       variant: options.variant || "debug"
     };
@@ -253,6 +255,9 @@ class Workspace {
                 console.trace("Deep configuration of %s by %s (env=%s)", other_target.targetName, target.targetName, other_target.env.name);
                 target.deepExports(other_target, barrierCb);
               }
+              else {
+                barrierCb();
+              }
             });
             barrier.endWith(function (err) {
               if (err) return callback(err);
@@ -263,7 +268,9 @@ class Workspace {
                 console.trace("Configuration of %s by %s (env=%s)", other_target.targetName, target.targetName, other_target.env.name);
                 target.exports(other_target, callback);
               }
-              callback();
+              else {
+                callback();
+              }
             });
           });
         });
@@ -287,28 +294,25 @@ class Workspace {
   }
 
   protected _buildTargetDependencyGraph(context:BuildGraphContext, envTask:EnvironmentTask, targetInfo:Workspace.TargetInfo):Target {
-    var env= envTask.env;
+    var key: string, env: Workspace.Environment, target: Target;
+    env = envTask.env;
+    key = path.join(env.name, this.directory, targetInfo.name);
+    if((target= context.targets.get(key)))
+      return target;
+
     console.trace("Building target dependency graph (env=%s, target=%s)", env.name, targetInfo.name);
-    var intermediates = path.join(context.directory, env.directories.intermediates, env.name, targetInfo.name);
-    var targetOutput = path.join(context.directory, env.directories.output, env.name, env.directories.target[targetInfo.type]);
-    var output = path.join(context.directory, env.directories.output, env.name);
-    var TargetConstructor = BuildSystem.Target[targetInfo.type];
-    var target: Target = new TargetConstructor(this, targetInfo, {
-      intermediates: intermediates,
-      output: output,
-      targetOutput: targetOutput,
-      env: env,
-      target:null,
-      variant: "debug"
-    });
+    target = Target.createTarget(targetInfo, this, env, context.variant, context.directory);
+    if(!target)
+      throw("Unable to create target of type " + targetInfo.type);
+
     envTask.addTarget(target);
 
     // Dependencies
     var deps = targetInfo.dependencies || [];
     deps.forEach((dependency) => {
-      var dep:{target: string; workspace:string; condition:(...args:any[]) => any};
+      var dep:{target: string; workspace:string; condition:(target: Target) => boolean};
       dep = (typeof dependency === "string") ? {target: dependency, workspace: null, condition: null} : dependency;
-      if (dep.condition && !dep.condition(target.buildInfo))
+      if (dep.condition && !dep.condition(target))
         return;
       if (!dep.target)
         throw("Dependency must explicitly set the target");
@@ -330,6 +334,8 @@ class Workspace {
       target.addDependency(depWorkspace._buildTargetDependencyGraph(context, envTask, depTargetInfo));
     });
 
+    console.trace("Builted  target dependency graph (env=%s, target=%s)", env.name, targetInfo.name);
+    context.targets.set(key, target);
     return target;
   }
 }
@@ -338,24 +344,19 @@ module Workspace {
   export interface BuildGraphCallback {
     (err: Error, graph?:Graph): any;
   }
-  export interface BuildInfo {
-    intermediates : string;
-    output : string;
-    targetOutput : string;
-    target : Target;
-    env : Environment;
-  }
   export interface TargetExportInfo {
-    configure?: (other_target:Target, other_env:Environment,target:Target, env:Environment) => Error;
+    defines: string[];
+    frameworks: string[];
+    configure?: (other_target:Target, target:Target) => Error;
   }
   export interface TargetInfo {
     name: string;
     outputName?: string;
     type: string;
     environments: string[];
-    dependencies?: Array<{target: string; workspace:string; condition:(...args: any[]) => any} | string>;
+    dependencies?: Array<{target: string; workspace:string; condition:(target: Target) => boolean} | string>;
     files: string[];
-    configure?:(target:Target, env:Environment) => Error;
+    configure?:(target:Target) => Error;
     exports?: TargetExportInfo;
     deepExports?: TargetExportInfo
   }
@@ -364,8 +365,8 @@ module Workspace {
     frameworks: string[];
     publicHeadersPrefix: string;
     publicHeaders: string[];
-    shared: boolean;
-    includeDirectoriesOfFiles: boolean;
+    static: boolean;
+    includeDirectoriesOfFiles: boolean | string[];
   }
 
   export interface Environment {
@@ -374,10 +375,12 @@ module Workspace {
     platform: string;
     api: string;
     "api-version": string;
-    compiler: string
+    compiler: string;
+    linker: string;
     directories: {
       intermediates: string;
       output: string;
+      publicHeaders: string;
       target: { [s: string]: string }
     };
   }

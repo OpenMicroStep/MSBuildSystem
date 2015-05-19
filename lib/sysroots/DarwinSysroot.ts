@@ -6,6 +6,7 @@ import Workspace = require('../core/Workspace');
 import Sysroot = require('../core/Sysroot');
 import CompileClangTask = require('../tasks/CompileClang');
 import LinkLibToolTask = require('../tasks/LinkLibTool');
+import CXXTarget = require('../targets/_CXXTarget');
 
 
 class DarwinSysroot extends Sysroot {
@@ -15,32 +16,29 @@ class DarwinSysroot extends Sysroot {
     super(directory, extension);
   }
 
-  createCompileTask(options, srcFile, objFile, callback) {
-    var task = new CompileClangTask(srcFile, objFile, options);
-    if(options.target.shared)
-      task.appendArgs("-fPIC");
+  createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
+    var task = new CompileClangTask(srcFile, objFile);
+    if(target.linkType === CXXTarget.LinkType.DYNAMIC)
+      task.addFlags(["-fPIC"]);
 
     callback(null, task);
   }
-  createLinkTask(options: Workspace.BuildInfo, compileTasks: CompileTask[], finalFile: File, callback) {
-    var task = new LinkLibToolTask(compileTasks, finalFile, options);
+  createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
+    var task = new LinkLibToolTask(compileTasks, finalFile, target.linkType);
     callback(null, task);
   }
-  linkFinalName(options) {
-    var name = super.linkFinalName(options);
-    switch(options.target.type) {
-      case 'library':
-        name = "lib" + name + (options.target.shared ? ".dylib" : ".a");
-        break;
-    }
+  linkFinalName(target: CXXTarget):string {
+    var name = super.linkFinalName(target);
+    if(target.isInstanceOf("Library") && !target.isInstanceOf("Bundle") && !target.isInstanceOf("Framework"))
+        name += (target.linkType === CXXTarget.LinkType.DYNAMIC ? ".dylib" : ".a");
     return name;
   }
-  configure(options, callback) {
-    options.env.linker = options.env.linker || "libtool";
-    options.env.compiler = options.env.compiler || "clang";
-    if(options.env.compiler !== "clang")
+  configure(target: CXXTarget, callback: ErrCallback) {
+    target.env.linker = target.env.linker || "libtool";
+    target.env.compiler = target.env.compiler || "clang";
+    if(target.env.compiler !== "clang")
       return callback(new Error("darwin sysroot only supports clang compiler"));
-    if(options.env.linker !== "libtool")
+    if(target.env.linker !== "libtool")
       return callback(new Error("darwin sysroot only supports libtool linker"));
     callback();
   }

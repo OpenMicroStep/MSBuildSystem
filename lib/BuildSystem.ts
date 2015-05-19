@@ -1,6 +1,6 @@
 /// <reference path="../typings/tsd.d.ts" />
 require("es6-shim");
-require('./core/Logger')(console, 'trace');
+require('./core/Logger')(console, 'info');
 console.trace("Loading build system");
 import Sysroot = require('./core/Sysroot');
 import Target = require('./core/Target');
@@ -10,15 +10,15 @@ import util = require('./core/util');
 import _ = require('underscore');
 
 var BuildSystem : {
-  Target : {[s: string] : typeof Target};
-  Task : {[s: string] : typeof Task};
-  Tool : {[s: string] : any};
+  Target : typeof Target;
+  Task : typeof Task;
 } = {
-  Target: util.requireDir(path.join(__dirname, './targets')),
-  Task: util.requireDir(path.join(__dirname, './tasks')),
-  Tool: util.requireDir(path.join(__dirname, './tools'))
+  Target: Target,
+  Task: Task,
 };
 
+util.requireDir(path.join(__dirname, './targets'));
+util.requireDir(path.join(__dirname, './tasks'));
 Sysroot.loadClasses(path.join(__dirname, 'sysroots'));
 Sysroot.load(path.join(__dirname, '../sysroots'));
 

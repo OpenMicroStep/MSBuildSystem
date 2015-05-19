@@ -5,6 +5,7 @@ import Graph = require('../core/Graph');
 import File = require('../core/File');
 import Workspace = require('../core/Workspace');
 import CompileTask = require('../tasks/Compile');
+import LinkTask = require('../tasks/Link');
 import Barrier = require('../core/Barrier');
 import Sysroot = require('../core/Sysroot');
 import Task = require('../core/Task');
@@ -13,16 +14,17 @@ import path = require('path');
 
 /** Base target for C/C++ targets (library, framework, executable) */
 class CXXTarget extends Target {
-  files = [];
-  includeDirectories = [];
-  compileMiddlewares = [];
-  linkMiddlewares = [];
+  files = new Set<string>();
+  includeDirectories = new Set<string>();
   sysroot: Sysroot = null;
   outputName: string;
+  linkType: CXXTarget.LinkType = CXXTarget.LinkType.EXECUTABLE;
+  get arch() { return this.env.arch; }
+  get platform() { return this.sysroot.platform; }
   configure(callback) {
     this.sysroot = Sysroot.find(this.env);
     if (!this.sysroot)
-      return callback("Unable to find sysroot");
+      return callback("Unable to find sysroot for " + this.env.name);
 
     if (this.info.files)
       this.addFiles(this.workspace.resolveFiles(this.info.files));
@@ -31,15 +33,30 @@ class CXXTarget extends Target {
     if (this.info.frameworks)
       this.addFrameworks(this.info.frameworks);
     this.outputName= this.info.outputName || this.info.name;
-    this.sysroot.configure(this.buildInfo, (err) => {
+    this.sysroot.configure(this, (err) => {
       if (err) return callback(err);
       super.configure((err) => {
         if (err) return callback(err);
 
-        if (this.info.includeDirectoriesOfFiles !== false)
-          this.addIncludeDirectoriesOfFiles();
+        if (Array.isArray(this.info.includeDirectoriesOfFiles))
+          this.addIncludeDirectoriesOfFiles(this.workspace.resolveFiles(<string[]>this.info.includeDirectoriesOfFiles));
+        else if (this.info.includeDirectoriesOfFiles !== false)
+          this.addIncludeDirectoriesOfFiles(this.files);
         callback();
       });
+    });
+  }
+  protected _export(exports: Workspace.TargetExportInfo, targetToConfigure: Target, callback: ErrCallback) {
+    super._export(exports, targetToConfigure, (err) => {
+      if(err) return callback(err);
+
+      if(targetToConfigure instanceof CXXTarget) {
+        if (exports.defines)
+          targetToConfigure.addDefines(exports.defines);
+        if (exports.frameworks)
+          targetToConfigure.addFrameworks(exports.frameworks);
+      }
+      callback(err);
     });
   }
 
@@ -48,85 +65,67 @@ class CXXTarget extends Target {
     list.forEach(function (v) {
       frameworks.push("-framework", v);
     });
-    this.addLinkMiddleware(function (options, task, next) {
-      task.appendArgs(frameworks);
-      next();
-    })
+    this.addLinkFlags(frameworks);
   }
 
   addLibraries(libs: string[]) {
-    this.addLinkMiddleware(function (options, task) {
-      task.appendArgs(libs);
+    this.addTaskModifier('Link', function (target: Target, task: LinkTask) {
+      task.addLibraryFlags(libs);
     });
   }
 
   addDefines(defines: string[]) {
-    defines = defines.map(function(def) { return "-D" + def; });
-    this.addCompileMiddleware(function (options, task) {
-      task.appendArgs(defines);
-    })
+    this.addCompileFlags(defines.map(function(def) { return "-D" + def; }));
+  }
+
+  addLinkFlags(flags: string[]) {
+    this.addTaskModifier('Link', function (target: Target, task: LinkTask) {
+      task.addFlags(flags);
+    });
+  }
+
+  addCompileFlags(flags: string[]) {
+    this.addTaskModifier('Compile', function (target: Target, task: CompileTask) {
+      task.addFlags(flags);
+    });
+  }
+
+  resolvePath(file:string) {
+    return path.isAbsolute(file) ? file : path.join(this.workspace.directory, file);
   }
 
   addFiles(files : string[]) {
     files.forEach((file) => {
-      if(path.isAbsolute(file))
-        this.files.push(file);
-      else
-        this.files.push(path.join(this.workspace.directory, file));
+      this.files.add(this.resolvePath(file));
     });
   }
 
   addIncludeDirectory(dir) {
-    this.includeDirectories.push(dir);
+    this.includeDirectories.add(this.resolvePath(dir));
   }
 
-  addIncludeDirectoriesOfFiles() {
-    var dirs = {};
-    this.files.forEach(function (file) {
-      var dir = path.dirname(file);
-      dirs[dir] = true;
+  addIncludeDirectoriesOfFiles(files: Iterable<string>) {
+    (<string[]>files).forEach((file) => {
+      this.addIncludeDirectory(path.dirname(file));
     });
-    for (var i in dirs) {
-      if (dirs.hasOwnProperty(i))
-        this.includeDirectories.push(i);
-    }
-  }
-
-  addCompileFlags(flags) {
-    if (!Array.isArray(flags))
-      flags = Array.from(arguments);
-    this.addCompileMiddleware(function (options, task) {
-      task.appendArgs(flags);
-    });
-  }
-
-  addCompileMiddleware(middleware) {
-    this.compileMiddlewares.push(middleware);
-  }
-
-  addLinkMiddleware(middleware) {
-    this.linkMiddlewares.push(middleware);
   }
 
   compileGraph(callback: Graph.BuildGraphCallback) {
     var tasks = new Set<Task>();
     var barrier = new Barrier.FirstErrBarrier("Build compile graph of " +  this.targetName);
-    this.files.forEach((srcFile) => {
-      srcFile = File.getShared(srcFile);
+    this.files.forEach((file) => {
+      var srcFile = File.getShared(file);
       if (CompileTask.extensions[srcFile.extension]) {
-        var objFile = File.getShared(path.join(this.buildInfo.intermediates, path.relative(this.workspace.directory, srcFile.path + ".o")));
+        var objFile = File.getShared(path.join(this.directories.intermediates, path.relative(this.workspace.directory, srcFile.path + ".o")));
         barrier.inc();
-        this.sysroot.createCompileTask(this.buildInfo, srcFile, objFile, (err, task) => {
+        this.sysroot.createCompileTask(this, srcFile, objFile, (err, task) => {
           if (err) return barrier.dec(err);
 
           this.includeDirectories.forEach((dir) => {
-            (<CompileTask>task).appendArgs(["-I" + dir]);
-          });
-          this.compileMiddlewares.forEach((middleware) => {
-            middleware(this.buildInfo, task);
+            (<CompileTask>task).addFlags(["-I" + dir]);
           });
           tasks.add(task);
-          barrier.dec();
+          barrier.dec(this.applyTaskModifiers(task));
         });
       }
     });
@@ -136,14 +135,10 @@ class CXXTarget extends Target {
   }
 
   linkGraph(graph: Graph.DetachedGraph, callback: Graph.BuildGraphCallback) {
-    var finalFile = File.getShared(this.sysroot.linkFinalPath(this.buildInfo));
-    this.sysroot.createLinkTask(this.buildInfo, Array.from(<Iterable<CompileTask>>graph.outputs), finalFile,  (err, task) => {
+    var finalFile = File.getShared(this.sysroot.linkFinalPath(this));
+    this.sysroot.createLinkTask(this, Array.from(<Iterable<CompileTask>>graph.outputs), finalFile,  (err, task) => {
       if (err) return callback(err);
-
-      this.linkMiddlewares.forEach((middleware) => {
-        middleware(this.buildInfo, task);
-      });
-      callback(null, new Graph.DetachedGraph(graph.inputs, [task]));
+      callback(this.applyTaskModifiers(task), new Graph.DetachedGraph(graph.inputs, [task]));
     });
   }
 
@@ -154,4 +149,12 @@ class CXXTarget extends Target {
     });
   }
 }
+module CXXTarget {
+  export enum LinkType {
+    STATIC,
+    DYNAMIC,
+    EXECUTABLE
+  }
+}
+
 export = CXXTarget;

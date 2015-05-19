@@ -4,6 +4,7 @@ import ProcessTask = require('./_Process');
 import LinkTask = require('./Link');
 import Process = require('../core/Process');
 import File = require('../core/File');
+import Task = require('../core/Task');
 
 class LipoTask extends ProcessTask {
   constructor(linkTasks: LinkTask[], finalFile: File) {
@@ -12,12 +13,13 @@ class LipoTask extends ProcessTask {
     });
     super("Lipo to " + finalFile.path, inputs, [finalFile]);
     this.addDependencies(linkTasks);
-    this.appendArgs("-create");
+    this.appendArgs(["-create"]);
     linkTasks.forEach((task) => {
-      this.appendArgs(task.outputFiles[0].path);
+      this.appendArgs([task.outputFiles[0].path]);
     });
-    this.appendArgs("-output", finalFile.path);
+    this.appendArgs(["-output", finalFile.path]);
   }
 }
+Task.registerClass(LipoTask, "Lipo");
 
 export = LipoTask;

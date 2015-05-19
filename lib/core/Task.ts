@@ -7,12 +7,32 @@ var util = require('util');
 
 var __id_counter: number = 0;
 
+var classes = {};
+
 class Task {
   protected _id:number = ++__id_counter;
   actions: Set<string>;
   dependencies : Set<Task> = new Set<Task>();
   requiredBy : Set<Task> = new Set<Task>();
-  constructor(public name: string) {}
+  name: string;
+  constructor(name: string) {
+    this.name = name;
+  }
+  static registerClass(cls, taskTypeName: string) {
+    if(taskTypeName) {
+      console.debug("Task '%s' registed (raw name='%s')", taskTypeName, cls.name);
+      classes[taskTypeName] = cls;
+      cls.prototype.classname = taskTypeName;
+    }
+  }
+  static findTask(taskTypeName: string) {
+    return classes[taskTypeName];
+  }
+  isInstanceOf(classname: string) {
+    return (classname in classes && this instanceof classes[classname]);
+  }
+  classname: string;
+
   addDependencies(tasks : Array<Task>) {
     tasks.forEach((task) => { this.addDependency(task)});
   }
@@ -33,7 +53,7 @@ class Task {
             this.log(err.toString());
             this.end(1);
           }
-          else if(required || action == Task.Action.REBUILD) {
+          else if(required || action === Task.Action.REBUILD) {
             this.run();
           }
           else {
@@ -66,12 +86,12 @@ class Task {
   logs = "";
   errors: number = 0;
   log(msg: string) {
-    //console.log(this.name, msg);
     this.logs += msg;
     if(msg.length && msg[msg.length - 1] != "\n")
       this.logs += "\n";
   }
   end(errors: number = 0) {
+    console.debug(this.name, "\n", this.logs);
     this.errors = errors;
     this.state = Task.State.DONE;
     this.observers.forEach((obs) => {

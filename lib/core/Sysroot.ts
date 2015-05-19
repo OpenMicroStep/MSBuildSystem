@@ -1,5 +1,6 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+import CXXTarget = require('../targets/_CXXTarget');
 import Task = require('./task');
 import CompileTask = require('../tasks/Compile');
 import Workspace = require('./Workspace');
@@ -15,7 +16,7 @@ import path = require('path');
  * Sysroot are put into the build system by the _CXXTarget target.
  * The target find the sysroot that matches the build environment and ask the sysroot to provide compile, link and archive tasks
  */
-class Sysroot {
+class Sysroot implements Sysroot.Interface {
   name: string;
   architectures: string[];
   /** Platform (ie. darwin, linux, win32, android, ios, ...) */
@@ -81,33 +82,42 @@ class Sysroot {
     });
   }
 
-  createCompileTask(options: Workspace.BuildInfo, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
+  createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
     throw "Sysroot must reimplement this to work";
   }
 
-  createLinkTask(options: Workspace.BuildInfo, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
+  createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
     throw "Sysroot must reimplement this to work";
   }
 
-  configure(options, callback) {
+  configure(target: CXXTarget, callback: ErrCallback) {
     callback();
   }
 
-  linkFinalName(options):string {
-    return options.target.outputName;
+  linkFinalName(target: CXXTarget):string {
+    if(target.isInstanceOf("Library") && !target.isInstanceOf("Bundle") && !target.isInstanceOf("Framework"))
+      return "lib" + target.outputName;
+    return target.outputName;
   }
 
-  linkFinalPath(options):string {
+  linkFinalPath(target: CXXTarget):string {
     var ret;
-    if(options.target.type === "framework")
-      ret= path.join(options.targetOutput, options.target.outputName + ".framework", this.linkFinalName(options));
+    if(target.isInstanceOf("Framework"))
+      ret= path.join(target.directories.targetOutput, target.outputName + ".framework", this.linkFinalName(target));
     else
-      ret= path.join(options.targetOutput, this.linkFinalName(options));
+      ret= path.join(target.directories.targetOutput, this.linkFinalName(target));
     return ret;
   }
 }
 
 module Sysroot {
+  export interface Interface {
+    createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback);
+    createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback);
+    configure(target: CXXTarget, callback: ErrCallback);
+    linkFinalName(target: CXXTarget):string;
+    linkFinalPath(target: CXXTarget):string;
+  }
   export interface CreateTaskCallback {
     (err: Error, task?: Task);
   }

@@ -2,12 +2,13 @@
 /* @flow weak */
 import ProcessTask = require('./_Process');
 import File = require('../core/File');
+import Task = require('../core/Task');
 
-class Compile extends ProcessTask {
+class CompileTask extends ProcessTask {
   public language: string;
   constructor(srcFile : File, objFile : File) {
     super("Compile " + srcFile.name, [srcFile], [objFile]);
-    this.language = Compile.extensions[srcFile.extension];
+    this.language = CompileTask.extensions[srcFile.extension];
   }
 
   static extensions =  {
@@ -21,5 +22,6 @@ class Compile extends ProcessTask {
     // clang -M srcFile >
   }
 }
+Task.registerClass(CompileTask, "Compile");
 
-export = Compile;
+export = CompileTask;

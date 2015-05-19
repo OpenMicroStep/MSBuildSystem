@@ -62,7 +62,7 @@ class LocalFile {
 
     barrier.endWith(function(err) {
       if(err) return callback(err);
-      callback(null, true); //mtimeInput > mtimeOutput);
+      callback(null, mtimeInput > mtimeOutput);
     });
   }
   static buildList(root: string, ...args: Array<string | string[]>) {

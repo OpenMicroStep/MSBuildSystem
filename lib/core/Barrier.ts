@@ -12,6 +12,7 @@ class Barrier {
   reset(counter: number) {
     this.actions = [];
     this.counter = counter;
+    console.trace("Barrier.reset   name=%s, counter=%s", this.name, this.counter);
   }
 
   inc() {
@@ -19,11 +20,12 @@ class Barrier {
   }
 
   dec() {
-    if(--this.counter === 0) {
+    if(--this.counter === 0 && this.actions.length > 0) {
       this.signal();
     }
   }
   protected signal() {
+    console.trace("Barrier.signal  name=%s, counter=%s", this.name, this.counter);
     this.actions.forEach(function(action) {
       action();
     });
@@ -41,6 +43,7 @@ class Barrier {
   }
 
   endWith(action: () => any) {
+    console.trace("Barrier.endWith name=%s, counter=%s", this.name, this.counter);
     if(this.counter <= 0)
       action();
     else
@@ -59,12 +62,17 @@ module Barrier {
       }
       super.dec();
     }
+    decCallback() {
+      return (err?: any) => { this.dec(err); }
+    }
     protected signal() {
+      console.trace("Barrier.signal  name=%s, counter=%s", this.name, this.counter);
       this.actions.forEach(function(action) {
         action(this.err);
       });
     }
     endWith(action: (err) => any) {
+      console.trace("Barrier.endWith name=%s, counter=%s", this.name, this.counter);
       if(this.counter <= 0)
         action(this.err);
       else

@@ -11,16 +11,24 @@ class ProcessTask extends Task {
   constructor(name: string, public inputFiles: File[] = [], public outputFiles: File[] = []) {
     super(name);
   }
-  appendArgs(...args: string[]);
-  appendArgs(args: string[]);
-  appendArgs(args) {
-    this.args.push.apply(this.args, Array.isArray(args) ? args : arguments);
+
+  addFlags(flags: string[]) {
+    this.appendArgs(flags);
+  }
+  addFlagsAtEnd(flags: string[]) {
+    this.appendArgs(flags);
   }
 
-  prependArgs(...args: string[]);
-  prependArgs(args: string[]);
-  prependArgs(args) {
-    this.args.unshift.apply(this.args, Array.isArray(args) ? args : arguments);
+  protected insertArgs(pos:number, args: string[]) {
+    this.args.splice(pos, 0, ...args);
+  }
+
+  protected appendArgs(args: string[]) {
+    this.args.push(...args);
+  }
+
+  protected prependArgs(args: string[]) {
+    this.args.unshift(...args);
   }
 
   isRunRequired(callback: (err: Error, required?:boolean) => any) {

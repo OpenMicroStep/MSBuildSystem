@@ -30,6 +30,8 @@ process.argv.forEach(function(arg) {
     environments.push(v);
   else if(arg === "make")
     action = Graph.Action.RUN;
+  else if(arg === "rebuild")
+    action = Graph.Action.REBUILD;
   else if(arg === "clean")
     action = Graph.Action.CLEAN;
 
@@ -41,17 +43,26 @@ console.info("Targets:", targets);
 console.info("Environments:", environments);
 
 
-console.trace("Building workspace graph");
+console.info("Building compilation graph");
 console.time("Built workspace graph");
 workspace.buildGraph({
   targets: targets,
   environments: environments
 }, function (err, graph) {
-  graph.reset();
+  console.timeEnd("Built workspace graph");
   if (err) console.error(err);
   else {
+    graph.reset();
     console.time('buildRun');
-    console.log(graph.description());
+    console.debug(graph.description());
+    console.info("Compiling...");
+    graph.observers.push(function(task) {
+      if(task.errors)
+        console.error("%s Failed", Graph.Action[action]);
+      else
+        console.info("%s Succeded", Graph.Action[action]);
+      process.exit(task.errors);
+    });
     graph.start(action);
   }
 });

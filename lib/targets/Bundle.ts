@@ -1,11 +1,12 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
 import Framework = require('./Framework');
+import Target = require('../core/Target');
 
 class Bundle extends Framework {
 
 }
 
-Bundle.prototype.type = "bundle";
+Target.registerClass(Bundle, "Bundle");
 
 export = Bundle;

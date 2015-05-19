@@ -2,11 +2,11 @@
 /* @flow weak */
 import CXXTarget = require('./_CXXTarget');
 import util = require('util');
+import Target = require('../core/Target');
 
 class Executable extends CXXTarget
 {
 }
-
-Executable.prototype.type = "executable";
+Target.registerClass(Executable, "Executable");
 
 module.exports = Executable;

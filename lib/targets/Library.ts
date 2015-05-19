@@ -10,33 +10,30 @@ import File = require('../core/File');
 import Workspace = require('../core/Workspace');
 
 class Library extends CXXTarget {
-  public publicHeaders = [];
-  public publicHeaderMappers = [];
-  public publicHeadersPrefix : string;
-  public shared: boolean;
+  publicHeaders = [];
+  publicHeaderMappers = [];
+  publicHeadersPrefix : string;
 
   configure(callback: ErrCallback) {
     this.publicHeadersPrefix = this.info.publicHeadersPrefix || this.info.name;
 
     if(this.info.publicHeaders)
       this.addPublicHeaders(this.workspace.resolveFiles(this.info.publicHeaders));
-    this.shared = !!this.info.shared;
+    this.linkType = this.info.static ? CXXTarget.LinkType.STATIC : CXXTarget.LinkType.DYNAMIC;
     super.configure(callback);
   }
   exports(targetToConfigure: Target, callback: ErrCallback) {
     if(targetToConfigure instanceof CXXTarget) {
-      targetToConfigure.addIncludeDirectory(this.buildPublicHeaderPath(this.buildInfo));
-      targetToConfigure.addLinkMiddleware((options, task) => {
-        task.appendArgs(['-L' + this.buildInfo.targetOutput, '-l' + this.targetName]);
-      });
+      targetToConfigure.addIncludeDirectory(this.buildPublicHeaderPath());
+      targetToConfigure.addLinkFlags(['-L' + this.directories.targetOutput, '-l' + this.targetName]);
       super.exports(targetToConfigure, callback);
     }
     else {
       return callback(new Error("target " +  targetToConfigure.targetName + " is incompable with " + this.targetName));
     }
   }
-  buildPublicHeaderPath(options) {
-    return path.join(options.output, options.env.directories.publicHeaders);
+  buildPublicHeaderPath() {
+    return path.join(this.directories.output, this.env.directories.publicHeaders);
   }
   addPublicHeaders(headers: string[]) {
     var files = File.buildList(this.workspace.directory, headers);
@@ -58,8 +55,8 @@ class Library extends CXXTarget {
           var outFilename = path.basename(inFilename);
           if(this.publicHeadersPrefix)
             outFilename = path.join(this.publicHeadersPrefix, outFilename);
-          this.publicHeaderMappers.forEach((mapper) => { outFilename = mapper(this.buildInfo, outFilename); });
-          outFilename = path.join(this.buildPublicHeaderPath(this.buildInfo), outFilename);
+          this.publicHeaderMappers.forEach((mapper) => { outFilename = mapper(this, outFilename); });
+          outFilename = path.join(this.buildPublicHeaderPath(), outFilename);
           copy.willCopyFile(inFilename, outFilename);
         });
         graph.addDependencyOnInputs(copy);
@@ -68,7 +65,6 @@ class Library extends CXXTarget {
     });
   }
 }
-
-Library.prototype.type = "library";
+Target.registerClass(Library, "Library");
 
 export = Library;
