@@ -1,6 +1,9 @@
 /// <reference path="../typings/tsd.d.ts" />
+'use strict';
+
 require("es6-shim");
 require('./core/Logger')(console, 'info');
+
 console.trace("Loading build system");
 import Sysroot = require('./core/Sysroot');
 import Target = require('./core/Target');

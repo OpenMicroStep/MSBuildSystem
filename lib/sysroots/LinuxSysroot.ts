@@ -1,5 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 import Sysroot = require('../core/Sysroot');
 import File = require('../core/File');
 import CXXTarget = require('../targets/_CXXTarget');
@@ -21,19 +23,21 @@ class LinuxSysroot extends Sysroot {
   createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
     var task;
     if(target.env.compiler === "clang")
-      task = new CompileClangTask(srcFile, objFile);
+      task = new CompileClangTask(target, srcFile, objFile);
     else
-      task = new CompileGCCTask(srcFile, objFile);
+      task = new CompileGCCTask(target, srcFile, objFile);
     if(target.linkType === CXXTarget.LinkType.DYNAMIC)
       task.addFlags(["-fPIC"]);
     if (this.triple) {
       task.addFlags(["--target=" + this.triple]);
       task.addFlags(["--sysroot=" + this.sysrootDirectory]);
     }
+    if(target.variant === "release")
+      task.addFlags(["-O3"]);
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
-    var task = new LinkBinUtilsTask(compileTasks, finalFile, target.linkType);
+    var task = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
     task.bin = path.join(this.directory, this.prefix + (target.linkType === CXXTarget.LinkType.STATIC ? "ar" : "gcc"));
     if (this.triple) {
       task.addFlags(["--target=" + this.triple]);

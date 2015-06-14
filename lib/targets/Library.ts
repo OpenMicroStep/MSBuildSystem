@@ -1,4 +1,6 @@
 /// <reference path="../../typings/tsd.d.ts" />
+'use strict';
+
 import path = require('path');
 import util = require('util');
 import Graph = require('../core/Graph');
@@ -25,7 +27,7 @@ class Library extends CXXTarget {
   exports(targetToConfigure: Target, callback: ErrCallback) {
     if(targetToConfigure instanceof CXXTarget) {
       targetToConfigure.addIncludeDirectory(this.buildPublicHeaderPath());
-      targetToConfigure.addLinkFlags(['-L' + this.directories.targetOutput, '-l' + this.targetName]);
+      targetToConfigure.addLibraries([this.sysroot.linkFinalPath(this)]);
       super.exports(targetToConfigure, callback);
     }
     else {
@@ -33,7 +35,10 @@ class Library extends CXXTarget {
     }
   }
   buildPublicHeaderPath() {
-    return path.join(this.directories.output, this.env.directories.publicHeaders);
+    return path.join(this.graph.output, this.env.directories.publicHeaders);
+  }
+  addWorkspacePublicHeaders(headers: string[]) {
+    this.addPublicHeaders(this.workspace.resolveFiles(headers));
   }
   addPublicHeaders(headers: string[]) {
     var files = File.buildList(this.workspace.directory, headers);
@@ -45,12 +50,12 @@ class Library extends CXXTarget {
   addPublicHeaderMapper(mapper) {
     this.publicHeaderMappers.push(mapper);
   }
-  graph(callback: Graph.BuildGraphCallback) {
-    super.graph((err, graph) => {
+  buildGraph(callback: ErrCallback) {
+    super.buildGraph((err) => {
       if(err) return callback(err);
 
       if(this.publicHeaders.length) {
-        var copy = new CopyTask("Copy public headers of " + this.targetName + ", env=" + this.env.name);
+        var copy = new CopyTask("Copy public headers of " + this.targetName + ", env=" + this.env.name, this);
         this.publicHeaders.forEach((inFilename) => {
           var outFilename = path.basename(inFilename);
           if(this.publicHeadersPrefix)
@@ -59,9 +64,12 @@ class Library extends CXXTarget {
           outFilename = path.join(this.buildPublicHeaderPath(), outFilename);
           copy.willCopyFile(inFilename, outFilename);
         });
-        graph.addDependencyOnInputs(copy);
+        this.applyTaskModifiers(copy);
+        this.inputs.forEach((task) => {
+          if(task !== copy) task.addDependency(copy);
+        });
       }
-      callback(null, graph);
+      callback();
     });
   }
 }

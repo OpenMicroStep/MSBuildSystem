@@ -1,12 +1,16 @@
 /// <reference path="../../typings/tsd.d.ts" />
+
 /* @flow weak */
+'use strict';
+
 import Task = require('../core/Task');
 import File = require('../core/File');
+import Graph = require('../core/Graph');
 import CompileTask = require('./Compile');
 
 class CompileGCCTask extends CompileTask {
-  constructor(srcFile:File, objFile:File) {
-    super(srcFile, objFile);
+  constructor(graph: Graph, srcFile:File, objFile:File) {
+    super(graph, srcFile, objFile);
     /*
     if(options.variant === "release")
       this.appendArgs("-O3");
@@ -14,8 +18,8 @@ class CompileGCCTask extends CompileTask {
       this.appendArgs("-g");
     */
     this.appendArgs([
-      "-c", srcFile.path,
-      "-o", objFile.path
+      "-o", objFile.path,
+      "-c", srcFile.path
     ]);
   }
 }

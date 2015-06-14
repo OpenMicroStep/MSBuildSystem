@@ -1,5 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 import Target = require('./Target');
 import Graph = require('./Graph');
 import Task = require('./Task');
@@ -7,41 +9,44 @@ import Barrier = require('./Barrier');
 import path = require('path');
 import fs = require('fs-extra');
 import _ = require('underscore');
-import BuildSystem = require('../BuildSystem');
+import BuildSession= require('./BuildSession');
 
 interface FileInfo {
   file: string;
-  tags: string[];
+  tags: Set<string>;
 }
 
 interface GroupInfo {
   group: string;
   files: (FileInfo | GroupInfo)[];
 }
+type FileTree = (FileInfo | GroupInfo)[];
 
 interface BuildGraphContext {
-  environments: Map<string, EnvironmentTask>;
+  root: Workspace.RootTask;
+  environments: Map<string, Workspace.EnvironmentTask>;
   targets: Map<string, Target>;
-  directory: string;
-  variant: string;
 }
 
 interface BuildGraphCallback { (err: Error, graph?: Graph); }
 
-class EnvironmentTask extends Graph
-{
-  constructor(public env: Workspace.Environment) {
-    super("Environment " + env.name);
-  }
-  addTarget(target: Target) {
-    this.inputs.add(target);
-    this.outputs.add(target);
-  }
-  get targets() : Set<Target> {
-    return <Set<Target>>this.inputs;
+var FILEINFO_NOTAGS = new Set([""]);
+function prepareFiles(files: FileTree) {
+  for(var file of <any[]>files) {
+    if(file.group) {
+      if(file.files)
+        prepareFiles(file.files);
+      else
+        file.files = [];
+    }
+    else if(file.file) {
+      if(!file.tags || !file.tags.length)
+        file.tags = FILEINFO_NOTAGS;
+      else
+        file.tags = new Set(file.tags);
+    }
   }
 }
-
 /**
  * Workspace is the main component of a project
  */
@@ -50,29 +55,17 @@ class Workspace {
   public path:string;
   public environments:Workspace.Environment[];
   public targets:Workspace.TargetInfo[];
-  public files:FileInfo | GroupInfo;
+  public files:FileTree;
 
   constructor(directory) {
     this.directory = directory;
     this.path = path.join(directory, "make.js");
     var settings = require(this.path);
 
-    /**
-     * @type {Object.<string, Environment|[string]>}
-     */
     this.environments = settings.environments || [];
-
-    /**
-     * List of targets with workspace contains
-     * @type {[TargetInfo]}
-     */
     this.targets = settings.targets || [];
-
-    /**
-     * Tree of files
-     * @type [GroupInfo|FileInfo]
-     */
     this.files = settings.files || [];
+    prepareFiles(this.files);
   }
 
   private static workspaces = {};
@@ -109,28 +102,33 @@ class Workspace {
       return [];
     }
 
+    function keepFile(filters:string[], file: FileInfo) {
+      var ret= true;
+      var i =0, len= filters.length - 1;
+      while(ret && i < len) {
+        var t = filters[i++];
+        var v = filters[i++];
+        if(t === '?') // Must have
+          ret= file.tags.has(v);
+        else if(t === '') // Must not
+          ret= !file.tags.has(v);
+      }
+      return ret;
+    }
     function filterFiles(filters:string[], files:Set<string>, fileTree) {
       fileTree.forEach(function (file) {
-        if (file.group) {
-          if (file.files)
-            filterFiles(filters, files, file.files);
-        }
-        else if (file.file) {
-          if (!filters.length || (file.tags && filters.every(function (filter) {
-              return file.tags.indexOf(filter) !== -1;
-            }))) {
-            files.add(file.file);
-          }
-        }
+        if (file.group)
+          filterFiles(filters, files, file.files);
+        else if (file.file && keepFile(filters, file))
+          files.add(file.file);
       });
     }
 
     var files = new Set<string>();
     queries.forEach(function (query) {
-      var groupName, fileTree;
-      var filters = query.split("?");
-
-      fileTree = (groupName = filters.shift()) !== "" ? findGroupFiles(groupName.split('.'), self.files) : self.files;
+      var filters = query.split(/([?!])/);
+      var groupName = filters.shift();
+      var fileTree = groupName !== "" ? findGroupFiles(groupName.split('.'), self.files) : self.files;
       filterFiles(filters, files, fileTree);
     });
     return Array.from(files);
@@ -181,13 +179,21 @@ class Workspace {
     return ret;
   }
 
+  checkTargetInfo(targetInfo: Workspace.TargetInfo) {
+    if(typeof targetInfo.name !== "string")
+      throw "'name' must be a string";
+     if(typeof targetInfo.type !== "string")
+      throw "'type' must be a string";
+    if(!Array.isArray(targetInfo.environments))
+      throw "'environments' must be a, array of strings";
+  }
+
   /** Construct build graph */
   buildGraph(options:{targets?: string[]; directory?: string; environments?: string[]; variant: string}, callback:BuildGraphCallback) {
     var context:BuildGraphContext = {
-      environments: new Map<string, EnvironmentTask>(),
+      root: new Workspace.RootTask(options.directory || this.directory, options.variant || "debug"),
+      environments: new Map<string, Workspace.EnvironmentTask>(),
       targets: new Map<string, Target>(),
-      directory: options.directory || this.directory,
-      variant: options.variant || "debug"
     };
 
     // Build Env/Target dependency graph
@@ -195,6 +201,7 @@ class Workspace {
       var targets = options.targets || [];
       var environments = options.environments || [];
       this.targets.forEach((targetInfo) => {
+        this.checkTargetInfo(targetInfo);
         if (targets.length && targets.indexOf(targetInfo.name) === -1)
           return;
         var envs = this.resolveEnvironments(targetInfo.environments);
@@ -204,7 +211,7 @@ class Workspace {
 
           var envTask = context.environments.get(env.name);
           if (!envTask)
-            context.environments.set(env.name, envTask = new EnvironmentTask(env));
+            context.environments.set(env.name, envTask = new Workspace.EnvironmentTask(context.root, env));
           this._buildTargetDependencyGraph(context, envTask, targetInfo);
         });
       });
@@ -212,88 +219,13 @@ class Workspace {
       return callback(e);
     }
 
-    // Build Target tasks graph
-    var deep:Target[] = [];
-    var configuredTargets = new Set<Target>();
-    var configure = function(target: Target, callback:(err?: Error) => any) {
-      if(!configuredTargets.has(target)) {
-        console.trace("Configuration of %s (env=%s)", target.targetName, target.env.name);
-        target.configure(callback);
-      }
-      else
-        callback();
-    };
-    var buildGraph = function(target: Target, callback:(err?: Error) => any) {
-      if(!configuredTargets.has(target)) {
-        configuredTargets.add(target);
-        console.trace("Building graph of %s (env=%s)", target.targetName, target.env.name);
-        target.buildGraph(callback);
-      }
-      else
-        callback();
-    };
-    var buildTargetTaskGraph = function (target:Target, callback:(err?: Error) => any) {
-      configure(target, function(err?: Error) {
-        if (err) return callback(err);
-
-        var barrier = new Barrier.FirstErrBarrier("Configure & build graph of " + target.targetName, target.dependencies.size);
-        var barrierCb = barrier.decCallback();
-        deep.push(target);
-        target.dependencies.forEach(function (dep:Target) {
-          buildTargetTaskGraph(dep, barrierCb)
-        });
-        barrier.endWith(function (err?:Error) {
-          if (err) return callback(err);
-          deep.pop();
-          buildGraph(target, function (err?:Error) {
-            if (err) return callback(err);
-
-            // call deepExports on non configured targets
-            barrier.reset(deep.length);
-            deep.forEach((other_target:Target) => {
-              if (!configuredTargets.has(other_target)) {
-                console.trace("Deep configuration of %s by %s (env=%s)", other_target.targetName, target.targetName, other_target.env.name);
-                target.deepExports(other_target, barrierCb);
-              }
-              else {
-                barrierCb();
-              }
-            });
-            barrier.endWith(function (err) {
-              if (err) return callback(err);
-
-              // call exports on direct
-              var other_target;
-              if (deep.length && !configuredTargets.has(other_target= deep[deep.length - 1])) {
-                console.trace("Configuration of %s by %s (env=%s)", other_target.targetName, target.targetName, other_target.env.name);
-                target.exports(other_target, callback);
-              }
-              else {
-                callback();
-              }
-            });
-          });
-        });
-      });
-    };
-
-    var barrier = new Barrier.FirstErrBarrier("Build environments");
-    var barrierCb = barrier.decCallback();
-    console.debug("Configure targets");
-    context.environments.forEach((env) => {
-      env.targets.forEach(function (target) {
-        barrier.inc();
-        buildTargetTaskGraph(target, barrierCb);
-      });
-    });
-
-    barrier.endWith(function (err) {
-      var tasks:Set<Task> = new Set<Task>(context.environments.values());
-      callback(err, new Graph("Root", tasks, tasks));
+    context.root.reset();
+    context.root.start(Task.Action.CONFIGURE, () =>  {
+      callback(context.root.errors > 0 ? new Error("Error while configuring") : null, context.root);
     });
   }
 
-  protected _buildTargetDependencyGraph(context:BuildGraphContext, envTask:EnvironmentTask, targetInfo:Workspace.TargetInfo):Target {
+  protected _buildTargetDependencyGraph(context:BuildGraphContext, envTask:Workspace.EnvironmentTask, targetInfo:Workspace.TargetInfo):Target {
     var key: string, env: Workspace.Environment, target: Target;
     env = envTask.env;
     key = path.join(env.name, this.directory, targetInfo.name);
@@ -301,17 +233,14 @@ class Workspace {
       return target;
 
     console.trace("Building target dependency graph (env=%s, target=%s)", env.name, targetInfo.name);
-    target = Target.createTarget(targetInfo, this, env, context.variant, context.directory);
+    target = Target.createTarget(envTask, targetInfo, this);
     if(!target)
       throw("Unable to create target of type " + targetInfo.type);
-
-    envTask.addTarget(target);
 
     // Dependencies
     var deps = targetInfo.dependencies || [];
     deps.forEach((dependency) => {
-      var dep:{target: string; workspace:string; condition:(target: Target) => boolean};
-      dep = (typeof dependency === "string") ? {target: dependency, workspace: null, condition: null} : dependency;
+      var dep = (typeof dependency === "string") ? {target: dependency} : dependency;
       if (dep.condition && !dep.condition(target))
         return;
       if (!dep.target)
@@ -341,6 +270,30 @@ class Workspace {
 }
 
 module Workspace {
+  export class RootTask extends Graph
+  {
+    constructor(public directory: string, public variant: string) {
+      super("Root", null);
+    }
+  }
+  export class EnvironmentTask extends Graph
+  {
+    buildSession: BuildSession;
+    output: string;
+    intermediates: string;
+    inputs:Set<Target>;
+    outputs:Set<Target>;
+    constructor(private root: RootTask, public env: Workspace.Environment) {
+      super("Environment " + env.name, root);
+      this.output = path.join(root.directory, env.directories.output, env.name);
+      this.intermediates = path.join(root.directory, env.directories.intermediates, env.name);
+      this.buildSession = new BuildSession.InDatabase(path.join(this.intermediates, "session.nedb"));
+    }
+    get variant(): string { return (<RootTask>this.graph).variant; }
+    protected runAction(action: Task.Action, buildSession: BuildSession) {
+      super.runAction(action, action === Task.Action.CONFIGURE ? buildSession : this.buildSession);
+    }
+  }
   export interface BuildGraphCallback {
     (err: Error, graph?:Graph): any;
   }
@@ -354,19 +307,16 @@ module Workspace {
     outputName?: string;
     type: string;
     environments: string[];
-    dependencies?: Array<{target: string; workspace:string; condition:(target: Target) => boolean} | string>;
+    dependencies?: Array<{
+      target: string;
+      workspace?:string;
+      condition?:(target: Target) => boolean;
+      configure?:(target: Target, dep_target: Target) => any
+    } | string>;
     files: string[];
     configure?:(target:Target) => Error;
     exports?: TargetExportInfo;
     deepExports?: TargetExportInfo
-  }
-  export interface TargetInfo { // CXXTarget info
-    defines: string[];
-    frameworks: string[];
-    publicHeadersPrefix: string;
-    publicHeaders: string[];
-    static: boolean;
-    includeDirectoriesOfFiles: boolean | string[];
   }
 
   export interface Environment {

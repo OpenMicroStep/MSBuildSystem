@@ -1,5 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow */
+'use strict';
+
 import fs = require('fs-extra');
 import path = require('path');
 import util = require('util');
@@ -29,42 +31,30 @@ class LocalFile {
     return file;
   }
 
-  static ensure(what : {inputs: LocalFile[]; outputs: LocalFile[]}, callback: (err: Error, changed?:boolean) => any) {
-    var mtimeInput = 0;
-    var mtimeOutput = -1;
-    var barrier = new Barrier.FirstErrBarrier("File ensure", what.inputs.length + what.outputs.length);
-
-    what.inputs.forEach(function(input) {
-      input.stat(function(err, stats) {
-        if(err) {
-          barrier.dec(err);
-        }
-        else {
-          mtimeInput = Math.max(stats['mtime'].getTime(), mtimeInput);
-          barrier.dec();
-        }
-      });
-    });
-
-    what.outputs.forEach(function(output) {
-      output.stat(function(err, stats) {
-        if(err) {
-          fs.ensureDir(path.dirname(output.path), function(err) {
-            barrier.dec(err);
-          });
-        }
-        else {
-          mtimeOutput = Math.min(stats['mtime'].getTime(), mtimeInput);
-          barrier.dec();
+  /**
+   * Ensure that outputs can be written
+   * The callback is called with changed at 'true' if:
+   *  - one of the inputs changed after what.time
+   *  - one of the outputs changed after what.time
+   */
+  static ensure(files: (string | LocalFile)[], time: number, options: {ensureDir?:boolean;}, callback: (err: Error, changed?:boolean) => any) {
+    var barrier = new LocalFile.EnsureBarrier("File ensure", files.length);
+    files.forEach(function(file) {
+      var sharedFile: LocalFile;
+      sharedFile = (typeof file === "string") ? LocalFile.getShared(file) : file;
+      sharedFile.stat(function(err, stats) {
+        if(err && options.ensureDir) {
+            fs.ensureDir(path.dirname(sharedFile.path), function(err) {
+              barrier.dec(err, true);
+            });
+        } else {
+          barrier.dec(err, !err && stats['mtime'].getTime() > time);
         }
       });
     });
-
-    barrier.endWith(function(err) {
-      if(err) return callback(err);
-      callback(null, mtimeInput > mtimeOutput);
-    });
+    barrier.endWith(callback);
   }
+
   static buildList(root: string, ...args: Array<string | string[]>) {
     var files = [];
     var len = args.length;
@@ -98,14 +88,14 @@ class LocalFile {
     return files;
   }
 
+  readFile(cb: (err: Error, output: Buffer) => any) {
+    fs.readFile(this.path, cb);
+  }
+  readUtf8File(cb: (err: Error, output: string) => any) {
+    fs.readFile(this.path, "utf8", cb);
+  }
   stat(cb : (err: Error, stats: fs.Stats) => any) {
-    if(this._stats) return cb(null, this._stats);
-    var self = this;
-    fs.stat(this.path, function(err, stats) {
-      if(!err)
-        self._stats = stats;
-      cb(err, stats);
-    });
+    fs.stat(this.path, cb);
   }
   unlink(cb : (err: Error) => any) {
     fs.unlink(this.path, function(err) {
@@ -114,6 +104,31 @@ class LocalFile {
       cb(err);
     });
   }
+}
+
+module LocalFile {
+
+  export class EnsureBarrier extends Barrier {
+    protected err = null;
+    protected required = false;
+    dec(err?: any, required?: boolean) {
+      if((err || required) && this.counter > 0) {
+        this.err = err;
+        this.required = required;
+      }
+      super.dec();
+    }
+    decCallback() {
+      return (err?: any, required?: boolean) => { this.dec(err, required); }
+    }
+    protected signal(action) {
+      action(this.err, this.required);
+    }
+    endWith(action: (err?, required?: boolean) => any) {
+      super.endWith(action);
+    }
+  }
+
 }
 
 export = LocalFile;

@@ -1,5 +1,6 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow */
+'use strict';
 
 class Barrier {
   protected actions:((...args) => any)[];
@@ -21,14 +22,14 @@ class Barrier {
 
   dec() {
     if(--this.counter === 0 && this.actions.length > 0) {
-      this.signal();
+      console.trace("Barrier.signal  name=%s, counter=%s", this.name, this.counter);
+      this.actions.forEach((action) => {
+       this.signal(action);
+      });
     }
   }
-  protected signal() {
-    console.trace("Barrier.signal  name=%s, counter=%s", this.name, this.counter);
-    this.actions.forEach(function(action) {
-      action();
-    });
+  protected signal(action) {
+    action();
   }
   decCallback() {
     return () => { this.dec(); }
@@ -45,7 +46,7 @@ class Barrier {
   endWith(action: () => any) {
     console.trace("Barrier.endWith name=%s, counter=%s", this.name, this.counter);
     if(this.counter <= 0)
-      action();
+      this.signal(action);
     else
       this.actions.push(action);
   }
@@ -65,18 +66,11 @@ module Barrier {
     decCallback() {
       return (err?: any) => { this.dec(err); }
     }
-    protected signal() {
-      console.trace("Barrier.signal  name=%s, counter=%s", this.name, this.counter);
-      this.actions.forEach(function(action) {
-        action(this.err);
-      });
+    protected signal(action) {
+      action(this.err);
     }
-    endWith(action: (err) => any) {
-      console.trace("Barrier.endWith name=%s, counter=%s", this.name, this.counter);
-      if(this.counter <= 0)
-        action(this.err);
-      else
-        this.actions.push(action);
+    endWith(action: (err?) => any) {
+      super.endWith(action);
     }
   }
 

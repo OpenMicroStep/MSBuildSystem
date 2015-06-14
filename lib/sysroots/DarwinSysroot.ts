@@ -1,5 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 import CompileTask = require('../tasks/Compile');
 import File = require('../core/File');
 import Workspace = require('../core/Workspace');
@@ -12,19 +14,27 @@ import CXXTarget = require('../targets/_CXXTarget');
 class DarwinSysroot extends Sysroot {
   platform: string;
   api: string;
+  triples;
   constructor(directory:string, extension:{}) {
     super(directory, extension);
   }
 
   createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
-    var task = new CompileClangTask(srcFile, objFile);
+    var task = new CompileClangTask(target, srcFile, objFile);
     if(target.linkType === CXXTarget.LinkType.DYNAMIC)
       task.addFlags(["-fPIC"]);
-
+    if (this.triples)
+      task.addFlags(["--target=" + this.triples[target.arch]]);
+    if(target.variant === "release")
+      task.addFlags(["-O3"]);
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
-    var task = new LinkLibToolTask(compileTasks, finalFile, target.linkType);
+    var task = new LinkLibToolTask(target, compileTasks, finalFile, target.linkType);
+    if(target.linkType === CXXTarget.LinkType.DYNAMIC)
+      task.addFlags(["-fPIC"]);
+    if (this.triples)
+      task.addFlags(["--target=" + this.triples[target.arch]]);
     callback(null, task);
   }
   linkFinalName(target: CXXTarget):string {

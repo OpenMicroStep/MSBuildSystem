@@ -1,5 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 import fs = require('fs');
 import path = require('path');
 

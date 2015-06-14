@@ -1,5 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 import child_process = require('child_process');
 var os = require('os');
 
@@ -14,8 +16,17 @@ var os = require('os');
 class Process {
   static maxConcurrentProcess : number = os.cpus().length;
 
-  static run(command : string, args : string[], callback : (err: string, out: string) => any) {
-    return _runOnceReady(child_process.spawn, [command, args, function(process) {
+  static run(command : string, args : string[], env: {[s:string]: string}, callback : (err: string, out: string) => any) {
+    var options: any = {};
+    if(env) {
+      options.env= process.env;
+      for(var i in env) {
+        if(env.hasOwnProperty(i)) {
+          options.env[i] = env[i];
+        }
+      }
+    }
+    return _runOnceReady(child_process.spawn, [command, args, options, function(process) {
       var out = "";
       var exited = false;
       var timeoutId;
@@ -39,7 +50,7 @@ class Process {
           callback(null, out);
           return;
         }
-        callback("Command failed", out);
+        callback("Command failed: " + command + " " + args.join(" "), out);
       }
 
       function errorhandler(e) {
@@ -84,6 +95,7 @@ var waitingProcesses = [];
 var nbProcessRunning = 0;
 function _run(fct, args, startCallback) {
   nbProcessRunning++;
+  console.info("Run process", args[0], args[1].join(" "));
   var ret = fct.apply(child_process, args);
   startCallback(ret);
   var exited = false;

@@ -1,6 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
 import CXXTarget = require('../targets/_CXXTarget');
+import Framework = require('../targets/Framework');
 import Task = require('./task');
 import CompileTask = require('../tasks/Compile');
 import Workspace = require('./Workspace');
@@ -103,9 +104,9 @@ class Sysroot implements Sysroot.Interface {
   linkFinalPath(target: CXXTarget):string {
     var ret;
     if(target.isInstanceOf("Framework"))
-      ret= path.join(target.directories.targetOutput, target.outputName + ".framework", this.linkFinalName(target));
+      ret= path.join((<Framework>target).buildBundleContentsPath(), this.linkFinalName(target));
     else
-      ret= path.join(target.directories.targetOutput, this.linkFinalName(target));
+      ret= path.join(target.output, this.linkFinalName(target));
     return ret;
   }
 }

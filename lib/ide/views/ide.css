@@ -1,0 +1,22 @@
+.section-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+}
+.section-main {
+    position: absolute;
+    top: 50px;
+    left: 300px;
+    right: 0;
+    bottom: 0;
+}
+.section-left {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    width: 300px;
+    bottom: 0;
+    border-right: 1px solid #E7E7E7;
+}

@@ -1,6 +1,12 @@
+/// <reference path="../../typings/tsd.d.ts" />
+/* @flow */
+'use strict';
+
 var dateFormat = require("dateformat");
 import util = require('util');
-
+import chalk = require("chalk");
+chalk.enabled = true;
+var startTime = (new Date()).getTime();
 function pad(num, mask) {
   return (mask + num).slice(-Math.max(mask.length, (num + "").length));
 }
@@ -17,12 +23,12 @@ function bytesSizeToHumanSize(fileSizeInBytes) {
 
 function setup(con, levelname: string = 'info') {
   var methods = {
-    'error': {level: 4, name: "ERROR", map:con.error},
-    'warn':  {level: 3, name: " WARN", map:con.warn },
-    'info':  {level: 2, name: " INFO", map:con.info },
-    'log':   {level: 1, name: "DEBUG", map:con.log  },
-    'debug': {level: 1, name: "DEBUG", map:con.log  },
-    'trace': {level: 0, name: "TRACE", map:con.log  }
+    'error': {level: 4, name: "ERROR", map:con.log, fmt:chalk.red.bold  },
+    'warn':  {level: 3, name: " WARN", map:con.log, fmt:chalk.yellow  },
+    'info':  {level: 2, name: " INFO", map:con.log, fmt:function(s) { return s; }  },
+    'log':   {level: 1, name: "DEBUG", map:con.log,  fmt:chalk.gray },
+    'debug': {level: 1, name: "DEBUG", map:con.log,  fmt:chalk.gray  },
+    'trace': {level: 0, name: "TRACE", map:con.log,  fmt:chalk.gray  }
   };
   var level = methods[levelname].level;
   var pattern = '[mmm dd HH:MM:ss.l]';
@@ -38,10 +44,11 @@ function setup(con, levelname: string = 'info') {
 
     var org = method.map;
     con[f] = function () {
+      var diff = pad(((new Date()).getTime() - startTime).toString() + "ms", "        ");
       var date = dateFormat(pattern);
       var memory = process.memoryUsage();
       var memoryStr = (memory && memory.heapUsed && bytesSizeToHumanSize(memory.heapUsed)) || "Unknown";
-      return org.call(con, date, memoryStr, method.name, util.format.apply(util.format, arguments));
+      return org.call(con, date, diff + " ", memoryStr, method.fmt(method.name + " " + util.format.apply(util.format, arguments)));
     };
   }
   for(var f in methods) {

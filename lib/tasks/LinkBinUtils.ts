@@ -1,12 +1,15 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 import LinkTask = require('./Link');
 import Task = require('../core/Task');
+import Graph = require('../core/Graph');
 import CXXTarget = require('../targets/_CXXTarget');
 
 class LinkBinUtilsTask extends LinkTask {
-  constructor(compileTasks, finalFile, type: CXXTarget.LinkType) {
-    super(compileTasks, finalFile, type);
+  constructor(graph: Graph, compileTasks, finalFile, type: CXXTarget.LinkType) {
+    super(graph, compileTasks, finalFile, type);
     switch(this.type) {
       case CXXTarget.LinkType.STATIC:
         this.appendArgs(["rcs", finalFile.path]);

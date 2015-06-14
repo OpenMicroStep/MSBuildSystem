@@ -1,52 +1,47 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow */
+'use strict';
+
 import Task = require('./Task');
 import Barrier = require('./Barrier');
+import BuildSession = require('./BuildSession');
 
 class Graph extends Task {
-  constructor(name:string, public inputs:Set<Task> = new Set<Task>(), public outputs:Set<Task> = new Set<Task>()) {
-    super(name);
+  constructor(name:string, graph:Graph, public inputs:Set<Task> = new Set<Task>()) {
+    super(name, graph);
   }
 
   reset() {
     this.inputs.forEach((input) => {input.reset();});
     super.reset();
   }
-  start(action: Task.Action) {
+  protected runAction(action: Task.Action, buildSession: BuildSession) {
     console.trace("Run task %s (action=%s)", this.name, Task.Action[action]);
     var barrier = new Barrier("Graph");
     var errors = 0;
-    function run(task) {
+
+    function cb(task: Task) {
+      console.trace("End task %s (action=%s)", task.name, Task.Action[action], task.errors, task.requiredBy.size);
+      if (task.errors === 0) {
+        task.requiredBy.forEach(function (next) {
+          next.requirements--;
+          run(next);
+        });
+      }
+      else {
+        console.warn("Task", task.name, "failed");
+        console.warn(task.logs);
+        errors += task.errors;
+      }
+      barrier.dec();
+    }
+
+    function run(task: Task) {
       if (task.requirements !== 0) return;
       console.trace("Run task %s (action=%s)", task.name, Task.Action[action], task.requirements);
 
       barrier.inc();
-      var cb = function (task: Task) {
-        console.trace("End task %s (action=%s)", task.name, Task.Action[action], task.errors, task.requiredBy.size);
-        if (task.errors === 0) {
-          task.requiredBy.forEach(function (next) {
-            next.requirements--;
-            run(next);
-          });
-        }
-        else {
-          console.warn("Task", task.name, "failed");
-          console.warn(task.logs);
-          errors += task.errors;
-        }
-        barrier.dec();
-      };
-
-      if (task.state === Task.State.DONE) {
-        cb(task);
-      }
-      else {
-        task.observers.push(cb);
-        if (task.state !== Task.State.RUNNING) {
-          task.state = Task.State.RUNNING;
-          task.start(action);
-        }
-      }
+      task.start(action, cb, buildSession);
     }
 
     this.inputs.forEach(run);
@@ -97,23 +92,12 @@ class Graph extends Task {
 }
 
 module Graph {
-  export class DetachedGraph {
-    inputs: Iterable<Task>;
-    outputs: Iterable<Task>;
-    constructor(inputs: Iterable<Task>, outputs?: Iterable<Task>) {
-      this.inputs = inputs;
-      this.outputs = outputs || inputs;
-    }
-    addDependencyOnInputs(task: Task) {
-      // In TypeScript 1.6, for of should work
-      (<Array<Task>>this.inputs).forEach(function(input) {
-        input.addDependency(task);
-      });
-      this.inputs = [task];
-    }
+  export interface SessionData extends Task.SessionData {
+    tasks: string[];
   }
-  export interface BuildGraphCallback {
-    (err: Error, graph?: DetachedGraph);
+  export type Tasks = Iterable<Task>;
+  export interface BuildTasksCallback {
+    (err: Error, tasks?: Tasks);
   }
 }
 export = Graph;

@@ -1,31 +1,32 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 //import Workspace = require('./Workspace');
 import Workspace = require('./Workspace');
 import Task = require('./Task');
 import Graph = require('./Graph');
+import BuildSession = require('./BuildSession');
+import Barrier = require('./Barrier');
 import path = require('path');
 
 var targetClasses = [];
 class Target extends Graph {
+  dependencies : Set<Target>;
+  requiredBy : Set<Target>;
+  graph: Workspace.EnvironmentTask;
   info: Workspace.TargetInfo;
   workspace: Workspace;
-  env: Workspace.Environment;
-  variant: string;
-  directories: {intermediates: string; targetOutput: string; output: string};
+  intermediates: string;
+  output: string;
   modifiers: any[];
-  constructor(info: Workspace.TargetInfo, workspace: Workspace, env: Workspace.Environment, variant: string, buildDirectory: string) {
+  constructor(envTask: Workspace.EnvironmentTask, info: Workspace.TargetInfo, workspace: Workspace) {
+    super("Target " + info.name + ", env=" + envTask.env.name + ", variant=" + envTask.variant, envTask);
     this.info = info;
     this.workspace = workspace;
-    this.env = env;
-    this.variant = variant;
-    this.directories = {
-      intermediates: path.join(buildDirectory, env.directories.intermediates, env.name, info.name),
-      targetOutput: path.join(buildDirectory, env.directories.output, env.name, env.directories.target[info.type]),
-      output: path.join(buildDirectory, env.directories.output, env.name)
-    };
+    this.intermediates = path.join(envTask.intermediates, info.name);
+    this.output = path.join(envTask.output, envTask.env.directories.target[this.classname]);
     this.modifiers = [];
-    super(this.toString());
   }
   static registerClass(cls, targetTypeName) {
     if(targetTypeName) {
@@ -37,14 +38,13 @@ class Target extends Graph {
   isInstanceOf(classname: string) {
     return (classname in targetClasses && this instanceof targetClasses[classname]);
   }
-  static createTarget(info: Workspace.TargetInfo, workspace: Workspace, env: Workspace.Environment, variant: string, buildDirectory: string) {
+  static createTarget(envTask: Workspace.EnvironmentTask, info: Workspace.TargetInfo, workspace: Workspace) {
     var cls: typeof Target= targetClasses[info.type];
-    return cls ? new cls(info, workspace, env, variant, buildDirectory) : null;
-  }
-  toString() {
-    return "Target " + this.info.name + ", env=" + this.env.name + ", variant=" + this.variant;
+    return cls ? new cls(envTask, info, workspace) : null;
   }
 
+  get env() : Workspace.Environment { return this.graph.env; }
+  get variant() : string { return this.graph.variant; }
   get targetName(): string { return this.info.name; }
 
   addTaskModifier(taskTypeName: string, modifier:(target:Target, task: Task) => any) {
@@ -60,14 +60,63 @@ class Target extends Graph {
     }
     return err;
   }
+
+  addDependency(task: Target) {
+    super.addDependency(task);
+  }
+
+  getDependency(targetName: string) {
+    var entries = this.dependencies.values();
+    var e: IteratorResult<Target>;
+    while(!(e= entries.next()).done) {
+      if(e.value.targetName === targetName)
+        return e.value;
+    }
+    return null;
+  }
+  protected runAction(action: Task.Action, buildSession: BuildSession) {
+    if(action == Task.Action.CONFIGURE) {
+      this.configure((err) => {
+        if(err) {
+          this.log(err.toString());
+          this.end(1);
+        }
+        else {
+          this.buildGraph((err) => {
+            if(err) this.log(err.toString());
+            this.end(err ? 1 : 0);
+          });
+        }
+      });
+    }
+    else {
+      super.runAction(action, buildSession);
+    }
+  }
   configure(callback: ErrCallback) {
+    var barrier = new Barrier.FirstErrBarrier("Configure " + this.targetName, 1);
     var err = null;
     if(this.info.configure) {
-      if(typeof  this.info.configure !== "function")
+      if(typeof this.info.configure !== "function")
         return callback(new Error("'configure' must be a function with 'env' and 'target' arguments"));
       err = this.info.configure(this);
     }
-    callback(err);
+    barrier.dec(err);
+    var exported = new Set<Target>();
+    var deepExports = (parent: Target) => {
+      parent.dependencies.forEach((dep) => {
+        if (!exported.has(dep)) {
+          exported.add(dep);
+          dep.deepExports(this, barrier.decCallback());
+          deepExports(dep);
+        }
+      });
+    };
+    this.dependencies.forEach((dep) => {
+      dep.exports(this, barrier.decCallback());
+    });
+    deepExports(this);
+    barrier.endWith(callback);
   }
   exports(targetToConfigure: Target, callback: ErrCallback) {
     if(this.info.exports)
@@ -88,15 +137,7 @@ class Target extends Graph {
     callback(err);
   }
   buildGraph(callback: ErrCallback) {
-    this.graph((err, graph) => {
-      if (err) return callback(err);
-      this.inputs = new Set(graph.inputs);
-      this.outputs = new Set(graph.outputs);
-      callback();
-    });
-  }
-  protected graph(callback:Graph.BuildGraphCallback) {
-    callback(new Error("'graph' must be reimplemented by subclasses"));
+    callback();
   }
 }
 

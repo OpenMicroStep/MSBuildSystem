@@ -1,17 +1,20 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow weak */
+'use strict';
+
 import ProcessTask = require('./_Process');
 import LinkTask = require('./Link');
 import Process = require('../core/Process');
 import File = require('../core/File');
 import Task = require('../core/Task');
+import Graph = require('../core/Graph');
 
 class LipoTask extends ProcessTask {
-  constructor(linkTasks: LinkTask[], finalFile: File) {
+  constructor(graph: Graph, linkTasks: LinkTask[], finalFile: File) {
     var inputs = linkTasks.map(function (task) {
       return task.outputFiles[0];
     });
-    super("Lipo to " + finalFile.path, inputs, [finalFile]);
+    super("Lipo to " + finalFile.path, graph, inputs, [finalFile]);
     this.addDependencies(linkTasks);
     this.appendArgs(["-create"]);
     linkTasks.forEach((task) => {

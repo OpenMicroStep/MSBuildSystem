@@ -1,5 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 // /* @flow weak */
+'use strict';
+
 import Target = require('../core/Target');
 import Graph = require('../core/Graph');
 import File = require('../core/File');
@@ -14,6 +16,7 @@ import path = require('path');
 
 /** Base target for C/C++ targets (library, framework, executable) */
 class CXXTarget extends Target {
+  info: CXXTarget.TargetInfo;
   files = new Set<string>();
   includeDirectories = new Set<string>();
   sysroot: Sysroot = null;
@@ -27,11 +30,13 @@ class CXXTarget extends Target {
       return callback("Unable to find sysroot for " + this.env.name);
 
     if (this.info.files)
-      this.addFiles(this.workspace.resolveFiles(this.info.files));
+      this.addWorkspaceFiles(this.info.files);
     if (this.info.defines)
       this.addDefines(this.info.defines);
     if (this.info.frameworks)
       this.addFrameworks(this.info.frameworks);
+    if (this.info.includeDirectories)
+      this.addIncludeDirectories(this.info.includeDirectories);
     this.outputName= this.info.outputName || this.info.name;
     this.sysroot.configure(this, (err) => {
       if (err) return callback(err);
@@ -39,7 +44,7 @@ class CXXTarget extends Target {
         if (err) return callback(err);
 
         if (Array.isArray(this.info.includeDirectoriesOfFiles))
-          this.addIncludeDirectoriesOfFiles(this.workspace.resolveFiles(<string[]>this.info.includeDirectoriesOfFiles));
+          this.addIncludeDirectoriesOfWorkspaceFiles(<string[]>this.info.includeDirectoriesOfFiles);
         else if (this.info.includeDirectoriesOfFiles !== false)
           this.addIncludeDirectoriesOfFiles(this.files);
         callback();
@@ -94,14 +99,28 @@ class CXXTarget extends Target {
     return path.isAbsolute(file) ? file : path.join(this.workspace.directory, file);
   }
 
+  addWorkspaceFiles(queries: string[]) {
+    this.addFiles(this.workspace.resolveFiles(queries));
+  }
+
   addFiles(files : string[]) {
     files.forEach((file) => {
       this.files.add(this.resolvePath(file));
     });
   }
 
+  addIncludeDirectories(dirs: string[]) {
+    dirs.forEach((dir) => {
+      this.addIncludeDirectory(dir);
+    })
+  }
+
   addIncludeDirectory(dir) {
     this.includeDirectories.add(this.resolvePath(dir));
+  }
+
+  addIncludeDirectoriesOfWorkspaceFiles(files: Iterable<string>) {
+    this.addIncludeDirectoriesOfFiles(this.workspace.resolveFiles(<string[]>files));
   }
 
   addIncludeDirectoriesOfFiles(files: Iterable<string>) {
@@ -110,13 +129,13 @@ class CXXTarget extends Target {
     });
   }
 
-  compileGraph(callback: Graph.BuildGraphCallback) {
+  compileGraph(callback: Graph.BuildTasksCallback) {
     var tasks = new Set<Task>();
     var barrier = new Barrier.FirstErrBarrier("Build compile graph of " +  this.targetName);
     this.files.forEach((file) => {
       var srcFile = File.getShared(file);
       if (CompileTask.extensions[srcFile.extension]) {
-        var objFile = File.getShared(path.join(this.directories.intermediates, path.relative(this.workspace.directory, srcFile.path + ".o")));
+        var objFile = File.getShared(path.join(this.intermediates, path.relative(this.workspace.directory, srcFile.path + ".o")));
         barrier.inc();
         this.sysroot.createCompileTask(this, srcFile, objFile, (err, task) => {
           if (err) return barrier.dec(err);
@@ -130,26 +149,35 @@ class CXXTarget extends Target {
       }
     });
     barrier.endWith(function (err) {
-      callback(err, new Graph.DetachedGraph(tasks));
+      callback(err, tasks);
     });
   }
 
-  linkGraph(graph: Graph.DetachedGraph, callback: Graph.BuildGraphCallback) {
+  linkGraph(compileTasks: Graph.Tasks, callback: Graph.BuildTasksCallback) {
     var finalFile = File.getShared(this.sysroot.linkFinalPath(this));
-    this.sysroot.createLinkTask(this, Array.from(<Iterable<CompileTask>>graph.outputs), finalFile,  (err, task) => {
+    this.sysroot.createLinkTask(this, Array.from(<Iterable<CompileTask>>compileTasks), finalFile,  (err, task) => {
       if (err) return callback(err);
-      callback(this.applyTaskModifiers(task), new Graph.DetachedGraph(graph.inputs, [task]));
+      callback(this.applyTaskModifiers(task));
     });
   }
 
-  graph(callback: Graph.BuildGraphCallback) {
-    this.compileGraph((err, graph) => {
+  buildGraph(callback: ErrCallback) {
+    this.compileGraph((err, tasks) => {
       if (err) return callback(err);
-      this.linkGraph(graph, callback);
+      this.linkGraph(tasks, callback);
     });
   }
 }
 module CXXTarget {
+  export interface TargetInfo extends Workspace.TargetInfo {
+    defines: string[];
+    frameworks: string[];
+    publicHeadersPrefix: string;
+    publicHeaders: string[];
+    static: boolean;
+    includeDirectoriesOfFiles: boolean | string[];
+    includeDirectories: string[];
+  }
   export enum LinkType {
     STATIC,
     DYNAMIC,

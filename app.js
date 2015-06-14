@@ -22,19 +22,21 @@ function startWith(arg, str) {
 var action = null;
 var environments = [];
 var targets = [];
+var variant = "debug";
 process.argv.forEach(function(arg) {
   var v;
   if((v = startWith(arg, "--target=")))
     targets.push(v);
   else if((v = startWith(arg, "--env=")))
     environments.push(v);
+  else if((v = startWith(arg, "--variant=")))
+    variant= v;
   else if(arg === "make")
     action = Graph.Action.RUN;
   else if(arg === "rebuild")
     action = Graph.Action.REBUILD;
   else if(arg === "clean")
     action = Graph.Action.CLEAN;
-
 });
 
 console.info("Action:", action);
@@ -46,24 +48,25 @@ console.info("Environments:", environments);
 console.info("Building compilation graph");
 console.time("Built workspace graph");
 workspace.buildGraph({
+  variant:variant,
   targets: targets,
   environments: environments
 }, function (err, graph) {
   console.timeEnd("Built workspace graph");
-  if (err) console.error(err);
+  if (err) console.error(err.stack);
   else {
     graph.reset();
     console.time('buildRun');
-    console.debug(graph.description());
+    //console.info(graph.description());
     console.info("Compiling...");
-    graph.observers.push(function(task) {
+    graph.start(action, function(task) {
       if(task.errors)
         console.error("%s Failed", Graph.Action[action]);
       else
         console.info("%s Succeded", Graph.Action[action]);
-      process.exit(task.errors);
+      process.exitCode = task.errors;
+
     });
-    graph.start(action);
   }
 });
 
