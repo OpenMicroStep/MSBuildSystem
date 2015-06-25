@@ -2,6 +2,7 @@
 /* @flow weak */
 'use strict';
 
+import Provider = require('../core/Provider');
 import Process = require('../core/Process');
 import Graph = require('../core/Graph');
 import Task = require('../core/Task');
@@ -9,7 +10,7 @@ import Barrier = require('../core/Barrier');
 import File = require('../core/File');
 
 class ProcessTask extends Task {
-  public bin : string = "";
+  public provider : Provider.Process = null;
   public args: string[] = [];
   public env: {[s:string]: string};
   constructor(name: string, graph: Graph, public inputFiles: File[] = [], public outputFiles: File[] = []) {
@@ -39,7 +40,7 @@ class ProcessTask extends Task {
   }
 
   uniqueKey(): string {
-    return this.bin + " " + this.args.join(" ");
+    return this.args.join(" ");
   }
 
   isRunRequired(callback: (err: Error, required?:boolean) => any) {
@@ -55,15 +56,17 @@ class ProcessTask extends Task {
   }
 
   runProcess(callback) {
-    Process.run(this.bin, this.args, this.env, callback);
+    this.provider.process(this.inputFiles, this.outputFiles, "runTask", {
+      args: this.args,
+      env: this.env
+    }, callback);
   }
   run() {
-    if(!this.bin.length) {
-      this.log("'bin' is not set");
+    if(!this.provider) {
+      this.log("'provider' is null");
       this.end(1);
     }
     else {
-      this.log(this.bin + " \\\n\t" + this.args.join(" \\\n\t"));
       this.runProcess((err, output) => {
         this.log(output);
         if(err) this.log(err);

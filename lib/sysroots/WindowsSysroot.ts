@@ -5,11 +5,12 @@
 import Graph = require('../core/Graph');
 import Sysroot = require('../core/Sysroot');
 import File = require('../core/File');
+import Provider = require('../core/Provider');
 import CXXTarget = require('../targets/_CXXTarget');
 import CompileClangTask = require('../tasks/CompileClang');
 import CompileGCCTask = require('../tasks/CompileGCC');
 import LinkBinUtilsTask = require('../tasks/LinkBinUtils');
-import LinkLLDTask = require('../tasks/LinkLLDUtils');
+import LinkMSVCTask = require('../tasks/LinkMSVC');
 import CompileTask = require('../tasks/Compile');
 import CopyTask = require('../tasks/Copy');
 import path = require('path');
@@ -45,8 +46,10 @@ class WindowsSysroot extends Sysroot {
     var task;
     if(target.env.compiler === "clang") {
       task = new CompileClangTask(target, srcFile, objFile);
-      task.bin = "/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/clang";
-      if(target.linkType === CXXTarget.LinkType.DYNAMIC)
+      task.provider = <Provider.Process>Provider.find({compiler:"clang", version:"3.7"});
+      //if (target.sysroot.api === "msvc")
+      //  task.bin = "C:/Program Files (x86)/LLVM/bin/clang.exe";
+      if(target.linkType !== CXXTarget.LinkType.STATIC)
         task.addFlags(["-fPIC"]);
     }
     else {
@@ -61,8 +64,10 @@ class WindowsSysroot extends Sysroot {
     }
     if (target.sysroot.api === "msvc") {
       task.addFlags(["-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fno-rtti", "-fmsc-version=1800"]);}
-    if((task.language === "C" || task.language === "OBJC") && this.cIncludes) {
-      //task.addFlags(["-nostdinc++"]);
+    if(this.cIncludes) {
+      task.addFlags(["-nostdinc"]);
+      if (target.sysroot.api === "msvc")
+        task.addFlags(["-isystem", path.join(task.provider.bin, "../../lib/clang/3.7.0/include")]);
       task.addFlags(this.cIncludes);
     }
     if(target.variant === "release")
@@ -71,8 +76,10 @@ class WindowsSysroot extends Sysroot {
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
-    if (target.env.linker === "lld") {
-      var task = new LinkLLDTask(target, compileTasks, finalFile, target.linkType);
+    if (target.env.linker === "msvc") {
+      var task = new LinkMSVCTask(target, compileTasks, finalFile, target.linkType);
+      var conditions: any = {linker:"msvc", arch:target.env.arch, version:this["api-version"]};
+      task.provider = <Provider.Process>Provider.find(conditions);
       if (this.libraries) {
         this.libraries.forEach((lib) => {
           task.addFlags(["/libpath:"+path.join(this.sysrootDirectory, lib)]);
@@ -81,7 +88,10 @@ class WindowsSysroot extends Sysroot {
     }
     else {
       var task = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
-      task.bin = path.join(this.directory, this.prefix + (target.linkType === CXXTarget.LinkType.STATIC ? "ar" : "gcc"));
+      if (target.linkType === CXXTarget.LinkType.STATIC)
+        task.provider = <Provider.Process>Provider.find({archiver:"binutils", triple:this.triple});
+      else
+        task.provider = <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
       if (this.triple) {
         task.addFlags(["--target=" + this.triple]);
         task.addFlags(["--sysroot=" + this.sysrootDirectory]);
@@ -110,8 +120,8 @@ class WindowsSysroot extends Sysroot {
     target.env.compiler = target.env.compiler || "clang";
     if(target.env.compiler !== "clang" && target.env.compiler !== "gcc")
       return callback(new Error("darwin sysroot only supports clang & gcc compilers"));
-    if(target.env.linker !== "binutils" && target.env.linker !== "lld")
-      return callback(new Error("windows sysroot only supports binutils & lld linker"));
+    if(target.env.linker !== "binutils" && target.env.linker !== "msvc")
+      return callback(new Error("windows sysroot only supports binutils & msvc linker"));
     target.addTaskModifier('Copy', (target, task: CopyTask) => {
       this.installLibraries.forEach((relativePath) => {
         task.willCopyFile(path.join(this.directory, relativePath), path.join(target.graph.output, target.env.directories.target["Executable"], path.basename(relativePath)));

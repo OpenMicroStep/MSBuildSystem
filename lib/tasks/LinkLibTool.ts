@@ -13,11 +13,9 @@ class LinkLibToolTask extends LinkTask {
   constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType) {
     super(graph, compileTasks, finalFile, type);
     if(this.type === CXXTarget.LinkType.STATIC) {
-      this.bin = "libtool";
       this.appendArgs(["-static", "-o", finalFile.path]);
     }
     else {
-      this.bin = "clang";
       if(this.type === CXXTarget.LinkType.DYNAMIC)
         this.appendArgs(["-shared"]);
       this.appendArgs(["-o", finalFile.path]);

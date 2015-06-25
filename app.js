@@ -5,9 +5,11 @@ var Graph = require('./lib/core/Graph');
 global.BuildSystem = BuildSystem;
 
 if(process.argv.length < 2) {
-  console.warn("Usage: " + process.argv[0] + " make [options] workspace");
+  console.warn("Usage: " + process.argv[0] + " make|rebuild|clean [options] workspace");
   console.warn("Options:");
   console.warn("  --env=name        Only build the given environment");
+  console.warn("  --target=name     Only build the given target");
+  console.warn("  --variant=name    Build for the given variant (debug by default)");
 }
 
 var workspace = Workspace.getShared(process.argv.pop());

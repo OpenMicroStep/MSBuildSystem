@@ -4,6 +4,7 @@
 
 import Sysroot = require('../core/Sysroot');
 import File = require('../core/File');
+import Provider = require('../core/Provider');
 import CXXTarget = require('../targets/_CXXTarget');
 import CompileClangTask = require('../tasks/CompileClang');
 import CompileGCCTask = require('../tasks/CompileGCC');
@@ -22,10 +23,14 @@ class LinuxSysroot extends Sysroot {
   }
   createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
     var task;
-    if(target.env.compiler === "clang")
+    if(target.env.compiler === "clang") {
       task = new CompileClangTask(target, srcFile, objFile);
-    else
+      task.provider= <Provider.Process>Provider.find({compiler:"clang"});
+    }
+    else {
       task = new CompileGCCTask(target, srcFile, objFile);
+      task.provider= <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
+    }
     if(target.linkType === CXXTarget.LinkType.DYNAMIC)
       task.addFlags(["-fPIC"]);
     if (this.triple) {
@@ -38,7 +43,10 @@ class LinuxSysroot extends Sysroot {
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
     var task = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
-    task.bin = path.join(this.directory, this.prefix + (target.linkType === CXXTarget.LinkType.STATIC ? "ar" : "gcc"));
+    if (target.linkType === CXXTarget.LinkType.STATIC)
+      task.provider = <Provider.Process>Provider.find({archiver:"binutils", triple:this.triple});
+    else
+      task.provider = <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
     if (this.triple) {
       task.addFlags(["--target=" + this.triple]);
       task.addFlags(["--sysroot=" + this.sysrootDirectory]);

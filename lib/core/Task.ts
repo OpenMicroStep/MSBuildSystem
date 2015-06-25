@@ -7,12 +7,17 @@ import Barrier = require('./Barrier');
 import BuildSession = require('./BuildSession');
 import util = require('util');
 import crypto = require('crypto');
+import os = require('os');
 
 var __id_counter: number = 0;
 
 var classes = {};
 
 class Task {
+  static maxConcurrentTasks: number = os.cpus().length;
+  static nbTaskRunning: number = 0;
+  private static waitingTasks: Task[] = [];
+
   protected _id:number;
   dependencies : Set<Task> = new Set<Task>();
   requiredBy : Set<Task> = new Set<Task>();
@@ -119,6 +124,12 @@ class Task {
     this.data.logs = this.logs;
     this.data.errors = errors;
     this.data.lastRunEndTime = (new Date()).getTime();
+    --Task.nbTaskRunning;
+    if (Task.waitingTasks.length > 0) {
+      var task = Task.waitingTasks.shift();
+      ++Task.nbTaskRunning;
+      task.run();
+    }
     this.observers.forEach((obs) => {
       obs(this);
     });
@@ -134,7 +145,12 @@ class Task {
             this.end(1);
           }
           else if (required || action === Task.Action.REBUILD) {
-            this.run();
+            if (Task.nbTaskRunning < Task.maxConcurrentTasks) {
+              ++Task.nbTaskRunning;
+              this.run();
+            } else {
+              Task.waitingTasks.push(this);
+            }
           }
           else {
             this.end();

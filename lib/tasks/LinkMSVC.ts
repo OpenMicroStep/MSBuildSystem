@@ -10,15 +10,21 @@ import Graph = require('../core/Graph');
 import CXXTarget = require('../targets/_CXXTarget');
 import path = require('path');
 
-class LinkLLDTask extends LinkTask {
+class LinkMSVCTask extends LinkTask {
   constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType) {
     super(graph, compileTasks, finalFile, type);
-    this.bin = "/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/lld";
-    this.setEnv({
-      PATH:"/Users/vincentrouille/Dev/MicroStep/MSXcodePlugin/MSBuildSystem/sysroots/i686-msvc12/tools;" + process.env.PATH
-    });
-    this.appendArgs(["-flavor", "link"]);
+    //this.bin = "/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/lld";
+    //this.setEnv({
+    //  PATH:"/Users/vincentrouille/Dev/MicroStep/MSXcodePlugin/MSBuildSystem/sysroots/i686-msvc12/tools;" + process.env.PATH
+    //});
+    //this.appendArgs(["-flavor", "link"]);
     //this.appendArgs(["/Users/vincentrouille/Dev/MicroStep/MSXcodePlugin/MSBuildSystem/sysroots/i686-msvc12/tools/link.exe"]);
+    //this.bin= "C:/Program Files (x86)/Microsoft Visual Studio 11.0/VC/bin/link.exe";
+    this.setEnv({
+      PATH: "C:/Program Files (x86)/Microsoft Visual Studio 11.0/VC/BIN;"
+        + "C:/Program Files (x86)/Microsoft Visual Studio 11.0/Common7/IDE;"
+        + process.env.PATH
+    });
     if(this.type === CXXTarget.LinkType.STATIC) {
       throw "not supported";
     }
@@ -42,15 +48,12 @@ class LinkLLDTask extends LinkTask {
       this.addFlags(libs.map(function(lib) {
         if (lib[0] == '-' && lib[1] == 'l')
           lib= lib.substring(2) + ".lib";
-        else if(lib[0] == '/') {
-          if(path.extname(lib) == ".dll") {
-            lib = lib.substring(0, lib.length - 3) + "lib";}
-          //lib = "Z:" + lib;
-        }
+        if(path.extname(lib) == ".dll") {
+          lib = lib.substring(0, lib.length - 3) + "lib";}
         return lib;
       }));
   }
 }
-Task.registerClass(LinkLLDTask, "LinkLLD");
+Task.registerClass(LinkMSVCTask, "LinkMSVC");
 
-export = LinkLLDTask;
+export = LinkMSVCTask;

@@ -6,6 +6,7 @@ import CompileTask = require('../tasks/Compile');
 import File = require('../core/File');
 import Workspace = require('../core/Workspace');
 import Sysroot = require('../core/Sysroot');
+import Provider = require('../core/Provider');
 import CompileClangTask = require('../tasks/CompileClang');
 import LinkLibToolTask = require('../tasks/LinkLibTool');
 import CXXTarget = require('../targets/_CXXTarget');
@@ -21,6 +22,7 @@ class DarwinSysroot extends Sysroot {
 
   createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
     var task = new CompileClangTask(target, srcFile, objFile);
+    task.provider= <Provider.Process>Provider.find({compiler:"clang"});
     if(target.linkType === CXXTarget.LinkType.DYNAMIC)
       task.addFlags(["-fPIC"]);
     if (this.triples)
@@ -31,6 +33,12 @@ class DarwinSysroot extends Sysroot {
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
     var task = new LinkLibToolTask(target, compileTasks, finalFile, target.linkType);
+    switch (target.linkType) {
+      case CXXTarget.LinkType.DYNAMIC: task.provider= <Provider.Process>Provider.find({compiler:"clang"}); break;
+      case CXXTarget.LinkType.EXECUTABLE: task.provider= <Provider.Process>Provider.find({compiler:"clang"}); break;
+      case CXXTarget.LinkType.STATIC: task.provider= <Provider.Process>Provider.find({linker:"libtool"}); break;
+      default: return callback(new Error("Unknown target.linkType"));
+    }
     if(target.linkType === CXXTarget.LinkType.DYNAMIC)
       task.addFlags(["-fPIC"]);
     if (this.triples)

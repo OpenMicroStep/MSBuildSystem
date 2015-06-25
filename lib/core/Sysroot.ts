@@ -5,6 +5,7 @@ import Framework = require('../targets/Framework');
 import Task = require('./task');
 import CompileTask = require('../tasks/Compile');
 import Workspace = require('./Workspace');
+import Provider = require('./Provider');
 import File = require('./File');
 import _ = require('underscore');
 import util = require('./util');
@@ -29,6 +30,17 @@ class Sysroot implements Sysroot.Interface {
 
   constructor(public directory:string, extension:{}) {
     _.extend(this, extension);
+    var providers = extension["provides"];
+    if (Array.isArray(providers)) {
+      providers.forEach((providerInfo) => {
+        if (typeof providerInfo.process === "string") {
+          var bin = providerInfo.process;
+          delete providerInfo.process;
+          var provider = new Provider.Process(path.join(this.directory, bin), providerInfo);
+          Provider.register(provider);
+        }
+      });
+    }
   }
 
   /** List of loaded sysroot classes */
