@@ -23,7 +23,7 @@ class DarwinSysroot extends Sysroot {
   createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
     var task = new CompileClangTask(target, srcFile, objFile);
     task.provider= <Provider.Process>Provider.find({compiler:"clang"});
-    if(target.linkType === CXXTarget.LinkType.DYNAMIC)
+    if(target.linkType !== CXXTarget.LinkType.EXECUTABLE)
       task.addFlags(["-fPIC"]);
     if (this.triples)
       task.addFlags(["--target=" + this.triples[target.arch]]);
@@ -41,7 +41,7 @@ class DarwinSysroot extends Sysroot {
     }
     if(target.linkType === CXXTarget.LinkType.DYNAMIC)
       task.addFlags(["-fPIC"]);
-    if (this.triples)
+    if (this.triples && target.linkType !== CXXTarget.LinkType.STATIC)
       task.addFlags(["--target=" + this.triples[target.arch]]);
     callback(null, task);
   }

@@ -5,7 +5,7 @@
 var dateFormat = require("dateformat");
 import util = require('util');
 import chalk = require("chalk");
-chalk.enabled = true;
+//chalk.enabled = true;
 var startTime = (new Date()).getTime();
 function pad(num, mask) {
   return (mask + num).slice(-Math.max(mask.length, (num + "").length));

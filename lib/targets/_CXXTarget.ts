@@ -79,6 +79,12 @@ class CXXTarget extends Target {
     });
   }
 
+  addArchives(libs: string[]) {
+    this.addTaskModifier('Link', function (target: Target, task: LinkTask) {
+      task.addArchiveFlags(libs);
+    });
+  }
+
   addDefines(defines: string[]) {
     this.addCompileFlags(defines.map(function(def) { return "-D" + def; }));
   }

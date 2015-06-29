@@ -55,7 +55,7 @@ class ProcessTask extends Task {
     }
   }
 
-  runProcess(callback) {
+  runProcess(callback : (err: string, output: string) => any) {
     this.provider.process(this.inputFiles, this.outputFiles, "runTask", {
       args: this.args,
       env: this.env
@@ -68,7 +68,7 @@ class ProcessTask extends Task {
     }
     else {
       this.runProcess((err, output) => {
-        this.log(output);
+        if(output) this.log("\n" + output);
         if(err) this.log(err);
         this.end(err ? 1 : 0);
       });

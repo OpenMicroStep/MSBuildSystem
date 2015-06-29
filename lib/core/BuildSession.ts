@@ -14,7 +14,7 @@ interface BuildSession {
 module BuildSession {
   export class InDatabase implements BuildSession {
     db: Datastore;
-    constructor(dbPath: string) {
+    constructor(public dbPath: string) {
       this.db = new Datastore({ filename: dbPath, autoload: true });
     }
     retrieveInfo(key: string, callback: (info: any) => any) {

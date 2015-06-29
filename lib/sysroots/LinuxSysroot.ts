@@ -31,7 +31,7 @@ class LinuxSysroot extends Sysroot {
       task = new CompileGCCTask(target, srcFile, objFile);
       task.provider= <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
     }
-    if(target.linkType === CXXTarget.LinkType.DYNAMIC)
+    if(target.linkType !== CXXTarget.LinkType.EXECUTABLE)
       task.addFlags(["-fPIC"]);
     if (this.triple) {
       task.addFlags(["--target=" + this.triple]);

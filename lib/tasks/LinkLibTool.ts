@@ -32,6 +32,14 @@ class LinkLibToolTask extends LinkTask {
     if(this.type !== CXXTarget.LinkType.STATIC)
       this.addFlags(libs);
   }
+
+  addArchiveFlags(libs: string[]) {
+    if(this.type !== CXXTarget.LinkType.STATIC) {
+      libs.forEach((lib) => {
+        this.appendArgs(["-force_load", lib]);
+      });
+    }
+  }
 }
 Task.registerClass(LinkLibToolTask, "LinkLibTool");
 

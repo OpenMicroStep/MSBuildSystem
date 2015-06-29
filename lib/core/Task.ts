@@ -121,7 +121,7 @@ class Task {
     console.debug(this.name, "\n", this.logs);
     this.errors = errors;
     this.state = Task.State.DONE;
-    this.data.logs = this.logs;
+    this.data.logs = ""; //this.logs;
     this.data.errors = errors;
     this.data.lastRunEndTime = (new Date()).getTime();
     --Task.nbTaskRunning;

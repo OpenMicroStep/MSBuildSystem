@@ -19,9 +19,22 @@ class Process {
   static run(command : string, args : string[], env: {[s:string]: string}, callback : (err: string, out: string) => any) {
     var options: any = {};
     if(env) {
-      options.env= process.env;
-      for(var i in env) {
-        if(env.hasOwnProperty(i)) {
+      var base = process.env;
+      var pathKey = "PATH";
+      options.env = {};
+      for (var i in base) {
+        if (base.hasOwnProperty(i)) {
+          if (i.toLowerCase() == "path")
+            pathKey= i;
+          options.env[i] = base[i];
+        }
+      }
+      if (env["PATH"] && pathKey !== "PATH") {
+        env[pathKey] = env["PATH"];
+        delete env["PATH"];
+      }
+      for (var i in env) {
+        if (env.hasOwnProperty(i)) {
           options.env[i] = env[i];
         }
       }
@@ -95,7 +108,7 @@ var waitingProcesses = [];
 var nbProcessRunning = 0;
 function _run(fct, args, startCallback) {
   nbProcessRunning++;
-  console.info("Run process", args[0], args[1].join(" "));
+  console.debug("Run process", args[0], args[1].join(" "));
   var ret = fct.apply(child_process, args);
   startCallback(ret);
   var exited = false;

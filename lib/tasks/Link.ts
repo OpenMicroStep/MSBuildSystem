@@ -25,6 +25,10 @@ class LinkTask extends ProcessTask {
   addLibraryFlags(libs: string[]) {
     this.addFlags(libs);
   }
+
+  addArchiveFlags(libs: string[]) {
+    this.addLibraryFlags(libs);
+  }
 }
 Task.registerClass(LinkTask, "Link");
 export = LinkTask;

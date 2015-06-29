@@ -9,6 +9,7 @@ import Provider = require('../core/Provider');
 import CXXTarget = require('../targets/_CXXTarget');
 import CompileClangTask = require('../tasks/CompileClang');
 import CompileGCCTask = require('../tasks/CompileGCC');
+import CompileMasmTask = require('../tasks/CompileMasmTask');
 import LinkBinUtilsTask = require('../tasks/LinkBinUtils');
 import LinkMSVCTask = require('../tasks/LinkMSVC');
 import CompileTask = require('../tasks/Compile');
@@ -22,7 +23,6 @@ class WindowsSysroot extends Sysroot {
   cIncludes: string[];
   cppIncludes: string[];
   installLibraries: string[];
-  libraries: string[];
 
   constructor(directory:string, extension:{}) {
     super(directory, extension);
@@ -44,6 +44,12 @@ class WindowsSysroot extends Sysroot {
 
   createCompileTask(target: CXXTarget, srcFile: File, objFile: File, callback: Sysroot.CreateTaskCallback) {
     var task;
+    if (path.extname(srcFile.path) === ".asm")
+    {
+      task= new CompileMasmTask(target, srcFile, objFile);
+      task.provider= <Provider.Process>Provider.find({assembler:"msvc", arch:target.env.arch, version:this["api-version"]});
+      return callback(null, task);
+    }
     if(target.env.compiler === "clang") {
       task = new CompileClangTask(target, srcFile, objFile);
       task.provider = <Provider.Process>Provider.find({compiler:"clang", version:"3.7"});
@@ -63,7 +69,7 @@ class WindowsSysroot extends Sysroot {
       task.addFlags(this.cppIncludes);
     }
     if (target.sysroot.api === "msvc") {
-      task.addFlags(["-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fno-rtti", "-fmsc-version=1800"]);}
+      task.addFlags(["-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fmsc-version=1800"]);}
     if(this.cIncludes) {
       task.addFlags(["-nostdinc"]);
       if (target.sysroot.api === "msvc")
@@ -76,35 +82,36 @@ class WindowsSysroot extends Sysroot {
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
-    if (target.env.linker === "msvc") {
-      var task = new LinkMSVCTask(target, compileTasks, finalFile, target.linkType);
-      var conditions: any = {linker:"msvc", arch:target.env.arch, version:this["api-version"]};
-      task.provider = <Provider.Process>Provider.find(conditions);
-      if (this.libraries) {
-        this.libraries.forEach((lib) => {
-          task.addFlags(["/libpath:"+path.join(this.sysrootDirectory, lib)]);
-        });
-      }
+    if (target.sysroot.api === "msvc") {
+      var conditions: any;
+      var link = new LinkMSVCTask(target, compileTasks, finalFile, target.linkType);
+      if (target.linkType === CXXTarget.LinkType.STATIC)
+        conditions = {archiver:"msvc", arch:target.env.arch, version:this["api-version"]};
+      else
+        conditions = {linker:"msvc", arch:target.env.arch, version:this["api-version"]};
+      link.provider = <Provider.Process>Provider.find(conditions);
+      link.dumpbinProvider =  <Provider.Process>Provider.find({type:"dumpbin", arch:target.env.arch, version:this["api-version"]});
+      callback(null, link);
     }
     else {
-      var task = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
+      var binutils = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
       if (target.linkType === CXXTarget.LinkType.STATIC)
-        task.provider = <Provider.Process>Provider.find({archiver:"binutils", triple:this.triple});
+        binutils.provider = <Provider.Process>Provider.find({archiver:"binutils", triple:this.triple});
       else
-        task.provider = <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
+        binutils.provider = <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
       if (this.triple) {
-        task.addFlags(["--target=" + this.triple]);
-        task.addFlags(["--sysroot=" + this.sysrootDirectory]);
+        binutils.addFlags(["--target=" + this.triple]);
+        binutils.addFlags(["--sysroot=" + this.sysrootDirectory]);
       }
+      callback(null, binutils);
     }
-    callback(null, task);
   }
   linkFinalName(target: CXXTarget):string {
     var name = super.linkFinalName(target);
     switch(target.linkType) {
       case CXXTarget.LinkType.EXECUTABLE: name += ".exe"; break;
       case CXXTarget.LinkType.DYNAMIC:    name += ".dll"; break;
-      case CXXTarget.LinkType.STATIC:     name += ".a"  ; break;
+      case CXXTarget.LinkType.STATIC:     target.sysroot.api === "msvc" ? name += ".lib" : name += ".a" ; break;
     }
     return name;
   }

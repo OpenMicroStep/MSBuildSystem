@@ -19,7 +19,7 @@ class CompileClangTask extends CompileTask {
     // if ( ?.variant.debug )
     this.appendArgs(["-g"]);
     if (this.language === 'C' || this.language === 'OBJC')
-      this.appendArgs(["-std=gnu11"]);
+      this.appendArgs(["-std=c11"]);
     // if ( ?.variant.optimize )
     //   this.appendArgs(["-O3"]);
     //if(!(<any>process.stdout).isTTY)

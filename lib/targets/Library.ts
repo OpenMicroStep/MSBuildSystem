@@ -27,7 +27,10 @@ class Library extends CXXTarget {
   exports(targetToConfigure: Target, callback: ErrCallback) {
     if(targetToConfigure instanceof CXXTarget) {
       targetToConfigure.addIncludeDirectory(this.buildPublicHeaderPath());
-      targetToConfigure.addLibraries([this.sysroot.linkFinalPath(this)]);
+      if (this.linkType === CXXTarget.LinkType.STATIC)
+        targetToConfigure.addArchives([this.sysroot.linkFinalPath(this)]);
+      else
+        targetToConfigure.addLibraries([this.sysroot.linkFinalPath(this)]);
       super.exports(targetToConfigure, callback);
     }
     else {

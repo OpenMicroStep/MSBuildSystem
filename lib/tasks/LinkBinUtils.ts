@@ -34,6 +34,14 @@ class LinkBinUtilsTask extends LinkTask {
     if(this.type !== CXXTarget.LinkType.STATIC)
       this.appendArgs(libs);
   }
+
+  addArchiveFlags(libs: string[]) {
+    if(this.type !== CXXTarget.LinkType.STATIC) {
+      this.appendArgs(["-Wl,--whole-archive"]);
+      this.appendArgs(libs);
+      this.appendArgs(["-Wl,--no-whole-archive"]);
+    }
+  }
 }
 Task.registerClass(LinkBinUtilsTask, "LinkBinUtils");
 
