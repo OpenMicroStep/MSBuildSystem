@@ -22,14 +22,18 @@ class LinkMSVCTask extends LinkTask {
     else {
       this.appendArgs(["kernel32.lib", "user32.lib", "shell32.lib", "MSVCRT.lib", "oldnames.lib"]);
       this.appendArgs(["/nologo"]);
-      this.appendArgs(["/debug"]);
+      if ((<CXXTarget>graph).variant !== "release")
+        this.appendArgs(["/debug"]);
       if(this.type === CXXTarget.LinkType.DYNAMIC) {
         this.appendArgs(["/dll"]);
-        var out = File.getShared(finalFile.path.substring(0, finalFile.path.length - 3) + "lib");
-        this.exports.push(out);
-        this.outputFiles.push(out);
+        if (!(<CXXTarget>graph).isInstanceOf("Bundle") && !(<CXXTarget>graph).isInstanceOf("Executable")) {
+          var out = File.getShared(finalFile.path.substring(0, finalFile.path.length - 3) + "lib");
+          this.exports.push(out);
+          this.outputFiles.push(out);
+        }
       }
-      this.outputFiles.push(File.getShared(finalFile.path.substring(0, finalFile.path.length - 3) + "pdb"));
+      if ((<CXXTarget>graph).variant !== "release")
+        this.outputFiles.push(File.getShared(finalFile.path.substring(0, finalFile.path.length - 3) + "pdb"));
       this.appendArgs(["/out:" + finalFile.path]);
     }
     this.appendArgs(this.inputFiles.map(function (file) {
@@ -82,6 +86,18 @@ class LinkMSVCTask extends LinkTask {
 
   addArchiveFlags(libs: string[]) {
     this._addLibFlags(libs, true);
+  }
+  addDef(def: string) {
+    if(this.type === CXXTarget.LinkType.STATIC)
+      return;
+    var f = File.getShared(def);
+    this.inputFiles.push(f);
+    this.addFlags(["/def:"+def]);
+  }
+  addDefs(defs: string[]) {
+    defs.forEach((def) => {
+      this.addDef(def);
+    });
   }
 }
 Task.registerClass(LinkMSVCTask, "LinkMSVC");

@@ -68,16 +68,14 @@ class WindowsSysroot extends Sysroot {
       task.addFlags(["-nostdinc++"]);
       task.addFlags(this.cppIncludes);
     }
-    if (target.sysroot.api === "msvc") {
-      task.addFlags(["-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fmsc-version=1800"]);}
+    if (target.sysroot.api === "msvc")
+      task.addFlags(["-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fmsc-version=1700", "-Wno-microsoft"/*, "-D_ITERATOR_DEBUG_LEVEL=2", "-D_DEBUG", "-D_MT"*//*, "-emit-llvm"*/]);
     if(this.cIncludes) {
       task.addFlags(["-nostdinc"]);
       if (target.sysroot.api === "msvc")
         task.addFlags(["-isystem", path.join(task.provider.bin, "../../lib/clang/3.7.0/include")]);
       task.addFlags(this.cIncludes);
     }
-    if(target.variant === "release")
-      task.addFlags(["-O3"]);
 
     callback(null, task);
   }
@@ -90,6 +88,9 @@ class WindowsSysroot extends Sysroot {
       else
         conditions = {linker:"msvc", arch:target.env.arch, version:this["api-version"]};
       link.provider = <Provider.Process>Provider.find(conditions);
+      //link.llvmLinkProvider = <Provider.Process>Provider.find({type:"llvm-link", version:"3.7"});
+      //link.clangLinkProvider = <Provider.Process>Provider.find({compiler:"clang", version:"3.7"});
+      //link.clangLinkArgs.push("--target=" + this.triple);
       link.dumpbinProvider =  <Provider.Process>Provider.find({type:"dumpbin", arch:target.env.arch, version:this["api-version"]});
       callback(null, link);
     }

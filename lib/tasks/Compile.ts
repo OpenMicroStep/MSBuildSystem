@@ -67,11 +67,11 @@ class CompileTask extends ProcessTask {
   isRunRequired(callback: (err: Error, required?:boolean) => any) {
     var barrier = new File.EnsureBarrier("Compile.isRunRequired", 3);
     if(this.data.headers)
-      File.ensure(this.data.headers, this.data.lastRunEndTime, {}, (err, required) => { barrier.dec(null, !!err || required) });
+      File.ensure(this.data.headers, this.data.lastSuccessTime, {}, (err, required) => { barrier.dec(null, !!err || required) });
     else
       barrier.dec(null, true);
-    File.ensure(this.inputFiles, this.data.lastRunEndTime, {}, barrier.decCallback());
-    File.ensure(this.outputFiles, this.data.lastRunEndTime, {ensureDir: true}, barrier.decCallback());
+    File.ensure(this.inputFiles, this.data.lastSuccessTime, {}, barrier.decCallback());
+    File.ensure(this.outputFiles, this.data.lastSuccessTime, {ensureDir: true}, barrier.decCallback());
     barrier.endWith(callback);
   }
 }

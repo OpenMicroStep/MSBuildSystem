@@ -7,6 +7,7 @@ import Task = require('../core/Task');
 import Graph = require('../core/Graph');
 import Provider = require('../core/Provider');
 import CompileTask = require('./Compile');
+import Target = require('../core/Target');
 
 class CompileClangTask extends CompileTask {
   constructor(graph: Graph, srcFile:File, objFile:File) {
@@ -17,11 +18,13 @@ class CompileClangTask extends CompileTask {
       "-c", srcFile.path
     ]);
     // if ( ?.variant.debug )
-    this.appendArgs(["-g"]);
+
+    if ((<Target>graph).variant !== "release")
+      this.appendArgs(["-g"]);
+    else
+      this.appendArgs(["-O3"]);
     if (this.language === 'C' || this.language === 'OBJC')
       this.appendArgs(["-std=c11"]);
-    // if ( ?.variant.optimize )
-    //   this.appendArgs(["-O3"]);
     //if(!(<any>process.stdout).isTTY)
     //  this.appendArgs(['-fno-color-diagnostics']);
   }

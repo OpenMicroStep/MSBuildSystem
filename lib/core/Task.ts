@@ -67,7 +67,7 @@ class Task {
   logs: string;
   errors: number;
 
-  private sessionKey: string;
+  private sessionKey: string= undefined;
   data: Task.SessionData;
 
   /** Get the task ready for the next run */
@@ -80,13 +80,17 @@ class Task {
     this.requiredBy.forEach(function(input) {input.reset();});
   }
 
-  uniqueKey(): string { return this._id.toString(); }
+  uniqueKey(): string { return null; }
   start(action: Task.Action, callback: (task: Task) => any, buildSession: BuildSession = BuildSession.noop) {
     if(this.state === Task.State.WAITING) {
-      if(!this.sessionKey) {
-        var shasum = crypto.createHash('sha1');
-        shasum.update(this.uniqueKey());
-        this.sessionKey = this.classname + "-" + shasum.digest('hex') + "-" + Task.Action[action];
+      if(this.sessionKey === undefined) {
+        this.sessionKey = null;
+        var key = this.uniqueKey();
+        if (key) {
+          var shasum = crypto.createHash('sha1');
+          shasum.update(key);
+          this.sessionKey = this.classname + "-" + shasum.digest('hex') + "-" + Task.Action[action];
+        }
       }
       this.observers.push(() => {
         buildSession.storeInfo(this.sessionKey, this.data);
@@ -96,6 +100,7 @@ class Task {
         this.data = data || {};
         this.data.lastRunStartTime = (new Date()).getTime();
         this.data.lastRunEndTime = this.data.lastRunEndTime || 0;
+        this.data.lastSuccessTime = this.data.lastSuccessTime || 0;
         this.runAction(action, buildSession);
       });
     }
@@ -124,7 +129,9 @@ class Task {
     this.data.logs = ""; //this.logs;
     this.data.errors = errors;
     this.data.lastRunEndTime = (new Date()).getTime();
+    this.data.lastSuccessTime = errors ? 0 : this.data.lastRunEndTime;
     --Task.nbTaskRunning;
+    //process.stderr.write(this.logs);
     if (Task.waitingTasks.length > 0) {
       var task = Task.waitingTasks.shift();
       ++Task.nbTaskRunning;
@@ -193,6 +200,7 @@ module Task {
     errors: number;
     lastRunStartTime:number;
     lastRunEndTime:number;
+    lastSuccessTime: number;
   }
   export enum State {
     UNINITIALIZED,

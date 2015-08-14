@@ -73,7 +73,22 @@ module Barrier {
       super.endWith(action);
     }
   }
-
+  export class ErrBarrier extends Barrier {
+    protected errors = [];
+    dec(err?: any) {
+      if(err) this.errors.push(err);
+      super.dec();
+    }
+    decCallback() {
+      return (err?: any) => { this.dec(err); }
+    }
+    protected signal(action) {
+      action(this.errors);
+    }
+    endWith(action: (errors?: any[]) => any) {
+      super.endWith(action);
+    }
+  }
 }
 
 export = Barrier;

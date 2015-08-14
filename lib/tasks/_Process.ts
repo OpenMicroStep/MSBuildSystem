@@ -46,8 +46,8 @@ class ProcessTask extends Task {
   isRunRequired(callback: (err: Error, required?:boolean) => any) {
     if(this.inputFiles.length && this.outputFiles.length) {
       var barrier = new File.EnsureBarrier("Compile.isRunRequired", 2);
-      File.ensure(this.inputFiles, this.data.lastRunEndTime, {log: true}, barrier.decCallback());
-      File.ensure(this.outputFiles, this.data.lastRunEndTime, {ensureDir: true, log: true}, barrier.decCallback());
+      File.ensure(this.inputFiles, this.data.lastSuccessTime, {log: true}, barrier.decCallback());
+      File.ensure(this.outputFiles, this.data.lastSuccessTime, {ensureDir: true, log: true}, barrier.decCallback());
       barrier.endWith(callback);
     }
     else {

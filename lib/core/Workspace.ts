@@ -84,7 +84,7 @@ class Workspace {
     return workspace;
   }
 
-  resolveFiles(queries:string[]):string[] {
+  resolveFiles(queries:string[], absolute: boolean = true):string[] {
     var self = this;
 
     function findGroupFiles(path:string[], files) {
@@ -119,8 +119,12 @@ class Workspace {
       fileTree.forEach(function (file) {
         if (file.group)
           filterFiles(filters, files, file.files);
-        else if (file.file && keepFile(filters, file))
-          files.add(file.file);
+        else if (file.file && keepFile(filters, file)) {
+          if (absolute)
+            files.add(path.join(self.directory, file.file));
+          else
+            files.add(file.file);
+        }
       });
     }
 
@@ -285,8 +289,8 @@ module Workspace {
     outputs:Set<Target>;
     constructor(private root: RootTask, public env: Workspace.Environment) {
       super("Environment " + env.name, root);
-      this.output = path.join(root.directory, env.directories.output, env.name);
-      this.intermediates = path.join(root.directory, env.directories.intermediates, env.name);
+      this.output = path.join(root.directory, env.directories.output, root.variant, env.name);
+      this.intermediates = path.join(root.directory, env.directories.intermediates, root.variant, env.name);
       this.buildSession = new BuildSession.InDatabase(path.join(this.intermediates, "session.nedb"));
     }
     get variant(): string { return (<RootTask>this.graph).variant; }

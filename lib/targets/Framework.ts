@@ -47,7 +47,7 @@ class Framework extends Library {
   exports(targetToConfigure: Target, callback: ErrCallback) {
     if(targetToConfigure instanceof CXXTarget) {
       targetToConfigure.addCompileFlags(['-F' + this.output]);
-      targetToConfigure.addLinkFlags([this.sysroot.linkFinalPath(this)]);
+      targetToConfigure.addLibraries([this.sysroot.linkFinalPath(this)]);
       CXXTarget.prototype.exports.call(this, targetToConfigure, callback);
     }
     else {

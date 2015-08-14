@@ -24,7 +24,7 @@ function startWith(arg, str) {
 var action = null;
 var environments = [];
 var targets = [];
-var variant = "debug";
+var variants = [];
 process.argv.forEach(function(arg) {
   var v;
   if((v = startWith(arg, "--target=")))
@@ -32,7 +32,7 @@ process.argv.forEach(function(arg) {
   else if((v = startWith(arg, "--env=")))
     environments.push(v);
   else if((v = startWith(arg, "--variant=")))
-    variant= v;
+    variants.push(v);
   else if(arg === "make")
     action = Graph.Action.RUN;
   else if(arg === "rebuild")
@@ -40,11 +40,12 @@ process.argv.forEach(function(arg) {
   else if(arg === "clean")
     action = Graph.Action.CLEAN;
 });
-
+variants.length= 1;
 console.info("Action:", action);
 console.info("Workspace:", workspace.path);
 console.info("Targets:", targets);
 console.info("Environments:", environments);
+console.info("Variants:", variants);
 
 
 console.info("Building compilation graph");
@@ -59,11 +60,12 @@ Provider.register(new Provider.Process("clang", { type:"compiler", compiler:"cla
 Provider.register(new Provider.Process("libtool", { type:"linker", linker:"libtool", version:"870"}));
 // Trunk version of clang for msvc support
 Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/clang", { type:"compiler", compiler:"clang", version:"3.7"}));
-var client = new Provider.RemoteClient("http://10.0.0.18:2346");
+Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/llvm-link", { type:"llvm-link", version:"3.7"}));
+var client = new Provider.RemoteClient("http://10.211.55.16:2346");
 
 client.socket.once("ready", function() {
   workspace.buildGraph({
-    variant:variant,
+    variant:variants[0],
     targets: targets,
     environments: environments
   }, function (err, graph) {

@@ -37,8 +37,6 @@ class LinuxSysroot extends Sysroot {
       task.addFlags(["--target=" + this.triple]);
       task.addFlags(["--sysroot=" + this.sysrootDirectory]);
     }
-    if(target.variant === "release")
-      task.addFlags(["-O3"]);
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {

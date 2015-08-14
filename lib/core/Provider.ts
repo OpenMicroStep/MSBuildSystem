@@ -5,6 +5,7 @@
 import io = require("socket.io-client");
 import ioServer = require("socket.io");
 import path = require("path");
+import fsex = require("fs-extra");
 import fs = require("fs-extra");
 import crypto = require("crypto");
 import Datastore = require("nedb");
@@ -92,28 +93,56 @@ module Provider {
       super(conditions);
     }
 
+    /*
+     - emit once:    process-init, input_paths => pid
+     - emit n times: process-upload, pid, input_idx, data
+     - emit once:    process-run, pid, provider_id, output_paths, action, options
+       - on n times: process-upload-pid, output_idx, data
+       - => (err, args)
+     - emit once:    process-end
+     */
     process(inputs: File[], outputs: File[], action: string, options: any, cb) {
-      var barrier = new Barrier.FirstErrBarrier("RemoteProvider handle inputs", inputs.length);
-      var files= new Array(inputs.length);
-      inputs.forEach((file, idx) => {
-        fs.readFile(file.path, (err, data) => {
-          files[idx]= {path:file.path, data:data};
-          barrier.dec(err);
-        });
-      });
-      barrier.endWith((err) => {
-        if (err) return cb(err);
-        var outputsMapped= outputs.map((output) => { return output.path; });
-        this.io.emit("process", this.id, files, outputsMapped, action, options, (err:Error, outputsData?: Buffer[], args?:any[]) => {
-          if (err) return cb(err);
-          if (args[0]) return cb.apply(null, args);
-          var barrier = new Barrier.FirstErrBarrier("RemoteProvider handle outputs", outputsData.length);
-          outputsData.forEach((output, idx) => {
-            fs.writeFile(outputs[idx].path, output, barrier.decCallback());
+      var inputsMapped= inputs.map((i) => { return i.path; });
+      var outputsMapped= outputs.map((output) => { return output.path; });
+      this.io.emit("process-init", inputsMapped, (pid) => {
+        var barrier = new Barrier.ErrBarrier("RemoteProvider handle inputs", inputs.length);
+        inputs.forEach((file, idx) => {
+          var reader = fs.createReadStream(file.path);
+          reader.on('data', (data) => {
+            this.io.emit("process-upload", pid, idx, data);
           });
-          barrier.endWith((err) => {
-            if (err) cb(err);
-            else cb.apply(null, args);
+          reader.on('end', () => { barrier.dec(); });
+          reader.on('error', (err) => { barrier.dec(err); });
+        });
+        barrier.endWith((errors) => {
+          var outputsStream: fs.WriteStream[];
+          var self = this;
+          var end = function(err?) {
+            if (outputsStream)
+              outputsStream.forEach((stream) => { stream.end(); });
+            self.io.emit("process-end", pid);
+            var args= Array.from(arguments);
+            if (err && typeof err !== "string") {
+              if (Array.isArray(err))
+                err= Array.from(err).map(function(err: any) { return err.message || err; }).join(', ');
+              else
+                err= err.message || err;
+              args[0]= err;
+            }
+            cb.apply(null, args);
+          };
+          if (errors.length) return end(errors);
+
+          outputsStream= outputs.map((output) => { return fs.createWriteStream(output.path); });
+          this.io.on("process-upload-" + pid, (idx, data) => {
+            //console.info("process-upload-" + pid, idx);
+            outputsStream[idx].write(data);
+          });
+          this.io.emit("process-run", pid, this.id, outputsMapped, action, options, (err: Error, output_errors?: Error[], args?:any[]) => {
+            console.info("process-run-cb", pid, err, output_errors);
+            this.io.off("process-upload-" + pid);
+            if (err || output_errors.length) return end(err || output_errors.join(", "));
+            end.apply(null, args);
           });
         });
       });
@@ -123,7 +152,7 @@ module Provider {
     socket: SocketIOClient.Socket;
 
     constructor(url: string) {
-      this.socket= io(url);
+      this.socket= io(url, {transports: ['websocket']});
       this.socket.on("register", (conditions, cb:(id:number) => any) => {
         console.info("Remote provider registered", conditions);
         var provider= new Remote(conditions, this.socket);
@@ -141,11 +170,12 @@ module Provider {
     providers: {[n: number]: Provider}= {};
     tmp: string;
     counter: number;
+    ctxs= {};
 
     constructor(port: number, tmpDirectory: string) {
-      this.io = ioServer(port);
+      this.io = ioServer(port, {transport: ["websocket"]});
       this.tmp = tmpDirectory;
-      this.counter= 0;
+      this.counter= (new Date()).getTime();
       this.io.on("connection", (socket: SocketIO.Socket) => {
         console.info("Connected to ", socket.handshake.address);
         var barrier = new Barrier("Provider.Server.register", Provider.providers.length);
@@ -158,60 +188,93 @@ module Provider {
         barrier.endWith(() => {
           socket.emit("ready");
         });
-        socket.on("process", (id:number, files: {path:string, data:Buffer}[], outputs:string[], action: string, options: any, cb:(err:Error, outputsData?: Buffer[], args?: any[]) => any) => {
-          var provider = this.providers[id];
-          if (provider) {
-            var tmpDirectory = path.join(this.tmp, (++this.counter).toString());
-            fs.mkdir(tmpDirectory, 0x1FF, (err) => {
-              if (err) return cb(err);
-              var prevCb = cb;
-              cb = function() {
-                fs.remove(tmpDirectory, (err) => { if (err) console.warn("Unable to remove directory " + tmpDirectory + " :", err)});
-                prevCb.apply(this, arguments);
-                prevCb = null;
-              };
-              var filePath = function(filepath: string) {
-                var basename = path.basename(filepath);
-                return path.join(tmpDirectory, basename);
-              };
-              var barrier = new Barrier.FirstErrBarrier("ServerProvider handle inputs", files.length);
-              var inputs= new Array(files.length);
-              files.forEach((file, idx) => {
-                var filepath= filePath(file.path);
-                options= provider.mapOptions(options, file.path, filepath);
-                fs.writeFile(filepath, file.data, barrier.decCallback());
-                inputs[idx]= File.getShared(filepath);
-              });
-              barrier.endWith((err) => {
-                if(err) return cb(err.message);
-                var outputsMapped= outputs.map((output) => {
-                  var filepath= filePath(output);
-                  options= provider.mapOptions(options, output, filepath);
-                  return File.getShared(filepath);
-                });
-                provider.process(inputs, outputsMapped, action, options, function (err) {
-                  var args= Array.from(arguments);
-                  if(err) return cb(null, null, args);
 
-                  var outputsRet = new Array(outputsMapped.length);
-                  var barrier = new Barrier.FirstErrBarrier("ServerProvider handle outputs", outputsMapped.length);
-                  outputsMapped.forEach((output, idx) => {
-                    fs.readFile(output.path, (err, data) => {
-                      outputsRet[idx]= data;
-                      barrier.dec(err && err.message);
-                    });
-                  });
-                  barrier.endWith((err) => {
-                    if (err) return cb(err);
-                    cb(null, outputsRet, args);
-                  });
-                })
-              });
+        socket.on("process-init", (input_paths: string[], cb: (pid) => any) => {
+          console.info("process-init");
+          var ctx: any = {};
+          ctx.id = ++this.counter;
+          ctx.dir= path.join(this.tmp, ctx.id.toString());
+          fs.mkdir(ctx.dir, 0x1FF, (err) => {
+            if(err) ctx.err= err;
+            ctx.filePath = function (filepath:string) {
+              var basename = path.basename(filepath);
+              return path.join(this.dir, basename);
+            };
+            ctx.input_paths = Array.from(input_paths);
+            ctx.input_paths_mapped = ctx.input_paths.map((path) => {
+              return ctx.filePath(path);
             });
-          }
-          else {
-            cb(new Error("Unable to find provider"));
-          }
+            ctx.inputs = ctx.input_paths_mapped.map((path) => {
+              var stream= fs.createWriteStream(path);
+              stream.on('error', (err) => { console.error(err); ctx.err= err; });
+              return stream;
+            });
+            this.ctxs[ctx.id] = ctx;
+            cb(ctx.id);
+          });
+        });
+        socket.on("process-end", (pid) => {
+          console.info("process-end", pid);
+          var ctx= this.ctxs[pid];
+          if (!ctx) return console.warn("process-end: Unable to find context: ", pid);
+          fsex.remove(ctx.dir, (err) => {
+            if (err) console.warn("process-end: Unable to remove directory " + ctx.dir + " :", err)
+          });
+          delete this.ctxs[pid];
+        });
+        socket.on("process-upload", (pid, idx, data) => {
+          var ctx = this.ctxs[pid];
+          if (!ctx) return console.warn("process-upload: Unable to find context: ", pid);
+          ctx.inputs[idx].write(data);
+        });
+        socket.on("process-run", (pid, id:number, outputs:string[], action: string, options: any, cb:(err: Error, output_errors?: Error[], args?: any[]) => any) => {
+          console.info("process-run", pid, id, outputs);
+          var ctx= this.ctxs[pid];
+          if (ctx.err) return cb(ctx.err.message || ctx.err);
+          var barrier = new Barrier("ServerProvider flush inputs", ctx.inputs.length);
+          ctx.inputs.forEach((input) => {
+            input.on('finish', function() {
+              //console.info("process-upload-end", pid, barrier.counter);
+              barrier.dec();
+            });
+            input.end();
+            //console.info("process-upload-endasked", pid, barrier.counter);
+          });
+          barrier.endWith(() => {
+            console.info("process-run", "inputs flushed", pid);
+            var provider = this.providers[id];
+            if (provider) {
+              var outputsMapped= outputs.map((output) => {
+                var filepath= ctx.filePath(output);
+                options= provider.mapOptions(options, output, filepath);
+                return File.getShared(filepath);
+              });
+              var inputsMapped= ctx.input_paths_mapped.map((path, idx) => {
+                options= provider.mapOptions(options, ctx.input_paths[idx], path);
+                return File.getShared(path);
+              });
+              provider.process(inputsMapped, outputsMapped, action, options, function (err) {
+                var args= Array.from(arguments);
+                console.info("process-run", "runned", pid, err);
+                if(err) return cb(null, [], args);
+                var barrier = new Barrier.ErrBarrier("ServerProvider handle outputs", outputsMapped.length);
+                outputsMapped.forEach((output, idx) => {
+                  var stream= fs.createReadStream(output.path);
+                  stream.on("error", (err) => { barrier.dec(err); });
+                  stream.on("data", (data) => { socket.emit("process-upload-" + pid, idx, data); });
+                  stream.on("end", () => { barrier.dec(); });
+                });
+                barrier.endWith((errors) => {
+                  console.info("process-run", "outputs sent", pid, errors);
+                  cb(null, errors, args);
+                });
+              });
+            }
+            else {
+              console.info("process-run", "Unable to find provider", pid);
+              cb(new Error("Unable to find provider"));
+            }
+          });
         });
       });
     }

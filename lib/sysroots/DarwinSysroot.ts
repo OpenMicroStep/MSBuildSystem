@@ -27,8 +27,6 @@ class DarwinSysroot extends Sysroot {
       task.addFlags(["-fPIC"]);
     if (this.triples)
       task.addFlags(["--target=" + this.triples[target.arch]]);
-    if(target.variant === "release")
-      task.addFlags(["-O3"]);
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {

@@ -30,7 +30,7 @@ class LinkLibToolTask extends LinkTask {
 
   addLibraryFlags(libs: string[]) {
     if(this.type !== CXXTarget.LinkType.STATIC)
-      this.addFlags(libs);
+      this.appendArgs(libs);
   }
 
   addArchiveFlags(libs: string[]) {

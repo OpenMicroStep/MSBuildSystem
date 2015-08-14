@@ -61,7 +61,7 @@ class PlistInfoTask extends Task {
     return JSON.stringify({info: this.info, path: this.path});
   }
   isRunRequired(callback: (err: Error, required?:boolean) => any) {
-    File.ensure([this.path], this.data.lastRunEndTime, {ensureDir:true}, callback);
+    File.ensure([this.path], this.data.lastSuccessTime, {ensureDir:true}, callback);
   }
   run() {
     fs.writeFile(this.path, Plist.stringify(this.info), 'utf8', (err) => {
