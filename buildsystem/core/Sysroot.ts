@@ -135,4 +135,5 @@ module Sysroot {
     (err: Error, task?: Task);
   }
 }
+
 export = Sysroot;

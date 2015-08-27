@@ -1,0 +1,7 @@
+@mixin pos-absolute($top, $right, $bottom, $left) {
+  position:absolute;
+  @if $top     != auto {     top:$top; }
+  @if $left    != auto {    left:$left; }
+  @if $right   != auto {   right:$right; }
+  @if $bottom  != auto {  bottom:$bottom; }
+}

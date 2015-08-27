@@ -1,0 +1,31 @@
+@import "Core";
+
+$tablayout-tabsheight: 26px;
+$tablayout-tabsborder: 2px;
+
+.tablayout {
+  @include pos-absolute(0,0,0,0);
+}
+
+.tablayout-top > .tablayout-tabs {
+  @include pos-absolute(0,0,auto,0);
+  height: $tablayout-tabsheight;
+  border-bottom: $tablayout-tabsborder solid #C0C0C0;
+}
+
+.tablayout-top > .tablayout-content {
+  @include pos-absolute($tablayout-tabsheight,0,0,0);
+  overflow: auto;
+}
+
+.tablayout-tab {
+  cursor: pointer;
+  display: inline-block;
+  margin: 0 6px;
+  padding: 4px;
+  background:#F6F6F6;
+  height: $tablayout-tabsheight - $tablayout-tabsborder;
+}
+.tablayout-tab.active {
+  background: #C0C0C0;
+}

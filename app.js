@@ -1,6 +1,6 @@
-var BuildSystem = require('./lib/BuildSystem');
-var Workspace = require('./lib/core/Workspace');
-var Graph = require('./lib/core/Graph');
+var BuildSystem = require('./out/buildsystem/BuildSystem');
+var Workspace = require('./out/buildsystem/core/Workspace');
+var Graph = require('./out/buildsystem/core/Graph');
 
 global.BuildSystem = BuildSystem;
 
@@ -52,7 +52,7 @@ console.info("Building compilation graph");
 console.time("Built workspace graph");
 
 // This VM provide i386 & x86_64 linker/masm
-var Provider = require('./lib/core/Provider');
+var Provider = require('./out/buildsystem/core/Provider');
 
 // TODO: move this a better place
 // Default OSX 10.10 compiler & linker
@@ -61,9 +61,9 @@ Provider.register(new Provider.Process("libtool", { type:"linker", linker:"libto
 // Trunk version of clang for msvc support
 Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/clang", { type:"compiler", compiler:"clang", version:"3.7"}));
 Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/llvm-link", { type:"llvm-link", version:"3.7"}));
-var client = new Provider.RemoteClient("http://10.211.55.16:2346");
+//var client = new Provider.RemoteClient("http://10.211.55.16:2346");
 
-client.socket.once("ready", function() {
+//client.socket.once("ready", function() {
   workspace.buildGraph({
     variant:variants[0],
     targets: targets,
@@ -72,7 +72,7 @@ client.socket.once("ready", function() {
     console.timeEnd("Built workspace graph");
     if (err) {
       console.error(err.stack || err);
-      client.socket.close();
+      //client.socket.close();
     }
     else {
       graph.reset();
@@ -85,10 +85,10 @@ client.socket.once("ready", function() {
         else
           console.info("%s Succeded", Graph.Action[action]);
         process.exitCode = task.errors;
-        client.socket.close();
+        //client.socket.close();
       });
     }
   });
-});
+//});
 
 

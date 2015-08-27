@@ -1,0 +1,69 @@
+@import "Core";
+
+$boxlayout-sep-width: 8px;
+$boxlayout-sep-halfwidth: $boxlayout-sep-width / 2;
+$boxlayout-padding: $boxlayout-sep-halfwidth;
+
+.boxlayout {
+  @include pos-absolute(0, 0, 0, 0);
+}
+
+.boxlayout-canresize {
+  background:#F6F6F6;
+}
+
+.boxlayout-item > div {
+  overflow: auto;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+.boxlayout-separator > div {
+  background:#F6F6F6;
+  z-index:1;
+}
+
+.boxlayout-item,
+.boxlayout-separator {
+  position:absolute;
+}
+
+.boxlayout-horizontal.boxlayout-canresize > .boxlayout-separator {
+  cursor:ew-resize;
+}
+.boxlayout-vertical.boxlayout-canresize > .boxlayout-separator {
+  cursor:ns-resize;
+}
+.boxlayout-horizontal.boxlayout-canresize > .boxlayout-item {
+  padding:0 $boxlayout-sep-halfwidth;
+}
+.boxlayout-vertical.boxlayout-canresize > .boxlayout-item {
+  padding:$boxlayout-sep-halfwidth 0;
+}
+.boxlayout-canresize > .boxlayout-item:first-child {
+  padding-left:0;
+  padding-top:0;
+}
+.boxlayout-canresize > .boxlayout-item:last-child {
+  padding-right:0;
+  padding-bottom: 0;
+}
+.boxlayout-horizontal > .boxlayout-item,
+.boxlayout-horizontal > .boxlayout-separator {
+  top:0;
+  bottom:0;
+}
+.boxlayout-vertical > .boxlayout-item,
+.boxlayout-vertical > .boxlayout-separator {
+  left:0;
+  right:0;
+}
+
+.boxlayout-horizontal > .boxlayout-separator > div {
+  @include pos-absolute(0, auto, 0, -$boxlayout-sep-halfwidth);
+  width: $boxlayout-sep-width;
+}
+.boxlayout-vertical > .boxlayout-separator > div {
+  @include pos-absolute(-$boxlayout-sep-halfwidth, 0, auto, 0);
+  height: $boxlayout-sep-width;
+}

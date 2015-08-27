@@ -94,6 +94,9 @@ class LocalFile {
   readUtf8File(cb: (err: Error, output: string) => any) {
     fs.readFile(this.path, "utf8", cb);
   }
+  writeUtf8File(content: string, cb: (err: Error) => any) {
+    fs.writeFile(this.path, content, "utf8", cb);
+  }
   stat(cb : (err: Error, stats: fs.Stats) => any) {
     fs.stat(this.path, cb);
   }

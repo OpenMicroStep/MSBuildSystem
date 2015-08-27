@@ -1,0 +1,14 @@
+@import "Core";
+
+.tree {
+  padding: 4px;
+}
+.tree-childs {
+  margin-left: 10px;
+}
+.tree-item {
+  white-space: nowrap;
+}
+.tree-item > .glyphicon {
+  margin-right: 4px;
+}

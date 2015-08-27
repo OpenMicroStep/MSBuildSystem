@@ -1,0 +1,25 @@
+@import "Core";
+
+.docklayout {
+  @include pos-absolute(0, 0, 0, 0);
+}
+
+.docklayout-overlay {
+  @include pos-absolute(0, 0, 0, 0);
+  // background: rgba(1.0,0,0,0.5);
+  z-index:2000;
+  width: 100%;
+  height: 100%;
+}
+
+.docklayout-overlay > polygon {
+  fill:rgba(209, 157, 22, 0.7);
+  stroke:rgb(0,0,0);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  cursor: pointer;
+}
+
+.docklayout-overlay > polygon:hover {
+  fill:rgba(209, 157, 22, 0.9);
+}

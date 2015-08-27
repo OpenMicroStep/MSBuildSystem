@@ -10,6 +10,7 @@ import Barrier = require('../core/Barrier');
 import File = require('../core/File');
 
 class ProcessTask extends Task {
+  public bin: string;
   public provider : Provider.Process = null;
   public args: string[] = [];
   public env: {[s:string]: string};
@@ -70,6 +71,7 @@ class ProcessTask extends Task {
       this.runProcess((err, output) => {
         if(output) this.log("\n" + output);
         if(err) this.log(err);
+        if(!err) process.stdout.write("\n" + output + "\n");
         this.end(err ? 1 : 0);
       });
     }
