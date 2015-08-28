@@ -23,3 +23,10 @@
 .docklayout-overlay > polygon:hover {
   fill:rgba(209, 157, 22, 0.9);
 }
+
+polygon.docklayout-overlay-root {
+  fill:rgba(157, 209, 22, 0.7);
+}
+polygon.docklayout-overlay-root:hover {
+  fill:rgba(157, 209, 22, 0.9);
+}

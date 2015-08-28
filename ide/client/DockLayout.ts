@@ -13,6 +13,38 @@ var orientations = [
 ];
 var isAppend = [false, true, true, false];
 
+
+function reduceByPourcent(o: ClientRect, pourcent: number) {
+  return {
+    top: o.top + o.height * pourcent ,
+    right: o.right - o.width * pourcent,
+    bottom: o.bottom - o.height * pourcent,
+    left: o.left + o.width * pourcent,
+    width: o.width * (1 - pourcent * 2),
+    height: o.height * (1 - pourcent * 2),
+  };
+}
+function reduceByPx(o: ClientRect, px: number) {
+  return {
+    top: o.top + px ,
+    right: o.right - px,
+    bottom: o.bottom - px,
+    left: o.left + px,
+    width: o.width - px * 2 ,
+    height: o.height - px * 2,
+  };
+}
+function removeOffset(o: ClientRect, ro: ClientRect) {
+  return {
+    width: o.width,
+    height: o.height,
+    left: o.left - ro.left,
+    top: o.top - ro.top,
+    right: o.right - ro.left,
+    bottom: o.bottom - ro.top
+  }
+}
+
 class DockLayout extends View implements DockLayout.DockParentView {
   _items: DockLayout.DockItem[];
   _root: DockLayout.DockTabLayout | DockLayout.DockBoxLayout;
@@ -52,6 +84,31 @@ class DockLayout extends View implements DockLayout.DockParentView {
     return [this._root];
   }
 
+  appendViewTo(view: ContentView, position: DockLayout.Position) {
+    if (position === DockLayout.Position.MIDDLE) {
+      this.main.appendViewTo(view, position);
+    }
+    else if (this._root instanceof DockLayout.DockTabLayout) {
+      (<DockLayout.DockTabLayout>this._root).appendViewTo(view, position);
+    }
+    else {
+      var orientation = orientations[position];
+      var root = (<DockLayout.DockBoxLayout>this._root);
+      if (root.orientation !== orientation) {
+        var parent = new DockLayout.DockBoxLayout(root, { orientation: orientation, userCanResize: true });
+        this.replaceView(root, parent);
+        parent.appendView(root, 1.0);
+        root = parent;
+      }
+      var tab = new DockLayout.DockTabLayout(root);
+      tab.appendView(view);
+      if (isAppend[position])
+        root.appendView(tab, 0.25);
+      else
+        root.insertView(tab, 0.25, 0);
+    }
+   }
+
   replaceView(oldView: DockLayout.DockTabLayout | DockLayout.DockBoxLayout, newView: DockLayout.DockTabLayout | DockLayout.DockBoxLayout) {
     if (this._root !== oldView) throw "Dock layout is corrupted";
     this._root = newView;
@@ -61,34 +118,27 @@ class DockLayout extends View implements DockLayout.DockParentView {
 
   _dockPlaces;
   showDockPlaces() {
+    var createPolygon = (tl_x,tl_y, tr_x, tr_y, br_x, br_y, bl_x, bl_y, tab, pos, cls?: string) => {
+      var polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      polygon.setAttribute("points", tl_x+","+tl_y+" "+tr_x+","+tr_y+" "+br_x+","+ br_y+" "+bl_x+","+bl_y);
+      svg.appendChild(polygon);
+      if (cls)
+        polygon.setAttribute("class", cls);
+      (<any>polygon)._docklayout = { root: this, tab:tab, pos:pos };
+      return polygon;
+    };
+
     var svg = this._dockPlaces = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "docklayout-overlay");
     svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
     this.el.appendChild(svg);
-    var offset = this.$el.offset();
-    // svg.outerHTML = '<svg class="docklayout-overlay"><polygon points="100,10 40,198 190,78 10,78 160,198" style="fill:lime;stroke:purple;stroke-width:5;fill-rule:evenodd;" /></svg>';
-    var createPolygon = (tl_x,tl_y, tr_x, tr_y, br_x, br_y, bl_x, bl_y, tab, pos) => {
-      var polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", tl_x+","+tl_y+" "+tr_x+","+tr_y+" "+br_x+","+ br_y+" "+bl_x+","+bl_y);
-      svg.appendChild(polygon);
-      (<any>polygon)._docklayout = { root: this, tab:tab, pos:pos };
-      return polygon;
-    };
+    var offset = this.el.getBoundingClientRect();
     var traverse = function(what : View) {
       if (what instanceof DockLayout.DockTabLayout) {
-        var o:any = what.$el.offset();
-        o.left -= offset.left;
-        o.top -= offset.top;
-        o.width = what.$el.width();
-        o.height = what.$el.height();
-        o.right = o.left + o.width;
-        o.bottom = o.top + o.height;
-        var m = {
-          top: o.top + o.height * 0.25 ,
-          right: o.right - o.width * 0.25,
-          bottom: o.bottom - o.height * 0.25,
-          left: o.left + o.width * 0.25
-        };
+        var rect = what._elContent.getBoundingClientRect();
+        var o = removeOffset(rect, offset);
+        var m = reduceByPourcent(o, 0.25);
+
         createPolygon(m.left, m.top, m.right, m.top, m.right, m.bottom, m.left, m.bottom, what, DockLayout.Position.MIDDLE);
         createPolygon(o.left, o.top, o.right, o.top, m.right, m.top, m.left, m.top, what, DockLayout.Position.TOP);
         createPolygon(o.right, o.top, o.right, o.bottom, m.right, m.bottom, m.right, m.top, what, DockLayout.Position.RIGHT);
@@ -102,6 +152,13 @@ class DockLayout extends View implements DockLayout.DockParentView {
       }
     };
     traverse(this._root);
+    var ro = removeOffset(offset, offset);
+    var m = reduceByPx(ro, 20);
+
+    createPolygon(ro.left, ro.top, ro.right, ro.top, m.right, m.top, m.left, m.top, this, DockLayout.Position.TOP, "docklayout-overlay-root");
+    createPolygon(ro.right, ro.top, ro.right, ro.bottom, m.right, m.bottom, m.right, m.top, this, DockLayout.Position.RIGHT, "docklayout-overlay-root");
+    createPolygon(ro.left, ro.bottom, ro.right, ro.bottom, m.right, m.bottom, m.left, m.bottom, this, DockLayout.Position.BOTTOM, "docklayout-overlay-root");
+    createPolygon(ro.left, ro.top, ro.left, ro.bottom, m.left, m.bottom, m.left, m.top, this, DockLayout.Position.LEFT, "docklayout-overlay-root");
   }
   hideDockPlaces() {
     this._dockPlaces.parentNode.removeChild(this._dockPlaces);
@@ -142,11 +199,11 @@ module DockLayout {
       super(options);
     }
 
-    appendView(view:DockTabLayout, size:number) {
+    appendView(view:DockTabLayout | DockBoxLayout, size:number) {
       super.appendView(view, size);
     }
 
-    insertView(view:DockTabLayout, size:number, at:number) {
+    insertView(view:DockTabLayout | DockBoxLayout, size: number, at: number) {
       super.insertView(view, size, at);
     }
 

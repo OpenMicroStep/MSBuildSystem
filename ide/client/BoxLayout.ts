@@ -174,7 +174,7 @@ export default class BoxLayout extends  View {
   private _startMovingSeparator(event: MouseEvent, i: number): void {
     if (event.button === 0) {
       var mvfn, upfn;
-      var size = this.el.clientWidth;
+      var size = this.orientation === Orientation.HORIZONTAL ? this.el.clientWidth : this.el.clientHeight;
       var orsize = this._items[i].size;
       var pos = this.orientation === Orientation.HORIZONTAL ? event.screenX : event.screenY;
       var moved = (event:MouseEvent) => {
