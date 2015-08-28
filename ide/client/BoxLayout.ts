@@ -9,7 +9,6 @@ export enum Orientation {
 }
 
 type LayoutItem = {
-  container: HTMLElement;
   view: View;
   size: number;
 };
@@ -19,21 +18,34 @@ export interface SerializedBoxLayout extends View.SerializedView {
   items: View.SerializedView[];
 }
 
+/**
+DOM structure:
+ <div class="boxlayout [boxlayout-horizontal or boxlayout-vertical] [boxlayout-canresize]"> <!-- BoxLayout.el -->
+   <div class="boxlayout-item" style="[left: x1%; right: x2%; or top: y1%; bottom: y2%;]">  <!-- BoxLayout._item[i].item -->
+     <div>[[CONTENT #1]]</div>                                                              <!-- BoxLayout._item[i].container, BoxLayout._item[i].view.el -->
+   </div>
+   <div class="boxlayout-separator" style="[left:x1%; or top: y1%]">                        <!-- BoxLayout._separators[i] -->
+     <div></div>
+   </div>
+   <div class="boxlayout-item" style="[left: x1%; right: x2%; or top: y1%; bottom: y2%;]">
+     <div>[[CONTENT #2]]</div>
+   </div>
+ </div>
+*/
 export default class BoxLayout extends  View {
   static Orientation = Orientation;
   static View = View;
 
-  private _items: LayoutItem[];
+  _items: LayoutItem[];
   _userCanResize: boolean;
   _orientation: Orientation;
 
   constructor(options: { userCanResize?: boolean, orientation?: Orientation } = {}) {
     super();
     this._items= [];
-    this._userCanResize= typeof options.userCanResize === "boolean" ? options.userCanResize : false;
-    this._orientation= typeof options.orientation == "number" ? options.orientation : Orientation.HORIZONTAL;
-
     this.el.className = "boxlayout";
+    this.userCanResize= typeof options.userCanResize === "boolean" ? options.userCanResize : false;
+    this.orientation= typeof options.orientation == "number" ? options.orientation : Orientation.HORIZONTAL;
   }
 
   getChildViews() : View[] {
@@ -45,7 +57,9 @@ export default class BoxLayout extends  View {
   }
   set orientation(orientation: Orientation) {
     this._orientation = orientation;
-    this.render();
+    this.$el.toggleClass("boxlayout-horizontal", this._orientation == Orientation.HORIZONTAL);
+    this.$el.toggleClass("boxlayout-vertical", this._orientation == Orientation.VERTICAL);
+    this.updateScales();
   }
 
   get userCanResize(): boolean {
@@ -53,55 +67,96 @@ export default class BoxLayout extends  View {
   }
   set userCanResize(userCanResize: boolean) {
     this._userCanResize = userCanResize;
-    this.render();
+    this.$el.toggleClass("boxlayout-canresize", this._userCanResize);
   }
 
   get count() {
     return this._items.length;
   }
 
+  findView(view: View) : number {
+    return this._items.findIndex((item) => {
+      return item.view === view;
+    });
+  }
   appendView(view: View, size: number) {
     this.insertView(view, size, this._items.length);
   }
   insertView(view: View, size: number, at: number) {
     if (at < 0 || at > this._items.length) throw  "'at' is out of bounds [0, " + this._items.length + "]";
-    var item = {view: view, size:0, container: document.createElement('div') };
-    this._items.splice(at, 0, item);
+
+    // DOM
+    if (this._items.length > 0) {
+      var domSep = document.createElement('div');
+      domSep.className= "boxlayout-separator";
+      domSep.addEventListener("mousedown", (event: MouseEvent) => {
+        var nodes = this.el.childNodes, sep = 0;
+        for(var i = 1, len = nodes.length; i < len; i += 2) {
+          if (nodes[i] == domSep) {
+            this._startMovingSeparator(event, sep);
+            break;
+          }
+          ++sep;
+        }
+      });
+      domSep.appendChild(document.createElement("div"));
+      this.el.insertBefore(domSep, this.el.childNodes[at > 0 ? at * 2 - 1 : 0]);
+    }
+    var domContainer = document.createElement('div');
+    domContainer.appendChild(view.el);
+    var domItem = document.createElement('div');
+    domItem.className= "boxlayout-item";
+    domItem.appendChild(domContainer);
+    this.el.insertBefore(domItem, this.el.childNodes[at * 2]);
+
+    // Items
+    this._items.splice(at, 0, {view: view, size:0});
+
+    // Sizing
     this.rescaleItem(at, size);
   }
+
   replaceView(oldView: View, newView: View) {
-    for(var item of this._items) {
-      if (item.view === oldView) {
-        item.view = newView;
-        this.render();
-        break;
-      }
+    var idx = this.findView(oldView);
+    if (idx != -1) {
+      this.replaceViewAt(idx, newView);
     }
   }
-  removeView(view) {
-    var idx = this._items.findIndex((item) => {
-      return item.view === view;
-    });
+  replaceViewAt(at: number, newView: View) {
+    if (at < 0 || at >= this._items.length) throw  "'at' is out of bounds [0, " + this._items.length + "[";
+    this._items[at].view = newView;
+    var domContainer = this.el.childNodes[at * 2].firstChild;
+    domContainer.removeChild(domContainer.firstChild);
+    domContainer.appendChild(newView.el);
+  }
+
+  removeView(view: View) {
+    var idx = this.findView(view);
     if (idx != -1) {
       this.removePart(idx);
     }
   }
-
   removePart(at: number) {
     if (at < 0 || at >= this._items.length) throw  "'at' is out of bounds [0, " + this._items.length + "[";
     this.rescaleItem(at, 0);
+    this.el.removeChild(this.el.childNodes[at * 2]); //< Remove item
+    if (this._items.length > 1)
+      this.el.removeChild(this.el.childNodes[at > 0 ? at * 2 - 1 : 0]); //< Remote separator
     this._items.splice(at, 1);
-    this.render();
   }
 
   movePart(from: number, to: number) {
     if (from < 0 || from >= this._items.length) throw  "'from' is out of bounds [0, " + this._items.length + "[";
     if (to < 0 || to >= this._items.length) throw  "'to' is out of bounds [0, " + this._items.length + "[";
 
-    var tmp = this._items[from];
-    this._items[from] = this._items[to];
-    this._items[to] = tmp;
-    this.render();
+    var itemFrom = this._items[from];
+    var itemTo = this._items[to];
+    this._items[from] = itemTo;
+    this._items[to] = itemFrom;
+    this.el.childNodes[from * 2].firstChild.appendChild(itemTo.view.el);
+    this.el.childNodes[to * 2].firstChild.appendChild(itemFrom.view.el);
+    itemTo.view.resize();
+    itemFrom.view.resize();
   }
 
   rescaleItem(at: number, size: number) {
@@ -112,19 +167,21 @@ export default class BoxLayout extends  View {
       item.size *= scale;
     }
     this._items[at].size = size;
-    this.render();
+    this.updateScales();
   }
-
   rescaleSep(at: number, size: number) {
     if (at < 0 || at >= this._items.length - 1) throw  "'at' is out of bounds [0, " + (this._items.length - 1) + "[";
     if (size < 0 || size > 1) throw "'size' is out of bounds [0.0, 1.0]";
     this._items[at + 1].size = this._items[at + 1].size + this._items[at].size - size;
     this._items[at].size = size;
-    this.render();
+    this.updateScales();
   }
 
-  render() {
-    var domItem: HTMLElement, sep: HTMLElement, left: number, right: number, propLeft: string, propRight: string;
+  updateScales() {
+    var propLeft: string, propRight: string;
+    var left = 0, right: number;
+    var itemIdx = 0, item: LayoutItem;
+    var wasSep = true;
 
     if (this._orientation == Orientation.HORIZONTAL) {
       propLeft= "left";
@@ -135,40 +192,20 @@ export default class BoxLayout extends  View {
       propRight= "bottom";
     }
 
-    left= 0;
-    this._items.forEach((item: LayoutItem) => {
-      if (item.container.parentNode)
-        item.container.parentNode.removeChild(item.container);
-    });
-
-    this.el.innerHTML = "";
-    this.$el.toggleClass("boxlayout-canresize", this._userCanResize);
-    this.$el.toggleClass("boxlayout-horizontal", this._orientation == Orientation.HORIZONTAL);
-    this.$el.toggleClass("boxlayout-vertical", this._orientation == Orientation.VERTICAL);
-    this._items.forEach((item: LayoutItem, i: number) => {
-      right = 1.0 - left - item.size;
-
-      if (i > 0 && this._userCanResize) {
-        domItem = document.createElement('div');
-        domItem.className= "boxlayout-separator";
-        domItem.style[propLeft] = (left * 100) + '%';
-        sep = document.createElement('div');
-        sep.addEventListener("mousedown", (event: MouseEvent) => { this._startMovingSeparator(event, i - 1) });
-        domItem.appendChild(sep);
-        this.el.appendChild(domItem);
+    for(var domChild:HTMLElement = <HTMLElement>this.el.firstChild; domChild; domChild = <HTMLElement>domChild.nextSibling) {
+      if (wasSep) { // domChild is an item
+        item = this._items[itemIdx++];
+        right = 1.0 - left - item.size;
+        domChild.style[propLeft] = (left * 100) + '%';
+        domChild.style[propRight] = (right * 100) + '%';
+        item.view.resize();
+        left += item.size;
       }
-
-      domItem = document.createElement('div');
-      domItem.className= "boxlayout-item";
-      domItem.style[propLeft] = (left * 100) + '%';
-      domItem.style[propRight] = (right * 100) + '%';
-      domItem.appendChild(item.container);
-      this.el.appendChild(domItem);
-      item.container.appendChild(item.view.el);
-      item.view.resize();
-
-      left += item.size;
-    });
+      else { // domChild is a separator
+        domChild.style[propLeft] = (left * 100) + '%';
+      }
+      wasSep = !wasSep;
+    }
   }
 
   private _startMovingSeparator(event: MouseEvent, i: number): void {

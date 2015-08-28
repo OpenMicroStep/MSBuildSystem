@@ -11,6 +11,12 @@ class View extends EventEmitter {
     this.$el = jQuery(this.el);
   }
 
+  destroy() {
+    var parentNode = this.el.parentNode;
+    if (parentNode)
+      parentNode.removeChild(this.el);
+  }
+
   appendTo(el:HTMLElement):void {
     el.appendChild(this.el);
     this.resize();
@@ -37,7 +43,7 @@ class View extends EventEmitter {
   propagateRender() {
     this.render();
     for(var view of this.getChildViews()) {
-      view.resize();
+      view.propagateRender();
     }
   }
 

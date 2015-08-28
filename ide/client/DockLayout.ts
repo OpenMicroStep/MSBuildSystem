@@ -45,6 +45,29 @@ function removeOffset(o: ClientRect, ro: ClientRect) {
   }
 }
 
+
+function appendViewTo(to: DockLayout.DockTabLayout | DockLayout.DockBoxLayout, view:ContentView, position:DockLayout.Position) {
+  if (position === DockLayout.Position.MIDDLE) {
+    (<DockLayout.DockTabLayout>to).appendView(view);
+  }
+  else {
+    var orientation = orientations[position];
+    if (to.parent instanceof DockLayout || (<DockLayout.DockBoxLayout>to.parent).orientation !== orientation) {
+      var parent = new DockLayout.DockBoxLayout(to.parent, {orientation: orientation, userCanResize: true});
+      to.parent.replaceView(to, parent);
+      to.parent = parent;
+      parent.appendView(to, 1.0);
+    }
+    var tab = new DockLayout.DockTabLayout(to.parent);
+    tab.appendView(view);
+    var p = <DockLayout.DockBoxLayout>to.parent;
+    var idx = p.findView(to);
+    // assert(idx != 0)
+    idx += isAppend[position] ? +1 : 0;
+    p.insertView(tab, 0.25, idx);
+  }
+}
+
 class DockLayout extends View implements DockLayout.DockParentView {
   _items: DockLayout.DockItem[];
   _root: DockLayout.DockTabLayout | DockLayout.DockBoxLayout;
@@ -84,36 +107,15 @@ class DockLayout extends View implements DockLayout.DockParentView {
     return [this._root];
   }
 
-  appendViewTo(view: ContentView, position: DockLayout.Position) {
-    if (position === DockLayout.Position.MIDDLE) {
-      this.main.appendViewTo(view, position);
-    }
-    else if (this._root instanceof DockLayout.DockTabLayout) {
-      (<DockLayout.DockTabLayout>this._root).appendViewTo(view, position);
-    }
-    else {
-      var orientation = orientations[position];
-      var root = (<DockLayout.DockBoxLayout>this._root);
-      if (root.orientation !== orientation) {
-        var parent = new DockLayout.DockBoxLayout(root, { orientation: orientation, userCanResize: true });
-        this.replaceView(root, parent);
-        parent.appendView(root, 1.0);
-        root = parent;
-      }
-      var tab = new DockLayout.DockTabLayout(root);
-      tab.appendView(view);
-      if (isAppend[position])
-        root.appendView(tab, 0.25);
-      else
-        root.insertView(tab, 0.25, 0);
-    }
-   }
-
   replaceView(oldView: DockLayout.DockTabLayout | DockLayout.DockBoxLayout, newView: DockLayout.DockTabLayout | DockLayout.DockBoxLayout) {
     if (this._root !== oldView) throw "Dock layout is corrupted";
     this._root = newView;
     this._root.appendTo(this.el);
     this.render();
+  }
+
+  appendViewTo(view:ContentView, position:DockLayout.Position) {
+    appendViewTo(this._root, view, position);
   }
 
   _dockPlaces;
@@ -209,8 +211,11 @@ module DockLayout {
 
     removePart(at: number) {
       super.removePart(at);
-      if (this.count == 0) {
-        this.parent.removeView(this);
+      if (this.count == 1) { // Simplify the layout
+        var view = <DockTabLayout | DockBoxLayout>this._items[0].view;
+        this.parent.replaceView(this, view);
+        view.parent = this.parent;
+        this.destroy();
       }
     }
   }
@@ -228,24 +233,7 @@ module DockLayout {
     }
 
     appendViewTo(view:ContentView, position:Position) {
-      if (position === Position.MIDDLE) {
-        this.appendView(view);
-      }
-      else {
-        var orientation = orientations[position];
-        if (this.parent instanceof DockLayout || (<DockBoxLayout>this.parent).orientation !== orientation) {
-          var parent = new DockBoxLayout(this.parent, {orientation: orientation, userCanResize: true});
-          this.parent.replaceView(this, parent);
-          this.parent = parent;
-          parent.appendView(this, 1.0);
-        }
-        var tab = new DockTabLayout(this.parent);
-        tab.appendView(view);
-        if (isAppend[position])
-          (<DockBoxLayout>this.parent).appendView(tab, 0.25);
-        else
-          (<DockBoxLayout>this.parent).insertView(tab, 0.25, 0);
-      }
+      appendViewTo(this, view, position);
     }
 
     removeTab(at: number) {
@@ -282,8 +270,10 @@ module DockLayout {
               var data = el._docklayout;
               if (data && data.root == root) {
                 var view = this._tabs[idx].view;
-                this.removeTab(idx);
-                data.tab.appendViewTo(view, data.pos);
+                if (data.tab !== this || this._tabs.length > 1) {
+                  this.removeTab(idx);
+                  data.tab.appendViewTo(view, data.pos);
+                }
               }
               root.hideDockPlaces();
             }

@@ -90,8 +90,8 @@ export default class TabLayout extends View {
   removeTab(at:number) {
     if (at < 0 || at >= this._tabs.length) throw  "'at' is out of bounds [0, " + this._tabs.length + "[";
     this._tabs.splice(at, 1);
-    if (this._current === at)
-      this._current = Math.max(this._tabs.length - 1, at - 1);
+    if (this._current >= at)
+      --this._current;
     this.render();
   }
 
