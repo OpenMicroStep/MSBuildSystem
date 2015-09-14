@@ -8,12 +8,20 @@ body > div > .docklayout {
   top: 62px;
 }
 
+* {
+  @include noselect;
+}
+
 .tablayout {
   border: 1px solid #C9C9C9;
 }
+
 .editor {
   position: absolute !important;
   @include pos-absolute(0,0,0,0);
+}
+.editorview-title-modified {
+  color: red;
 }
 
 .dropdown-submenu {

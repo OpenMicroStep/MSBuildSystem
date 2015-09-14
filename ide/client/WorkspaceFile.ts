@@ -4,18 +4,28 @@
 
 import replication = require('./replication');
 import Workspace = require('./Workspace');
+import events = require("./events");
+import globals = require('./globals');
 
 var Document:  typeof AceAjax.Document = ace.require('ace/document').Document;
 
-class WorkspaceFile extends replication.DistantObject {
+class WorkspaceFile extends replication.DistantObject implements events.EventEmitter {
+  listeners: { [s:string]: ((...args) => any)[] } = {};
+  on: (event, callme) => void;
+  once: (event, callmeonce) => void;
+  emit: (event, ...args) => void;
+  removeListener: (event, callme) => void;
+
   path:string;
   name:string;
   extension:string;
   version:number;
   document: AceAjax.Document;
   ignoreChanges: boolean;
+  saved: boolean;
+  workspace: Workspace;
 
-  constructor(public workspace: Workspace) {
+  constructor() {
     super();
 
     this.document = new Document("");
@@ -36,6 +46,7 @@ class WorkspaceFile extends replication.DistantObject {
     this.document.setValue(data.content);
     this.document.applyDeltas(data.deltas);
     this.ignoreChanges = false;
+    this.saved = data.deltas.length == 0;
   }
 
   outofsync() {
@@ -47,7 +58,11 @@ class WorkspaceFile extends replication.DistantObject {
   }
 
   save() : Promise<boolean> {
-    return this.remoteCall("save", this.document.getValue());
+    return this.remoteCall("save", this.document.getValue()).then((ok) => {
+      this.emit("saved", ok);
+      this.saved = ok;
+      return ok;
+    });
   }
 
   change(version, data) {
@@ -58,10 +73,12 @@ class WorkspaceFile extends replication.DistantObject {
   }
 
   edit(data: {action: string, range:any, lines?, text?, nl?}) : Promise<boolean> {
+    this.emit("saved", false);
     return this.remoteCall("change", ++this.version, data);
   }
 }
 replication.registerClass("WorkspaceFile", WorkspaceFile);
+events.mixin(WorkspaceFile);
 
 export = WorkspaceFile;
 

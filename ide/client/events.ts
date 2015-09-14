@@ -9,12 +9,9 @@ function applyMixins(derivedCtor: any, baseCtors: any[]) {
   });
 }
 
-export default class EventEmitter {
+export class EventEmitter {
   listeners: { [s:string]: ((...args) => any)[] } = {};
 
-  static mixin(ctor) {
-    applyMixins(ctor, [EventEmitter]);
-  }
 
   on(event, callme) {
     var listeners = this.listeners[event];
@@ -52,4 +49,8 @@ export default class EventEmitter {
       }
     }
   }
+}
+
+export function mixin(ctor) {
+  applyMixins(ctor, [EventEmitter]);
 }

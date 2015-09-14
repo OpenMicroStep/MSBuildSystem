@@ -5,10 +5,12 @@ import ContentView = require('./ContentView');
 import WorkspaceFile = require('./WorkspaceFile');
 
 class EditorView extends ContentView {
+  file: WorkspaceFile;
   editor: AceAjax.Editor;
 
   constructor(file: WorkspaceFile) {
     super();
+    this.file = file;
     this.titleEl.textContent = file.name;
 
     this.el.className = "editor";
@@ -20,6 +22,10 @@ class EditorView extends ContentView {
     this.editor.$blockScrolling = Infinity;
     this.editor.setOptions({
       scrollPastEnd: true
+    });
+    this.titleEl.className = file.saved ? "editorview-title-saved" : "editorview-title-modified";
+    file.on("saved", (saved) => {
+       this.titleEl.className = saved ? "editorview-title-saved" : "editorview-title-modified";
     });
   }
 

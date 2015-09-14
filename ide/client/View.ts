@@ -1,5 +1,5 @@
 /// <reference path="../../typings/browser.d.ts" />
-import EventEmitter from "./EventEmitter";
+import { EventEmitter } from "./events";
 
 class View extends EventEmitter {
   el: HTMLElement;

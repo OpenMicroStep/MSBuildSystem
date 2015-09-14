@@ -48,7 +48,6 @@ export default class TabLayout extends View {
   get position():Position {
     return this._position;
   }
-
   set position(position:Position) {
     this._position = position;
     this.renderPosition();
@@ -57,15 +56,29 @@ export default class TabLayout extends View {
   get current():number {
     return this._current;
   }
-
   set current(current:number) {
     if (current < 0 || current >= this._tabs.length) throw  "'current' is out of bounds [0, " + this._tabs.length + "[";
     this._current = current;
+    this.renderTabs();
     this.renderContent();
+  }
+
+  get currentView():ContentView {
+    return this._current === -1 ? null : this._tabs[this._current].view;
+  }
+  set currentView(current:ContentView) {
+    var idx = this.findView(current);
+    if (idx !== -1) this.current = idx;
   }
 
   get count() {
     return this._tabs.length;
+  }
+
+  findView(view: ContentView) : number {
+    return this._tabs.findIndex((item) => {
+      return item.view === view;
+    });
   }
 
   appendView(view:ContentView) {
@@ -140,7 +153,6 @@ export default class TabLayout extends View {
     domItem.className = "tablayout-tab";
     item.view.appendTitleTo(domItem);
     domItem.addEventListener('click', (event) => {
-      console.log(this.current, idx);
       this.current = idx;
       this.render();
 

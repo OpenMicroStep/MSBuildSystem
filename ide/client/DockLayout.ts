@@ -91,6 +91,23 @@ class DockLayout extends View implements DockLayout.DockParentView {
   removeView(view) {
   }
 
+  /* iterate accross all views of the dock layout, if the callback returns true the iteration ends */
+  iterateViews(cb: (view: ContentView, container: DockLayout.DockTabLayout) => boolean) {
+    function traverse(view: View) {
+      for(var child of view.getChildViews()) {
+        if (child instanceof DockLayout.DockTabLayout || child instanceof DockLayout.DockBoxLayout) {
+          if(traverse(child) === true)
+            return true;
+        }
+        else {
+          if (cb(<ContentView>child, <DockLayout.DockTabLayout>view) === true)
+            return true;
+        }
+      }
+    }
+    traverse(this._root);
+  }
+
   get main() : DockLayout.DockTabLayout {
     return this._main;
   }
@@ -211,6 +228,7 @@ module DockLayout {
 
     removePart(at: number) {
       super.removePart(at);
+      console.log("BoxLayout removePart", this.count);
       if (this.count == 1) { // Simplify the layout
         var view = <DockTabLayout | DockBoxLayout>this._items[0].view;
         this.parent.replaceView(this, view);
@@ -238,6 +256,7 @@ module DockLayout {
 
     removeTab(at: number) {
       super.removeTab(at);
+      console.log("BoxLayout removeTab", this.count);
       if (this._tabs.length == 0 && this.canRemove) {
         this.parent.removeView(this);
       }

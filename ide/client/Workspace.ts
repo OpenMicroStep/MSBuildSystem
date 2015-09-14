@@ -9,7 +9,7 @@ class Workspace extends replication.DistantObject {
   path: string;
   files;
   targets;
-  openFiles = {};
+  openFiles: { [s: string]: Promise<WorkspaceFile> } = {};
 
   outofsync() {
     return new Promise((resolve, reject) => {
@@ -22,25 +22,15 @@ class Workspace extends replication.DistantObject {
   }
 
   openFile(path) : Promise<WorkspaceFile> {
-    var p, o = this.openFiles[path];
-    if (!o) {
-      o = {promise: p= this.remoteCall("openFile", path) };
-      this.openFiles[path] = o;
-      p.then(function(res) {
-        delete o.promise;
-        o.obj = res;
-      })
-    }
-    else if (o.promise) {
-      p = o.promise;
-    }
-    else {
-      p = new Promise(function(resolve) {
-        resolve(o.obj);
+    var ret = this.openFiles[path];
+    if (!ret) {
+      ret = this.remoteCall("openFile", path);
+      ret.then((res) => {
+          res.workspace = this;
       });
+      this.openFiles[path] = ret;
     }
-
-    return p;
+    return ret;
   }
 }
 replication.registerClass("Workspace", WorkspaceFile);

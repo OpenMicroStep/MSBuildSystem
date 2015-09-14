@@ -6,6 +6,7 @@ import TreeView = require('./TreeView');
 import Workspace = require('./Workspace');
 import DockLayout = require('./DockLayout');
 import EditorView = require('./EditorView');
+import globals = require('./globals');
 
 // glyphicon glyphicon-file
 // glyphicon glyphicon-folder-close
@@ -38,7 +39,16 @@ class FileTreeItem extends TreeView.TreeItem {
       text = document.createTextNode(d.file);
       this.el.addEventListener("click", () => {
         workspace.openFile(d.file).then((file) => {
-          (<any>window).ide.content.main.appendViewTo(new EditorView(file), DockLayout.Position.MIDDLE)
+          var found = false;
+          globals.ide.content.iterateViews((view, container) => {
+            if (view instanceof EditorView && (<EditorView>view).file === file) {
+              container.currentView = view;
+              found = true;
+            }
+            return found;
+          });
+          if (!found)
+            globals.ide.content.main.appendViewTo(new EditorView(file), DockLayout.Position.MIDDLE);
         });
       }, true);
     }

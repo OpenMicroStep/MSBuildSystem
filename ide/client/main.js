@@ -33,9 +33,9 @@ requirejs.config({
   },
 });
 
-requirejs(['jquery', "bootstrap", "IDE", "replication"], function($, bootstrap, IDE, replication) {
+requirejs(['jquery', "bootstrap", "IDE", "replication", "globals"], function($, bootstrap, IDE, replication, globals) {
   $(function() {
-    var ide = window.ide = new IDE();
+    var ide = globals.ide = new IDE();
     ide.appendTo(document.body);
   });
 });
