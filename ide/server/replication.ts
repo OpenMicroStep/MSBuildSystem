@@ -72,7 +72,7 @@ function handleRet(info: SocketInfo, r) {
 }
 
 export class ServedObject<T> {
-  static counter = 0;
+  static counter = (new Date()).getTime();
 
   listeners: Set<Socket>;
   obj: T;

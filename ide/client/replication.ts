@@ -50,8 +50,10 @@ function decode(d) {
 
 export class DistantObject {
   id: string;
+  private _outofsync: Promise<any>;
 
   constructor() {
+    this._outofsync = null;
   }
 
   changeId(newId: string) {
@@ -72,7 +74,13 @@ export class DistantObject {
     return new Promise((resolve, reject) => {
       socket.emit(type, this.id, ...args, (err, res) => {
         if (err == 404) {
-          this.outofsync().then(() => {
+          if (!this._outofsync) {
+            this._outofsync = this.outofsync();
+            this._outofsync.then(() => {
+              this._outofsync = null;
+            });
+          }
+          this._outofsync.then(() => {
             socket.emit(type, this.id, ...args, (err, res) => {
               if (err) reject(err);
               else resolve(decode(res));
