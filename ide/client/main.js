@@ -26,6 +26,9 @@ requirejs.config({
   shim: {
     'bootstrap': {
       deps: ['jquery'],
+    },
+    'mousetrap-global-bind': {
+      deps: ['mousetrap'],
     }
   },
   paths: {
@@ -33,7 +36,7 @@ requirejs.config({
   },
 });
 
-requirejs(['jquery', "bootstrap", "IDE", "replication", "globals"], function($, bootstrap, IDE, replication, globals) {
+requirejs(['jquery', "bootstrap", "IDE", "replication", "globals", "mousetrap", "mousetrap-global-bind"], function($, bootstrap, IDE, replication, globals) {
   $(function() {
     var ide = globals.ide = new IDE();
     ide.appendTo(document.body);

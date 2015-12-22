@@ -7,11 +7,25 @@ It's design is made around the idea of cross-compilation, remote-builds, remote-
 
 For now on, the first part (the build system) is done.
 
+This build system aim to provide:
+ - cross compilation support
+ - fast & incremental compilation
+ - easy to manage in VCS project files
+ - simplicity of creating/extending/modifying tasks
+ - run on most dev operating systems (OSX, Linux, Windows)
+ - decrease build time by spreading tasks across a set of providers
+ - builtin prebuild support of project dependencies
+
+### Why a new build system?
+
+No known build system have built-in support for crosscompilation while giving to the programmer control of the build options.
+Most build systems fails to handle incremental compilation correctly (time to time you often need to do a complete rebuilt).
+IDE related build systems make project files versionning a nightmare.
 
 ## Toolchains
 
-Due it's cross-compilation approach, sysroot & toolchains are required to build things. 
-For now, the only toolchains provided only run from a Mac OSX host.
+Due it's cross-compilation approach, sysroot & toolchains are required to build things.
+For now, the only toolchains provided only run on a Mac OSX host.
 A toolchain is defined by a the quadruple :
  - architecture: x86_64, i386, armv7, ...
  - platform: darwin, win32, linux, bsd, ...
@@ -21,13 +35,13 @@ A toolchain is defined by a the quadruple :
 
 At least the platform must be specified, other are optional.
 But the toolchain must follow this pattern : `arch-platform-sysroot-compiler`
-Examples: 
+Examples:
  - `x86_64-linux-debian7-clang`
  - `x86_64-linux-debian7-`, by default, debian7 use the gcc compiler, so the toolchain does the same
  - `x86_64-darwin--`, by default, darwin in x86_64 use the OSX10.10 SDK with the clang compiler
  - `-darwin--`, by default, darwin compile both i386 and x86_64 arch and merge them with lipo
  - `-x86_64|i386-darwin--`, darwin is the only toolchain for the moment that allow providing multiple archs, that once built are merged with lipo
-  
+
 
 ## Examples
 
@@ -38,7 +52,7 @@ async and the returned value is given by a callback with most of the time 2 argu
 
 
 
-### Workspaces and targets 
+### Workspaces and targets
 
 Let's start with the project main component: `Workspace`.
 A workspace represent a set of files and targets. Files can be shared across targets.
@@ -61,8 +75,8 @@ The hidden goal is also to be able display build errors in real-time in the IDE 
 ### Building sources
 
 For the requested set of build configurations, build dependency graph are built to allow fast parallel build process.
-The entry point for building this graph is the `Workspace`. It requires build and dependency graph of the requested 
-targets and returns the resulting graph. 
+The entry point for building this graph is the `Workspace`. It requires build and dependency graph of the requested
+targets and returns the resulting graph.
 
 To create the build graph, the build system follows this algorithm:
 

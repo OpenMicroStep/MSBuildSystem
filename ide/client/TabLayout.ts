@@ -2,6 +2,7 @@
 "use strict";
 import View = require('./View');
 import ContentView = require('./ContentView');
+import menu = require('./menu');
 
 export type TabItem = {
   view: ContentView;
@@ -61,6 +62,8 @@ export default class TabLayout extends View {
     this._current = current;
     this.renderTabs();
     this.renderContent();
+    if (this._current !== -1)
+      this._tabs[this._current].view.focus();
   }
 
   get currentView():ContentView {
@@ -81,30 +84,34 @@ export default class TabLayout extends View {
     });
   }
 
-  appendView(view:ContentView) {
-    this.insertView(view, this._tabs.length);
+  appendView(view:ContentView, makeCurrent?: boolean) {
+    this.insertView(view, this._tabs.length, makeCurrent);
   }
 
-  insertView(view:ContentView, at:number) {
+  insertView(view:ContentView, at:number, makeCurrent?: boolean) {
     if (at < 0 || at > this._tabs.length) throw  "'at' is out of bounds [0, " + this._tabs.length + "]";
     this._tabs.splice(at, 0, {view: view});
-    if (this._current === -1) this._current = at;
+    if (this._current === -1 || makeCurrent === true) this._current = at;
     this.render();
   }
-  removeView(view) {
+  removeView(view, destroy: boolean = false) {
     var idx = this._tabs.findIndex((item) => {
       return item.view === view;
     });
     if (idx != -1) {
-      this.removeTab(idx);
+      this.removeTab(idx, destroy);
     }
   }
 
-  removeTab(at:number) {
+  removeTab(at:number, destroy: boolean = false) {
     if (at < 0 || at >= this._tabs.length) throw  "'at' is out of bounds [0, " + this._tabs.length + "[";
+    if (destroy)
+      this._tabs[at].view.destroy();
     this._tabs.splice(at, 1);
     if (this._current >= at)
       --this._current;
+    if (this._current === -1 && this._tabs.length)
+      this._current = 0;
     this.render();
   }
 
@@ -147,6 +154,13 @@ export default class TabLayout extends View {
     });
   }
 
+  createPlaceholderTab() {
+    var domItem:HTMLElement;
+    domItem = document.createElement('div');
+    domItem.className = "tablayout-tab placeholder active";
+    return domItem;
+  }
+
   renderTab(item:TabItem, idx:number) {
     var domItem:HTMLElement;
     domItem = document.createElement('div');
@@ -155,7 +169,14 @@ export default class TabLayout extends View {
     domItem.addEventListener('click', (event) => {
       this.current = idx;
       this.render();
-
+    });
+    menu.bindContextMenuTo(domItem, () => {
+      return [{
+        label: "Close",
+        click: () => {
+          this.removeTab(idx, true);
+        }
+      }];
     });
     if (idx === this._current)
       domItem.className += " active";

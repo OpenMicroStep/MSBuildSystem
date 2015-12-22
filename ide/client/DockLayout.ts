@@ -2,8 +2,9 @@
 "use strict";
 import View = require('./View');
 import ContentView = require('./ContentView');
-import {default as TabLayout, TabItem} from "TabLayout";
-import BoxLayout from "BoxLayout";
+import {default as TabLayout, TabItem} from "./TabLayout";
+import BoxLayout from "./BoxLayout";
+import * as dragndrop from "./dragndrop";
 
 var orientations = [
   BoxLayout.Orientation.VERTICAL, // top
@@ -13,17 +14,48 @@ var orientations = [
 ];
 var isAppend = [false, true, true, false];
 
-
-function reduceByPourcent(o: ClientRect, pourcent: number) {
-  return {
-    top: o.top + o.height * pourcent ,
-    right: o.right - o.width * pourcent,
-    bottom: o.bottom - o.height * pourcent,
-    left: o.left + o.width * pourcent,
-    width: o.width * (1 - pourcent * 2),
-    height: o.height * (1 - pourcent * 2),
-  };
+function _isinside_length(x, y) {
+  return Math.sqrt(x * x + y * y);
 }
+
+function _isinside(v1x, v1y, v2x, v2y) {
+  var l1 = _isinside_length(v1x, v1y);
+  var l2 = _isinside_length(v2x, v2y);
+  v1x /= l1; v1y /= l1;
+  v2x /= l2; v2y /= l2;
+  var dotproduct = v1x * v2x + v1y * v2y;
+  return /* -45° */ -0.7071067811865475 <= dotproduct && dotproduct <= 1 /* 90 ° */;
+}
+
+function isinside(px, py, ax, ay, bx, by) {
+  var v1x, v1y, v2x, v2y;
+  return _isinside(bx - ax, by - ay, px - ax, py - ay)
+      && _isinside(ax - bx, ay - by, px - bx, py - by);
+}
+
+function dropPlaceBetween(x: number, y: number, inner: ClientRect) : DockLayout.Position {
+  var ret= DockLayout.Position.MIDDLE;
+  if (y <= inner.top && isinside(x, y, inner.left, inner.top, inner.right, inner.top))
+    ret= DockLayout.Position.TOP;
+  else if (x >= inner.right && isinside(x, y, inner.right, inner.top, inner.right, inner.bottom))
+    ret= DockLayout.Position.RIGHT;
+  else if (y >= inner.bottom && isinside(x, y, inner.right, inner.bottom, inner.left, inner.bottom))
+    ret= DockLayout.Position.BOTTOM;
+  else if (x <= inner.left && isinside(x, y, inner.left, inner.bottom, inner.left, inner.top))
+    ret= DockLayout.Position.LEFT;
+  return ret;
+}
+
+function shrink(o: ClientRect, minpx: number, maxpourcent: number) {
+  if (minpx >= 0 && maxpourcent >= 0)
+    return reduceByPx(o, Math.min(o.height * maxpourcent, o.width * maxpourcent, minpx));
+  else {
+    maxpourcent = Math.abs(maxpourcent);
+    minpx = Math.abs(minpx);
+    return reduceByPx(o, -Math.max(o.height * maxpourcent, o.width * maxpourcent, minpx));
+  }
+}
+
 function reduceByPx(o: ClientRect, px: number) {
   return {
     top: o.top + px ,
@@ -45,10 +77,24 @@ function removeOffset(o: ClientRect, ro: ClientRect) {
   }
 }
 
+function dropPlace(parent: HTMLElement, border0: ClientRect, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }, reducepx) {
+  var border = border0;
+  var border1 = shrink(border0, reducepx, 0.5);
+  var pos = { top: border.top, right: border.right, bottom: border.bottom, left: border.left };
+  switch(lyplace.place) {
+    case DockLayout.Position.TOP   : pos.bottom = border1.top   ; break;
+    case DockLayout.Position.RIGHT : pos.left   = border1.right ; break;
+    case DockLayout.Position.BOTTOM: pos.top    = border1.bottom; break;
+    case DockLayout.Position.LEFT  : pos.right  = border1.left  ; break;
+    default: pos.bottom = pos.top; pos.right = pos.left; break;
+  }
+  parent.appendChild(lyplace.placeholder);
+  $(lyplace.placeholder).css({ top: pos.top, width: pos.right - pos.left, height: pos.bottom - pos.top, left: pos.left });
+}
 
 function appendViewTo(to: DockLayout.DockTabLayout | DockLayout.DockBoxLayout, view:ContentView, position:DockLayout.Position) {
   if (position === DockLayout.Position.MIDDLE) {
-    (<DockLayout.DockTabLayout>to).appendView(view);
+    (<DockLayout.DockTabLayout>to).appendView(view, true);
   }
   else {
     var orientation = orientations[position];
@@ -59,13 +105,19 @@ function appendViewTo(to: DockLayout.DockTabLayout | DockLayout.DockBoxLayout, v
       parent.appendView(to, 1.0);
     }
     var tab = new DockLayout.DockTabLayout(to.parent);
-    tab.appendView(view);
+    tab.appendView(view, true);
     var p = <DockLayout.DockBoxLayout>to.parent;
     var idx = p.findView(to);
     // assert(idx != 0)
     idx += isAppend[position] ? +1 : 0;
     p.insertView(tab, 0.25, idx);
   }
+}
+
+function createPlaceholder() {
+  var p = document.createElement('div');
+  p.className = "docklayout-placeholder";
+  return p;
 }
 
 class DockLayout extends View implements DockLayout.DockParentView {
@@ -82,6 +134,38 @@ class DockLayout extends View implements DockLayout.DockParentView {
     this._main.canRemove = false;
     this._main.appendTo(this.el);
     this._root = this._main;
+
+    var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
+    dragndrop.droppable(this.el, {
+      type: "tab",
+      ondragstart: () => {
+        $(this.el).toggleClass("docklayout-drop", true);
+      },
+      ondragend:() => {
+        $(this.el).toggleClass("docklayout-drop", false);
+      },
+      ondragover: (ev, data) => {
+        if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
+        this.dropPlace(ev, lyplace);
+        return lyplace.place !== DockLayout.Position.MIDDLE ? dragndrop.DropAction.Move : dragndrop.DropAction.None;
+      },
+      ondragexit: (ev, data) => {
+        if (!lyplace.placeholder) return;
+        if (lyplace.placeholder.parentNode)
+          lyplace.placeholder.parentNode.removeChild(lyplace.placeholder);
+      },
+      ondrop: (data) => {
+        this.appendViewTo(data.view, lyplace.place);
+      }
+    });
+  }
+
+  dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {
+    var x = ev.clientX, y = ev.clientY;
+    var border0 = this.el.getBoundingClientRect();
+    var border1 = shrink(border0, 25, 0.5);
+    lyplace.place = dropPlaceBetween(x, y, border1);
+    dropPlace(this.el, border0, lyplace, 25);
   }
 
   root() {
@@ -134,55 +218,6 @@ class DockLayout extends View implements DockLayout.DockParentView {
   appendViewTo(view:ContentView, position:DockLayout.Position) {
     appendViewTo(this._root, view, position);
   }
-
-  _dockPlaces;
-  showDockPlaces() {
-    var createPolygon = (tl_x,tl_y, tr_x, tr_y, br_x, br_y, bl_x, bl_y, tab, pos, cls?: string) => {
-      var polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", tl_x+","+tl_y+" "+tr_x+","+tr_y+" "+br_x+","+ br_y+" "+bl_x+","+bl_y);
-      svg.appendChild(polygon);
-      if (cls)
-        polygon.setAttribute("class", cls);
-      (<any>polygon)._docklayout = { root: this, tab:tab, pos:pos };
-      return polygon;
-    };
-
-    var svg = this._dockPlaces = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("class", "docklayout-overlay");
-    svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
-    this.el.appendChild(svg);
-    var offset = this.el.getBoundingClientRect();
-    var traverse = function(what : View) {
-      if (what instanceof DockLayout.DockTabLayout) {
-        var rect = what._elContent.getBoundingClientRect();
-        var o = removeOffset(rect, offset);
-        var m = reduceByPourcent(o, 0.25);
-
-        createPolygon(m.left, m.top, m.right, m.top, m.right, m.bottom, m.left, m.bottom, what, DockLayout.Position.MIDDLE);
-        createPolygon(o.left, o.top, o.right, o.top, m.right, m.top, m.left, m.top, what, DockLayout.Position.TOP);
-        createPolygon(o.right, o.top, o.right, o.bottom, m.right, m.bottom, m.right, m.top, what, DockLayout.Position.RIGHT);
-        createPolygon(o.left, o.bottom, o.right, o.bottom, m.right, m.bottom, m.left, m.bottom, what, DockLayout.Position.BOTTOM);
-        createPolygon(o.left, o.top, o.left, o.bottom, m.left, m.bottom, m.left, m.top, what, DockLayout.Position.LEFT);
-      }
-      else if (what instanceof DockLayout.DockBoxLayout) {
-        for(var view of what.getChildViews()) {
-          traverse(view);
-        }
-      }
-    };
-    traverse(this._root);
-    var ro = removeOffset(offset, offset);
-    var m = reduceByPx(ro, 20);
-
-    createPolygon(ro.left, ro.top, ro.right, ro.top, m.right, m.top, m.left, m.top, this, DockLayout.Position.TOP, "docklayout-overlay-root");
-    createPolygon(ro.right, ro.top, ro.right, ro.bottom, m.right, m.bottom, m.right, m.top, this, DockLayout.Position.RIGHT, "docklayout-overlay-root");
-    createPolygon(ro.left, ro.bottom, ro.right, ro.bottom, m.right, m.bottom, m.left, m.bottom, this, DockLayout.Position.BOTTOM, "docklayout-overlay-root");
-    createPolygon(ro.left, ro.top, ro.left, ro.bottom, m.left, m.bottom, m.left, m.top, this, DockLayout.Position.LEFT, "docklayout-overlay-root");
-  }
-  hideDockPlaces() {
-    this._dockPlaces.parentNode.removeChild(this._dockPlaces);
-  }
-
 }
 
 
@@ -228,7 +263,6 @@ module DockLayout {
 
     removePart(at: number) {
       super.removePart(at);
-      console.log("BoxLayout removePart", this.count);
       if (this.count == 1) { // Simplify the layout
         var view = <DockTabLayout | DockBoxLayout>this._items[0].view;
         this.parent.replaceView(this, view);
@@ -244,6 +278,71 @@ module DockLayout {
 
     constructor(public parent:DockParentView) {
       super();
+      var tabplaceholder: HTMLElement;
+      var tabidx: number;
+      dragndrop.droppable(this._elTabs, {
+        type: "tab",
+        ondragover: (ev, data) => {
+          if (!tabplaceholder) tabplaceholder = this.createPlaceholderTab();
+          tabidx= this.dropTabUpdatePlaceholder(ev, tabplaceholder);
+          return dragndrop.DropAction.Move;
+        },
+        ondragexit: (ev, data) => {
+          if (!tabplaceholder) return;
+          if (tabplaceholder.parentNode === this._elTabs)
+            this._elTabs.removeChild(tabplaceholder);
+          tabplaceholder = null;
+        },
+        ondrop: (data) => {
+          this.insertView(data.view, tabidx, true);
+        }
+      });
+      var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
+      dragndrop.droppable(this._elContent, {
+        type: "tab",
+        ondragover: (ev, data) => {
+        if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
+          this.dropPlace(ev, lyplace);
+          return lyplace.place !== DockLayout.Position.MIDDLE ? dragndrop.DropAction.Move : dragndrop.DropAction.None;
+        },
+        ondragexit: (ev, data) => {
+          if (!lyplace.placeholder) return;
+          if (lyplace.placeholder.parentNode)
+            lyplace.placeholder.parentNode.removeChild(lyplace.placeholder);
+        },
+        ondrop: (data) => {
+          this.appendViewTo(data.view, lyplace.place);
+        }
+      });
+    }
+
+    dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {
+      var x = ev.clientX, y = ev.clientY;
+      var border0 = this._elContent.getBoundingClientRect();
+      var border1 = shrink(border0, 50, 0.5);
+      lyplace.place = dropPlaceBetween(x, y, border1);
+      dropPlace(this.el, this.el.getBoundingClientRect(), lyplace, 50);
+    }
+
+    dropTabUpdatePlaceholder(ev: MouseEvent, placeholder: HTMLElement) {
+      if (placeholder.parentNode === this._elTabs)
+        this._elTabs.removeChild(placeholder);
+      var idx = this.dropTabIndex(ev);
+      this._elTabs.insertBefore(placeholder, this._elTabs.childNodes[idx] || null);
+      return idx;
+    }
+
+    dropTabIndex(ev: MouseEvent) {
+      var x = ev.clientX;
+      var tabs = this._elTabs.childNodes;
+      var idx = tabs.length;
+      for (var i= 0; i < idx; ++i) {
+        var tab: HTMLElement = <HTMLElement>tabs[i];
+        var rect = tab.getBoundingClientRect();
+        if (x < rect.left + rect.width / 2)
+          idx= i;
+      }
+      return idx;
     }
 
     root() {
@@ -254,59 +353,39 @@ module DockLayout {
       appendViewTo(this, view, position);
     }
 
-    removeTab(at: number) {
-      super.removeTab(at);
-      console.log("BoxLayout removeTab", this.count);
+    removeTab(at: number, destroy: boolean = false, canRemove: boolean = true) {
+      super.removeTab(at, destroy);
+      if (canRemove) this.removeIfEmpty();
+    }
+
+    removeIfEmpty() {
       if (this._tabs.length == 0 && this.canRemove) {
         this.parent.removeView(this);
+        this.destroy();
       }
     }
+
     renderTabs() {
       super.renderTabs();
       // TODO: minimize to bar
     }
 
-    private _startMovingDockItem(event: MouseEvent, idx: number): void {
-      if (event.button === 0) {
-        var upfn, mvfn;
-        var root = this.root();
-        var started = false;
-        var sx = event.screenX, sy = event.screenY;
-        document.addEventListener("mousemove", mvfn = (event:MouseEvent) => {
-          if (!started) {
-            var x = event.screenX, y = event.screenY;
-            var dx = sx - x, dy = sy - y;
-            if (dx * dx + dy * dy > 10) {
-              root.showDockPlaces();
-              started= true;
-            }
-          }
-        }, true);
-        document.addEventListener("mouseup", upfn = (event:MouseEvent) => {
-          if (event.button === 0) {
-            if (started) {
-              var el:any = document.elementFromPoint(event.clientX, event.clientY);
-              var data = el._docklayout;
-              if (data && data.root == root) {
-                var view = this._tabs[idx].view;
-                if (data.tab !== this || this._tabs.length > 1) {
-                  this.removeTab(idx);
-                  data.tab.appendViewTo(view, data.pos);
-                }
-              }
-              root.hideDockPlaces();
-            }
-            document.removeEventListener("mousemove", mvfn, true);
-            document.removeEventListener("mouseup", upfn, true);
-          }
-        }, true);
-      }
-    }
-
     renderTab(item:TabItem, idx:number) {
       var domItem = super.renderTab(item, idx);
-      domItem.addEventListener("mousedown", (event: MouseEvent) => {
-        this._startMovingDockItem(event, idx);
+      dragndrop.draggable(domItem, {
+        type: "tab",
+        data: { view: item.view, idx: idx },
+        ondragstart: () => {
+          this.removeTab(idx, false, false);
+        },
+        ondragend: (dropped, data) => {
+          if (dropped === dragndrop.DropAction.None) {
+            this.insertView(data.view, idx, true);
+          }
+          else {
+            this.removeIfEmpty();
+          }
+        }
       });
       return domItem;
     }

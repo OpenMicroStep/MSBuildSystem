@@ -12,3 +12,13 @@
 .tree-item > .glyphicon {
   margin-right: 4px;
 }
+.tree-item-closed > .tree-childs {
+  display: none;
+}
+.tree-item-file {
+  cursor: pointer;
+}
+.tree-item-file:hover {
+
+}
+

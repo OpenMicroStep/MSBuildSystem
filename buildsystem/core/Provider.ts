@@ -1,9 +1,6 @@
 /// <reference path="../../typings/tsd.d.ts" />
 /* @flow */
 'use strict';
-
-import io = require("socket.io-client");
-import ioServer = require("socket.io");
 import path = require("path");
 import fsex = require("fs-extra");
 import fs = require("fs-extra");
@@ -12,6 +9,11 @@ import Datastore = require("nedb");
 import File = require("./File");
 import Barrier = require("./Barrier");
 import RunProcess = require("./Process");
+
+var IoEngine= require('engine.io');
+var IoEngineClient= require('engine.io-client');
+var RpcServer = require('rpc-websocket').server;
+var RpcSocket = require('rpc-websocket');
 
 /**   */
 class Provider {
@@ -89,7 +91,7 @@ module Provider {
     }
   }
   export class Remote extends Provider {
-    constructor(conditions, public io: SocketIOClient.Socket) {
+    constructor(conditions, public io) {
       super(conditions);
     }
 
@@ -104,12 +106,13 @@ module Provider {
     process(inputs: File[], outputs: File[], action: string, options: any, cb) {
       var inputsMapped= inputs.map((i) => { return i.path; });
       var outputsMapped= outputs.map((output) => { return output.path; });
-      this.io.emit("process-init", inputsMapped, (pid) => {
+      this.io.rpc("process-init", inputsMapped, (pid) => {
         var barrier = new Barrier.ErrBarrier("RemoteProvider handle inputs", inputs.length);
         inputs.forEach((file, idx) => {
           var reader = fs.createReadStream(file.path);
+          var chunkidx = 0;
           reader.on('data', (data) => {
-            this.io.emit("process-upload", pid, idx, data);
+            this.io.send("process-upload", { pid:pid, idx:idx, data: data });
           });
           reader.on('end', () => { barrier.dec(); });
           reader.on('error', (err) => { barrier.dec(err); });
@@ -120,7 +123,7 @@ module Provider {
           var end = function(err?) {
             if (outputsStream)
               outputsStream.forEach((stream) => { stream.end(); });
-            self.io.emit("process-end", pid);
+            self.io.send("process-end", { pid: pid });
             var args= Array.from(arguments);
             if (err && typeof err !== "string") {
               if (Array.isArray(err))
@@ -134,15 +137,15 @@ module Provider {
           if (errors.length) return end(errors);
 
           outputsStream= outputs.map((output) => { return fs.createWriteStream(output.path); });
-          this.io.on("process-upload-" + pid, (idx, data) => {
-            //console.info("process-upload-" + pid, idx);
-            outputsStream[idx].write(data);
+          this.io.on("process-upload-" + pid, (msg: {idx: number, data: any}) => {
+            if (!msg.data || msg.data.type !== "Buffer") return console.warn("process-upload: Invalid data type: ", msg.idx);
+            outputsStream[msg.idx].write(new Buffer(msg.data.data));
           });
-          this.io.emit("process-run", pid, this.id, outputsMapped, action, options, (err: Error, output_errors?: Error[], args?:any[]) => {
-            console.info("process-run-cb", pid, err, output_errors);
-            this.io.off("process-upload-" + pid);
-            if (err || output_errors.length) return end(err || output_errors.join(", "));
-            end.apply(null, args);
+          this.io.rpc("process-run", {pid: pid, id: this.id, outputs:outputsMapped, action:action, options:options}, (r: {err: Error, output_errors?: Error[], args?:any[]}) => {
+            console.info("process-run-cb", pid, r.err, r.output_errors);
+            //this.io.off("process-upload-" + pid);
+            if (r.err || r.output_errors.length) return end(r.err || r.output_errors.join(", "));
+            end.apply(null, r.args);
           });
         });
       });
@@ -152,12 +155,14 @@ module Provider {
     socket: SocketIOClient.Socket;
 
     constructor(url: string) {
-      this.socket= io(url, {transports: ['websocket']});
-      this.socket.on("register", (conditions, cb:(id:number) => any) => {
+      var ws = IoEngineClient(url);
+      if (!ws) throw new Error("Unable to create ws to " + url);
+      this.socket= new RpcSocket(ws);
+      this.socket.on("register", (conditions, reply) => {
         console.info("Remote provider registered", conditions);
         var provider= new Remote(conditions, this.socket);
         Provider.register(provider);
-        cb(provider.id);
+        reply(provider.id);
       });
       this.socket.on("unregister", (id: number) => {
         Provider.unregister(id);
@@ -166,31 +171,31 @@ module Provider {
 
   }
   export class Server {
-    io: SocketIO.Server;
+    io;
     providers: {[n: number]: Provider}= {};
     tmp: string;
     counter: number;
     ctxs= {};
 
     constructor(port: number, tmpDirectory: string) {
-      this.io = ioServer(port, {transport: ["websocket"]});
+      this.io = new RpcServer(IoEngine.listen(port));
       this.tmp = tmpDirectory;
       this.counter= (new Date()).getTime();
-      this.io.on("connection", (socket: SocketIO.Socket) => {
-        console.info("Connected to ", socket.handshake.address);
+      this.io.on("connection", (ws) => {
+        console.info("Connected to ", ws.webSocket.remoteAddress);
         var barrier = new Barrier("Provider.Server.register", Provider.providers.length);
         Provider.providers.forEach((provider) => {
-          socket.emit("register", provider.conditions, (id: number) => {
+          ws.rpc("register", provider.conditions, (id: number) => {
             this.providers[id]= provider;
             barrier.dec();
           });
         });
         barrier.endWith(() => {
-          socket.emit("ready");
+          ws.send("ready");
         });
-
-        socket.on("process-init", (input_paths: string[], cb: (pid) => any) => {
-          console.info("process-init");
+        var ctxs = {};
+        ws.on("process-init", (input_paths: string[], reply: (pid) => any) => {
+          console.info("process-init", input_paths);
           var ctx: any = {};
           ctx.id = ++this.counter;
           ctx.dir= path.join(this.tmp, ctx.id.toString());
@@ -209,28 +214,29 @@ module Provider {
               stream.on('error', (err) => { console.error(err); ctx.err= err; });
               return stream;
             });
-            this.ctxs[ctx.id] = ctx;
-            cb(ctx.id);
+            ctxs[ctx.id] = ctx;
+            reply(ctx.id);
           });
         });
-        socket.on("process-end", (pid) => {
+        ws.on("process-end", (pid) => {
           console.info("process-end", pid);
-          var ctx= this.ctxs[pid];
+          var ctx= ctxs[pid];
           if (!ctx) return console.warn("process-end: Unable to find context: ", pid);
           fsex.remove(ctx.dir, (err) => {
             if (err) console.warn("process-end: Unable to remove directory " + ctx.dir + " :", err)
           });
-          delete this.ctxs[pid];
+          delete ctxs[pid];
         });
-        socket.on("process-upload", (pid, idx, data) => {
-          var ctx = this.ctxs[pid];
-          if (!ctx) return console.warn("process-upload: Unable to find context: ", pid);
-          ctx.inputs[idx].write(data);
+        ws.on("process-upload", (msg) => {
+          var ctx = ctxs[msg.pid];
+          if (!ctx) return console.warn("process-upload: Unable to find context: ", msg.pid);
+          if (!msg.data || msg.data.type !== "Buffer") return console.warn("process-upload: Invalid data type: ", msg.pid);
+          ctx.inputs[msg.idx].write(new Buffer(msg.data.data));
         });
-        socket.on("process-run", (pid, id:number, outputs:string[], action: string, options: any, cb:(err: Error, output_errors?: Error[], args?: any[]) => any) => {
-          console.info("process-run", pid, id, outputs);
-          var ctx= this.ctxs[pid];
-          if (ctx.err) return cb(ctx.err.message || ctx.err);
+        ws.on("process-run", (msg: {pid: any, id:number, outputs:string[], action: string, options: any}, reply:(msg: {err: Error, output_errors?: Error[], args?: any[]}) => any) => {
+          console.info("process-run", msg.pid, msg.id, msg.outputs);
+          var ctx= ctxs[msg.pid];
+          if (ctx.err) return reply({ err: ctx.err.message || ctx.err });
           var barrier = new Barrier("ServerProvider flush inputs", ctx.inputs.length);
           ctx.inputs.forEach((input) => {
             input.on('finish', function() {
@@ -241,38 +247,38 @@ module Provider {
             //console.info("process-upload-endasked", pid, barrier.counter);
           });
           barrier.endWith(() => {
-            console.info("process-run", "inputs flushed", pid);
-            var provider = this.providers[id];
+            console.info("process-run", "inputs flushed", msg.pid);
+            var provider = this.providers[msg.id];
             if (provider) {
-              var outputsMapped= outputs.map((output) => {
+              var outputsMapped= msg.outputs.map((output) => {
                 var filepath= ctx.filePath(output);
-                options= provider.mapOptions(options, output, filepath);
+                msg.options= provider.mapOptions(msg.options, output, filepath);
                 return File.getShared(filepath);
               });
               var inputsMapped= ctx.input_paths_mapped.map((path, idx) => {
-                options= provider.mapOptions(options, ctx.input_paths[idx], path);
+                msg.options= provider.mapOptions(msg.options, ctx.input_paths[idx], path);
                 return File.getShared(path);
               });
-              provider.process(inputsMapped, outputsMapped, action, options, function (err) {
+              provider.process(inputsMapped, outputsMapped, msg.action, msg.options, function (err) {
                 var args= Array.from(arguments);
-                console.info("process-run", "runned", pid, err);
-                if(err) return cb(null, [], args);
+                console.info("process-run", "runned", msg.pid, err);
+                if(err) return reply({ err:null, output_errors:[], args:args });
                 var barrier = new Barrier.ErrBarrier("ServerProvider handle outputs", outputsMapped.length);
                 outputsMapped.forEach((output, idx) => {
                   var stream= fs.createReadStream(output.path);
                   stream.on("error", (err) => { barrier.dec(err); });
-                  stream.on("data", (data) => { socket.emit("process-upload-" + pid, idx, data); });
+                  stream.on("data", (data) => { ws.send("process-upload-" + msg.pid, {idx:idx, data: data}); });
                   stream.on("end", () => { barrier.dec(); });
                 });
                 barrier.endWith((errors) => {
-                  console.info("process-run", "outputs sent", pid, errors);
-                  cb(null, errors, args);
+                  console.info("process-run", "outputs sent", msg.pid, errors);
+                  reply({ err:null, output_errors: errors, args:args });
                 });
               });
             }
             else {
-              console.info("process-run", "Unable to find provider", pid);
-              cb(new Error("Unable to find provider"));
+              console.info("process-run", "Unable to find provider", msg.pid);
+              reply({ err:new Error("Unable to find provider") });
             }
           });
         });

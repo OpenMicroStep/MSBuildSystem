@@ -22,6 +22,7 @@ class LinkMSVCTask extends LinkTask {
     else {
       this.appendArgs(["kernel32.lib", "user32.lib", "shell32.lib", "MSVCRT.lib", "oldnames.lib"]);
       this.appendArgs(["/nologo"]);
+      this.appendArgs(["/subsystem:CONSOLE,5.01"]);
       if ((<CXXTarget>graph).variant !== "release")
         this.appendArgs(["/debug"]);
       if(this.type === CXXTarget.LinkType.DYNAMIC) {

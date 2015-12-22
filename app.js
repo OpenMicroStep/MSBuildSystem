@@ -40,7 +40,6 @@ process.argv.forEach(function(arg) {
   else if(arg === "clean")
     action = Graph.Action.CLEAN;
 });
-variants.length= 1;
 console.info("Action:", action);
 console.info("Workspace:", workspace.path);
 console.info("Targets:", targets);
@@ -58,21 +57,32 @@ var Provider = require('./out/buildsystem/core/Provider');
 // Default OSX 10.10 compiler & linker
 Provider.register(new Provider.Process("clang", { type:"compiler", compiler:"clang", version:"3.6"}));
 Provider.register(new Provider.Process("libtool", { type:"linker", linker:"libtool", version:"870"}));
-// Trunk version of clang for msvc support
-Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/clang", { type:"compiler", compiler:"clang", version:"3.7"}));
-Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/llvm-link", { type:"llvm-link", version:"3.7"}));
-//var client = new Provider.RemoteClient("http://10.211.55.16:2346");
 
-//client.socket.once("ready", function() {
+var end = function() {};
+if (1) {
+  // Trunk version of clang for msvc support
+  Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/clang", { type:"compiler", compiler:"clang", version:"3.7"}));
+  Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm/build-release/bin/llvm-link", { type:"llvm-link", version:"3.7"}));
+  var client = new Provider.RemoteClient("ws://10.211.55.16:2346");
+  client.socket.once("ready", ready);
+  end = function() {
+    client.socket.webSocket.close();
+  };
+}
+else {
+  ready();
+}
+
+function ready() {
   workspace.buildGraph({
-    variant:variants[0],
+    variant:variants,
     targets: targets,
     environments: environments
   }, function (err, graph) {
     console.timeEnd("Built workspace graph");
     if (err) {
       console.error(err.stack || err);
-      //client.socket.close();
+      end();
     }
     else {
       graph.reset();
@@ -83,12 +93,12 @@ Provider.register(new Provider.Process("/Users/vincentrouille/Dev/MicroStep/llvm
         if(task.errors)
           console.error("%s Failed", Graph.Action[action]);
         else
-          console.info("%s Succeded", Graph.Action[action]);
+          console.info("%s Succeeded", Graph.Action[action]);
         process.exitCode = task.errors;
-        //client.socket.close();
+        end();
       });
     }
   });
-//});
+}
 
 

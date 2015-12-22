@@ -23,7 +23,6 @@ interface GroupInfo {
 type FileTree = (FileInfo | GroupInfo)[];
 
 interface BuildGraphContext {
-  root: Workspace.RootTask;
   environments: Map<string, Workspace.EnvironmentTask>;
   targets: Map<string, Target>;
 }
@@ -53,6 +52,7 @@ function prepareFiles(files: FileTree) {
 class Workspace {
   public directory:string;
   public path:string;
+  public name:string;
   public environments:Workspace.Environment[];
   public targets:Workspace.TargetInfo[];
   public files:FileTree;
@@ -60,8 +60,15 @@ class Workspace {
   constructor(directory) {
     this.directory = directory;
     this.path = path.join(directory, "make.js");
-    var settings = require(this.path);
+    this.reload();
+  }
 
+  reload() {
+    var Module = require('module');
+    var m = new Module(this.path, null);
+    m.load(this.path);
+    var settings = m.exports;
+    this.name = settings.name || "Unnamed";
     this.environments = settings.environments || [];
     this.targets = settings.targets || [];
     this.files = settings.files || [];
@@ -193,39 +200,45 @@ class Workspace {
   }
 
   /** Construct build graph */
-  buildGraph(options:{targets?: string[]; directory?: string; environments?: string[]; variant: string}, callback:BuildGraphCallback) {
-    var context:BuildGraphContext = {
-      root: new Workspace.RootTask(options.directory || this.directory, options.variant || "debug"),
-      environments: new Map<string, Workspace.EnvironmentTask>(),
-      targets: new Map<string, Target>(),
-    };
-
+  buildGraph(options:{targets?: string[]; directory?: string; environments?: string[]; variant?: string[]}) : Promise<Graph> {
     // Build Env/Target dependency graph
-    try {
-      var targets = options.targets || [];
-      var environments = options.environments || [];
-      this.targets.forEach((targetInfo) => {
-        this.checkTargetInfo(targetInfo);
-        if (targets.length && targets.indexOf(targetInfo.name) === -1)
-          return;
-        var envs = this.resolveEnvironments(targetInfo.environments);
-        envs.forEach((env) => {
-          if (environments.length && environments.indexOf(env.name) === -1)
-            return;
+    return new Promise((resolve, reject) => {
+      try {
+        var root = new Workspace.RootTask(options.directory || this.directory);
+        var targets = options.targets || [];
+        var environments = options.environments || [];
+        var variants = options.variant || ["debug"];
+        variants.forEach((variant) => {
+          var context:BuildGraphContext = {
+            environments: new Map<string, Workspace.EnvironmentTask>(),
+            targets: new Map<string, Target>(),
+          };
+          var variantTask = new Workspace.VariantTask(root, variant);
+          this.targets.forEach((targetInfo) => {
+            this.checkTargetInfo(targetInfo);
+            if (targets.length && targets.indexOf(targetInfo.name) === -1)
+              return;
+            var envs = this.resolveEnvironments(targetInfo.environments);
+            envs.forEach((env) => {
+              if (environments.length && environments.indexOf(env.name) === -1)
+                return;
 
-          var envTask = context.environments.get(env.name);
-          if (!envTask)
-            context.environments.set(env.name, envTask = new Workspace.EnvironmentTask(context.root, env));
-          this._buildTargetDependencyGraph(context, envTask, targetInfo);
+              var envTask = context.environments.get(env.name);
+              if (!envTask)
+                context.environments.set(env.name, envTask = new Workspace.EnvironmentTask(variantTask, env));
+              this._buildTargetDependencyGraph(context, envTask, targetInfo);
+            });
+          });
         });
-      });
-    } catch (e) {
-      return callback(e);
-    }
 
-    context.root.reset();
-    context.root.start(Task.Action.CONFIGURE, () =>  {
-      callback(context.root.errors > 0 ? new Error("Error while configuring") : null, context.root);
+        root.reset();
+        root.start(Task.Action.CONFIGURE, () =>  {
+          if (root.errors > 0) reject(new Error("Error while configuring"))
+          else resolve(root);
+        });
+      } catch (e) {
+        return reject(e);
+      }
     });
   }
 
@@ -244,13 +257,14 @@ class Workspace {
     // Dependencies
     var deps = targetInfo.dependencies || [];
     deps.forEach((dependency) => {
-      var dep = (typeof dependency === "string") ? {target: dependency} : dependency;
+      var dep: {workspace?: string, target?: string, condition?: (target: Target) => boolean};
+      dep = (typeof dependency === "string") ? {target: dependency} : dependency;
       if (dep.condition && !dep.condition(target))
         return;
       if (!dep.target)
         throw("Dependency must explicitly set the target");
 
-      var depWorkspace = this;
+      var depWorkspace: Workspace = this;
       if (dep.workspace) {
         if (path.isAbsolute(dep.workspace))
           depWorkspace = Workspace.getShared(dep.workspace);
@@ -276,8 +290,14 @@ class Workspace {
 module Workspace {
   export class RootTask extends Graph
   {
-    constructor(public directory: string, public variant: string) {
+    constructor(public directory: string) {
       super("Root", null);
+    }
+  }
+  export class VariantTask extends Graph
+  {
+    constructor(private root: RootTask, public variant: string) {
+      super("Variant " + variant, root);
     }
   }
   export class EnvironmentTask extends Graph
@@ -287,13 +307,13 @@ module Workspace {
     intermediates: string;
     inputs:Set<Target>;
     outputs:Set<Target>;
-    constructor(private root: RootTask, public env: Workspace.Environment) {
-      super("Environment " + env.name, root);
-      this.output = path.join(root.directory, env.directories.output, root.variant, env.name);
-      this.intermediates = path.join(root.directory, env.directories.intermediates, root.variant, env.name);
+    constructor(private variantTask: VariantTask, public env: Workspace.Environment) {
+      super("Environment " + env.name, variantTask);
+      this.output = path.join((<RootTask>variantTask.graph).directory, env.directories.output, this.variant, env.name);
+      this.intermediates = path.join((<RootTask>variantTask.graph).directory, env.directories.intermediates, this.variant, env.name);
       this.buildSession = new BuildSession.InDatabase(path.join(this.intermediates, "session.nedb"));
     }
-    get variant(): string { return (<RootTask>this.graph).variant; }
+    get variant(): string { return (<VariantTask>this.graph).variant; }
     protected runAction(action: Task.Action, buildSession: BuildSession) {
       super.runAction(action, action === Task.Action.CONFIGURE ? buildSession : this.buildSession);
     }

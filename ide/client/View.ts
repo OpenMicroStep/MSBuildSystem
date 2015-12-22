@@ -1,13 +1,31 @@
 /// <reference path="../../typings/browser.d.ts" />
 import { EventEmitter } from "./events";
+import globals = require('./globals');
+
+interface ViewHTMLElement extends HTMLElement {
+  _view: View;
+}
+
+function parentView(parentElement: HTMLElement) {
+}
 
 class View extends EventEmitter {
-  el: HTMLElement;
+  el: ViewHTMLElement;
   $el: JQuery;
 
+  static findViewFromDOMElement(parentElement: Element) {
+    var ret = null;
+    while(ret === null && parentElement && parentElement !== document.body) {
+      if ((<any>parentElement)._view instanceof View)
+        ret = (<ViewHTMLElement>parentElement)._view;
+      parentElement = parentElement.parentElement;
+    }
+    return ret;
+  }
   constructor(tagName: string = "div") {
     super();
-    this.el = document.createElement(tagName);
+    this.el = <ViewHTMLElement>document.createElement(tagName);
+    this.el._view = this;
     this.$el = jQuery(this.el);
   }
 
@@ -15,6 +33,7 @@ class View extends EventEmitter {
     var parentNode = this.el.parentNode;
     if (parentNode)
       parentNode.removeChild(this.el);
+    $(this.el).empty();
   }
 
   appendTo(el:HTMLElement):void {
@@ -24,6 +43,15 @@ class View extends EventEmitter {
 
   getChildViews() : View[] {
     return [];
+  }
+
+  getParentView() : View {
+    return View.findViewFromDOMElement(this.el.parentElement);
+  }
+
+  tryDoAction(command): boolean {
+    console.log("will do", command);
+    return false;
   }
 
   /** update the view */

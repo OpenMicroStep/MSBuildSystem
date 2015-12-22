@@ -11,9 +11,12 @@ html
         else
             link(href="ide.css", rel="stylesheet")
     body
-        script(src='js/require.js')
-        script(src='js/ace/ace.js')
+        script(type='text/javascript') window.electron = window.require && window.require('electron')
+        script(type='text/javascript', src='js/require.js')
+        script(type='text/javascript', src='js/ace/ace.js')
+        script(type='text/javascript', src='js/ace/ext-language_tools.js')
+        script(type='text/javascript', src='js/ace/ext-statusbar.js')
         if debug
-            script(src='js/main.js')
+            script(type='text/javascript', src='js/main.js')
         else
-            script(src='ide.js')
+            script(type='text/javascript', src='ide.js')

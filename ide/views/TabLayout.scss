@@ -11,6 +11,8 @@ $tablayout-tabsborder: 2px;
   @include pos-absolute(0,0,auto,0);
   height: $tablayout-tabsheight;
   border-bottom: $tablayout-tabsborder solid #C0C0C0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .tablayout-top > .tablayout-content {
@@ -19,13 +21,41 @@ $tablayout-tabsborder: 2px;
 }
 
 .tablayout-tab {
-  cursor: pointer;
+  cursor: default;
   display: inline-block;
   margin: 0 6px;
   padding: 4px;
   background:#F6F6F6;
   height: $tablayout-tabsheight - $tablayout-tabsborder;
+  vertical-align: top;
 }
 .tablayout-tab.active {
   background: #C0C0C0;
+}
+.tablayout-tab.placeholder {
+  background: #C0C0C0;
+  width: 100px;
+  pointer-events: none;
+}
+
+.tablayout-tabs-overflow::before, .tablayout-tabs-overflow::after {
+    content:'';
+    position: absolute;
+    width: 30px;
+    height: 26px;
+    top: 0;
+    font-size: 19px;
+    z-index: 1;
+}
+
+.tablayout-tabs-overflow::after {
+    text-align: right;
+    right: 0;
+    background: linear-gradient(to left, #f6f6f6 75%, rgba(192,192,192,0) 100%)
+}
+
+.tablayout-tabs-overflow::before {
+    text-align: left;
+    left: 0;
+    background: linear-gradient(to right, #f6f6f6 75%, rgba(192,192,192,0) 100%)
 }

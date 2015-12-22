@@ -20,8 +20,22 @@
   cursor: pointer;
 }
 
+.docklayout-placeholder {
+  z-index: 100;
+  position: fixed;
+  pointer-events: none;
+  background: rgba(209, 157, 22, 0.7);
+}
+
 .docklayout-overlay > polygon:hover {
   fill:rgba(209, 157, 22, 0.9);
+}
+
+.docklayout-drop > .boxlayout {
+  top: 25px !important;
+  right: 25px !important;
+  bottom: 25px !important;
+  left: 25px !important;
 }
 
 polygon.docklayout-overlay-root {

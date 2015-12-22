@@ -29,13 +29,17 @@ class WorkspaceFile extends replication.ServedObject<File> {
     if (ok) {
       this.version = version;
       this.deltas.push(data);
-      this.broadcast("change", version, data);
+      this.broadcast("change", {version: version, data: data});
     }
     return ok;
   }
 
   save(content: string) : Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      this.version = 0;
+      this.content = content;
+      this.deltas = [];
+      this.broadcast("saved", {content: content});
       this.obj.writeUtf8File(content, (err) => {
         if (err) reject(err);
         else resolve();

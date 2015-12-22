@@ -22,9 +22,9 @@ class CompileClangTask extends CompileTask {
     if ((<Target>graph).variant !== "release")
       this.appendArgs(["-g"]);
     else
-      this.appendArgs(["-O3"]);
-    if (this.language === 'C' || this.language === 'OBJC')
-      this.appendArgs(["-std=c11"]);
+      this.appendArgs(["-O3", "-g"]);
+    //if (this.language === 'C' || this.language === 'OBJC')
+    //  this.appendArgs(["-std=c11"]);
     //if(!(<any>process.stdout).isTTY)
     //  this.appendArgs(['-fno-color-diagnostics']);
   }

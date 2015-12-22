@@ -9,47 +9,15 @@ function applyMixins(derivedCtor: any, baseCtors: any[]) {
   });
 }
 
+var aceEventEmitter = ace.require("ace/lib/event_emitter").EventEmitter;
 export class EventEmitter {
-  listeners: { [s:string]: ((...args) => any)[] } = {};
-
-
-  on(event, callme) {
-    var listeners = this.listeners[event];
-    if (!listeners) {
-      listeners = [];
-      this.listeners[event] = listeners;
-    }
-    listeners.push(callme);
-  }
-
-  once(event, callmeonce) {
-    var self = this;
-    var fn = function() {
-      callmeonce.apply(this, arguments);
-      self.removeListener(event, fn);
-    };
-    this.on(event, fn);
-  }
-
-  emit(event, ...args) {
-    var listeners = this.listeners[event];
-    if (listeners) {
-      for(var listener of listeners) {
-        listener(...args);
-      }
-    }
-  }
-
-  removeListener(event, callme) {
-    var listeners = this.listeners[event];
-    if (listeners) {
-      var idx = listeners.indexOf(callme);
-      if (idx !== -1) {
-        listeners.splice(idx, 1);
-      }
-    }
-  }
+  _emit: (eventName: string, e) => any;
+  _signal: (eventName: string, e) => void;
+  once: (eventName: string, callback: (e, emitter) => any) => void;
+  on: (eventName: string, callback: (e, emitter) => any) => void;
+  off: (eventName: string, callback: (e, emitter) => any) => void;
 }
+applyMixins(EventEmitter, [{ prototype: aceEventEmitter }]);
 
 export function mixin(ctor) {
   applyMixins(ctor, [EventEmitter]);

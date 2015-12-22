@@ -46,7 +46,7 @@ class DarwinSysroot extends Sysroot {
   linkFinalName(target: CXXTarget):string {
     var name = super.linkFinalName(target);
     if(target.isInstanceOf("Library") && !target.isInstanceOf("Bundle") && !target.isInstanceOf("Framework"))
-        name += (target.linkType === CXXTarget.LinkType.DYNAMIC ? ".dylib" : ".a");
+        name = "lib" + name + (target.linkType === CXXTarget.LinkType.DYNAMIC ? ".dylib" : ".a");
     return name;
   }
   configure(target: CXXTarget, callback: ErrCallback) {

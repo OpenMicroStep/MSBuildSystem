@@ -12,20 +12,42 @@ import globals = require('./globals');
 // glyphicon glyphicon-folder-close
 // glyphicon glyphicon-folder-open
 
+function openFile(file) {
+  var found = false;
+  globals.ide.content.iterateViews((view, container) => {
+    if (view instanceof EditorView && (<EditorView>view).file === file) {
+      container.currentView = view;
+      container.currentView.focus();
+      found = true;
+    }
+    return found;
+  });
+  if (!found) {
+    var ed = new EditorView(file);
+    globals.ide.content.main.appendViewTo(ed, DockLayout.Position.MIDDLE);
+    ed.focus();
+  }
+}
+
 class WorkspaceTreeItem extends TreeView.TreeItem {
   constructor(workspace) {
     super();
-
-    var icon = document.createElement('span');
-    icon.className = "glyphicon glyphicon-briefcase";
-    this.el.appendChild(icon);
-    this.el.appendChild(document.createTextNode(workspace.path));
-    this.el.appendChild(this.childsContainer);
-    for(var f of workspace.files) {
-      var v = new FileTreeItem(f, workspace);
-      this.childs.push(v);
-      this.childsContainer.appendChild(v.el);
-    }
+    workspace.on('reload', (e) => {
+      this.removeChildItems();
+      var icon = document.createElement('span');
+      icon.className = "glyphicon glyphicon-briefcase";
+      this.nameContainer.innerHTML = '';
+      this.nameContainer.appendChild(icon);
+      this.nameContainer.appendChild(document.createTextNode(workspace.name));
+      this.nameContainer.setAttribute('title', workspace.path);
+      /*this.nameContainer.addEventListener("click", () => {
+          workspace.openFile('make.js').then(openFile);
+      });*/
+      for(var f of workspace.files) {
+        this.addChildItem(new FileTreeItem(f, workspace));
+      }
+      this.addChildItem(new FileTreeItem({file:"make.js"}, workspace));
+    });
   }
 }
 class FileTreeItem extends TreeView.TreeItem {
@@ -33,37 +55,36 @@ class FileTreeItem extends TreeView.TreeItem {
     super();
 
     var icon = document.createElement('span');
-    var text;
+    var text, tooltip;
     if (d.file) {
       icon.className = "glyphicon glyphicon-file";
-      text = document.createTextNode(d.file);
-      this.el.addEventListener("click", () => {
-        workspace.openFile(d.file).then((file) => {
-          var found = false;
-          globals.ide.content.iterateViews((view, container) => {
-            if (view instanceof EditorView && (<EditorView>view).file === file) {
-              container.currentView = view;
-              found = true;
-            }
-            return found;
-          });
-          if (!found)
-            globals.ide.content.main.appendViewTo(new EditorView(file), DockLayout.Position.MIDDLE);
-        });
-      }, true);
+      tooltip = d.file;
+      text = d.file.replace(/^.+\//, '');
+      this.nameContainer.addEventListener("click", () => {
+        workspace.openFile(d.file).then(openFile);
+      });
+      this.nameContainer.className += " tree-item-file";
     }
     else {
-      icon.className = "glyphicon glyphicon-folder-open";
-      text = document.createTextNode(d.group);
+      icon.className = "glyphicon glyphicon-folder-close";
+      text = d.group;
       for(var f of d.files) {
-        var v = new FileTreeItem(f, workspace);
-        this.childs.push(v);
-        this.childsContainer.appendChild(v.el);
+        this.addChildItem(new FileTreeItem(f, workspace));
       }
+      var closed = true;
+      this.nameContainer.addEventListener("click", () => {
+        closed = !closed;
+        $(icon).toggleClass("glyphicon-folder-open", !closed);
+        $(icon).toggleClass("glyphicon-folder-close", closed);
+        $(this.el).toggleClass("tree-item-closed", closed);
+      });
+      this.nameContainer.className += " tree-item-group";
+      $(this.el).toggleClass("tree-item-closed", true);
     }
-    this.el.appendChild(icon);
-    this.el.appendChild(text);
-    this.el.appendChild(this.childsContainer);
+    this.nameContainer.appendChild(icon);
+    this.nameContainer.appendChild(document.createTextNode(" " + text));
+    if (tooltip)
+      this.nameContainer.setAttribute("title", tooltip);
   }
 }
 

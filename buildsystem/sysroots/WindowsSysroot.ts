@@ -53,6 +53,8 @@ class WindowsSysroot extends Sysroot {
     if(target.env.compiler === "clang") {
       task = new CompileClangTask(target, srcFile, objFile);
       task.provider = <Provider.Process>Provider.find({compiler:"clang", version:"3.7"});
+      if (!task.provider)
+        return callback(new Error("Unable to find provider"));
       //if (target.sysroot.api === "msvc")
       //  task.bin = "C:/Program Files (x86)/LLVM/bin/clang.exe";
       if(target.linkType !== CXXTarget.LinkType.STATIC)
@@ -69,7 +71,7 @@ class WindowsSysroot extends Sysroot {
       task.addFlags(this.cppIncludes);
     }
     if (target.sysroot.api === "msvc")
-      task.addFlags(["-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fmsc-version=1700", "-Wno-microsoft"/*, "-D_ITERATOR_DEBUG_LEVEL=2", "-D_DEBUG", "-D_MT"*//*, "-emit-llvm"*/]);
+      task.addFlags(["-DWIN32", "-D_USING_V110_SDK71_", "-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fmsc-version=1700", "-Wno-microsoft"/*, "-D_ITERATOR_DEBUG_LEVEL=2", "-D_DEBUG", "-D_MT"*//*, "-emit-llvm"*/]);
     if(this.cIncludes) {
       task.addFlags(["-nostdinc"]);
       if (target.sysroot.api === "msvc")

@@ -1,7 +1,11 @@
-export import Barrier = require('./Barrier'  );
-export import File    = require('./File'     );
-export import Process = require('./Process'  );
-export import Task    = require('./Task'     );
-export import Graph   = require('./Graph'    );
-export import Target  = require('./Target'   );
-export import Workspac= require('./Workspace');
+/// <reference path="../../typings/tsd.d.ts" />
+class Core {
+  get File     () { return require('./File'     ) };
+  get Process  () { return require('./Process'  ) };
+  get Task     () { return require('./Task'     ) };
+  get Graph    () { return require('./Graph'    ) };
+  get Target   () { return require('./Target'   ) };
+  get Workspace() { return require('./Workspace') };
+}
+
+export = new Core();

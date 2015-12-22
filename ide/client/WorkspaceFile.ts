@@ -9,12 +9,7 @@ import globals = require('./globals');
 
 var Document:  typeof AceAjax.Document = ace.require('ace/document').Document;
 
-class WorkspaceFile extends replication.DistantObject implements events.EventEmitter {
-  listeners: { [s:string]: ((...args) => any)[] } = {};
-  on: (event, callme) => void;
-  once: (event, callmeonce) => void;
-  emit: (event, ...args) => void;
-  removeListener: (event, callme) => void;
+class WorkspaceFile extends replication.DistantObject {
 
   path:string;
   name:string;
@@ -22,7 +17,6 @@ class WorkspaceFile extends replication.DistantObject implements events.EventEmi
   version:number;
   document: AceAjax.Document;
   ignoreChanges: boolean;
-  saved: boolean;
   workspace: Workspace;
 
   constructor() {
@@ -30,6 +24,7 @@ class WorkspaceFile extends replication.DistantObject implements events.EventEmi
 
     this.document = new Document("");
     this.document.on("change", (e) => {
+      console.log("change", e);
       if (!this.ignoreChanges) {
         this.edit(e.data);
       }
@@ -46,7 +41,6 @@ class WorkspaceFile extends replication.DistantObject implements events.EventEmi
     this.document.setValue(data.content);
     this.document.applyDeltas(data.deltas);
     this.ignoreChanges = false;
-    this.saved = data.deltas.length == 0;
   }
 
   outofsync() {
@@ -58,11 +52,13 @@ class WorkspaceFile extends replication.DistantObject implements events.EventEmi
   }
 
   save() : Promise<boolean> {
-    return this.remoteCall("save", this.document.getValue()).then((ok) => {
-      this.emit("saved", ok);
-      this.saved = ok;
-      return ok;
-    });
+    return this.remoteCall("save", this.document.getValue());
+  }
+
+  saved(data) {
+    this.version = data.version;
+    this.document.setValue(data.content);
+    this._emit("saved", {hasUnsavedChanges:false});
   }
 
   change(version, data) {
@@ -73,12 +69,11 @@ class WorkspaceFile extends replication.DistantObject implements events.EventEmi
   }
 
   edit(data: {action: string, range:any, lines?, text?, nl?}) : Promise<boolean> {
-    this.emit("saved", false);
+    this._emit("saved", {hasUnsavedChanges:true});
     return this.remoteCall("change", ++this.version, data);
   }
 }
 replication.registerClass("WorkspaceFile", WorkspaceFile);
-events.mixin(WorkspaceFile);
 
 export = WorkspaceFile;
 

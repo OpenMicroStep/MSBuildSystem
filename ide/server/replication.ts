@@ -3,6 +3,7 @@
 
 import io = require('socket.io');
 import Socket = SocketIO.Socket;
+var MSTools = require('MSTools');
 
 enum Replication {
   SERVERTOCLIENT = 0x1,
@@ -11,21 +12,25 @@ enum Replication {
 }
 
 type ReplicationInfo = { name: string, type: Replication };
-type SocketInfo = { socket: Socket, replicatedObjects: Set<ServedObject<any>> };
+type SocketInfo = {
+  socket: Socket,
+  replicatedObjects: Set<ServedObject<any>>,
+  _repget?: any, _repset?: any, _repcall?: any, _destroy?: any, _error?: any, _close?: any
+};
 
 export function registerSocket(socket: Socket) : SocketInfo {
   var info: SocketInfo = { socket: socket, replicatedObjects: new Set<ServedObject<any>>() };
-  socket.on('repget', function(id, name, cb) {
+  socket.on('repget', info._repget = function(id, name, cb) {
     var o = objectWithId(id);
     if (o) o.handleGetProperty(info, cb, name);
     else cb(404);
   });
-  socket.on('repset', function(id, name, value, cb) {
+  socket.on('repset', info._repset = function(id, name, value, cb) {
     var o = objectWithId(id);
     if (o) o.handleSetProperty(info, cb, name, value);
     else cb(404);
   });
-  socket.on('repcall', function(id, fn, args, cb) {
+  socket.on('repcall', info._repcall = function(id, fn, args, cb) {
     cb = arguments[arguments.length - 1];
     var o = objectWithId(id);
     if (o) {
@@ -37,18 +42,31 @@ export function registerSocket(socket: Socket) : SocketInfo {
     }
     else cb(404);
   });
-  socket.on('close', function() {
+  socket.on('destroy', info._destroy = function(id) {
+    delete ids[id];
+  });
+  socket.on('error', info._error = function(err) {
+    console.warn("Error on socket", err);
+    unregisterSocket(info);
+  });
+  socket.on('close', info._close = function() {
     unregisterSocket(info);
   });
   return info;
 }
 export function unregisterSocket(info: SocketInfo) {
   info.replicatedObjects.forEach(function(obj) {
+    obj.listeners.delete(info.socket);
     obj.removeListener(info.socket);
+    if (obj.listeners.size === 0)
+      unregisterObject(obj);
   });
-  info.socket.removeAllListeners('repget');
-  info.socket.removeAllListeners('repset');
-  info.socket.removeAllListeners('repcall');
+  info.socket.removeListener('repget', info._repget);
+  info.socket.removeListener('repset', info._repset);
+  info.socket.removeListener('destroy', info._destroy);
+  info.socket.removeListener('repcall', info._repcall);
+  info.socket.removeListener('error', info._error);
+  info.socket.removeListener('close', info._close);
 }
 
 var ids = {};
@@ -63,9 +81,13 @@ export function objectWithId(id: string) : ServedObject<any> {
   return ids[id];
 }
 
-function handleRet(info: SocketInfo, r) {
+export function encode(info: SocketInfo, r) {
   if (r instanceof ServedObject) {
-    r.addListener(info.socket);
+    if (!r.listeners.has(r)) {
+      info.replicatedObjects.add(r);
+      r.listeners.add(r);
+      r.addListener(info.socket);
+    }
     r= r.encode();
   }
   return r;
@@ -85,18 +107,16 @@ export class ServedObject<T> {
     registerObject(this);
   }
 
-  addListener(socket: Socket) {
-    this.listeners.add(socket);
-  }
+  addListener(socket: Socket) {}
+  removeListener(socket: Socket) {}
 
-  removeListener(socket: Socket) {
-    this.listeners.delete(socket);
-  }
-
-  broadcast(evt: string, ...args) {
+  broadcast(evt: string, e?: any) {
     this.listeners.forEach((socket) => {
-      socket.emit("repevt", this.id, evt, ...args);
+      this.emit(socket, evt, e);
     });
+  }
+  emit(socket: Socket, evt, e?: any) {
+    socket.emit("repevt", this.id, evt, e);
   }
 
   encode() : any {
@@ -107,7 +127,7 @@ export class ServedObject<T> {
   }
 
   handleGetProperty(socket: SocketInfo, cb: (err:string, ret?: any) => any, name: string) {
-    return cb(null, handleRet(socket, this[name]));
+    return cb(null, encode(socket, this[name]));
   }
   handleSetProperty(socket: SocketInfo, cb: (err:string, ret?: any) => any, name: string, value) {
     this[name] = value;
@@ -120,13 +140,13 @@ export class ServedObject<T> {
     var ret = this[fn](...args);
     if (ret instanceof Promise) {
       ret.then(function(ret) {
-        cb(null, handleRet(socket, ret));
+        cb(null, encode(socket, ret));
       }).catch(function(err) {
         cb(err);
       });
     }
     else {
-      cb(null, handleRet(socket, ret));
+      cb(null, encode(socket, ret));
     }
   }
 
@@ -147,4 +167,6 @@ export class ServedObject<T> {
     });
   }
 }
+
+MSTools.defineHiddenConstant(ServedObject.prototype, 'isa', 'ServedObject');
 

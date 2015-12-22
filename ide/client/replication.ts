@@ -2,9 +2,10 @@
 "use strict";
 
 import io = require('socket.io-client');
+import events = require('./events');
 
 // The socket is globally shared to ease the replication system
-export var socket: SocketIOClient.Socket = io.connect({ transports: ['websocket'] });
+export var socket: SocketIOClient.Socket = io.connect('http://127.0.0.1:3000', { transports: ['websocket'] });
 
 
 export interface DistantObjectProtocol {
@@ -14,20 +15,16 @@ export interface DistantObjectProtocol {
 }
 
 
-var instances: {[s: string]: any} = {};
+var instances: {[s: string]: DistantObject} = {};
 var classes: {[s: string]: any} = {};
 export function registerClass(cls: string, ctor) {
   classes[cls] = ctor;
 }
-socket.on("repevt", function(id: string, evt: string, ...args) {
+socket.on("repevt", function(id: string, evt: string, e: any) {
   var inst = instances[id];
   if (inst) {
-    if (typeof inst[evt] === "function") {
-      inst[evt](...args);
-    }
-    else {
-      console.error("No method '"+evt+"' on ", inst);
-    }
+    console.log("repevt", evt, e);
+    inst._emit(evt, e);
   }
   else {
     console.error("No object with id ", id);
@@ -48,7 +45,13 @@ function decode(d) {
   return d;
 }
 
-export class DistantObject {
+export class DistantObject implements events.EventEmitter {
+  _emit: (eventName: string, e) => any;
+  _signal: (eventName: string, e) => void;
+  once: (eventName: string, callback: (e, emitter) => any) => void;
+  on: (eventName: string, callback: (e, emitter) => any) => void;
+  off: (eventName: string, callback: (e, emitter) => any) => void;
+
   id: string;
   private _outofsync: Promise<any>;
 
@@ -57,12 +60,20 @@ export class DistantObject {
   }
 
   changeId(newId: string) {
-    delete instances[this.id];
+    var instance = instances[this.id];
+    if (instance)
+      instance.destroy();
     instances[newId] = this;
     this.id = newId;
   }
 
+  destroy() {
+    this._replicate("destroy");
+    delete instances[this.id];
+  }
+
   initWithData(data:any):void {
+    if (!data) return;
     for(var name of Object.getOwnPropertyNames(data)) {
       this[name] = data[name];
     }
@@ -105,3 +116,4 @@ export class DistantObject {
     return this._replicate("repset", name, value);
   }
 }
+events.mixin(DistantObject);

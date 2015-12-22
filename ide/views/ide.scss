@@ -3,6 +3,7 @@
 @import "TabLayout";
 @import "DockLayout";
 @import "TreeView";
+@import "ContextMenu";
 
 body > div > .docklayout {
   top: 62px;
@@ -17,9 +18,25 @@ body > div > .docklayout {
 }
 
 .editor {
-  position: absolute !important;
   @include pos-absolute(0,0,0,0);
 }
+.editor-ace {
+  position: absolute !important;
+  @include pos-absolute(0,0,15px,0);
+
+}
+.editor-status {
+  position: absolute !important;
+  @include pos-absolute(auto,0,0,0);
+  height: 15px;
+  overflow: hidden;
+  background: #2F3129;
+  color: #8F908A;
+  font: 12px/normal 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', 'Droid Sans Mono', monospace;
+  text-align: right;
+  padding: 0px 5px;
+}
+
 .editorview-title-modified {
   color: red;
 }

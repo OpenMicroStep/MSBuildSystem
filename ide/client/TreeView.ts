@@ -30,16 +30,31 @@ class TreeView extends ContentView {
 
 module TreeView {
   export class TreeItem extends View {
+    nameContainer: HTMLElement;
     childsContainer: HTMLElement;
     childs: TreeItem[];
 
     constructor() {
       super();
       this.el.className = "tree-item";
+      this.nameContainer = document.createElement('div');
       this.childsContainer = document.createElement('div');
       this.childsContainer.className = "tree-childs";
       this.childs = [];
+      this.el.appendChild(this.nameContainer);
+      this.el.appendChild(this.childsContainer);
     }
+
+    addChildItem(v: TreeItem) {
+      this.childs.push(v);
+      this.childsContainer.appendChild(v.el);
+    }
+
+    removeChildItems() {
+      this.childs.length = 0;
+      this.childsContainer.innerHTML = '';
+    }
+
     getChildViews() {
       return this.childs;
     }

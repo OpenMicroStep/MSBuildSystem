@@ -6,11 +6,11 @@ import File = require('../core/File');
 import Task = require('../core/Task');
 import Graph = require('../core/Graph');
 import Provider = require('../core/Provider');
-import CompileTask = require('./Compile');
+import ProcessTask = require('./_Process');
 
-class CompileMasmTask extends CompileTask {
+class CompileMasmTask extends ProcessTask {
   constructor(graph: Graph, srcFile:File, objFile:File) {
-    super(graph, srcFile, objFile);
+    super("Compile " + srcFile.name, graph, [srcFile], [objFile]);
 
     this.appendArgs([
       "/Fo", objFile.path,

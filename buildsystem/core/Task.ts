@@ -81,22 +81,32 @@ class Task {
   }
 
   uniqueKey(): string { return null; }
+
+  id() {
+    if(this.sessionKey === undefined) {
+      this.sessionKey = null;
+      var key = this.uniqueKey();
+      if (key) {
+        var shasum = crypto.createHash('sha1');
+        shasum.update(key);
+        this.sessionKey = this.classname + "-" + shasum.digest('hex');
+      }
+    }
+    return this.sessionKey;
+  }
+
+  addObserver(callback: (task: Task) => any) {
+    this.observers.push(callback);
+  }
+
   start(action: Task.Action, callback: (task: Task) => any, buildSession: BuildSession = BuildSession.noop) {
     if(this.state === Task.State.WAITING) {
-      if(this.sessionKey === undefined) {
-        this.sessionKey = null;
-        var key = this.uniqueKey();
-        if (key) {
-          var shasum = crypto.createHash('sha1');
-          shasum.update(key);
-          this.sessionKey = this.classname + "-" + shasum.digest('hex') + "-" + Task.Action[action];
-        }
-      }
+      var id = this.id() + "-" + Task.Action[action];
       this.observers.push(() => {
-        buildSession.storeInfo(this.sessionKey, this.data);
+        buildSession.storeInfo(id, this.data);
       });
       this.observers.push(callback);
-      buildSession.retrieveInfo(this.sessionKey, (data) => {
+      buildSession.retrieveInfo(id, (data) => {
         this.data = data || {};
         this.data.lastRunStartTime = (new Date()).getTime();
         this.data.lastRunEndTime = this.data.lastRunEndTime || 0;

@@ -1,5 +1,6 @@
-var BuildSystem = require('./lib/BuildSystem');
-var Provider = require('./lib/core/Provider');
+require('source-map-support').install();
+var BuildSystem = require('./out/buildsystem/BuildSystem');
+var Provider = require('./out/buildsystem/core/Provider');
 
 Provider.register(new Provider.Process("C:/Program Files (x86)/Microsoft Visual Studio 11.0/VC/bin/link.exe", { type:"linker", linker:"msvc", arch:"i386", version:"12"}, {
   args: ["/libpath:C:/Program Files (x86)/Microsoft Visual Studio 11.0/VC/lib", "/libpath:C:/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/Lib"],

@@ -108,8 +108,6 @@ class Sysroot implements Sysroot.Interface {
   }
 
   linkFinalName(target: CXXTarget):string {
-    if(target.isInstanceOf("Library") && !target.isInstanceOf("Bundle") && !target.isInstanceOf("Framework"))
-      return "lib" + target.outputName;
     return target.outputName;
   }
 

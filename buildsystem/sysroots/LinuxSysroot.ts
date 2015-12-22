@@ -5,12 +5,14 @@
 import Sysroot = require('../core/Sysroot');
 import File = require('../core/File');
 import Provider = require('../core/Provider');
+import Target = require('../core/Target');
 import CXXTarget = require('../targets/_CXXTarget');
 import CompileClangTask = require('../tasks/CompileClang');
 import CompileGCCTask = require('../tasks/CompileGCC');
 import LinkBinUtilsTask = require('../tasks/LinkBinUtils');
 import CompileTask = require('../tasks/Compile');
 import path = require('path');
+import _ = require('underscore');
 
 class LinuxSysroot extends Sysroot {
   triple:string;
@@ -43,8 +45,32 @@ class LinuxSysroot extends Sysroot {
     var task = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
     if (target.linkType === CXXTarget.LinkType.STATIC)
       task.provider = <Provider.Process>Provider.find({archiver:"binutils", triple:this.triple});
-    else
+    else {
       task.provider = <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
+      task.addFlags(["-Wl,-soname," + this.linkFinalName(target)]);
+    }
+
+    var basepath= path.dirname(finalFile.path);
+    var rpaths = [];
+    var rpathslnk = [];
+    var exported = new Set<Target>();
+    var deep = (parent: Target) => {
+      parent.dependencies.forEach((dep) => {
+        if (!exported.has(dep)) {
+          exported.add(dep);
+          rpaths.push(path.relative(basepath, path.dirname(this.linkFinalPath(<CXXTarget>dep))));
+          rpathslnk.push(path.dirname(this.linkFinalPath(<CXXTarget>dep)));
+          deep(dep);
+        }
+      });
+    };
+    deep(target);
+    rpathslnk= _.unique(rpathslnk);
+    rpaths= _.unique(rpaths);
+    task.addFlags(rpaths.map((p) => { return "-Wl,-rpath,$ORIGIN/" + p + "/"; }));
+    task.addFlags(rpathslnk.map((p) => { return "-Wl,-rpath-link," + p; }));
+    task.addFlags(["-Wl,-rpath-link," + path.join(this.sysrootDirectory, 'usr/lib/x86_64-linux-gnu')]);
+    task.addFlags(["-Wl,-rpath-link," + path.join(this.sysrootDirectory, 'lib/x86_64-linux-gnu')]);
     if (this.triple) {
       task.addFlags(["--target=" + this.triple]);
       task.addFlags(["--sysroot=" + this.sysrootDirectory]);
@@ -53,8 +79,8 @@ class LinuxSysroot extends Sysroot {
   }
   linkFinalName(target: CXXTarget):string {
     var name = super.linkFinalName(target);
-    if(target.isInstanceOf("Library") && !target.isInstanceOf("Bundle") && !target.isInstanceOf("Framework"))
-      name += (target.linkType === CXXTarget.LinkType.DYNAMIC ? ".so" : ".a");
+    if(target.isInstanceOf("Library"))
+      name = "lib" + name + (target.linkType === CXXTarget.LinkType.DYNAMIC ? ".so" : ".a");
     return name;
   }
   configure(target: CXXTarget, callback: ErrCallback) {
