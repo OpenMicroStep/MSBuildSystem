@@ -8,52 +8,7 @@ import Workspace = require('./Workspace');
 var Document:    typeof AceAjax.Document    = ace.require('ace/document').Document;
 var EditSession: typeof AceAjax.EditSession = ace.require("ace/edit_session").EditSession;
 var UndoManager: typeof AceAjax.UndoManager = ace.require("ace/undomanager").UndoManager;
-
-// TODO: Make this flexible
-var extensionToMode = {
-  '.c':'c_cpp',
-  '.cpp':'c_cpp',
-  '.h': 'objectivec',
-  '.hpp': 'c_cpp',
-  '.css':'css',
-  '.d':'d',
-  '.dart':'dart',
-  '.diff':'diff',
-  '.dockerfile':'dockerfile',
-  '.dot':'dot',
-  '.gitignore':'gitignore',
-  '.go':'golang',
-  '.htm':'html',
-  '.html':'html',
-  '.ini':'ini',
-  '.jade':'jade',
-  '.js':'javascript',
-  '.json':'json',
-  '.less':'less',
-  '.lisp':'lisp',
-  '.lua':'lua',
-  'Makefile':'makefile',
-  '.md':'markdown',
-  '.m':'objectivec',
-  '.mm':'objectivec',
-  '.sass':'sass',
-  '.sh':'sh',
-  '.sjs':'sjs',
-  '.sql':'sql',
-  '.svg':'svg',
-  '.tex':'tex',
-  '.ts':'typescript',
-  '.xml':'xml',
-  '.yaml':'yaml',
-};
-
-function fileNameToMode(name) {
-  var idx = name.lastIndexOf('.');
-  if (idx != -1)
-    name = name.substring(idx);
-  var ext = extensionToMode[name];
-  return "ace/mode/" + (ext ? ext : 'text');
-}
+var modelist = ace.require("ace/ext/modelist");
 
 class WorkspaceFile extends replication.DistantObject {
   refcount: number;
@@ -63,14 +18,17 @@ class WorkspaceFile extends replication.DistantObject {
   session: AceAjax.IEditSession;
   ignoreChanges: boolean;
   workspace: Workspace;
+  mode: { mode: string, name: string, caption: string };
   pendingsdeltas: async.Flux[];
 
   constructor() {
     super();
-
     this.refcount = 1;
     this.pendingsdeltas = [];
     this.session = new EditSession("", null);
+    this.ignoreChanges = true;
+    this.mode = null;
+
     this.session.on("change", (e) => {
       if (!this.ignoreChanges) {
         (new async.Async({ deltas: [e.data] } , [
@@ -96,7 +54,6 @@ class WorkspaceFile extends replication.DistantObject {
       setTimeout(() => { this._signal("change"); }, 0);
     });
     this.on('extsaved', (e) => { this.saved(e); });
-    this.ignoreChanges = true;
   }
 
   initWithData(data) {
@@ -104,11 +61,16 @@ class WorkspaceFile extends replication.DistantObject {
     this.path = data.path;
     this.name = data.name;
     this.extension = data.extension;
-    this.session.setMode(fileNameToMode(data.name));
+    this.setMode(modelist.getModeForPath(data.name) || modelist.modesByName["text"]);
     this.session.setValue(data.content);
     this.session.setUndoManager(new UndoManager());
     this.session.getDocument().applyDeltas(data.deltas);
     this.ignoreChanges = false;
+  }
+
+  setMode(mode) {
+    this.mode = mode;
+    this.session.setMode(mode.mode);
   }
 
   reconnect(data) {

@@ -57,9 +57,15 @@ class Menu {
     dropdown = document.createElement('li');
     parent.appendChild(dropdown);
 
+    if (opts.type === "separator") {
+      dropdown.appendChild(document.createElement('hr'));
+      return;
+    }
     name = document.createElement("a");
     name.setAttribute("href", "#");
     name.textContent = opts.label;
+    if (opts.checked === true)
+      name.className = "menuitem-checked";
     dropdown.appendChild(name);
 
     if (opts.command) {
@@ -181,7 +187,7 @@ export class TitleMenu extends Menu {
   }
 }
 
-class ContextMenu extends Menu {
+export class ContextMenu extends Menu {
   _visible: boolean;
 
   constructor(menu: MenuItemOptions[]) {
@@ -193,17 +199,37 @@ class ContextMenu extends Menu {
 
   popup(x: number, y: number) {
     if (this.domMenu) {
-      this.domMenu.style.left = x + "px";
-      this.domMenu.style.top = y + "px";
-      this.domMenu.style.position = "fixed";
       document.body.appendChild(this.domMenu);
+      var rw = $(this.domMenu).width();
+      var rh = $(this.domMenu).height();
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      this.domMenu.style.left = Math.min(x, w - rw - 5) + "px";
+      if (y + rh + 15 > h && y > h / 2) {
+        this.domMenu.style.bottom = (h - y) + "px";
+        this.domMenu.style.maxHeight = (y - 15) + "px";
+      }
+      else {
+        this.domMenu.style.top = y + "px";
+        this.domMenu.style.maxHeight = (h - y - 15) + "px";
+      }
       (<any>$(this.domMenu)).dropdown('toggle');
-      var evt;
-      document.addEventListener('click', evt = () => {
+      var clear = () => {
+        document.removeEventListener('contextmenu', clear, true);
+        document.removeEventListener('click', clear, true);
+        document.removeEventListener('keydown', keydown, true);
         document.body.removeChild(this.domMenu);
-        document.removeEventListener('click', evt, true);
         $(this.domMenu).empty();
-      }, true);
+      };
+      var keydown = (e) => {
+        if (!/(38|40|27|32)/.test(e.which)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        clear();
+      };
+      document.addEventListener('contextmenu', clear, true);
+      document.addEventListener('click', clear, true);
+      document.addEventListener('keydown', keydown, true);
     }
     else {
       console.log(this.nativeMenu);

@@ -4,6 +4,7 @@
 @import "DockLayout";
 @import "TreeView";
 @import "ContextMenu";
+@import "EditorView";
 
 body > div > .docklayout {
   top: 62px;
@@ -17,32 +18,13 @@ body > div > .docklayout {
   border: 1px solid #C9C9C9;
 }
 
-.editor {
-  @include pos-absolute(0,0,0,0);
-}
-.editor-ace {
-  position: absolute !important;
-  @include pos-absolute(0,0,15px,0);
-}
 .fill {
   position: absolute !important;
   @include pos-absolute(0,0,0,0);
 }
 
-.editor-status {
-  position: absolute !important;
-  @include pos-absolute(auto,0,0,0);
-  height: 15px;
-  overflow: hidden;
-  background: #2F3129;
-  color: #8F908A;
-  font: 12px/normal 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', 'Droid Sans Mono', monospace;
-  text-align: right;
-  padding: 0px 5px;
-}
-
-.editorview-title-modified {
-  color: red;
+.dropdown-menu > li > hr {
+    margin: 5px;
 }
 
 .dropdown-submenu {
@@ -152,6 +134,23 @@ body > div > .docklayout {
     border-top-right-radius: 0;
 }
 
+.menu-contextmenu {
+    overflow: auto;
+    z-index: 2000;
+    position: fixed;
+    bottom: auto;
+    top: auto;
+}
+
+.menuitem-checked::before {
+  margin-left: -20px;
+  font: normal normal normal 14px/1 FontAwesome;
+  content: "\f00c";
+  width: 20px;
+  display: inline-block;
+  text-align: center;
+}
+
 .settings-title {
     padding: 5px;
     font-weight: bold;
@@ -248,4 +247,42 @@ body > div > .docklayout {
 }
 .diagnostic-note {
   border-left-color: #5B8ACD;
+}
+
+::-webkit-scrollbar {
+  background: none;
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: solid 0 rgba(0, 0, 0, 0);
+  border-right-width: 4px;
+  border-left-width: 4px;
+  border-radius: 9px/4px;
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.2), inset 0 0 0 4px rgba(128, 128, 128, 0.2);
+}
+
+::-webkit-scrollbar-track-piece {
+  margin: 4px 0;
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  border-right-width: 0;
+  border-left-width: 0;
+  border-top-width: 4px;
+  border-bottom-width: 4px;
+  border-radius: 4px/9px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  box-shadow: inset 0 0 0 1px rgba(128,128,128,0.9), inset 0 0 0 4px rgba(128,128,128,0.9);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.ace_scrollbar-h {
+  margin: 0 2px
 }

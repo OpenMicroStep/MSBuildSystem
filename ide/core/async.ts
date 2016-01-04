@@ -154,6 +154,8 @@ export class Flux extends _Base {
 
   constructor(actions: ActionFct[], ctx) {
     if(0) super(); // this is trick to remove typescript warning
+    ctx= ctx || {};
+    if (!ctx.locale) ctx.locale= {};
     this.context = ctx;
     this._actions = actions;
     this._state = Async.State.started;
@@ -227,8 +229,6 @@ export class Flux extends _Base {
 
 export function run(ctx, actionsOrPools: Elements) {
   var flux: Flux;
-  ctx= ctx || {};
-  if (!ctx.locale) ctx.locale= {};
   flux= new Flux([], ctx || this.context);
   flux.setFirstElements(actionsOrPools);
   flux.continue();
