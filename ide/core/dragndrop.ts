@@ -1,6 +1,6 @@
 /// <reference path="../../typings/browser.d.ts" />
-"use strict";
-import View = require('./View');
+
+import View = require('../views/View');
 
 type DragOptions = {
   type: string;

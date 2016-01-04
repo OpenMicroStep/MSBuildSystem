@@ -9,9 +9,9 @@ body > div > .docklayout {
   top: 62px;
 }
 
-* {
+/* {
   @include noselect;
-}
+}*/
 
 .tablayout {
   border: 1px solid #C9C9C9;
@@ -23,8 +23,12 @@ body > div > .docklayout {
 .editor-ace {
   position: absolute !important;
   @include pos-absolute(0,0,15px,0);
-
 }
+.fill {
+  position: absolute !important;
+  @include pos-absolute(0,0,0,0);
+}
+
 .editor-status {
   position: absolute !important;
   @include pos-absolute(auto,0,0,0);
@@ -50,8 +54,6 @@ body > div > .docklayout {
   left: 100%;
   margin-top: -6px;
   margin-left: -1px;
-  -webkit-border-radius: 0 6px 6px 6px;
-  -moz-border-radius: 0 6px 6px;
   border-radius: 0 6px 6px 6px;
 }
 
@@ -86,4 +88,164 @@ body > div > .docklayout {
   -webkit-border-radius: 6px 0 6px 6px;
   -moz-border-radius: 6px 0 6px 6px;
   border-radius: 6px 0 6px 6px;
+}
+
+.checkboxview {
+  cursor: default;
+  height: 24px;
+  line-height: 24px;
+  vertical-align: top;
+  display: inline-block;
+}
+
+.checkboxview > span {
+  vertical-align: top;
+  margin-left: 5px;
+}
+
+.form-control-checkbox {
+  display: inline-block;
+  user-select: none;
+  margin: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+.form-control-checkbox.checked::before {
+  position: absolute;
+  font: normal normal normal 14px/1 FontAwesome;
+  content: "\f00c";
+  font-size: 23px;
+  color: #428bca;
+}
+
+.form-control-checkbox.disabled::before {
+  color: #555;
+}
+
+.form-control-checkbox.disabled {
+  background:#eee;
+}
+
+.menu-title > li {
+    position: relative;
+    display: block;
+    float: left;
+}
+
+.navbar-nav {
+    float: left;
+    margin: 0;
+}
+
+.menu-title > li > a {
+    color: #777;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    line-height: 20px;
+}
+
+.menu-title > li > .dropdown-menu {
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.settings-title {
+    padding: 5px;
+    font-weight: bold;
+    border-bottom: 1px solid #777;
+}
+
+.settings ul > li {
+    padding: 5px;
+    list-style-type: none;
+}
+
+.settings ul {
+    padding: 0;
+}
+
+.badge-warning, .badge-error {
+  display: inline-block;
+  padding:0 2px;
+}
+.badge-warning:before, .badge-error:before {
+  font: normal normal normal 14px/1 FontAwesome;
+  font-size: inherit;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-right:2px;
+}
+.badge-warning:before {
+  content: "\f071";
+  color: #f0ad4e;
+}
+.badge-error:before {
+  font-size: 16px;
+  content: "\f06a";
+  color:#d9534f;
+}
+
+.badge-right {
+  font-size: 0.9em;
+  position: absolute;
+  right: 0;
+  background: #E4E4E4;
+  padding: 0 2px;
+  border-radius: 6px 0 0 6px;
+}
+
+.tree-item-task-name {
+  position: relative;
+}
+
+.diagnostic:before {
+  margin: 1px 10px -1px 0;
+  float: left;
+  font: normal normal normal 14px/1 FontAwesome;
+  font-size: 32px;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-right:2px;
+}
+.diagnostic-warning:before {
+  content: "\f071";
+  color: #f0ad4e;
+}
+.diagnostic-error:before {
+  content: "\f06a";
+  color:#d9534f;
+}
+
+.diagnostic {
+  padding: 10px;
+  margin: 20px 0;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+
+.diagnostic > .diagnostic {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.diagnostic > :first-child {
+  min-height: 32px;
+  line-height: 32px;
+  margin-bottom: 6px;
+}
+
+.diagnostic-warning {
+  border-left-color: #f0ad4e;
+}
+.diagnostic-error {
+  border-left-color: #d9534f;
+}
+.diagnostic-note {
+  border-left-color: #5B8ACD;
 }

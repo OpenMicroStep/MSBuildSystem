@@ -1,6 +1,6 @@
 /// <reference path="../../typings/browser.d.ts" />
-"use strict";
-import View = require('./View');
+
+import View = require('../views/View');
 import globals = require('./globals');
 
 var useragent = ace.require("ace/lib/useragent");
@@ -156,11 +156,15 @@ export class TitleMenu extends Menu {
         label: 'Reload',
         accelerator: 'CmdOrCtrl+R',
         click: function() { remote.getCurrentWindow().reload(); }
+      },{
+        label: 'Dev Tools',
+        accelerator: 'CmdOrCtrl+Maj+I',
+        click: function() { remote.getCurrentWindow().webContents.openDevTools(); }
       } ]}));
       nativeMenu.setApplicationMenu(this.nativeMenu);
     }
     else {
-      this.domMenu.className = "nav navbar-nav";
+      this.domMenu.className = "nav menu-title";
       nonNativeCb(this.domMenu);
     }
   }
@@ -198,6 +202,7 @@ class ContextMenu extends Menu {
       document.addEventListener('click', evt = () => {
         document.body.removeChild(this.domMenu);
         document.removeEventListener('click', evt, true);
+        $(this.domMenu).empty();
       }, true);
     }
     else {

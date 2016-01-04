@@ -2,6 +2,7 @@
 /* @flow weak */
 'use strict';
 
+import async = require('./async');
 import Target = require('./Target');
 import Graph = require('./Graph');
 import Task = require('./Task');
@@ -145,21 +146,21 @@ class Workspace {
     return Array.from(files);
   }
 
-  resolveEnvironments(envs:string[]):Workspace.Environment[] {
+  resolveEnvironments(root: Workspace.RootTask, envs:string[]):Workspace.Environment[] {
     var self = this;
     var ret = [];
     envs.forEach(function (env:string) {
       var e;
       if ((e = self.environments[env])) {
         if (_.isArray(e))
-          Array.prototype.push.apply(ret, self.resolveEnvironments(e));
+          Array.prototype.push.apply(ret, self.resolveEnvironments(root, e));
         else if (typeof e === "string")
-          Array.prototype.push.apply(ret, self.resolveEnvironments([e]));
+          Array.prototype.push.apply(ret, self.resolveEnvironments(root, [e]));
         else if (_.isObject(e)) {
           if (!e.name) { // environment is not initialized
             e.name = env;
             if (e.parent) {
-              var parents = self.resolveEnvironments([e.parent]);
+              var parents = self.resolveEnvironments(root, [e.parent]);
               if (parents.length)
                 _.defaults(e, parents[0]);
             }
@@ -180,11 +181,11 @@ class Workspace {
           ret.push(e);
         }
         else
-          console.warn("ignoring invalid environment '" + env + "'");
+          root.log("ignoring invalid environment '" + env + "'");
       }
       else {
-        console.warn("Couldn't find env " + env);
-        console.warn("TODO: create a global environment system");
+        root.log("Couldn't find env " + env);
+        root.log("TODO: create a global environment system");
       }
     });
     return ret;
@@ -200,46 +201,49 @@ class Workspace {
   }
 
   /** Construct build graph */
-  buildGraph(options:{targets?: string[]; directory?: string; environments?: string[]; variant?: string[]}) : Promise<Graph> {
+  buildGraph(options:{targets?: string[]; directory?: string; environments?: string[]; variant?: string[]}) : async.Flux {
     // Build Env/Target dependency graph
-    return new Promise((resolve, reject) => {
+    return (new async.Async(null, (p) => {
       try {
         var root = new Workspace.RootTask(options.directory || this.directory);
-        var targets = options.targets || [];
-        var environments = options.environments || [];
-        var variants = options.variant || ["debug"];
-        variants.forEach((variant) => {
-          var context:BuildGraphContext = {
-            environments: new Map<string, Workspace.EnvironmentTask>(),
-            targets: new Map<string, Target>(),
-          };
-          var variantTask = new Workspace.VariantTask(root, variant);
-          this.targets.forEach((targetInfo) => {
-            this.checkTargetInfo(targetInfo);
-            if (targets.length && targets.indexOf(targetInfo.name) === -1)
-              return;
-            var envs = this.resolveEnvironments(targetInfo.environments);
-            envs.forEach((env) => {
-              if (environments.length && environments.indexOf(env.name) === -1)
+        root.loadData(() => {
+          var targets = options.targets || [];
+          var environments = options.environments || [];
+          var variants = options.variant || ["debug"];
+          variants.forEach((variant) => {
+            var context:BuildGraphContext = {
+              environments: new Map<string, Workspace.EnvironmentTask>(),
+              targets: new Map<string, Target>(),
+            };
+            var variantTask = new Workspace.VariantTask(root, variant);
+            this.targets.forEach((targetInfo) => {
+              this.checkTargetInfo(targetInfo);
+              if (targets.length && targets.indexOf(targetInfo.name) === -1)
                 return;
+              var envs = this.resolveEnvironments(root, targetInfo.environments);
+              envs.forEach((env) => {
+                if (environments.length && environments.indexOf(env.name) === -1)
+                  return;
 
-              var envTask = context.environments.get(env.name);
-              if (!envTask)
-                context.environments.set(env.name, envTask = new Workspace.EnvironmentTask(variantTask, env));
-              this._buildTargetDependencyGraph(context, envTask, targetInfo);
+                var envTask = context.environments.get(env.name);
+                if (!envTask)
+                  context.environments.set(env.name, envTask = new Workspace.EnvironmentTask(variantTask, env));
+                this._buildTargetDependencyGraph(context, envTask, targetInfo);
+              });
             });
           });
-        });
 
-        root.reset();
-        root.start(Task.Action.CONFIGURE, () =>  {
-          if (root.errors > 0) reject(new Error("Error while configuring"))
-          else resolve(root);
+          root.reset();
+          root.start(Task.Action.CONFIGURE, () =>  {
+            p.context.root = root;
+            p.continue();
+          });
         });
       } catch (e) {
-        return reject(e);
+        p.context.error = e;
+        p.continue();
       }
-    });
+    })).continue();
   }
 
   protected _buildTargetDependencyGraph(context:BuildGraphContext, envTask:Workspace.EnvironmentTask, targetInfo:Workspace.TargetInfo):Target {
@@ -290,32 +294,59 @@ class Workspace {
 module Workspace {
   export class RootTask extends Graph
   {
+    buildSession: BuildSession.FastJSONDatabase;
     constructor(public directory: string) {
-      super("Root", null);
+      super({ type: "root", name: directory }, null);
+      this.buildSession = new BuildSession.FastJSONDatabase(path.join(directory, ".builddata"));
+    }
+
+    loadData(cb: () => void) {
+      this.buildSession.loadData(cb);
+    }
+
+    uniqueKey(): string {
+      return "root";
+    }
+
+    storage() : BuildSession {
+      return this.buildSession;
+    }
+
+    end(errors) {
+      this.buildSession.saveData(() => {
+        super.end(errors);
+
+      });
     }
   }
   export class VariantTask extends Graph
   {
-    constructor(private root: RootTask, public variant: string) {
-      super("Variant " + variant, root);
+    constructor(root: RootTask, public variant: string) {
+      super({ type: "variant", name: variant }, root);
+    }
+
+    uniqueKey(): string {
+      return this.graph.uniqueKey() + "|" + this.name.name;
     }
   }
   export class EnvironmentTask extends Graph
   {
-    buildSession: BuildSession;
     output: string;
     intermediates: string;
     inputs:Set<Target>;
     outputs:Set<Target>;
     constructor(private variantTask: VariantTask, public env: Workspace.Environment) {
-      super("Environment " + env.name, variantTask);
+      super({type: "environment", name: env.name }, variantTask);
       this.output = path.join((<RootTask>variantTask.graph).directory, env.directories.output, this.variant, env.name);
       this.intermediates = path.join((<RootTask>variantTask.graph).directory, env.directories.intermediates, this.variant, env.name);
-      this.buildSession = new BuildSession.InDatabase(path.join(this.intermediates, "session.nedb"));
     }
     get variant(): string { return (<VariantTask>this.graph).variant; }
-    protected runAction(action: Task.Action, buildSession: BuildSession) {
-      super.runAction(action, action === Task.Action.CONFIGURE ? buildSession : this.buildSession);
+    protected runAction(action: Task.Action) {
+      super.runAction(action);
+    }
+
+    uniqueKey(): string {
+      return this.graph.uniqueKey() + "|" + this.name.name;
     }
   }
   export interface BuildGraphCallback {

@@ -20,8 +20,7 @@ class CXXExternal extends CXXTarget {
     var last = null;
     var i = 0;
     this.commands.forEach((command) => {
-      var cmd = new ProcessTask("Command #" + (++i).toString(), this);
-      cmd.bin = command.bin;
+      var cmd = new ProcessTask({ type: "command", name: "#" + (++i).toString() }, this, [], [], { custom: command.bin });
       cmd.addFlags(command.args);
       cmd.setEnv(command.env);
       this.applyTaskModifiers(cmd);

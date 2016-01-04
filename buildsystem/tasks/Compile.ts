@@ -6,21 +6,18 @@ import ProcessTask = require('./_Process');
 import File = require('../core/File');
 import Task = require('../core/Task');
 import Graph = require('../core/Graph');
+import Provider = require('../core/Provider');
 import Barrier = require('../core/Barrier');
 import Process = require('../core/Process');
-
-interface SessionData extends Task.SessionData {
-  headers: string[];
-}
 
 class CompileTask extends ProcessTask {
   public language: string;
   hmapFile: File;
-  data: SessionData;
-  constructor(graph: Graph, srcFile : File, objFile : File) {
-    super("Compile " + srcFile.name, graph, [srcFile], [objFile]);
+  constructor(graph: Graph, srcFile : File, objFile : File, provider: Provider.Conditions ) {
+    super({type: "compile", name: srcFile.name}, graph, [srcFile], [objFile], provider);
     this.language = CompileTask.extensions[srcFile.extension];
     this.hmapFile = File.getShared(objFile.path + ".hmap");
+    this.outputFiles.push(this.hmapFile);
     this.addHeaderMapArgs();
   }
 
@@ -52,12 +49,12 @@ class CompileTask extends ProcessTask {
         if(header.length)
           headers.push(header);
       }
-      this.data.headers = headers;
+      this.sharedData.headers = headers;
       cb();
     })
   }
-  runProcess(callback) {
-    super.runProcess((err, output) => {
+  runProcess(provider, callback) {
+    super.runProcess(provider, (err, output) => {
       this.parseHeaderMap(() => {
         callback(err, output);
       });
@@ -66,8 +63,8 @@ class CompileTask extends ProcessTask {
 
   isRunRequired(callback: (err: Error, required?:boolean) => any) {
     var barrier = new File.EnsureBarrier("Compile.isRunRequired", 3);
-    if(this.data.headers)
-      File.ensure(this.data.headers, this.data.lastSuccessTime, {}, (err, required) => { barrier.dec(null, !!err || required) });
+    if(this.sharedData.headers)
+      File.ensure(this.sharedData.headers, this.data.lastSuccessTime, {}, (err, required) => { barrier.dec(null, !!err || required) });
     else
       barrier.dec(null, true);
     File.ensure(this.inputFiles, this.data.lastSuccessTime, {}, barrier.decCallback());

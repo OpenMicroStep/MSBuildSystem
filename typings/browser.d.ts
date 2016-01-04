@@ -3,6 +3,7 @@
 /// <reference path="jquery/jquery.d.ts" />
 /// <reference path="ace/ace.d.ts" />
 /// <reference path="socket.io-client/socket.io-client.d.ts" />
+/// <reference path="underscore/underscore.d.ts" />
 
 interface ErrCallback {
   (err?: Error);

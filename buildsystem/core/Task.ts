@@ -13,24 +13,25 @@ var __id_counter: number = 0;
 
 var classes = {};
 
-class Task {
+class Task extends events.EventEmitter {
   static maxConcurrentTasks: number = os.cpus().length;
   static nbTaskRunning: number = 0;
   private static waitingTasks: Task[] = [];
 
-  protected _id:number;
   dependencies : Set<Task> = new Set<Task>();
   requiredBy : Set<Task> = new Set<Task>();
-  name: string;
+  name: Task.Name;
   graph: Graph;
   classname: string; // on the prototype, see registerClass
-  constructor(name: string, graph: Graph) {
-    this._id = ++__id_counter;
+  constructor(name: Task.Name, graph: Graph) {
+    super();
     this.name = name;
     this.graph = graph;
     if(this.graph) {
       this.graph.inputs.add(this);
     }
+    if (!this.classname)
+      Task.registerClass(this.constructor, this.constructor.name);
   }
   static registerClass(cls, taskTypeName: string) {
     if(taskTypeName) {
@@ -62,16 +63,22 @@ class Task {
   }
 
   state: Task.State = Task.State.UNINITIALIZED;
-  private observers: Array<(task: Task) => any>;
-  requirements: number;
-  logs: string;
-  errors: number;
+  enabled: number = 0;
+  action: Task.Action = null;
+  private observers: Array<(task: Task) => any> = [];
+  requirements: number = 0;
+  logs: string = "";
+  errors: number = 0;
 
   private sessionKey: string= undefined;
-  data: Task.SessionData;
+  data: Task.SessionData = null;
+  sharedData: any = null;
+  tmpData: any = {};
 
   /** Get the task ready for the next run */
   reset() {
+    this.enabled = 0;
+    this.action = null;
     this.state = Task.State.WAITING;
     this.observers = [];
     this.logs = "";
@@ -80,7 +87,17 @@ class Task {
     this.requiredBy.forEach(function(input) {input.reset();});
   }
 
-  uniqueKey(): string { return null; }
+  enable() {
+    var parent = this.graph;
+    while (parent) {
+      if (parent.enabled !== 1)
+        parent.enabled = 2;
+      parent = parent.graph;
+    }
+    this.enabled = 1;
+  }
+
+  uniqueKey(): string { return "__" + (++__id_counter).toString(); }
 
   id() {
     if(this.sessionKey === undefined) {
@@ -95,24 +112,27 @@ class Task {
     return this.sessionKey;
   }
 
-  addObserver(callback: (task: Task) => any) {
-    this.observers.push(callback);
+  preprocess() {
+
   }
 
-  start(action: Task.Action, callback: (task: Task) => any, buildSession: BuildSession = BuildSession.noop) {
+  postprocess() {
+
+  }
+
+  start(action: Task.Action, callback: (task: Task) => any) {
     if(this.state === Task.State.WAITING) {
-      var id = this.id() + "-" + Task.Action[action];
-      this.observers.push(() => {
-        buildSession.storeInfo(id, this.data);
-      });
+      this.action = action;
       this.observers.push(callback);
-      buildSession.retrieveInfo(id, (data) => {
-        this.data = data || {};
-        this.data.lastRunStartTime = (new Date()).getTime();
-        this.data.lastRunEndTime = this.data.lastRunEndTime || 0;
-        this.data.lastSuccessTime = this.data.lastSuccessTime || 0;
-        this.runAction(action, buildSession);
-      });
+      this.data = this.storage().retrieveInfo(this.id(), Task.Action[action]) || {};
+      this.sharedData = this.storage().retrieveInfo(this.id(), "SHARED") || {};
+      this.data.lastRunStartTime = Date.now();
+      this.data.lastRunEndTime = this.data.lastRunEndTime || 0;
+      this.data.lastSuccessTime = this.data.lastSuccessTime || 0;
+      this.preprocess();
+      this.emit("start", action);
+      this.state = Task.State.RUNNING
+      this.runAction(action);
     }
     else if(this.state === Task.State.DONE) {
       callback(this);
@@ -132,14 +152,42 @@ class Task {
     if(msg.length && msg[msg.length - 1] != "\n")
       this.logs += "\n";
   }
+
+  root() : Graph {
+    var graph = this.graph;
+    while(graph && graph.graph)
+      graph = graph.graph;
+    return graph;
+  }
+
+  getTmpData() : any {
+    return this.tmpData;
+  }
+
+  getSharedData() : any {
+    return this.storage().retrieveInfo(this.id(), "SHARED");
+  }
+
+  getData(action: Task.Action) : any {
+    return this.storage().retrieveInfo(this.id(), Task.Action[action]);
+  }
+
+  storage() : BuildSession {
+    return this.graph.storage();
+  }
+
   end(errors: number = 0) {
-    console.debug(this.name, "\n", this.logs);
+    console.debug(this.name.type, this.name.name, "\n", this.logs);
     this.errors = errors;
     this.state = Task.State.DONE;
-    this.data.logs = ""; //this.logs;
+    this.data.logs = this.logs;
     this.data.errors = errors;
-    this.data.lastRunEndTime = (new Date()).getTime();
+    this.data.lastRunEndTime = Date.now();
     this.data.lastSuccessTime = errors ? 0 : this.data.lastRunEndTime;
+    this.postprocess();
+    var storage = this.storage();
+    storage.storeInfo(this.id(), Task.Action[this.action], this.data);
+    storage.storeInfo(this.id(), "SHARED", this.sharedData);
     --Task.nbTaskRunning;
     //process.stderr.write(this.logs);
     if (Task.waitingTasks.length > 0) {
@@ -150,18 +198,21 @@ class Task {
     this.observers.forEach((obs) => {
       obs(this);
     });
+    var root = this.root();
+    if (root && root)
+      root.emit("childtaskend", this);
+    this.emit("end", this.action);
   }
 
-  protected runAction(action: Task.Action, buildSession: BuildSession) {
+  protected runAction(action: Task.Action) {
     switch (action) {
       case Task.Action.RUN:
-      case Task.Action.REBUILD:
         this.isRunRequired((err, required) => {
           if (err) {
             this.log(err.toString());
             this.end(1);
           }
-          else if (required || action === Task.Action.REBUILD) {
+          else if (required) {
             if (Task.nbTaskRunning < Task.maxConcurrentTasks) {
               ++Task.nbTaskRunning;
               this.run();
@@ -170,17 +221,16 @@ class Task {
             }
           }
           else {
+            this.logs = this.data.logs || "";
             this.end();
           }
         });
-        break;
         break;
       case Task.Action.CLEAN:
         this.clean();
         break;
       default:
-        this.log("Action not supported, action=" + action);
-        this.end(1);
+        this.end(0);
         break;
     }
   }
@@ -205,6 +255,7 @@ class Task {
 }
 
 module Task {
+  export type Name = { type: string, name: string, [s: string]: string };
   export interface SessionData {
     logs: string;
     errors: number;
@@ -220,10 +271,9 @@ module Task {
   }
 
   export enum Action {
-    CONFIGURE,
-    RUN,
-    CLEAN,
-    REBUILD
+    CONFIGURE, // Load data, prepare tasks
+    RUN      , // Run tasks
+    CLEAN    , // Clean tasks
   }
 }
 export = Task;

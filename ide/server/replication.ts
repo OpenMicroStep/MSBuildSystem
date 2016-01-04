@@ -1,6 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 "use strict";
 
+import async = require('../core/async');
 import io = require('socket.io');
 import Socket = SocketIO.Socket;
 var MSTools = require('MSTools');
@@ -15,25 +16,20 @@ type ReplicationInfo = { name: string, type: Replication };
 type SocketInfo = {
   socket: Socket,
   replicatedObjects: Set<ServedObject<any>>,
-  _repget?: any, _repset?: any, _repcall?: any, _destroy?: any, _error?: any, _close?: any
+  _repcall?: any, _destroy?: any, _error?: any, _close?: any
 };
 
 export function registerSocket(socket: Socket) : SocketInfo {
   var info: SocketInfo = { socket: socket, replicatedObjects: new Set<ServedObject<any>>() };
-  socket.on('repget', info._repget = function(id, name, cb) {
-    var o = objectWithId(id);
-    if (o) o.handleGetProperty(info, cb, name);
-    else cb(404);
-  });
-  socket.on('repset', info._repset = function(id, name, value, cb) {
-    var o = objectWithId(id);
-    if (o) o.handleSetProperty(info, cb, name, value);
-    else cb(404);
-  });
   socket.on('repcall', info._repcall = function(id, fn, args, cb) {
     cb = arguments[arguments.length - 1];
     var o = objectWithId(id);
     if (o) {
+      if (!info.replicatedObjects.has(o)) {
+        info.replicatedObjects.add(o);
+        o.addListener(info.socket);
+        info.socket.emit('reprec', o.id, o.reconnectData());
+      }
       args= [];
       for(var i = 2, end = arguments.length - 1; i < end; ++i) {
         args.push(arguments[i]);
@@ -49,20 +45,15 @@ export function registerSocket(socket: Socket) : SocketInfo {
     console.warn("Error on socket", err);
     unregisterSocket(info);
   });
-  socket.on('close', info._close = function() {
+  socket.on('disconnect', info._close = function() {
     unregisterSocket(info);
   });
   return info;
 }
 export function unregisterSocket(info: SocketInfo) {
   info.replicatedObjects.forEach(function(obj) {
-    obj.listeners.delete(info.socket);
     obj.removeListener(info.socket);
-    if (obj.listeners.size === 0)
-      unregisterObject(obj);
   });
-  info.socket.removeListener('repget', info._repget);
-  info.socket.removeListener('repset', info._repset);
   info.socket.removeListener('destroy', info._destroy);
   info.socket.removeListener('repcall', info._repcall);
   info.socket.removeListener('error', info._error);
@@ -83,9 +74,8 @@ export function objectWithId(id: string) : ServedObject<any> {
 
 export function encode(info: SocketInfo, r) {
   if (r instanceof ServedObject) {
-    if (!r.listeners.has(r)) {
+    if (!info.replicatedObjects.has(r)) {
       info.replicatedObjects.add(r);
-      r.listeners.add(r);
       r.addListener(info.socket);
     }
     r= r.encode();
@@ -104,15 +94,28 @@ export class ServedObject<T> {
     this.id= this.constructor.name + "-" + (++ServedObject.counter);
     this.listeners = new Set<Socket>();
     this.obj = obj;
-    registerObject(this);
   }
 
-  addListener(socket: Socket) {}
-  removeListener(socket: Socket) {}
+  addListener(socket: Socket) {
+    if (this.listeners.size === 0)
+      registerObject(this);
+    this.listeners.add(socket);
+  }
+  removeListener(socket: Socket) {
+    this.listeners.delete(socket);
+    if (this.listeners.size === 0)
+      unregisterObject(this);
+  }
 
   broadcast(evt: string, e?: any) {
     this.listeners.forEach((socket) => {
       this.emit(socket, evt, e);
+    });
+  }
+  broadcastToOthers(socket: Socket, evt, e?: any) {
+    this.listeners.forEach((s) => {
+      if (s !== socket)
+        this.emit(s, evt, e);
     });
   }
   emit(socket: Socket, evt, e?: any) {
@@ -122,32 +125,32 @@ export class ServedObject<T> {
   encode() : any {
     return { cls: this.constructor.name, id: this.id, data: this.data() };
   }
+
+  reconnect(p) { p.context.response = true; p.continue(); }
+  reconnectData() : any {
+    return this.data();
+  }
   data() : any {
     return null;
   }
 
-  handleGetProperty(socket: SocketInfo, cb: (err:string, ret?: any) => any, name: string) {
-    return cb(null, encode(socket, this[name]));
-  }
-  handleSetProperty(socket: SocketInfo, cb: (err:string, ret?: any) => any, name: string, value) {
-    this[name] = value;
-    this.broadcast(name, value);
-    cb(null);
-  }
   handleCall(socket: SocketInfo, cb: (err:string, ret?: any) => any, fn: string, ...args) {
-    if (typeof this[fn] !== "function")
+    var f = this[fn];
+    if (typeof f !== "function")
       return cb(fn + " is not a function");
-    var ret = this[fn](...args);
-    if (ret instanceof Promise) {
-      ret.then(function(ret) {
-        cb(null, encode(socket, ret));
-      }).catch(function(err) {
-        cb(err);
-      });
-    }
-    else {
-      cb(null, encode(socket, ret));
-    }
+    var pool = new async.Async({ socket: socket.socket }, [
+      (p) => {
+        args.unshift(p);
+        f.apply(this, args);
+      },
+      (p) => {
+        if (p.context.response !== void 0)
+          cb(null, encode(socket, p.context.response));
+        else
+          cb(p.context.error || "unknown error");
+      }
+    ]);
+    pool.continue();
   }
 
   static setupReplication(ctor, replicates: ReplicationInfo[]) {

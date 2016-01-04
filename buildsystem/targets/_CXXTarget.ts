@@ -22,10 +22,13 @@ class CXXTarget extends Target {
   sysroot: Sysroot = null;
   outputName: string;
   linkType: CXXTarget.LinkType = CXXTarget.LinkType.EXECUTABLE;
-  get arch() { return this.env.arch; }
-  get platform() { return this.sysroot.platform; }
+  arch: string;
+  platform: string;
+
   configure(callback) {
     this.sysroot = Sysroot.find(this.env);
+    this.arch = this.env.arch;
+    this.platform = this.sysroot.platform;
     if (!this.sysroot)
       return callback("Unable to find sysroot for " + this.env.name);
 

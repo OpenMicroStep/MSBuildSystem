@@ -46,15 +46,11 @@ class WindowsSysroot extends Sysroot {
     var task;
     if (path.extname(srcFile.path) === ".asm")
     {
-      task= new CompileMasmTask(target, srcFile, objFile);
-      task.provider= <Provider.Process>Provider.find({assembler:"msvc", arch:target.env.arch, version:this["api-version"]});
+      task= new CompileMasmTask(target, srcFile, objFile, {assembler:"msvc", arch:target.env.arch, version:this["api-version"]});
       return callback(null, task);
     }
     if(target.env.compiler === "clang") {
-      task = new CompileClangTask(target, srcFile, objFile);
-      task.provider = <Provider.Process>Provider.find({compiler:"clang", version:"3.7"});
-      if (!task.provider)
-        return callback(new Error("Unable to find provider"));
+      task = new CompileClangTask(target, srcFile, objFile, {compiler:"clang", version:"3.7"});
       //if (target.sysroot.api === "msvc")
       //  task.bin = "C:/Program Files (x86)/LLVM/bin/clang.exe";
       if(target.linkType !== CXXTarget.LinkType.STATIC)
@@ -74,34 +70,34 @@ class WindowsSysroot extends Sysroot {
       task.addFlags(["-DWIN32", "-D_USING_V110_SDK71_", "-fms-extensions", "-fms-compatibility", "-fdelayed-template-parsing", "-fmsc-version=1700", "-Wno-microsoft"/*, "-D_ITERATOR_DEBUG_LEVEL=2", "-D_DEBUG", "-D_MT"*//*, "-emit-llvm"*/]);
     if(this.cIncludes) {
       task.addFlags(["-nostdinc"]);
-      if (target.sysroot.api === "msvc")
-        task.addFlags(["-isystem", path.join(task.provider.bin, "../../lib/clang/3.7.0/include")]);
+      // TODO: move this to provider responsability
+      //if (target.sysroot.api === "msvc")
+      //  task.addFlags(["-isystem", path.join(task.provider.bin, "../../lib/clang/3.7.0/include")]);
       task.addFlags(this.cIncludes);
     }
 
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
-    if (target.sysroot.api === "msvc") {
       var conditions: any;
-      var link = new LinkMSVCTask(target, compileTasks, finalFile, target.linkType);
+    if (target.sysroot.api === "msvc") {
       if (target.linkType === CXXTarget.LinkType.STATIC)
         conditions = {archiver:"msvc", arch:target.env.arch, version:this["api-version"]};
       else
         conditions = {linker:"msvc", arch:target.env.arch, version:this["api-version"]};
-      link.provider = <Provider.Process>Provider.find(conditions);
+      var dumpbin: Provider.Conditions = {type:"dumpbin", arch:target.env.arch, version:this["api-version"]};
+      var link = new LinkMSVCTask(target, compileTasks, finalFile, target.linkType, conditions, dumpbin);
       //link.llvmLinkProvider = <Provider.Process>Provider.find({type:"llvm-link", version:"3.7"});
       //link.clangLinkProvider = <Provider.Process>Provider.find({compiler:"clang", version:"3.7"});
       //link.clangLinkArgs.push("--target=" + this.triple);
-      link.dumpbinProvider =  <Provider.Process>Provider.find({type:"dumpbin", arch:target.env.arch, version:this["api-version"]});
       callback(null, link);
     }
     else {
-      var binutils = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
       if (target.linkType === CXXTarget.LinkType.STATIC)
-        binutils.provider = <Provider.Process>Provider.find({archiver:"binutils", triple:this.triple});
+        conditions = {archiver:"binutils", triple:this.triple};
       else
-        binutils.provider = <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
+        conditions = {compiler:"gcc", triple:this.triple};
+      var binutils = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType, conditions);
       if (this.triple) {
         binutils.addFlags(["--target=" + this.triple]);
         binutils.addFlags(["--sysroot=" + this.sysrootDirectory]);

@@ -76,12 +76,12 @@ class Framework extends Library {
       if(err) return callback(err);
 
       if(this.bundleInfo) {
-        var plist = new PListInfoTask("Genereate plist info of " + this.targetName + ", env=" + this.env.name, this, this.bundleInfo, this.buildInfoPath());
+        var plist = new PListInfoTask(this, this.bundleInfo, this.buildInfoPath());
         this.applyTaskModifiers(plist);
       }
       if(this.bundleResources.length) {
         var rscPath = this.buildResourcesPath();
-        var copy = new CopyTask("Copy bundle resources of " + this.targetName + ", env=" + this.env.name, this);
+        var copy = new CopyTask("bundle resources", this);
         this.bundleResources.forEach((rsc) => {
           copy.willCopyFile(rsc.from, rsc.to ? path.join(rscPath, rsc.to) : rscPath);
         });

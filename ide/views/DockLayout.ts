@@ -1,10 +1,10 @@
 /// <reference path="../../typings/browser.d.ts" />
-"use strict";
+
 import View = require('./View');
 import ContentView = require('./ContentView');
-import {default as TabLayout, TabItem} from "./TabLayout";
-import BoxLayout from "./BoxLayout";
-import * as dragndrop from "./dragndrop";
+import TabLayout = require("./TabLayout");
+import BoxLayout = require("./BoxLayout");
+import dragndrop = require("../core/dragndrop");
 
 var orientations = [
   BoxLayout.Orientation.VERTICAL, // top
@@ -140,9 +140,11 @@ class DockLayout extends View implements DockLayout.DockParentView {
       type: "tab",
       ondragstart: () => {
         $(this.el).toggleClass("docklayout-drop", true);
+        this.resize();
       },
       ondragend:() => {
         $(this.el).toggleClass("docklayout-drop", false);
+        this.resize();
       },
       ondragover: (ev, data) => {
         if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
@@ -158,6 +160,23 @@ class DockLayout extends View implements DockLayout.DockParentView {
         this.appendViewTo(data.view, lyplace.place);
       }
     });
+  }
+
+  createViewIfNecessary(cstor, args, create?: () => ContentView) {
+    var found = false;
+    this.iterateViews((view, container) => {
+      if (view instanceof cstor && view.isViewFor(...args)) {
+        container.currentView = view;
+        container.currentView.focus();
+        found = true;
+      }
+      return found;
+    });
+    if (!found) {
+      var view = create ? create() : new (Function.prototype.bind.apply(cstor, [cstor].concat(args)));
+      this.main.appendViewTo(view, DockLayout.Position.MIDDLE);
+      view.focus();
+    }
   }
 
   dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {
@@ -370,7 +389,7 @@ module DockLayout {
       // TODO: minimize to bar
     }
 
-    renderTab(item:TabItem, idx:number) {
+    renderTab(item, idx:number) {
       var domItem = super.renderTab(item, idx);
       dragndrop.draggable(domItem, {
         type: "tab",

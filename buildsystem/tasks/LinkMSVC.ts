@@ -12,10 +12,15 @@ import CXXTarget = require('../targets/_CXXTarget');
 import path = require('path');
 
 class LinkMSVCTask extends LinkTask {
-  public dumpbinProvider : Provider.Process = null;
-  public exports : File[] = [];
-  constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType) {
-    super(graph, compileTasks, finalFile, type);
+  public dumpbinProvider : Provider.Conditions;
+  public exports : File[];
+
+  constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType, provider?: Provider.Conditions, dumpbinProvider?: Provider.Conditions) {
+    provider = provider || (type === CXXTarget.LinkType.STATIC ? {archiver:"msvc"} : { linker: "msvc"});
+    this.dumpbinProvider = dumpbinProvider || { custom:"dumpbin" };
+    super(graph, compileTasks, finalFile, type, provider);
+    this.exports = [];
+    this.dumpbinProvider = null;
     if(this.type === CXXTarget.LinkType.STATIC) {
       this.appendArgs(["/out:" + finalFile.path]);
     }
@@ -45,13 +50,14 @@ class LinkMSVCTask extends LinkTask {
     this.insertArgs(2, libs);
   }
 
-  runProcess(callback : (err: string, output: string) => any) {
-    super.runProcess((err, output) => {
+  runProcess(provider, callback : (err: string, output: string) => any) {
+    super.runProcess(provider, (err, output) => {
       if (err) return callback(err, output);
       if(false && this.type === CXXTarget.LinkType.DYNAMIC) {
         var args = ["/EXPORTS"];
         this.exports.forEach((file) => { args.push(file.path); });
-        this.dumpbinProvider.process(this.exports, [], "runTask", {
+        var dumpbin = Provider.find(this.dumpbinProvider);
+        dumpbin.process(this.exports, [], "runTask", {
           args: ["/EXPORTS", ],
         }, (err, exports) => {
           if (err) return callback(err, output);

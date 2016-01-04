@@ -8,13 +8,13 @@ import Graph = require('../core/Graph');
 import Task = require('../core/Task');
 import Barrier = require('../core/Barrier');
 import File = require('../core/File');
+import crypto = require('crypto');
 
 class ProcessTask extends Task {
-  public bin: string;
-  public provider : Provider.Process = null;
   public args: string[] = [];
-  public env: {[s:string]: string};
-  constructor(name: string, graph: Graph, public inputFiles: File[] = [], public outputFiles: File[] = []) {
+  public env: {[s:string]: string} = null;
+
+  constructor(name: Task.Name, graph: Graph, public inputFiles: File[], public outputFiles: File[], public provider: Provider.Conditions) {
     super(name, graph);
   }
 
@@ -56,25 +56,32 @@ class ProcessTask extends Task {
     }
   }
 
-  runProcess(callback : (err: string, output: string) => any) {
-    this.provider.process(this.inputFiles, this.outputFiles, "runTask", {
+  runProcess(provider: Provider, callback : (err: string, output: string) => any) {
+    provider.process(this.inputFiles, this.outputFiles, "runTask", {
       args: this.args,
       env: this.env
     }, callback);
   }
+
   run() {
-    if(!this.provider) {
-      this.log("'provider' is null");
+    var provider = Provider.find(this.provider);
+    if(!provider) {
+      this.log("'provider' not found");
       this.end(1);
     }
     else {
-      this.runProcess((err, output) => {
-        if(output) this.log("\n" + output);
-        if(err) this.log(err);
-        if(!err) process.stdout.write("\n" + output + "\n");
+      this.runProcess(provider, (err, output) => {
+        if (output) this.log(output);
+        if (output && err) this.log("\n");
+        if (err) this.log(err);
         this.end(err ? 1 : 0);
       });
     }
+  }
+
+  postprocess() {
+    this.tmpData.command = { provider: this.provider, args: this.args };
+    super.postprocess();
   }
 
   clean() {

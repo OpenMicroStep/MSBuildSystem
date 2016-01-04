@@ -1,6 +1,6 @@
 /// <reference path="../../typings/browser.d.ts" />
 
-import IDE = require('./IDE');
+import IDE = require('../client/IDE');
 
 var globals: {
   electron: any,

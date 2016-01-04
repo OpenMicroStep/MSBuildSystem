@@ -22,10 +22,9 @@ var Provider = require('./out/buildsystem/core/Provider');
 Provider.register(new Provider.Process("clang", { type:"compiler", compiler:"clang", version:"3.6"}));
 Provider.register(new Provider.Process("libtool", { type:"linker", linker:"libtool", version:"870"}));
 
-
+var workspace = new Workspace("/Users/vincentrouille/Dev/MicroStep/MSFoundation");
 io.on('connection', function(socket){
   console.info("New connection");
-  var workspace = new Workspace("/Users/vincentrouille/Dev/MicroStep/MSFoundation");
   var info = replication.registerSocket(socket);
   socket.on('rootWorkspace', function(cb) {
     cb(replication.encode(info, workspace));

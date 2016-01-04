@@ -1,21 +1,21 @@
 /// <reference path="../../typings/browser.d.ts" />
-"use strict";
+
 import View = require('./View');
 import ContentView = require('./ContentView');
-import menu = require('./menu');
+import menu = require('../core/menu');
 
-export type TabItem = {
+type TabItem = {
   view: ContentView;
 };
 
-export enum Position {
+enum Position {
   TOP,
   RIGHT,
   BOTTOM,
   LEFT
 }
 
-export default class TabLayout extends View {
+class TabLayout extends View {
   _tabs:TabItem[];
   _current:number;
   _position:Position;
@@ -184,3 +184,11 @@ export default class TabLayout extends View {
     return domItem;
   }
 }
+
+var _Position = Position;
+module TabLayout {
+  export var Position = _Position;
+}
+
+export = TabLayout;
+

@@ -23,20 +23,13 @@ if (!Array.prototype.findIndex) {
 
 requirejs.config({
   baseUrl: "js",
-  shim: {
-    'bootstrap': {
-      deps: ['jquery'],
-    },
-    'mousetrap-global-bind': {
-      deps: ['mousetrap'],
-    }
-  },
   paths: {
     'socket.io-client': 'socket.io'
   },
 });
 
-requirejs(['jquery', "bootstrap", "IDE", "replication", "globals", "mousetrap", "mousetrap-global-bind"], function($, bootstrap, IDE, replication, globals) {
+requirejs(['jquery', "bootstrap", "client/IDE", "core/replication", "core/globals"], function($, bootstrap, IDE, replication, globals) {
+  window.jQuery = window.$ = $;
   $(function() {
     var ide = globals.ide = new IDE();
     ide.appendTo(document.body);

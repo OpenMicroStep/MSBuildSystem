@@ -12,7 +12,7 @@ var path = require('path');
 class CopyTask extends Task {
   public steps : [File, File][] = [];
   constructor(name: string, graph: Graph) {
-    super(name, graph);
+    super({ type: "copy", name: name }, graph);
   }
 
   /** Make this task copy files 'inFiles' to the directory 'outDir' */

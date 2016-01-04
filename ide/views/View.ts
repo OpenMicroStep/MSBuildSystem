@@ -1,6 +1,7 @@
 /// <reference path="../../typings/browser.d.ts" />
-import { EventEmitter } from "./events";
-import globals = require('./globals');
+
+import { EventEmitter } from "../core/events";
+import globals = require('../core/globals');
 
 interface ViewHTMLElement extends HTMLElement {
   _view: View;
@@ -22,14 +23,19 @@ class View extends EventEmitter {
     }
     return ret;
   }
-  constructor(tagName: string = "div") {
+
+  constructor(tagName: string | HTMLElement = "div") {
     super();
-    this.el = <ViewHTMLElement>document.createElement(tagName);
+    if (tagName instanceof HTMLElement)
+      this.el = <ViewHTMLElement>tagName;
+    else
+      this.el = <ViewHTMLElement>document.createElement(<string>tagName);
     this.el._view = this;
     this.$el = jQuery(this.el);
   }
 
   destroy() {
+    this._signal('destroy', null);
     var parentNode = this.el.parentNode;
     if (parentNode)
       parentNode.removeChild(this.el);

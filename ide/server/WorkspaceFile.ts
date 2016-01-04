@@ -24,53 +24,53 @@ class WorkspaceFile extends replication.ServedObject<File> {
     };
   }
 
-  change(version: number, data) : boolean {
-    var ok = this.version + 1 == version;
-    if (ok) {
-      this.version = version;
-      this.deltas.push(data);
-      this.broadcast("change", {version: version, data: data});
+  change(p, e) {
+    if (e && Array.isArray(e.deltas)) {
+      this.deltas.push(...e.deltas);
+      this.version += e.deltas.length;
+      this.broadcastToOthers(p.context.socket, "extchange", { version: this.version, deltas:e.deltas });
+      p.context.response = { version: this.version };
     }
-    return ok;
+    p.continue();
   }
 
-  save(content: string) : Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      this.version = 0;
-      this.content = content;
-      this.deltas = [];
-      this.broadcast("saved", {content: content});
-      this.obj.writeUtf8File(content, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
+  save(p, content: string) {
+    var version = ++this.version;
+    this.content = content;
+    this.deltas = [];
+    this.obj.writeUtf8File(content, (err) => {
+      if (!err) {
+        this.broadcastToOthers(p.context.socket, "extsaved", { version: version, content: content });
+        p.context.response = { version: version };
+      }
+      p.context.error = err;
+      p.continue();
     });
   }
 
-  private static files: { [s: string]: WorkspaceFile } = {};
-  static getShared(filePath): Promise<WorkspaceFile> {
+  private static files: Map<string, WorkspaceFile> = new Map<any, any>();
+  static getShared(pool, filePath) {
     filePath = path.normalize(filePath);
     if(!path.isAbsolute(filePath))
       throw "'filePath' must be absolute (filePath=" + filePath + ")";
 
-    var file = WorkspaceFile.files[filePath];
+    var file = WorkspaceFile.files.get(filePath);
     if(!file) {
-      file = WorkspaceFile.files[filePath] = new WorkspaceFile(filePath);
-      return new Promise(function (resolve, reject) {
-        file.obj.readUtf8File(function (err, content) {
-          if (err) return reject(err);
-
+      WorkspaceFile.files.set(filePath, file = new WorkspaceFile(filePath));
+      file.obj.readUtf8File(function (err, content) {
+        if (err) pool.context.error = err;
+        else {
           file.content = content;
           file.version = 0;
           file.deltas = [];
-          resolve(file);
-        })
+          pool.context.response = file;
+        }
+        pool.continue();
       });
     }
     else {
-      return new Promise(function (resolve) {
-        resolve(file);
-      });
+      pool.context.response = file;
+      pool.continue();
     }
   }
 }

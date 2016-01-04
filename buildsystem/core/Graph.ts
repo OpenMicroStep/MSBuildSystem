@@ -1,13 +1,11 @@
 /// <reference path="../../typings/tsd.d.ts" />
-/* @flow */
-'use strict';
 
 import Task = require('./Task');
 import Barrier = require('./Barrier');
 import BuildSession = require('./BuildSession');
 
 class Graph extends Task {
-  constructor(name:string, graph:Graph, public inputs:Set<Task> = new Set<Task>()) {
+  constructor(name: Task.Name, graph:Graph, public inputs:Set<Task> = new Set<Task>()) {
     super(name, graph);
   }
 
@@ -15,13 +13,14 @@ class Graph extends Task {
     this.inputs.forEach((input) => {input.reset();});
     super.reset();
   }
-  protected runAction(action: Task.Action, buildSession: BuildSession) {
+  protected runAction(action: Task.Action) {
     console.trace("Run task %s (action=%s)", this.name, Task.Action[action]);
     var barrier = new Barrier("Graph");
     var errors = 0;
+    var self = this;
 
     function cb(task: Task) {
-      console.trace("End task %s (action=%s)", task.name, Task.Action[action], task.errors, task.requiredBy.size);
+      console.trace("End task %s %s (action=%s)", task.name.type, task.name.name, Task.Action[action], task.errors, task.requiredBy.size);
       if (task.errors === 0) {
         task.requiredBy.forEach(function (next) {
           next.requirements--;
@@ -29,8 +28,8 @@ class Graph extends Task {
         });
       }
       else {
-        console.warn("Task", task.name, "failed");
-        console.warn(task.logs);
+        console.debug("Task %s %s failed", task.name.type, task.name.name);
+        console.debug(task.logs);
         errors += task.errors;
       }
       barrier.dec();
@@ -38,10 +37,13 @@ class Graph extends Task {
 
     function run(task: Task) {
       if (task.requirements !== 0) return;
-      console.trace("Run task %s (action=%s)", task.name, Task.Action[action], task.requirements);
+      console.trace("Run task %s %s (action=%s)", task.name.type, task.name.name, Task.Action[action], task.requirements);
 
       barrier.inc();
-      task.start(action, cb, buildSession);
+      if (self.enabled === 2 && task.enabled !== 1 && task.enabled !== 2)
+        cb(task);
+      else
+        task.start(action, cb);
     }
 
     this.inputs.forEach(run);
@@ -50,11 +52,20 @@ class Graph extends Task {
     });
   }
 
-  allTasks(): Set<Task> {
+  iterate(deep: boolean = false, shouldIContinue?: (task: Task) => boolean) {
     var tasks = new Set<Task>();
+    var end = false;
     function iterate(inputs) {
+      if (end) return;
       inputs.forEach(function(input) {
-        tasks.add(input);
+        if (!end && !tasks.has(input)) {
+          tasks.add(input);
+          if (shouldIContinue && !shouldIContinue(input))
+            end = true;
+          if (deep && input instanceof Graph) {
+            iterate(input.inputs);
+          }
+        }
       });
       inputs.forEach(function(input) {
         iterate(input.requiredBy);
@@ -62,6 +73,21 @@ class Graph extends Task {
     }
     iterate(this.inputs);
     return tasks;
+  }
+
+  allTasks(deep: boolean = false): Set<Task> {
+    return this.iterate(deep);
+  }
+
+  findTask(deep: boolean, predicate: (task: Task) => boolean) : Task {
+    var task = null;
+    this.iterate(deep, (t) => {
+      var ret= !predicate(t);
+      if (!ret)
+        task = t;
+      return ret;
+    });
+    return task;
   }
 
   toString() {
@@ -75,7 +101,7 @@ class Graph extends Task {
       desc += " " + prefix + " " + d + "\n";
     };
     var appendTasks = (level:number, graph: Graph) => {
-      append(level, '+', graph.name);
+      append(level, '+', graph.name.type + " " + graph.name.name);
       ++level;
       var tasks = graph.allTasks();
       tasks.forEach((task) => {

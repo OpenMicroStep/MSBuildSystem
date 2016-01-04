@@ -20,14 +20,21 @@ class Target extends Graph {
   intermediates: string;
   output: string;
   modifiers: any[];
+  env : Workspace.Environment;
+  variant : string;
+  targetName: string;
   constructor(envTask: Workspace.EnvironmentTask, info: Workspace.TargetInfo, workspace: Workspace) {
-    super("Target " + info.name + ", env=" + envTask.env.name + ", variant=" + envTask.variant, envTask);
+    super({type: "target", name: info.name}, envTask);
     this.info = info;
     this.workspace = workspace;
     this.intermediates = path.join(envTask.intermediates, info.name);
     this.output = path.join(envTask.output, envTask.env.directories.target[this.classname]);
     this.modifiers = [];
+    this.env = this.graph.env;
+    this.variant = this.graph.variant;
+    this.targetName = this.info.name;
   }
+
   static registerClass(cls, targetTypeName) {
     if(targetTypeName) {
       console.debug("Target '%s' registed (raw name='%s')", targetTypeName, cls.name);
@@ -35,6 +42,11 @@ class Target extends Graph {
       cls.prototype.classname = targetTypeName;
     }
   }
+
+  uniqueKey(): string {
+    return this.graph.uniqueKey() + "|" + this.name.name;
+  }
+
   isInstanceOf(classname: string) {
     return (classname in targetClasses && this instanceof targetClasses[classname]);
   }
@@ -42,10 +54,6 @@ class Target extends Graph {
     var cls: typeof Target= targetClasses[info.type];
     return cls ? new cls(envTask, info, workspace) : null;
   }
-
-  get env() : Workspace.Environment { return this.graph.env; }
-  get variant() : string { return this.graph.variant; }
-  get targetName(): string { return this.info.name; }
 
   addTaskModifier(taskTypeName: string, modifier:(target:Target, task: Task) => any) {
     this.modifiers.push(taskTypeName, modifier);
@@ -74,23 +82,34 @@ class Target extends Graph {
     }
     return null;
   }
-  protected runAction(action: Task.Action, buildSession: BuildSession) {
+  protected runAction(action: Task.Action) {
     if(action == Task.Action.CONFIGURE) {
-      this.configure((err) => {
-        if(err) {
-          this.log(err.toString());
-          this.end(1);
-        }
-        else {
-          this.buildGraph((err) => {
-            if(err) this.log(err.toString());
-            this.end(err ? 1 : 0);
-          });
-        }
-      });
+      try {
+        this.configure((err) => {
+          if(err) {
+            this.log(err.toString());
+            this.end(1);
+          }
+          else {
+            this.buildGraph((err) => {
+              if(err) {
+                this.log(err.toString());
+                this.end(1);
+              }
+              else {
+                this.inputs.forEach((input) => {input.reset();});
+                super.runAction(action);
+              }
+            });
+          }
+        });
+      } catch(e) {
+        this.log(e);
+        this.end(1);
+      }
     }
     else {
-      super.runAction(action, buildSession);
+      super.runAction(action);
     }
   }
   configure(callback: ErrCallback) {

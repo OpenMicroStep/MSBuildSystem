@@ -1,19 +1,18 @@
 /// <reference path="../../typings/browser.d.ts" />
-"use strict";
+
 import View = require('./View');
-
-
-export enum Orientation {
-  VERTICAL,
-  HORIZONTAL
-}
 
 type LayoutItem = {
   view: View;
   size: number;
 };
 
-export interface SerializedBoxLayout extends View.SerializedView {
+enum Orientation {
+  VERTICAL,
+  HORIZONTAL
+}
+
+interface SerializedBoxLayout extends View.SerializedView {
   orientation: string;
   items: View.SerializedView[];
 }
@@ -32,9 +31,8 @@ DOM structure:
    </div>
  </div>
 */
-export default class BoxLayout extends  View {
+class BoxLayout extends  View {
   static Orientation = Orientation;
-  static View = View;
 
   _items: LayoutItem[];
   _userCanResize: boolean;
@@ -116,33 +114,45 @@ export default class BoxLayout extends  View {
     this.rescaleItem(at, size);
   }
 
-  replaceView(oldView: View, newView: View) {
+  replaceView(oldView: View, newView: View) : View {
     var idx = this.findView(oldView);
-    if (idx != -1) {
-      this.replaceViewAt(idx, newView);
-    }
+    if (idx != -1)
+      return this.replaceViewAt(idx, newView);
+    return null;
   }
-  replaceViewAt(at: number, newView: View) {
+  replaceViewAt(at: number, newView: View)  : View  {
     if (at < 0 || at >= this._items.length) throw  "'at' is out of bounds [0, " + this._items.length + "[";
+    var old = this._items[at].view;
     this._items[at].view = newView;
     var domContainer = this.el.childNodes[at * 2].firstChild;
     domContainer.removeChild(domContainer.firstChild);
     domContainer.appendChild(newView.el);
+    return old;
   }
 
-  removeView(view: View) {
+  removeView(view: View, destroy: boolean = false) {
     var idx = this.findView(view);
     if (idx != -1) {
-      this.removePart(idx);
+      this.removePart(idx, destroy);
     }
   }
-  removePart(at: number) {
+  removePart(at: number, destroy: boolean = false) {
     if (at < 0 || at >= this._items.length) throw  "'at' is out of bounds [0, " + this._items.length + "[";
     this.rescaleItem(at, 0);
     this.el.removeChild(this.el.childNodes[at * 2]); //< Remove item
     if (this._items.length > 1)
       this.el.removeChild(this.el.childNodes[at > 0 ? at * 2 - 1 : 0]); //< Remote separator
+    if (destroy)
+      this._items[at].view.destroy();
     this._items.splice(at, 1);
+  }
+
+  clear(destroy: boolean = false) {
+    this._items.length = 0;
+    if (destroy)
+      this._items.forEach((i) => { i.view.destroy() });
+    while (this.el.firstElementChild)
+      this.el.removeChild(this.el.firstElementChild);
   }
 
   movePart(from: number, to: number) {
@@ -246,3 +256,5 @@ export default class BoxLayout extends  View {
     return r;
   }
 }
+
+export = BoxLayout;

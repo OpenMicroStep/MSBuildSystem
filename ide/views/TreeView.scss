@@ -9,8 +9,11 @@
 .tree-item {
   white-space: nowrap;
 }
-.tree-item > .glyphicon {
-  margin-right: 4px;
+.tree-item-name-canexpand {
+  cursor: s-resize;
+}
+.tree-item-name-cancollapse {
+  cursor: n-resize;
 }
 .tree-item-closed > .tree-childs {
   display: none;

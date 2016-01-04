@@ -8,8 +8,9 @@ import Graph = require('../core/Graph');
 import CXXTarget = require('../targets/_CXXTarget');
 
 class LinkBinUtilsTask extends LinkTask {
-  constructor(graph: Graph, compileTasks, finalFile, type: CXXTarget.LinkType) {
-    super(graph, compileTasks, finalFile, type);
+  constructor(graph: Graph, compileTasks, finalFile, type: CXXTarget.LinkType, provider?) {
+    provider = provider || (type === CXXTarget.LinkType.STATIC ? {archiver:"binutils"} : { linker: "gcc"});
+    super(graph, compileTasks, finalFile, type, provider);
     switch(this.type) {
       case CXXTarget.LinkType.STATIC:
         this.appendArgs(["rcs", finalFile.path]);

@@ -58,7 +58,7 @@ class Library extends CXXTarget {
       if(err) return callback(err);
 
       if(this.publicHeaders.length) {
-        var copy = new CopyTask("Copy public headers of " + this.targetName + ", env=" + this.env.name, this);
+        var copy = new CopyTask("public headers", this);
         this.publicHeaders.forEach((inFilename) => {
           var outFilename = path.basename(inFilename);
           if(this.publicHeadersPrefix)

@@ -7,7 +7,7 @@ import Graph = require('../core/Graph');
 import Barrier = require('../core/Barrier');
 import File = require('../core/File');
 import fs = require('fs-extra');
-var path = require('path');
+var basename = require('path').basename;
 
 class Plist {
   static stringify(what) {
@@ -53,8 +53,8 @@ class Plist {
 }
 
 class PlistInfoTask extends Task {
-  constructor(name: string, graph: Graph, public info: {[s: string]: any}, public path: string) {
-    super(name, graph);
+  constructor(graph: Graph, public info: {[s: string]: any}, public path: string) {
+    super({ type: "plistinfo", name: basename(path) }, graph);
   }
 
   uniqueKey(): string {

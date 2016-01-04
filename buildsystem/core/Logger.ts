@@ -5,8 +5,11 @@
 var dateFormat = require("dateformat");
 import util = require('util');
 import chalk = require("chalk");
+import myutil = require('./util');
+import timeElapsed = myutil.timeElapsed;
+
 //chalk.enabled = true;
-var startTime = (new Date()).getTime();
+var startTime = Date.now();
 function pad(num, mask) {
   return (mask + num).slice(-Math.max(mask.length, (num + "").length));
 }
@@ -19,6 +22,12 @@ function bytesSizeToHumanSize(fileSizeInBytes) {
   } while (fileSizeInBytes > 1024);
 
   return pad(fileSizeInBytes.toFixed(2), "      ") + byteUnits[i];
+}
+
+function memStr() : string {
+  var memory = process.memoryUsage();
+  var memoryStr = (memory && memory.heapUsed && bytesSizeToHumanSize(memory.heapUsed)) || "Unknown";
+  return memoryStr;
 }
 
 function setup(con, levelname: string = 'info') {
@@ -44,11 +53,16 @@ function setup(con, levelname: string = 'info') {
 
     var org = method.map;
     con[f] = function () {
-      var diff = pad(((new Date()).getTime() - startTime).toString() + "ms", "        ");
+      var elapsed = (Date.now() - startTime);
+      var diff = pad((elapsed / 1000).toFixed(2) + "s", "        ");
       var date = dateFormat(pattern);
-      var memory = process.memoryUsage();
-      var memoryStr = (memory && memory.heapUsed && bytesSizeToHumanSize(memory.heapUsed)) || "Unknown";
-      return org.call(con, date, diff + " ", memoryStr, method.fmt(method.name + " " + util.format.apply(util.format, arguments)));
+      var mem = memStr();
+      if (global.gc) {
+        var t0 = timeElapsed();
+        global.gc();
+        mem += " -> " + memStr() + " (" + pad((t0() / 1e6).toFixed(0), "   ") + "ms)";
+      }
+      return org.call(con, date, diff + " ", mem, method.fmt(method.name + " " + util.format.apply(util.format, arguments)));
     };
   }
   for(var f in methods) {
@@ -56,7 +70,7 @@ function setup(con, levelname: string = 'info') {
       setupMethod(f);
   }
 
-  con.info("Log level set to '%s'", levelname);
+  con.info("Log level set to '%s'", levelname, global.gc ? "with force GC at each log" : "");
 }
 
 export = setup;

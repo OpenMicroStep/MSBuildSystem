@@ -7,6 +7,20 @@ import path = require('path');
 import util = require('util');
 import Barrier = require('./Barrier');
 
+
+// Nodejs basename && extname are quite slow (use complex regexp)
+// Theses replacements returns the same values but are about 100 times faster
+path.basename = function(path: string) : string {
+  var idx = path.length, c;
+  while (idx > 1 && (c= path[--idx]) !== '/' && c !== '\\');
+  return idx > 0 ? path.substring(idx + 1) : path;
+}
+path.extname = function(path: string) : string {
+  var idx = path.length, c;
+  while (idx > 1 && (c= path[--idx]) !== '.' && c !== '/' && c !== '\\');
+  return idx > 0 && c === '.' ? path.substring(idx) : '';
+}
+
 class LocalFile {
   public path:string;
   public name:string;
@@ -19,15 +33,17 @@ class LocalFile {
     this.extension = path.extname(filePath);
   }
 
-  private static files: { [s: string]: LocalFile } = {};
-  static getShared(filePath): LocalFile {
+  private static files: Map<string, LocalFile> = new Map<any, any>();
+  static getShared(filePath: string): LocalFile {
+    var file = LocalFile.files.get(filePath);
+    if (file) return file;
     filePath = path.normalize(filePath);
     if(!path.isAbsolute(filePath))
       throw "'filePath' must be absolute (filePath=" + filePath + ")";
 
-    var file = LocalFile.files[filePath];
+    file = LocalFile.files.get(filePath);
     if(!file)
-      file = LocalFile.files[filePath] = new LocalFile(filePath);
+      LocalFile.files.set(filePath, file= new LocalFile(filePath));
     return file;
   }
 

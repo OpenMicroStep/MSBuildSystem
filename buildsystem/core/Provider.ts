@@ -20,7 +20,7 @@ class Provider {
   private static idCounter= 0;
   id: number;
   type: string;
-  conditions: {[s:string]: string};
+  conditions: Provider.Conditions;
 
   constructor(conditions) {
     this.conditions = conditions;
@@ -285,6 +285,10 @@ module Provider {
       });
     }
   }
+}
+
+module Provider {
+  export type Conditions = {[s:string]: string};
 }
 
 export = Provider;

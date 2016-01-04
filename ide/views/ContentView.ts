@@ -1,7 +1,7 @@
 /// <reference path="../../typings/browser.d.ts" />
-"use strict";
+
 import View = require('./View');
-import globals = require('./globals');
+import globals = require('../core/globals');
 
 class ContentView extends View {
   titleEl : HTMLElement;
@@ -10,6 +10,10 @@ class ContentView extends View {
     super(tagName);
     this.titleEl = document.createElement(titleTagName);
     this.el.addEventListener('click', this.focus.bind(this));
+  }
+
+  isViewFor(...args: any[]) {
+    return false;
   }
 
   destroy() {

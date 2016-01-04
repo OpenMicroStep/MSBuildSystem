@@ -71,7 +71,7 @@ module.exports = function (grunt) {
         sourceMap: true
       },
       ide: {
-        src: ['ide/client/**/*.ts'],
+        src: ['ide/client/**/*.ts', 'ide/core/**/*.ts', 'ide/views/**/*.ts'],
         dest: '<%= config.ide.client.out %>/js',
         options: { module: 'amd' }
       },
@@ -91,22 +91,31 @@ module.exports = function (grunt) {
       ide: {
         files: [{
           expand: true,
-          cwd: 'bower_components/bootstrap',
-          src: 'fonts/*',
-          dest: '<%= config.ide.client.out %>'
+          flatten: true,
+          src: [
+            'bower_components/bootstrap/fonts/*',
+            'node_modules/font-awesome/fonts/*',
+          ],
+          dest: '<%= config.ide.client.out %>/fonts'
+        },{
+          expand: true,
+          flatten: true,
+          src: [
+            'bower_components/bootstrap/dist/css/bootstrap.css',
+            'bower_components/bootstrap/dist/css/bootstrap.css.map',
+            'node_modules/font-awesome/css/font-awesome.css',
+            'node_modules/font-awesome/css/font-awesome.css.map',
+          ],
+          dest: '<%= config.ide.client.out %>/css'
         },{
           expand: true,
           flatten: true,
           src: [
             'bower_components/requirejs/require.js',
             'bower_components/jquery/dist/jquery.js',
-            'bower_components/bootstrap/dist/js/bootstrap.js',
-            'bower_components/underscore/underscore.js',
+            'node_modules/underscore/underscore.js',
             'bower_components/socket.io-client/socket.io.js',
-            'node_modules/MSTools/dist/MSTools.js',
-            'node_modules/mousetrap/mousetrap.js',
-            'node_modules/mousetrap/plugins/global-bind/mousetrap-global-bind.js',
-            'ide/client/main.js',
+            'ide/main.js',
           ],
           dest: '<%= config.ide.client.out %>/js'
         },{
@@ -114,16 +123,17 @@ module.exports = function (grunt) {
           cwd: 'bower_components/ace-builds/src-noconflict',
           src: ['**'],
           dest: '<%= config.ide.client.out %>/js/ace'
-        },{
-          expand: true,
-          flatten: true,
-          src: [
-            'bower_components/bootstrap/dist/css/bootstrap.css',
-            'bower_components/bootstrap/dist/css/bootstrap.css.map',
-          ],
-          dest: '<%= config.ide.client.out %>/css'
         }]
       }
+    },
+    surround: {
+      bootstrap: {
+        options: {
+          prepend: "define(['jquery'], function (jQuery) {",
+          append: '});'
+        },
+        files: [{ src: "bower_components/bootstrap/dist/js/bootstrap.js", dest: "<%= config.ide.client.out %>/js/bootstrap.js" }]
+      },
     },
     //
     /////
@@ -152,6 +162,7 @@ module.exports = function (grunt) {
       ide: {
         files: {
           '<%= config.ide.client.out %>/ide.css': [
+            '<%= config.ide.client.out %>/css/font-awesome.css',
             '<%= config.ide.client.out %>/css/bootstrap.css',
             '<%= config.ide.client.out %>/css/ide.css'
           ]
@@ -192,18 +203,28 @@ module.exports = function (grunt) {
       },
       ide: {
         files: ['ide/**', 'ide.js', 'buildsystem/**'],
-        tasks: ['express:ide:stop', 'ide', 'express:ide'],
+        tasks: ['shell:ide:kill', 'ide', 'shell:ide'],
+        options: {
+          spawn: false
+        }
+      },
+      electron: {
+        files: ['ide/**', 'ide.js', 'buildsystem/**'],
+        tasks: ['shell:electron:kill', 'ide', 'shell:electron'],
         options: {
           spawn: false
         }
       }
     },
-    express: {
-      ide: {
-        options: {
-          script: "ide.js"
-        }
-      }
+    shell: {
+      'ide': {
+        command: 'node --expose-gc ide.js',
+        options: { async: true }
+      },
+      'electron': {
+        command: 'electron --expose-gc main.js',
+        options: { async: true }
+      },
     }
   });
 
@@ -216,7 +237,8 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-contrib-cssmin');
   grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.loadNpmTasks('grunt-typescript');
-  grunt.loadNpmTasks('grunt-express-server');
+  grunt.loadNpmTasks('grunt-shell-spawn');
+  grunt.loadNpmTasks('grunt-surround');
 
   grunt.registerTask('default', ['ide', 'buildsystem']);
 
@@ -229,6 +251,7 @@ module.exports = function (grunt) {
     'typescript:nodejs', // JS
   ]);
   grunt.registerTask('ide', [
+    'surround:bootstrap',
     'copy:ide', // Dependencies & Setup
     'jade:ide', // HTML
     'sass:ide', // CSS
@@ -237,7 +260,16 @@ module.exports = function (grunt) {
   ]);
 
   grunt.registerTask('run-ide-debug', [
+    'ide',
+    'shell:ide:kill',
+    'shell:ide',
     'watch:ide',
+  ]);
+  grunt.registerTask('run-electron-debug', [
+    'ide',
+    'shell:electron:kill',
+    'shell:electron',
+    'watch:electron',
   ]);
   grunt.registerTask('ide-release', [
     'ide',

@@ -29,7 +29,6 @@
 			[
 				".idea",
 				".sass-cache",
-				"out",
 				".tscache",
 				"toolchains",
 				"*/MSBuildSystem/sysroots",

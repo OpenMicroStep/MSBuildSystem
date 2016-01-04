@@ -6,6 +6,7 @@ require("es6-shim");
 require('./core/Logger')(console, 'info');
 
 console.trace("Loading build system");
+export import core = require('./core');
 export import Target = require('./core/Target');
 export import Task = require('./core/Task');
 export import Graph = require('./core/Graph');
@@ -13,7 +14,7 @@ export import Workspace = require('./core/Workspace');
 import Provider = require('./core/Provider');
 import Sysroot = require('./core/Sysroot');
 import path = require('path');
-import util = require('./core/util');
+export import util = require('./core/util');
 import _ = require('underscore');
 
 util.requireDir(path.join(__dirname, './targets'));

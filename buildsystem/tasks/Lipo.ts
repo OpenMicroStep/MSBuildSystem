@@ -14,7 +14,7 @@ class LipoTask extends ProcessTask {
     var inputs = linkTasks.map(function (task) {
       return task.outputFiles[0];
     });
-    super("Lipo to " + finalFile.path, graph, inputs, [finalFile]);
+    super({ type: "link", name: finalFile.name }, graph, inputs, [finalFile], {linker:"lipo"});
     this.addDependencies(linkTasks);
     this.appendArgs(["-create"]);
     linkTasks.forEach((task) => {

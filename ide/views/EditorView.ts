@@ -1,57 +1,14 @@
 /// <reference path="../../typings/browser.d.ts" />
 "use strict";
-import View = require('./View');
-import ContentView = require('./ContentView');
-import WorkspaceFile = require('./WorkspaceFile');
+import {View, ContentView, async} from '../core';
+import WorkspaceFile = require('../client/WorkspaceFile');
+import Workspace = require('../client/Workspace');
 
+var Editor = ace.require("ace/editor").Editor;
+var EditSession = ace.require("ace/edit_session").EditSession;
+var Renderer = ace.require("ace/virtual_renderer").VirtualRenderer;
 var StatusBar = ace.require("ace/ext/statusbar").StatusBar;
 ace.require("ace/ext/language_tools");
-
-// TODO: Make this flexible
-var extensionToMode = {
-  '.c':'c_cpp',
-  '.cpp':'c_cpp',
-  '.h': 'objectivec',
-  '.hpp': 'c_cpp',
-  '.css':'css',
-  '.d':'d',
-  '.dart':'dart',
-  '.diff':'diff',
-  '.dockerfile':'dockerfile',
-  '.dot':'dot',
-  '.gitignore':'gitignore',
-  '.go':'golang',
-  '.htm':'html',
-  '.html':'html',
-  '.ini':'ini',
-  '.jade':'jade',
-  '.js':'javascript',
-  '.json':'json',
-  '.less':'less',
-  '.lisp':'lisp',
-  '.lua':'lua',
-  'Makefile':'makefile',
-  '.md':'markdown',
-  '.m':'objectivec',
-  '.mm':'objectivec',
-  '.sass':'sass',
-  '.sh':'sh',
-  '.sjs':'sjs',
-  '.sql':'sql',
-  '.svg':'svg',
-  '.tex':'tex',
-  '.ts':'typescript',
-  '.xml':'xml',
-  '.yaml':'yaml',
-};
-
-function fileNameToMode(name) {
-  var idx = name.lastIndexOf('.');
-  if (idx != -1)
-    name = name.substring(idx);
-  var ext = extensionToMode[name];
-  return ext ? ext : 'text';
-}
 
 class EditorView extends ContentView {
   file: WorkspaceFile; fileEvt;
@@ -71,13 +28,8 @@ class EditorView extends ContentView {
     this.el.className = "editor";
     this.editorEl.className = "editor-ace";
     this.statusEl.className = "editor-status";
-    this.editor = ace.edit(this.editorEl);
-    var session = ace.createEditSession(<any>file.document, <any>"ace/mode/" + fileNameToMode(file.name));
-    var oldsession:any = this.editor.session;
-    this.editor.setSession(session);
-    oldsession.destroy();
-    //this.editor.session.setDocument(file.document);
-    //this.editor.session.setMode(<any>"ace/mode/" + fileNameToMode(file.name));
+    this.editor = new Editor(new Renderer(this.editorEl));
+    this.editor.setSession(this.file.session);
     this.editor.setTheme("ace/theme/monokai");
     this.editor.$blockScrolling = Infinity;
     this.editor.setOptions({
@@ -86,24 +38,54 @@ class EditorView extends ContentView {
       enableSnippets: true,
       enableLiveAutocompletion: true
     });
-    //new StatusBar(this.editor, this.statusEl);
-
+    this.file.ref();
     this.titleEl.className = file.saved ? "editorview-title-saved" : "editorview-title-modified";
-    file.on("saved", this.fileEvt = (e) => {
-       this.titleEl.className = !e.hasUnsavedChanges ? "editorview-title-saved" : "editorview-title-modified";
+    file.on("change", this.fileEvt = (e) => {
+      console.log("change", this.file.hasUnsavedChanges());
+       this.titleEl.className = !this.file.hasUnsavedChanges() ? "editorview-title-saved" : "editorview-title-modified";
     });
+    file.workspace.on("diagnostic", this.ondiagnostics.bind(this));
+  }
+
+  isViewFor(file) {
+    return this.file === file;
+  }
+
+  ondiagnostics(e: {diag: Workspace.Diagnostic}) {
+    if (e.diag && e.diag.path === this.file.path)
+      this.loadDiagnostics();
+  }
+
+  loadDiagnostics() {
+    var diags = this.file.workspace.diagnosticsAtPath(this.file.path);
+    var session = this.editor.session;
+    var annotations = [];
+    diags.forEach((d) => {
+      annotations.push({
+        row: d.row - 1,
+        column: d.col - 1,
+        text: d.msg,
+        type: d.type
+      })
+    });
+    session.setAnnotations(annotations);
   }
 
   destroy() {
     super.destroy();
     this.editor.destroy();
+    this.file.unref();
     this.file.off("saved", this.fileEvt);
   }
-/*
-  tryDoAction(command): boolean {
-    this.editor.execCommand(e.name);
-    return false;
-  }*/
+
+  tryDoAction(command) {
+    switch (command.name) {
+      case 'file.save':
+        async.run(null, this.file.save.bind(this.file));
+        return true;
+    }
+    return super.tryDoAction(command);
+  }
 
   focus() {
     this.editor.focus();

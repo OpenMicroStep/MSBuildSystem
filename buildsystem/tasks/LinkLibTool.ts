@@ -10,8 +10,9 @@ import Graph = require('../core/Graph');
 import CXXTarget = require('../targets/_CXXTarget');
 
 class LinkLibToolTask extends LinkTask {
-  constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType) {
-    super(graph, compileTasks, finalFile, type);
+  constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType, provider?) {
+    provider = provider || (type === CXXTarget.LinkType.STATIC ? {linker:"libtool"} : { compiler: "clang"});
+    super(graph, compileTasks, finalFile, type, provider);
     if(this.type === CXXTarget.LinkType.STATIC) {
       this.appendArgs(["-static", "-o", finalFile.path]);
     }

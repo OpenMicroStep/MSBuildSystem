@@ -27,11 +27,9 @@ class LinuxSysroot extends Sysroot {
     var task;
     if(target.env.compiler === "clang") {
       task = new CompileClangTask(target, srcFile, objFile);
-      task.provider= <Provider.Process>Provider.find({compiler:"clang"});
     }
     else {
-      task = new CompileGCCTask(target, srcFile, objFile);
-      task.provider= <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
+      task = new CompileGCCTask(target, srcFile, objFile, {compiler:"gcc", triple:this.triple});
     }
     if(target.linkType !== CXXTarget.LinkType.EXECUTABLE)
       task.addFlags(["-fPIC"]);
@@ -42,14 +40,15 @@ class LinuxSysroot extends Sysroot {
     callback(null, task);
   }
   createLinkTask(target: CXXTarget, compileTasks: CompileTask[], finalFile: File, callback: Sysroot.CreateTaskCallback) {
-    var task = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType);
+    var conditions;
     if (target.linkType === CXXTarget.LinkType.STATIC)
-      task.provider = <Provider.Process>Provider.find({archiver:"binutils", triple:this.triple});
-    else {
-      task.provider = <Provider.Process>Provider.find({compiler:"gcc", triple:this.triple});
-      task.addFlags(["-Wl,-soname," + this.linkFinalName(target)]);
-    }
+      conditions = {archiver:"binutils", triple:this.triple};
+    else
+      conditions = {compiler:"gcc", triple:this.triple};
 
+    var task = new LinkBinUtilsTask(target, compileTasks, finalFile, target.linkType, conditions);
+    if (target.linkType !== CXXTarget.LinkType.STATIC)
+      task.addFlags(["-Wl,-soname," + this.linkFinalName(target)]);
     var basepath= path.dirname(finalFile.path);
     var rpaths = [];
     var rpathslnk = [];
