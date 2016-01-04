@@ -34,7 +34,7 @@
 				"*/MSBuildSystem/sysroots",
 				"tools"
 			],
-			"path": "."
+			"path": ".."
 		}
 	],
 	"settings":

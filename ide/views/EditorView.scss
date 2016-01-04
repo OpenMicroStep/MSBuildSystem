@@ -1,0 +1,41 @@
+@import "Core";
+
+.editor {
+  @include pos-absolute(0,0,0,0);
+}
+.editor-ace {
+  position: absolute !important;
+  @include pos-absolute(0,0,0,0);
+}
+
+.ace_editor {
+  -webkit-font-smoothing: antialiased;
+}
+
+.editor-status {
+  @include noselect;
+  position: absolute !important;
+  background: #272822;
+  border-radius: 5px;
+  z-index: 1;
+  color: #8F908A;
+  text-align: right;
+  font-size: 0.9em;
+}
+
+.editor-status > * {
+  margin: 0 5px;
+  display: inline-block;
+}
+.editor-status > a {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: inherit;
+}
+.editor-status > a:hover {
+  color: #DDD;
+}
+
+.editorview-title-modified {
+  color: red;
+}

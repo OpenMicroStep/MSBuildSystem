@@ -22,6 +22,9 @@ module.exports = function (grunt) {
         client : {
           out : "<%= config.out %>/ide/client",
         },
+        electron : {
+          out : "<%= config.out %>/ide/electron",
+        },
         server : {
           out : "<%= config.out %>/ide/server",
         },
@@ -39,10 +42,10 @@ module.exports = function (grunt) {
           pretty: true,
           data: { debug: true },
         },
-        files: {"<%= config.ide.client.out %>/index-debug.html": ["ide/views/index.jade"]}
+        files: {"<%= config.ide.client.out %>/index-debug.html": ["../ide/views/index.jade"]}
       },
       "ide-release": {
-        files: {"<%= config.ide.client.out %>/index.html": ["ide/views/index.jade"]}
+        files: {"<%= config.ide.client.out %>/index.html": ["../ide/views/index.jade"]}
       }
     },
     //
@@ -56,7 +59,7 @@ module.exports = function (grunt) {
         sourcemap: "inline",
       },
       ide: {
-        files: [{src: 'ide/views/ide.scss', dest: '<%= config.ide.client.out %>/css/ide.css'}]
+        files: [{src: '../ide/views/ide.scss', dest: '<%= config.ide.client.out %>/css/ide.css'}]
       }
     },
     //
@@ -71,16 +74,15 @@ module.exports = function (grunt) {
         sourceMap: true
       },
       ide: {
-        src: ['ide/client/**/*.ts', 'ide/core/**/*.ts', 'ide/views/**/*.ts'],
+        src: ['../ide/client/**/*.ts', '../ide/core/**/*.ts', '../ide/views/**/*.ts'],
         dest: '<%= config.ide.client.out %>/js',
         options: { module: 'amd' }
       },
       nodejs: {
-        src: ['buildsystem/**/*.ts', 'ide/server/**/*.ts'],
+        src: ['../buildsystem/**/*.ts', '../ide/server/**/*.ts'],
         dest: '<%= config.out %>',
         options: { module: 'commonjs' }
       }
-
     },
     //
     /////
@@ -93,7 +95,7 @@ module.exports = function (grunt) {
           expand: true,
           flatten: true,
           src: [
-            'bower_components/bootstrap/fonts/*',
+            'node_modules/bootstrap/fonts/*',
             'node_modules/font-awesome/fonts/*',
           ],
           dest: '<%= config.ide.client.out %>/fonts'
@@ -101,8 +103,8 @@ module.exports = function (grunt) {
           expand: true,
           flatten: true,
           src: [
-            'bower_components/bootstrap/dist/css/bootstrap.css',
-            'bower_components/bootstrap/dist/css/bootstrap.css.map',
+            'node_modules/bootstrap/dist/css/bootstrap.css',
+            'node_modules/bootstrap/dist/css/bootstrap.css.map',
             'node_modules/font-awesome/css/font-awesome.css',
             'node_modules/font-awesome/css/font-awesome.css.map',
           ],
@@ -111,18 +113,27 @@ module.exports = function (grunt) {
           expand: true,
           flatten: true,
           src: [
-            'bower_components/requirejs/require.js',
-            'bower_components/jquery/dist/jquery.js',
+            'node_modules/requirejs/require.js',
+            'node_modules/jquery/dist/jquery.js',
             'node_modules/underscore/underscore.js',
-            'bower_components/socket.io-client/socket.io.js',
-            'ide/main.js',
+            'node_modules/socket.io-client/socket.io.js',
+            '../ide/main.js',
           ],
           dest: '<%= config.ide.client.out %>/js'
         },{
           expand: true,
-          cwd: 'bower_components/ace-builds/src-noconflict',
+          cwd: 'node_modules/ace-builds/src-noconflict',
           src: ['**'],
           dest: '<%= config.ide.client.out %>/js/ace'
+        },{
+          src: '../ide/electron/main.js',
+          dest: '<%= config.ide.electron.out %>/main.js'
+        },{
+          src: '../ide/server/main.js',
+          dest: '<%= config.ide.server.out %>/main.js'
+        },{
+          src: 'package.json',
+          dest: '<%= config.out %>/package.json'
         }]
       }
     },
@@ -132,7 +143,7 @@ module.exports = function (grunt) {
           prepend: "define(['jquery'], function (jQuery) {",
           append: '});'
         },
-        files: [{ src: "bower_components/bootstrap/dist/js/bootstrap.js", dest: "<%= config.ide.client.out %>/js/bootstrap.js" }]
+        files: [{ src: "node_modules/bootstrap/dist/js/bootstrap.js", dest: "<%= config.ide.client.out %>/js/bootstrap.js" }]
       },
     },
     //
@@ -180,7 +191,7 @@ module.exports = function (grunt) {
           archive:'all-<%= config.date %>.zip'
         },
         files: [
-          {src: ['out/**', 'app.js', 'app_provider.js', 'ide.js', 'sysroots/darwin-10.10/**']},
+          {src: ['../out/**', '../app.js', '../app_provider.js', '../ide.js', '../sysroots/darwin-10.10/**']},
           {src: (function() {
             var deps = [];
             for(var dep in pkgjson.dependencies) {
@@ -194,6 +205,20 @@ module.exports = function (grunt) {
         ]
       },
     },
+    electron: {
+      osx: {
+        options: {
+          name: 'MicroStep IDE',
+          dir: 'out',
+          out: 'dist',
+          version: '0.36.2',
+          platform: 'darwin',
+          arch: 'x64',
+          asar: false,
+          overwrite: true
+        }
+      }
+    },
     //
     /////
 
@@ -202,14 +227,14 @@ module.exports = function (grunt) {
         livereload: true,
       },
       ide: {
-        files: ['ide/**', 'ide.js', 'buildsystem/**'],
+        files: ['../ide/**', '../ide.js', '../buildsystem/**'],
         tasks: ['shell:ide:kill', 'ide', 'shell:ide'],
         options: {
           spawn: false
         }
       },
       electron: {
-        files: ['ide/**', 'ide.js', 'buildsystem/**'],
+        files: ['../ide/**', '../ide.js', '../buildsystem/**'],
         tasks: ['shell:electron:kill', 'ide', 'shell:electron'],
         options: {
           spawn: false
@@ -217,6 +242,9 @@ module.exports = function (grunt) {
       }
     },
     shell: {
+      'electron-modules': {
+        command: 'npm install --production && npm prune --production'
+      },
       'ide': {
         command: 'node --expose-gc ide.js',
         options: { async: true }
@@ -239,6 +267,7 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-typescript');
   grunt.loadNpmTasks('grunt-shell-spawn');
   grunt.loadNpmTasks('grunt-surround');
+  grunt.loadNpmTasks('grunt-electron');
 
   grunt.registerTask('default', ['ide', 'buildsystem']);
 
@@ -247,6 +276,23 @@ module.exports = function (grunt) {
     'buildsystem',
     'compress:all'
   ]);
+  grunt.registerTask('electron-osx', [
+    'ide',
+    'electron-modules',
+    'shell:electron-modules',
+    'electron:osx',
+  ]);
+  grunt.registerTask('electron-modules', 'Create electron package.json', function() {
+    var done = this.async();
+    grunt.log.writeln('Creating electron package.json');
+    require('fs').writeFile('out/package.json', JSON.stringify({
+      name: "electron",
+      productName: "Electron",
+      main: "ide/electron/main.js",
+      dependencies: pkgjson.dependencies,
+    }, null, 2), 'utf8', done);
+});
+
   grunt.registerTask('buildsystem', [
     'typescript:nodejs', // JS
   ]);

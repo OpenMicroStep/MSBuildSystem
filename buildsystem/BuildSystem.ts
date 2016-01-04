@@ -22,3 +22,11 @@ util.requireDir(path.join(__dirname, './tasks'));
 Sysroot.loadClasses(path.join(__dirname, 'sysroots'));
 Sysroot.load(path.join(__dirname, '../../sysroots'));
 
+
+if (process.platform === "darwin") {
+  // TODO: add better detection
+  // darwin provide clang & libtool with Xcode
+  Provider.register(new Provider.Process("clang", { type:"compiler", compiler:"clang", version:"apple/7.0.2"})); // apple is playing this clang version number :(
+  Provider.register(new Provider.Process("libtool", { type:"linker", linker:"libtool", version:"apple/877.8"}));
+}
+
