@@ -20,7 +20,7 @@ import _ = require('underscore');
 util.requireDir(path.join(__dirname, './targets'));
 util.requireDir(path.join(__dirname, './tasks'));
 Sysroot.loadClasses(path.join(__dirname, 'sysroots'));
-Sysroot.load(path.join(__dirname, '../../sysroots'));
+Sysroot.load(path.join(__dirname, '../sysroots'));
 
 
 if (process.platform === "darwin") {

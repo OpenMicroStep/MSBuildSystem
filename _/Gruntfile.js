@@ -243,10 +243,10 @@ module.exports = function (grunt) {
     },
     shell: {
       'electron-modules': {
-        command: 'npm install --production && npm prune --production'
+        command: 'cd out && npm install --production && npm prune --production'
       },
       'ide': {
-        command: 'node --expose-gc ide.js',
+        command: 'node --expose-gc out/ide/server/main.js /Users/vincentrouille/Dev/MicroStep/MSFoundation',
         options: { async: true }
       },
       'electron': {
@@ -254,6 +254,17 @@ module.exports = function (grunt) {
         options: { async: true }
       },
     }
+  });
+
+  grunt.registerTask('electron-modules', 'Create electron package.json', function() {
+    var done = this.async();
+    grunt.log.writeln('Creating electron package.json');
+    require('fs').writeFile('out/package.json', JSON.stringify({
+      name: "electron",
+      productName: "Electron",
+      main: "ide/electron/main.js",
+      dependencies: pkgjson.dependencies,
+    }, null, 2), 'utf8', done);
   });
 
   grunt.loadNpmTasks('grunt-contrib-compress');
@@ -282,17 +293,6 @@ module.exports = function (grunt) {
     'shell:electron-modules',
     'electron:osx',
   ]);
-  grunt.registerTask('electron-modules', 'Create electron package.json', function() {
-    var done = this.async();
-    grunt.log.writeln('Creating electron package.json');
-    require('fs').writeFile('out/package.json', JSON.stringify({
-      name: "electron",
-      productName: "Electron",
-      main: "ide/electron/main.js",
-      dependencies: pkgjson.dependencies,
-    }, null, 2), 'utf8', done);
-});
-
   grunt.registerTask('buildsystem', [
     'typescript:nodejs', // JS
   ]);
