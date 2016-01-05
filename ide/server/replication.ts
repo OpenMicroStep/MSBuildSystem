@@ -26,8 +26,7 @@ export function registerSocket(socket: Socket) : SocketInfo {
     var o = objectWithId(id);
     if (o) {
       if (!info.replicatedObjects.has(o)) {
-        info.replicatedObjects.add(o);
-        o.addListener(info.socket);
+        o.addListener(info);
         info.socket.emit('reprec', o.id, o.reconnectData());
       }
       args= [];
@@ -39,7 +38,9 @@ export function registerSocket(socket: Socket) : SocketInfo {
     else cb(404);
   });
   socket.on('destroy', info._destroy = function(id) {
-    delete ids[id];
+    var o = objectWithId(id);
+    if (o)
+      o.removeListener(info);
   });
   socket.on('error', info._error = function(err) {
     console.warn("Error on socket", err);
@@ -52,7 +53,7 @@ export function registerSocket(socket: Socket) : SocketInfo {
 }
 export function unregisterSocket(info: SocketInfo) {
   info.replicatedObjects.forEach(function(obj) {
-    obj.removeListener(info.socket);
+    obj.removeListener(info);
   });
   info.socket.removeListener('destroy', info._destroy);
   info.socket.removeListener('repcall', info._repcall);
@@ -74,10 +75,8 @@ export function objectWithId(id: string) : ServedObject<any> {
 
 export function encode(info: SocketInfo, r) {
   if (r instanceof ServedObject) {
-    if (!info.replicatedObjects.has(r)) {
-      info.replicatedObjects.add(r);
-      r.addListener(info.socket);
-    }
+    if (!info.replicatedObjects.has(r))
+      r.addListener(info);
     r= r.encode();
   }
   return r;
@@ -96,13 +95,15 @@ export class ServedObject<T> {
     this.obj = obj;
   }
 
-  addListener(socket: Socket) {
+  addListener(info: SocketInfo) {
     if (this.listeners.size === 0)
       registerObject(this);
-    this.listeners.add(socket);
+    this.listeners.add(info.socket);
+    info.replicatedObjects.add(this);
   }
-  removeListener(socket: Socket) {
-    this.listeners.delete(socket);
+  removeListener(info: SocketInfo) {
+    this.listeners.delete(info.socket);
+    info.replicatedObjects.delete(this);
     if (this.listeners.size === 0)
       unregisterObject(this);
   }
