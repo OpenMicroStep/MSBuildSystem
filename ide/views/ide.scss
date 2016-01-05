@@ -249,6 +249,25 @@ body > div > .docklayout {
   border-left-color: #5B8ACD;
 }
 
+.progress-line {
+  height: 2px;
+  margin-top: -2px;
+}
+.progress-line::before {
+  content: ' ';
+  display: block;
+  width: 100%;
+  background: white;
+  margin-bottom: -2px;
+  height: 2px;
+}
+.progress-line > div {
+  width: 0%;
+  height: 2px;
+  transition: width 0.2s;
+  background: #0089FF;
+}
+
 ::-webkit-scrollbar {
   background: none;
   width: 16px;

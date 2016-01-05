@@ -56,6 +56,7 @@ class Workspace extends replication.DistantObject {
   _diagnostics: DiagnosticsByPath;
   _tasks: Map<string, Workspace.Graph>;
   _graph: async.Flux;
+  _build: { pendings: (()=> void)[], progress: number, nb: number};
   _openFiles: Map<string, async.Flux>;
 
   constructor() {
@@ -65,6 +66,7 @@ class Workspace extends replication.DistantObject {
     this._diagnostics = new DiagnosticsByPath(this);
     this._tasks = new Map<any, any>();
     this._graph = null;
+    this._build = null;
     this.on('reload', this.initWithData.bind(this));
     this.on("taskend", this.ontaskend.bind(this));
     this.on('taskinfo', this.ontaskinfo.bind(this));
@@ -154,7 +156,7 @@ class Workspace extends replication.DistantObject {
             })
           });
         }
-        this.remoteCall(p, "start", taskIds);
+        this._start(p, taskIds);
       }
     ]);
     p.continue();
@@ -163,9 +165,43 @@ class Workspace extends replication.DistantObject {
   start(p: async.Flux, taskIds: string[]) {
     p.setFirstElements([
       this.graph.bind(this),
-      (p) => { this.remoteCall(p, "start", taskIds); }
+      (p) => { this._start(p, taskIds); }
     ]);
     p.continue();
+  }
+
+  _counttasks(taskIds: string[]) {
+    function subs(task: Workspace.Graph) {
+      nb++;
+      if (task && task.tasks) {
+        for(var i = 0, len = task.tasks.length; i < len; i++) {
+          subs(task.tasks[i]);
+        }
+      }
+    }
+    var nb = 0;
+    taskIds.forEach((tid) => {
+      subs(this._tasks.get(tid));
+    });
+    return nb;
+  }
+
+  _start(p: async.Flux, taskIds: string[]) {
+    if (this._build) {
+      this._build.pendings.push(() => { this._start(p, taskIds); });
+    }
+    else {
+      var nb = this._counttasks(taskIds);
+      this._build = { pendings: [], progress: 0, nb: nb};
+      p.setFirstElements((p) => {
+        var pendings = this._build.pendings;
+        this._build = null;
+        this._signal("build", { progress: 1, working: false });
+        pendings.forEach((fn) => { fn(); });
+      });
+      this._signal("build", { progress: 0, working: true });
+      this.remoteCall(p, "start", taskIds);
+    }
   }
 
   _loadGraph(graph: Workspace.GraphInfo) : Workspace.Graph {
@@ -193,6 +229,10 @@ class Workspace extends replication.DistantObject {
   ontaskend(e) {
     var time = 0;
     var task = this._tasks.get(e.id);
+    if (this._build) {
+      this._build.progress++;
+      this._signal("build", { progress: this._build.progress / this._build.nb, working: true });
+    }
     if (task) {
       task.ontaskend(e, this._diagnostics);
     }

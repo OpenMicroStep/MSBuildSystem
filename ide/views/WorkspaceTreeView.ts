@@ -78,10 +78,21 @@ class FileTreeItem extends TreeItemView {
 class WorkspaceTreeView extends ContentView {
   root: TreeItemView;
   constructor(workspace: Workspace) {
-    super("Workspace");
-    this.titleEl.textContent = "Workspace";
+    super();
     this.root = new WorkspaceTreeItem(workspace);
     this.root.appendTo(this.el);
+    var progress = document.createElement('div');
+    var progressAdv = document.createElement('div');
+    progress.className = "progress-line";
+    progress.appendChild(progressAdv);
+    this.titleEl.appendChild(document.createTextNode("Workspace"));
+    this.titleEl.appendChild(progress);
+    $(progress).hide();
+    workspace.on('build', (e) => {
+      if (e.working) $(progress).show();
+      else $(progress).fadeOut();
+      $(progressAdv).css('width', (e.progress * 100) + '%');
+    });
   }
 
   getChildViews() {

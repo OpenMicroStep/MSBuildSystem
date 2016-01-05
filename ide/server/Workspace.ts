@@ -112,14 +112,23 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     return this.buildGraph.setEndCallbacks((p) => {
       var g = p.context.root;
       if (g) {
-        BuildSystem.util.timeElapsed("logs export", () => {
-          g.allTasks(true).forEach((t) => {
-            this.emit(pool.context.socket, "taskinfo", taskInnerRUNCFGData(t));
-          });
-        });
-        pool.context.response = true;
+        var t0 = BuildSystem.util.timeElapsed("logs export");
+        var tasks: BuildSystem.Task[] = <any>Array.from(g.allTasks(true));
+        var i = 0, len = tasks.length;
+        var next = () => {
+          if (i < len) {
+            this.emit(pool.context.socket, "taskinfo", taskInnerRUNCFGData(tasks[i]));
+            ++i;
+            setTimeout(next, 1);
+          }
+          else {
+            t0();
+            pool.context.response = true;
+            pool.continue();
+          }
+        };
+        next();
       }
-      pool.continue();
     });
   }
 
@@ -166,7 +175,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
           pool.continue();
         });
       }
-      pool.continue();
+      else { pool.continue(); }
     });
   }
 
