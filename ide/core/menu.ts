@@ -175,6 +175,8 @@ export class TitleMenu extends Menu {
     }
   }
 
+  _signal() {}
+
   commandWithName(name) {
     return this.commands.commands[name];
   }

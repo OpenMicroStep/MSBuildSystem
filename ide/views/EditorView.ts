@@ -123,8 +123,7 @@ class EditorView extends ContentView {
     this.file.ref();
     this.titleEl.className = file.saved ? "editorview-title-saved" : "editorview-title-modified";
     file.on("change", this.fileEvt = (e) => {
-      console.log("change", this.file.hasUnsavedChanges());
-       this.titleEl.className = !this.file.hasUnsavedChanges() ? "editorview-title-saved" : "editorview-title-modified";
+      this.titleEl.className = !this.file.hasUnsavedChanges() ? "editorview-title-saved" : "editorview-title-modified";
     });
     file.workspace.on("diagnostic", this.ondiagnostics.bind(this));
   }

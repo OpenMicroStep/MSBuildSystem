@@ -8,8 +8,11 @@
   @include pos-absolute(0,0,0,0);
 }
 
-.ace_editor {
-  -webkit-font-smoothing: antialiased;
+@media (max-resolution: 100dpi) {
+  /* On non HiDPI display, webkit font rendering on white code on dark background looks bad */
+  .ace_dark {
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
 .editor-status {

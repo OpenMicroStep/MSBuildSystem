@@ -9,6 +9,7 @@ var Document:    typeof AceAjax.Document    = ace.require('ace/document').Docume
 var EditSession: typeof AceAjax.EditSession = ace.require("ace/edit_session").EditSession;
 var UndoManager: typeof AceAjax.UndoManager = ace.require("ace/undomanager").UndoManager;
 var modelist = ace.require("ace/ext/modelist");
+var lang = ace.require("ace/lib/lang");
 
 class WorkspaceFile extends replication.DistantObject {
   refcount: number;
@@ -20,6 +21,7 @@ class WorkspaceFile extends replication.DistantObject {
   workspace: Workspace;
   mode: { mode: string, name: string, caption: string };
   pendingsdeltas: async.Flux[];
+  $informChange;
 
   constructor() {
     super();
@@ -31,7 +33,7 @@ class WorkspaceFile extends replication.DistantObject {
 
     this.session.on("change", (e) => {
       if (!this.ignoreChanges) {
-        (new async.Async({ deltas: [e.data] } , [
+        (new async.Async({ deltas: [e] } , [
           (p) => {
             this.pendingsdeltas.push(p);
             p.continue();
@@ -43,17 +45,18 @@ class WorkspaceFile extends replication.DistantObject {
             p.continue();
           }
         ])).continue();
-        setTimeout(() => { this._signal("change"); }, 0);
       }
+      this.$informChange.schedule();
     });
     this.on('extchange', (e) => {
       // another client changed the content
       this.ignoreChanges = true;
       this.session.getDocument().applyDeltas(e.deltas);
       this.ignoreChanges = false;
-      setTimeout(() => { this._signal("change"); }, 0);
+      this.$informChange.schedule();
     });
     this.on('extsaved', (e) => { this.saved(e); });
+    this.$informChange = lang.delayedCall(() => { setTimeout(() => { this._signal("change"); }, 0); });
   }
 
   initWithData(data) {
