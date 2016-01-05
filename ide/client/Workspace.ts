@@ -88,9 +88,11 @@ class Workspace extends replication.DistantObject {
       if (!this._graph) {
         this._graph = (new async.Async(null, [
           (p) => { this.remoteCall(p, "graph"); },
-          (p) => { p.context.graph = this._loadGraph(p.context.result); p.continue(); },
-          (p) => { this.taskInfos(p); },
-          (p) => { p.context.result = p.context.graph; p.continue(); },
+          (p) => {
+            p.context.result = this._loadGraph(p.context.result);
+            async.run(null, [this.taskInfos.bind(this)]);
+            p.continue();
+          }
         ])).continue();
       }
       this.graph(f);
