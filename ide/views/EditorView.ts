@@ -160,9 +160,13 @@ class EditorView extends ContentView {
   }
 
   tryDoAction(command) {
+    if (command.name.startsWith('editor.ace.')) {
+      this.editor.execCommand(command.name.substring('editor.ace.'.length));
+      return true;
+    }
     switch (command.name) {
       case 'file.save':
-        this.editor.execCommand("trimTrailingSpace");
+        whitespace.trimTrailingSpace(this.editor.session, true);
         async.run(null, this.file.save.bind(this.file));
         return true;
     }
