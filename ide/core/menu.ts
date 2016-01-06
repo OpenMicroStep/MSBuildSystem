@@ -51,6 +51,17 @@ class Menu {
     }
   }
 
+  _buildDomKeyString(keyBind) {
+    var bind = keyBind[useragent.isMac ? "mac" : "win"];
+    if (bind) {
+      bind = bind
+        .replace(/-/g, ' ')
+        .replace(/Command/g, '⌘')
+        .replace(/Shift/g, '⇧')
+        .replace(/Alt/g, '⌥');
+    }
+    return bind;
+  }
   _buildDomMenuItem(opts: MenuItemOptions, allowBindings: boolean, parent: HTMLElement, level : number) {
     var dropdown, name, subMenu, subItems;
     subItems = opts.submenu || [];
@@ -70,8 +81,23 @@ class Menu {
 
     if (opts.command) {
       var cmd = applicationMenu.commandWithName(opts.command);
-      if (cmd)
-        opts.click = () => { globals.ide.exec(cmd); };
+      if (cmd) {
+        if (opts.role) {
+          cmd.native = true;
+          opts.click = () => { alert("TODO: this action is only available via shortcuts"); };
+        }
+        else {
+          opts.click = () => { globals.ide.exec(cmd); };
+        }
+        if (!opts.bindKey)
+          opts.bindKey = cmd.bindKey;
+      }
+    }
+    if (opts.bindKey) {
+      var shrt = document.createElement('span');
+      shrt.className = "pull-right";
+      shrt.textContent = this._buildDomKeyString(opts.bindKey);
+      name.appendChild(shrt);
     }
     if (opts.click)
       name.addEventListener('click', opts.click, false);
@@ -107,8 +133,10 @@ class Menu {
     if (opts.command) {
       var cmd = applicationMenu.commandWithName(opts.command);
       if (cmd) {
+        cmd.native = true;
         opts.bindKey = cmd.bindKey;
-        opts.click = () => { globals.ide.exec(cmd); };
+        if (!opts.role)
+          opts.click = () => { globals.ide.exec(cmd); };
       }
     }
     if (allowBindings && opts.bindKey)
@@ -155,7 +183,13 @@ export class TitleMenu extends Menu {
     this.commands = new CommandManager(useragent.isMac ? "mac" : "win", defaultCommands);
     this.keyBinding = new KeyBinding(this);
     aceevent.addCommandKeyListener(document, this.keyBinding.onCommandKey.bind(this.keyBinding));
-    (<any>this.commands).on("exec", ide.startOperation.bind(ide), true);
+    var exec = this.commands.exec;
+    this.commands.exec = function(command, editor, args) {
+      if (command.native)
+        return false;
+      return exec.apply(this, arguments);
+    };
+    this.commands.on("exec", (e) => { return ide.startOperation(e); });
     super(menu, true);
     if (this.nativeMenu) {
       this.nativeMenu.append(new nativeMenuItem({ label: 'Dev', submenu: [ {
@@ -164,9 +198,9 @@ export class TitleMenu extends Menu {
         click: function() { remote.getCurrentWindow().reload(); }
       },{
         label: 'Dev Tools',
-        accelerator: 'CmdOrCtrl+Maj+I',
+        accelerator: 'CmdOrCtrl+Alt+I',
         click: function() { remote.getCurrentWindow().webContents.openDevTools(); }
-      } ]}));
+      }]}));
       nativeMenu.setApplicationMenu(this.nativeMenu);
     }
     else {

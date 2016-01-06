@@ -13,8 +13,16 @@ var defaultCommands= [
   { name:"file.close"              , bindKey: { win: "Ctrl-W", mac: "Command-W" } },
   { name:"workspace.build"         , bindKey: { win: "Ctrl-B", mac: "Command-B" } },
   { name:"workspace.run"           , bindKey: { win: "Ctrl-R", mac: "Command-R" } },
+  { name:"edit.undo"               , bindKey: { win: "Ctrl-Z", mac: "Command-Z" } },
+  { name:"edit.redo"               , bindKey: { win: "Ctrl-Y", mac: "Command-Shift-Z" } },
+  { name:"edit.cut"                , bindKey: { win: "Ctrl-X", mac: "Command-X" } },
+  { name:"edit.copy"               , bindKey: { win: "Ctrl-C", mac: "Command-C" } },
+  { name:"edit.paste"              , bindKey: { win: "Ctrl-V", mac: "Command-V" } },
+  { name:"edit.selectall"          , bindKey: { win: "Ctrl-A", mac: "Command-A" } },
   { name:"workspace.showbuildgraph" },
   { name:"workspace.showsettings"   },
+  { name:"editor.ace.touppercase"  , bindKey: { win: "Ctrl-K Ctrl-U", mac: "Command-K Command-U" } },
+  { name:"editor.ace.tolowercase"  , bindKey: { win: "Ctrl-K Ctrl-L", mac: "Command-K Command-L" } },
 ];
 
 var menus = [
@@ -26,6 +34,20 @@ var menus = [
     { label: "Save As (TODO)"     , command: "file.saveas" },
     { label: "Save all"           , command: "file.saveall"},
     { label: "Close file"         , command: "file.close"  },
+  ]},
+  {id: "edit", label: "Edit", submenu: [
+    { label: "Undo"      , role: 'undo'     , command: 'edit.undo'     },
+    { label: "Redo"      , role: 'redo'     , command: 'edit.redo'     },
+    { type: "separator"                                                },
+    { label: 'Cut'       , role: 'cut'      , command: 'edit.cut'      },
+    { label: 'Copy'      , role: 'copy'     , command: 'edit.copy'     },
+    { label: 'Paste'     , role: 'paste'    , command: 'edit.paste'    },
+    { label: 'Select all', role: 'selectall', command: 'edit.selectall'},
+    { type: "separator" },
+    { label: 'Convert case', submenu: [
+      { label: "Upper case", command: "editor.ace.touppercase"         },
+      { label: "Lower case", command: "editor.ace.tolowercase"         },
+    ]},
   ]},
   {id: "workspace", label: "Workspace", submenu: [
     { label: "Settings"           , command: "workspace.showsettings"  },
@@ -63,7 +85,8 @@ class IDE extends View {
 
   constructor() {
     super();
-
+    if (globals.electron)
+      this.el.className = "electron";
     var top = document.createElement('div');
     top.className = "navbar navbar-fixed-top navbar-default";
     this.el.appendChild(top);
@@ -132,7 +155,7 @@ class IDE extends View {
   startOperation(e) {
     this.exec(e.command);
     e.preventDefault();
-    e.returnValue = true;
+    return true;
   }
 }
 
