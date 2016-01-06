@@ -176,6 +176,21 @@ class TabLayout extends View {
         click: () => {
           this.removeTab(idx, true);
         }
+      },{
+        label: "Close other tabs",
+        click: () => {
+          var i;
+          for (i = this.count - 1; i > idx; --i)
+            this.removeTab(i, true);
+          for (i = idx - 1; i >= 0; --i)
+            this.removeTab(i, true);
+        }
+      },{
+        label: "Close tabs to the right",
+        click: () => {
+          for (var i = this.count - 1; i > idx; --i)
+            this.removeTab(i, true);
+        }
       }];
     });
     if (idx === this._current)
