@@ -168,7 +168,7 @@ class WorkspaceSettingsView extends ContentView {
   save() {
     console.log("save", this._data);
     (new core.async.Async(null, [
-      (p) => { this.workspace.setUserData(p, this._data); p.continue(); }
+      (p) => { this.workspace.setUserData(p, this._data); }
     ])).continue();
   }
 
