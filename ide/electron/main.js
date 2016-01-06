@@ -31,11 +31,11 @@ app.on('ready', function() {
     });
   }
   else {
-    openWorkspace(process.argv[2]);
+    openWorkspace(process.argv[process.argv.length - 1]);
   }
 
   function openWorkspace(path) {
-    child_process.fork(__dirname + "/../server/main.js", [path]);
+    var child = child_process.fork(__dirname + "/../server/main.js", [path]);
 
     // Create the browser window.
     mainWindow = new BrowserWindow({width: 800, height: 600, 'title-bar-style': 'hidden'});
@@ -46,13 +46,13 @@ app.on('ready', function() {
     // and load the index.html of the app.
     mainWindow.loadURL("file://" + __dirname + "/../client/index-debug.html");
 
-
     // Emitted when the window is closed.
     mainWindow.on('closed', function() {
       // Dereference the window object, usually you would store windows
       // in an array if your app supports multi windows, this is the time
       // when you should delete the corresponding element.
       mainWindow = null;
+      child.kill();
     });
   }
 });

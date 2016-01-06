@@ -4,7 +4,7 @@ var replication = require('./replication');
 var express = require('express');
 var app = express();
 var socketio = require('socket.io');
-app.use(express.static('.'));
+app.use(express.static(__dirname + '/../'));
 
 var server = app.listen(3000, function () {
   var host = server.address().address;
