@@ -88,6 +88,7 @@ class BoxLayout extends  View {
       var domSep = document.createElement('div');
       domSep.className= "boxlayout-separator";
       domSep.addEventListener("mousedown", (event: MouseEvent) => {
+        if (!this.userCanResize) return;
         var nodes = this.el.childNodes, sep = 0;
         for(var i = 1, len = nodes.length; i < len; i += 2) {
           if (nodes[i] == domSep) {
