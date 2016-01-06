@@ -1,22 +1,23 @@
 @import "Core";
 
+$tablayout-tabspaddingtop: 4px;
 $tablayout-tabsheight: 26px;
-$tablayout-tabsborder: 2px;
+$tablayout-tabsborder: 1px;
 
 .tablayout {
   @include pos-absolute(0,0,0,0);
 }
 
 .tablayout-top > .tablayout-tabs {
-  @include pos-absolute(0,0,auto,0);
+  @include pos-absolute($tablayout-tabspaddingtop,0,auto,0);
   height: $tablayout-tabsheight;
-  border-bottom: $tablayout-tabsborder solid #C0C0C0;
+  border-bottom: $tablayout-tabsborder solid $border-color;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .tablayout-top > .tablayout-content {
-  @include pos-absolute($tablayout-tabsheight,0,0,0);
+  @include pos-absolute($tablayout-tabsheight + $tablayout-tabspaddingtop,0,0,0);
   overflow: auto;
 }
 
@@ -28,12 +29,15 @@ $tablayout-tabsborder: 2px;
   background:#F6F6F6;
   height: $tablayout-tabsheight - $tablayout-tabsborder;
   vertical-align: top;
+  border: 1px solid $border-color;
+  border-bottom: 0;
 }
-.tablayout-tab.active {
-  background: #C0C0C0;
+
+.tablayout-tab.active, .tablayout-tab.placeholder {
+  background: $active-color;
 }
+
 .tablayout-tab.placeholder {
-  background: #C0C0C0;
   width: 100px;
   pointer-events: none;
 }

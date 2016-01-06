@@ -1,30 +1,33 @@
 @import "Core";
 
-$boxlayout-sep-width: 8px;
-$boxlayout-sep-halfwidth: $boxlayout-sep-width / 2;
-$boxlayout-padding: $boxlayout-sep-halfwidth;
+$boxlayout-sep-line-width: 1px;
+$boxlayout-sep-line-halfwidth: $boxlayout-sep-line-width / 2;
+$boxlayout-padding: $boxlayout-sep-line-halfwidth;
+$boxlayout-sep-resize-width: 8px;
+$boxlayout-sep-resize-halfwidth: $boxlayout-sep-resize-width / 2;
 
 .boxlayout {
   @include pos-absolute(0, 0, 0, 0);
 }
 
-.boxlayout-canresize {
-  background:#F6F6F6;
+.boxlayout-item, .boxlayout-separator {
+  position: absolute;
 }
-
 .boxlayout-item > div {
   overflow: auto;
   height: 100%;
   box-sizing: border-box;
   position: relative;
 }
-.boxlayout-separator > div {
-  background:#F6F6F6;
+.boxlayout-separator::before {
+  content: "";
+  background: $border-color;
   z-index:1;
+  position:absolute;
 }
-
-.boxlayout-item,
-.boxlayout-separator {
+.boxlayout-canresize > .boxlayout-separator::after {
+  content: "";
+  z-index:10;
   position:absolute;
 }
 
@@ -35,10 +38,10 @@ $boxlayout-padding: $boxlayout-sep-halfwidth;
   cursor:ns-resize;
 }
 .boxlayout-horizontal.boxlayout-canresize > .boxlayout-item {
-  padding:0 $boxlayout-sep-halfwidth;
+  padding:0 $boxlayout-padding;
 }
 .boxlayout-vertical.boxlayout-canresize > .boxlayout-item {
-  padding:$boxlayout-sep-halfwidth 0;
+  padding:$boxlayout-padding 0;
 }
 .boxlayout-canresize > .boxlayout-item:first-child {
   padding-left:0;
@@ -59,11 +62,19 @@ $boxlayout-padding: $boxlayout-sep-halfwidth;
   right:0;
 }
 
-.boxlayout-horizontal > .boxlayout-separator > div {
-  @include pos-absolute(0, auto, 0, -$boxlayout-sep-halfwidth);
-  width: $boxlayout-sep-width;
+.boxlayout-horizontal > .boxlayout-separator::before {
+  @include pos-absolute(0, auto, 0, -$boxlayout-sep-line-halfwidth);
+  width: $boxlayout-sep-line-width;
 }
-.boxlayout-vertical > .boxlayout-separator > div {
-  @include pos-absolute(-$boxlayout-sep-halfwidth, 0, auto, 0);
-  height: $boxlayout-sep-width;
+.boxlayout-vertical > .boxlayout-separator::before {
+  @include pos-absolute(-$boxlayout-sep-line-halfwidth, 0, auto, 0);
+  height: $boxlayout-sep-line-width;
+}
+.boxlayout-horizontal.boxlayout-canresize > .boxlayout-separator::after {
+  @include pos-absolute(0, auto, 0, -$boxlayout-sep-resize-halfwidth);
+  width: $boxlayout-sep-resize-width;
+}
+.boxlayout-vertical.boxlayout-canresize > .boxlayout-separator::after {
+  @include pos-absolute(-$boxlayout-sep-resize-halfwidth, 0, auto, 0);
+  height: $boxlayout-sep-resize-width;
 }

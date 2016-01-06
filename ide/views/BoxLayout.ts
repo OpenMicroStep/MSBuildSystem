@@ -97,7 +97,6 @@ class BoxLayout extends  View {
           ++sep;
         }
       });
-      domSep.appendChild(document.createElement("div"));
       this.el.insertBefore(domSep, this.el.childNodes[at > 0 ? at * 2 - 1 : 0]);
     }
     var domContainer = document.createElement('div');

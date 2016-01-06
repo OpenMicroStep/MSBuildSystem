@@ -41,7 +41,7 @@ class EditorView extends ContentView {
     this.editor = new Editor(new Renderer(this.editorEl));
     this.editor.commands.addCommands(whitespace.commands);
     this.editor.setSession(this.file.session);
-    this.editor.setTheme("ace/theme/monokai");
+    //this.editor.setTheme("ace/theme/monokai");
     this.editor.$blockScrolling = Infinity;
     this.editor.setOptions({
       scrollPastEnd: true,

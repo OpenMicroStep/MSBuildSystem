@@ -8,9 +8,9 @@
   @include pos-absolute(0,0,0,0);
 }
 
-@media (max-resolution: 100dpi) {
-  /* On non HiDPI display, webkit font rendering on white code on dark background looks bad */
-  .ace_dark {
+@media (max-resolution: 120dpi) {
+  /* On non HiDPI display, webkit font rendering of white code on dark background looks bad */
+  .ace_dark {
     -webkit-font-smoothing: antialiased;
   }
 }
@@ -18,10 +18,10 @@
 .editor-status {
   @include noselect;
   position: absolute !important;
-  background: #272822;
+  background: $background-color;
   border-radius: 5px;
   z-index: 1;
-  color: #8F908A;
+  color: $text-soft-color;
   text-align: right;
   font-size: 0.9em;
 }
@@ -36,9 +36,9 @@
   text-decoration: inherit;
 }
 .editor-status > a:hover {
-  color: #DDD;
+  color: $text-color;
 }
 
 .editorview-title-modified {
-  color: red;
+  color: $error-color;
 }
