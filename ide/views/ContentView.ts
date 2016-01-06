@@ -38,6 +38,9 @@ class ContentView extends View {
   renderTitle() {
 
   }
+
+  // Optionals
+  duplicate: () => ContentView;
 }
 
 export = ContentView;

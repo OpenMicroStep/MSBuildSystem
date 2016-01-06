@@ -11,13 +11,29 @@ var StatusBar = ace.require("ace/ext/statusbar").StatusBar;
 var whitespace = ace.require("ace/ext/whitespace");
 var modelist = ace.require("ace/ext/modelist");
 
-function mktabsize(self, tabwidth, newtabwidth, onChangeTabs) {
+function mktabsize(self, tabwidth, newtabwidth) {
   return {
     label: "Tab size: " + newtabwidth,
     type: "radio",
     checked: tabwidth == newtabwidth,
-    click: () => { self.file.session.setTabSize(newtabwidth); onChangeTabs(); }
+    click: () => { self.file.setOptions({ 'tabSize': newtabwidth }); }
   };
+}
+
+function convertIndentation(self, useSoftTabs, tabSize) {
+  self.editor.execCommand("convertIndentation", { ch: useSoftTabs ? " " : "\t", length: tabSize });
+  self.file.setOptions({
+    useSoftTabs: useSoftTabs,
+    tabSize: tabSize
+  });
+}
+
+function detectIndentation(self) {
+  self.editor.execCommand("detectIndentation");
+  self.file.setOptions({
+    useSoftTabs: self.editor.session.getOption('useSoftTabs'),
+    tabSize: self.editor.session.getOption('tabSize')
+  });
 }
 
 class EditorView extends ContentView {
@@ -40,7 +56,7 @@ class EditorView extends ContentView {
     this.statusEl.className = "editor-status";
     this.editor = new Editor(new Renderer(this.editorEl));
     this.editor.commands.addCommands(whitespace.commands);
-    this.editor.setSession(this.file.session);
+    this.editor.setSession(this.file.createEditSession());
     //this.editor.setTheme("ace/theme/monokai");
     this.editor.$blockScrolling = Infinity;
     this.editor.setOptions({
@@ -51,58 +67,54 @@ class EditorView extends ContentView {
     });
 
     /// Status bar
+    var onChangeOptions = () => {
+      var session = this.editor.session;
+      var txt = session.getUseSoftTabs() ? "Spaces: " : "Tabs: ";
+      tabEl.textContent = txt += session.getTabSize();
+      modeEl.textContent = this.file.mode.caption;
+    };
+
     var posEl = document.createElement('div');
     this.statusEl.appendChild(posEl);
     new StatusBar(this.editor, posEl);
 
     var tabEl = document.createElement('a');
     this.statusEl.appendChild(tabEl);
-    var onChangeTabs = () => {
-      var session = this.file.session;
-      var txt = session.getUseSoftTabs() ? "Spaces: " : "Tabs: ";
-      tabEl.textContent = txt += session.getTabSize();
-    };
     tabEl.addEventListener("click", (e) => {
-      var softtabs = this.file.session.getUseSoftTabs();
-      var tabwidth = this.file.session.getTabSize();
+      var softtabs = this.editor.session.getUseSoftTabs();
+      var tabwidth = this.editor.session.getTabSize();
       var m = new menu.ContextMenu([
       {
         label: "Indent using spaces",
         type: "checkbox",
         checked: softtabs,
-        click: () => { this.file.session.setUseSoftTabs(!softtabs); onChangeTabs(); }
+        click: () => { this.file.setOptions({ "useSoftTabs": !softtabs }); }
       },
       { type: "separator" },
-      mktabsize(this, tabwidth, 2, onChangeTabs),
-      mktabsize(this, tabwidth, 4, onChangeTabs),
-      mktabsize(this, tabwidth, 6, onChangeTabs),
-      mktabsize(this, tabwidth, 8, onChangeTabs),
+      mktabsize(this, tabwidth, 2),
+      mktabsize(this, tabwidth, 4),
+      mktabsize(this, tabwidth, 6),
+      mktabsize(this, tabwidth, 8),
       { type: "separator" },
       {
         label: "Detect indentation",
-        click: () => { this.editor.execCommand("detectIndentation"); onChangeTabs(); }
+        click: () => { detectIndentation(this); }
       },
       { type: "separator" },
       {
         label: "Convert to spaces",
-        click: () => { this.editor.execCommand("convertIndentation", { ch: " ", length: tabwidth }); onChangeTabs(); }
+        click: () => { convertIndentation(this, true,  tabwidth); }
       },
       {
         label: "Convert to tabs",
-        click: () => { this.editor.execCommand("convertIndentation", { ch: "\t", length: tabwidth }); onChangeTabs(); }
+        click: () => { convertIndentation(this, false, tabwidth); }
       }
       ]);
       m.popup(e.clientX, e.clientY);
     }, false);
-    onChangeTabs();
 
     var modeEl = document.createElement('a');
     this.statusEl.appendChild(modeEl);
-    var onChangeMode = () => {
-      modeEl.textContent = this.file.mode.caption;
-    };
-    this.file.session.on("changeMode", onChangeMode);
-    onChangeMode();
     modeEl.addEventListener("click", (e) => {
       var m = new menu.ContextMenu(modelist.modes.map((mode) => {
         return {
@@ -118,6 +130,8 @@ class EditorView extends ContentView {
     this.statusEl.appendChild(settingsEl);
     (<any>this.editor.renderer).on('scrollbarVisibilityChanged', this.onscrollbarVisibilityChanged.bind(this));
     this.onscrollbarVisibilityChanged();
+    this.file.on('changeOptions', onChangeOptions);
+    onChangeOptions();
     ///
 
     this.file.ref();
@@ -200,6 +214,10 @@ class EditorView extends ContentView {
     r.options = this.editor.getOptions();
     return r;
   }
+}
+
+EditorView.prototype.duplicate = function() {
+  return new EditorView(this.file);
 }
 
 module EditorView {

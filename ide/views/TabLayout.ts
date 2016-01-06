@@ -171,7 +171,7 @@ class TabLayout extends View {
       this.render();
     });
     menu.bindContextMenuTo(domItem, () => {
-      return [{
+      var items = [{
         label: "Close",
         click: () => {
           this.removeTab(idx, true);
@@ -191,7 +191,22 @@ class TabLayout extends View {
           for (var i = this.count - 1; i > idx; --i)
             this.removeTab(i, true);
         }
+      },{
+        label: "Close tabs to the left",
+        click: () => {
+          for (var i = idx - 1; i >= 0; --i)
+            this.removeTab(i, true);
+        }
       }];
+      if (item.view.duplicate) {
+        items.push({
+          label: "Duplicate view",
+          click: () => {
+            this.insertView(item.view.duplicate(), idx + 1, false);
+          }
+        });
+      }
+      return items;
     });
     if (idx === this._current)
       domItem.className += " active";

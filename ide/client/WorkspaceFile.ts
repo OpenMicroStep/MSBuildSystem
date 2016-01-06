@@ -5,21 +5,62 @@
 import {globals, events, replication, async} from '../core';
 import Workspace = require('./Workspace');
 
-var Document:    typeof AceAjax.Document    = ace.require('ace/document').Document;
-var EditSession: typeof AceAjax.EditSession = ace.require("ace/edit_session").EditSession;
-var UndoManager: typeof AceAjax.UndoManager = ace.require("ace/undomanager").UndoManager;
+var Document    = ace.require('ace/document').Document;
+var EditSession = ace.require("ace/edit_session").EditSession;
+var UndoManager = ace.require("ace/undomanager").UndoManager;
 var modelist = ace.require("ace/ext/modelist");
 var lang = ace.require("ace/lib/lang");
 
+class UndoManagerProxy {
+  $u; $session;
+  constructor(undoManager, session) {
+    this.$u = undoManager;
+    this.$session = session;
+  }
+  execute(options) {
+    this.$u.execute(options);
+  }
+
+  undo(dontSelect) {
+    var selectionRange = this.$u.undo(dontSelect);
+    if (selectionRange)
+      this.$session.selection.setSelectionRange(selectionRange);
+  }
+
+  redo(dontSelect) {
+    var selectionRange = this.$u.redo(dontSelect);
+    if (selectionRange)
+      this.$session.selection.setSelectionRange(selectionRange);
+  }
+
+  reset() {
+    this.$u.reset();
+  }
+
+  hasUndo() {
+    return this.$u.hasUndo();
+  }
+
+  hasRedo() {
+    return this.$u.hasRedo();
+  }
+}
+
+/*
+    this.session.setUndoManager(new UndoManager());
+    this.session = new EditSession("", null);
+*/
 class WorkspaceFile extends replication.DistantObject {
   refcount: number;
   path:string;
   name:string;
+  mode: { mode: string, name: string, caption: string };
   extension:string;
-  session: AceAjax.IEditSession;
+  document: AceAjax.Document;
+  private undomanager;
+  private session;
   ignoreChanges: boolean;
   workspace: Workspace;
-  mode: { mode: string, name: string, caption: string };
   pendingsdeltas: async.Flux[];
   $informChange;
 
@@ -27,11 +68,14 @@ class WorkspaceFile extends replication.DistantObject {
     super();
     this.refcount = 1;
     this.pendingsdeltas = [];
-    this.session = new EditSession("", null);
-    this.ignoreChanges = true;
+    this.document = new Document("");
+    this.undomanager = new UndoManager();
+    this.session = new EditSession(this.document, null);
+    this.session.setUndoManager(this.undomanager);
     this.mode = null;
+    this.ignoreChanges = true;
 
-    this.session.on("change", (e) => {
+    this.document.on("change", (e) => {
       if (!this.ignoreChanges) {
         (new async.Async({ deltas: [e] } , [
           (p) => {
@@ -51,7 +95,7 @@ class WorkspaceFile extends replication.DistantObject {
     this.on('extchange', (e) => {
       // another client changed the content
       this.ignoreChanges = true;
-      this.session.getDocument().applyDeltas(e.deltas);
+      this.document.applyDeltas(e.deltas);
       this.ignoreChanges = false;
       this.$informChange.schedule();
     });
@@ -66,25 +110,56 @@ class WorkspaceFile extends replication.DistantObject {
     this.extension = data.extension;
     this.setMode(modelist.getModeForPath(data.name) || modelist.modesByName["text"]);
     this.session.setValue(data.content);
-    this.session.setUndoManager(new UndoManager());
-    this.session.getDocument().applyDeltas(data.deltas);
+    this.document.applyDeltas(data.deltas);
     this.ignoreChanges = false;
+  }
+
+  createEditSession() {
+    var session = new EditSession(<any>this.document, this.session.getMode());
+    session.setOptions(this.session.getOptions());
+    session.setUndoManager(new UndoManagerProxy(this.undomanager, session));
+    session.$informUndoManager = lang.delayedCall(function() {
+      session.$deltas = [];
+      session.$deltasDoc = [];
+      session.$deltasFold = [];
+    });
+    var evt;
+    this.on('changeOptions', evt = (e) => {
+      session.setOptions(e.options);
+    });
+    var prev = session.destroy;
+    var self = this;
+    session.destroy = function() {
+      self.off('changeOptions', evt);
+      prev.apply(this, arguments);
+    };
+    return session;
   }
 
   setMode(mode) {
     this.mode = mode;
-    this.session.setMode(mode.mode);
+    this.setOptions({ 'mode': mode.mode });
+  }
+  getOption(key) {
+    return this.session.getOption(key);
+  }
+  getOptions() {
+    return this.session.getOptions();
+  }
+  setOptions(options) {
+    this.session.setOptions(options);
+    this._signal('changeOptions', { options: options });
   }
 
   reconnect(data) {
     this.ignoreChanges = true;
-    this.session.setValue(data.content);
-    this.session.getUndoManager().reset();
-    this.session.getDocument().applyDeltas(data.deltas);
+    this.document.setValue(data.content);
+    this.undomanager.reset();
+    this.document.applyDeltas(data.deltas);
     this.pendingsdeltas.forEach((p) => {
       p.setEndCallbacks((p) => {
         this.ignoreChanges = true;
-        this.session.getDocument().applyDeltas(p.context.deltas);
+        this.document.applyDeltas(p.context.deltas);
         this.ignoreChanges = false;
       });
     });
@@ -114,11 +189,11 @@ class WorkspaceFile extends replication.DistantObject {
   }
 
   hasUnsavedChanges() {
-    return !this.session.getUndoManager().isClean();
+    return !this.undomanager.isClean();
   }
 
   save(p: async.Flux) {
-    var content = this.session.getValue();
+    var content = this.document.getValue();
     p.setFirstElements((p) => {
       if (p.context.result)
         this.saved({ version: p.context.result.version, content: content });
@@ -127,14 +202,14 @@ class WorkspaceFile extends replication.DistantObject {
   }
 
   saved(e) {
-    if (this.session.getValue() !== e.content) {
+    if (this.document.getValue() !== e.content) {
       console.warn("TODO: synchronize on saved");
       this.ignoreChanges = true;
-      this.session.setValue(e.content);
+      this.document.setValue(e.content);
       this.ignoreChanges = false;
     }
     setTimeout(() => {
-      this.session.getUndoManager().markClean();
+      this.undomanager.markClean();
       this._signal("change");
     }, 0);
   }
