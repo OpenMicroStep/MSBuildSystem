@@ -27,8 +27,10 @@ class TabLayout extends View {
     this._tabs = [];
     this._current = -1;
 
+    var tabs = document.createElement('div');
+    tabs.className = "tablayout-tabs";
     this._elTabs = document.createElement('div');
-    this._elTabs.className = "tablayout-tabs";
+    tabs.appendChild(this._elTabs);
 
     this._elContent = document.createElement('div');
     this._elContent.className = "tablayout-content";
@@ -36,7 +38,7 @@ class TabLayout extends View {
     this._position = Position.TOP;
 
     this.el.className = "tablayout";
-    this.el.appendChild(this._elTabs);
+    this.el.appendChild(tabs);
     this.el.appendChild(this._elContent);
   }
 
