@@ -201,7 +201,9 @@ class EditorView extends ContentView {
   onscrollbarVisibilityChanged() {
     var h = (<any>this.editor.renderer).scrollBarH.isVisible;
     var v = (<any>this.editor.renderer).scrollBarV.isVisible;
-    $(this.statusEl).css({ bottom: h ? 15 : 5, right: v ? 15 : 5 });
+    $(this.statusEl)
+      .toggleClass('editor-status-padh', h)
+      .toggleClass('editor-status-padv', v);
   }
 
   decode(s : EditorView.SerializedEditor) {
