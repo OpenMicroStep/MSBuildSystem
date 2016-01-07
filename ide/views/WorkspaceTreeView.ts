@@ -11,7 +11,7 @@ import EditorView = require('./EditorView');
 // glyphicon glyphicon-folder-open
 
 class WorkspaceTreeItem extends TreeItemView {
-  constructor(private workspace) {
+  constructor(private workspace: Workspace) {
     super();
     workspace.on('reload', this.reload.bind(this));
     this.reload();
@@ -31,7 +31,15 @@ class WorkspaceTreeItem extends TreeItemView {
     for(var f of workspace.files) {
       this.addChildItem(new FileTreeItem(f, workspace));
     }
-    this.addChildItem(new FileTreeItem({file:"make.js"}, workspace));
+    var file = null;
+    this.addChildItem(new FileTreeItem({file:"make.js", onFocus: (view: EditorView) => {
+      if (view.file != file) {
+        file = view.file;
+        file.on('saved', () => {
+          async.run(null, this.workspace.reload.bind(this.workspace));
+        });
+      }
+    }}, workspace));
   }
 }
 class FileTreeItem extends TreeItemView {
@@ -47,7 +55,11 @@ class FileTreeItem extends TreeItemView {
       this.nameContainer.addEventListener("click", () => {
         (new async.Async(null, [
           (p) => { workspace.openFile(p, d.file); },
-          (p) => { globals.ide.openFile(p.context.result); }
+          (p) => {
+            var view = globals.ide.openFile(p.context.result);
+            if (d.onFocus)
+              d.onFocus(view);
+          }
         ])).continue();
       });
       this.nameContainer.className += " tree-item-file";

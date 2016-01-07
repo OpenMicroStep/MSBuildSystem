@@ -1,11 +1,5 @@
 @import "theme-light";
 @import "Core";
-@import "BoxLayout";
-@import "TabLayout";
-@import "DockLayout";
-@import "TreeView";
-@import "ContextMenu";
-@import "EditorView";
 
 body {
   background: $background-color;
@@ -279,38 +273,49 @@ body > div > .docklayout {
 
 ::-webkit-scrollbar {
   background: none;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
-
 ::-webkit-scrollbar-thumb {
   border: solid 0 rgba(0, 0, 0, 0);
-  border-right-width: 4px;
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.2), inset 0 0 0 5px rgba(128, 128, 128, 0.2);
+}
+::-webkit-scrollbar-thumb:vertical {
+  border-right-width: 3px;
   border-left-width: 4px;
-  border-radius: 9px/4px;
-  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.2), inset 0 0 0 4px rgba(128, 128, 128, 0.2);
+  border-radius: 10px/6px;
 }
-
-::-webkit-scrollbar-track-piece {
-  margin: 4px 0;
-}
-
 ::-webkit-scrollbar-thumb:horizontal {
-  border-right-width: 0;
-  border-left-width: 0;
   border-top-width: 4px;
-  border-bottom-width: 4px;
-  border-radius: 4px/9px;
+  border-bottom-width: 3px;
+  border-radius: 6px/10px;
 }
-
-::-webkit-scrollbar-thumb:hover {
-  box-shadow: inset 0 0 0 1px rgba(128,128,128,0.9), inset 0 0 0 4px rgba(128,128,128,0.9);
+::-webkit-scrollbar-track-piece {
+  margin: 4px;
 }
-
 ::-webkit-scrollbar-corner {
-  background: transparent;
+  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mO4+x8AArwB3RPLbL0AAAAASUVORK5CYII=) transparent no-repeat;
 }
 
-.ace_scrollbar-h {
-  margin: 0 2px
+/*
+::-webkit-scrollbar:vertical {
+  border-left: 1px solid #ddd;
 }
+::-webkit-scrollbar:horizontal {
+  border-top: 1px solid #ddd;
+}
+.ace_scrollbar::-webkit-scrollbar:vertical {
+  border-left: 0;
+}
+.ace_scrollbar::-webkit-scrollbar:horizontal {
+  border-top: 0;
+}
+*/
+
+@import "BoxLayout";
+@import "TabLayout";
+@import "DockLayout";
+@import "TreeView";
+@import "ContextMenu";
+@import "EditorView";
+@import "GoToView";

@@ -205,12 +205,13 @@ class WorkspaceFile extends replication.DistantObject {
     if (this.document.getValue() !== e.content) {
       console.warn("TODO: synchronize on saved");
       this.ignoreChanges = true;
-      this.document.setValue(e.content);
+      this.session.setValue(e.content);
       this.ignoreChanges = false;
     }
     setTimeout(() => {
       this.undomanager.markClean();
       this._signal("change");
+      this._signal("saved");
     }, 0);
   }
 

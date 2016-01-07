@@ -1,0 +1,41 @@
+.goto {
+  background: $background-color;
+  margin: auto;
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  z-index: 2000;
+  width: 600px;
+  margin-left: -300px;
+}
+
+.goto > input {
+  position: relative;
+  border-radius: 0 !important;
+  z-index: 1;
+  margin-bottom: -1px;
+  padding: 10px 15px;
+  border: 1px solid $border-color;
+}
+
+.goto > div {
+  border: 1px solid $border-color;
+  border-radius: 0 0 4px 4px;
+  max-height: 200px;
+  overflow: auto;
+}
+.goto-item {
+  position: relative;
+  display: block;
+  padding: 10px 15px;
+  margin-top: -1px;
+}
+
+.goto-item.active {
+  background-color: $active-color;
+}
+
+.goto-item i {
+  color: #5b8acd;
+  font-style: initial;
+}

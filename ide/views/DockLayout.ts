@@ -162,21 +162,22 @@ class DockLayout extends View implements DockLayout.DockParentView {
     });
   }
 
-  createViewIfNecessary(cstor, args, create?: () => ContentView) {
-    var found = false;
+  createViewIfNecessary(cstor, args, create?: () => ContentView) : ContentView {
+    var ret = null;
     this.iterateViews((view, container) => {
       if (view instanceof cstor && view.isViewFor(...args)) {
         container.currentView = view;
         container.currentView.focus();
-        found = true;
+        ret = view;
+        return true;
       }
-      return found;
     });
-    if (!found) {
-      var view = create ? create() : new (Function.prototype.bind.apply(cstor, [cstor].concat(args)));
-      this.main.appendViewTo(view, DockLayout.Position.MIDDLE);
-      view.focus();
+    if (!ret) {
+      ret = create ? create() : new (Function.prototype.bind.apply(cstor, [cstor].concat(args)));
+      this.main.appendViewTo(ret, DockLayout.Position.MIDDLE);
     }
+    ret.focus();
+    return ret;
   }
 
   dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {

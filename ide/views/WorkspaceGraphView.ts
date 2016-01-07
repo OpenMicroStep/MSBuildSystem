@@ -242,7 +242,7 @@ class WorkspaceTaskView extends core.View {
 }
 
 class WorkspaceGraphView extends core.ContentView {
-  $ongraph;
+  $onreload;
   workspace: Workspace;
   graph: Graph;
   layout: BoxLayout;
@@ -258,23 +258,27 @@ class WorkspaceGraphView extends core.ContentView {
     this.layout = new BoxLayout({userCanResize:true, orientation: BoxLayout.Orientation.HORIZONTAL});
     this.layout.appendTo(this.el);
     this.layout.appendView(this.taskview, 1.0);
-    (new core.async.Async(null, [
-      workspace.graph.bind(workspace),
-      (p) => { this.setGraph(p.context.result); p.continue(); }
-    ])).continue();
-    this.workspace.on('graph', this.$ongraph = this.setGraph.bind(this));
+    this.workspace.on('reload', this.$onreload = this.reload.bind(this));
+    this.reload();
   }
 
   destroy() {
-    this.workspace.off('graph', this.$ongraph);
+    this.workspace.off('reload', this.$onreload);
     super.destroy();
+  }
+
+  reload() {
+    (new core.async.Async(null, [
+      this.workspace.graph.bind(this.workspace),
+      (p) => { this.setGraph(p.context.result); p.continue(); }
+    ])).continue();
   }
 
   setGraph(g: Graph) {
     if (!this.graph)
       this.layout.insertView(new TaskTreeItem(g, this), 0.25, 0);
     else if (g)
-      this.layout.replaceViewAt(0, new TaskTreeItem(g, this));
+      this.layout.replaceViewAt(0, new TaskTreeItem(g, this)).destroy();
     else
       this.layout.removePart(0, true);
     this.graph = g;

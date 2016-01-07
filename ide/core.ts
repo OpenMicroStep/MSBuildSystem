@@ -6,6 +6,7 @@ export import dragndrop    = require('./core/dragndrop');
 export import replication  = require('./core/replication');
 export import globals      = require('./core/globals');
 export import async        = require('./core/async');
+export import util         = require('./core/util');
 
 export import View         = require('./views/View');
 export import ContentView  = require('./views/ContentView');

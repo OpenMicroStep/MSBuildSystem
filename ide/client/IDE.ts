@@ -3,7 +3,7 @@
 'use strict';
 
 declare function require(module);
-import {View, DockLayout, EditorView, WorkspaceTreeView, WorkspaceSettingsView, WorkspaceGraphView} from '../views';
+import views = require('../views');
 import {menu, globals, async} from '../core';
 import Workspace = require('./Workspace');
 
@@ -11,6 +11,7 @@ var defaultCommands= [
   { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
   { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
   { name:"file.close"              , bindKey: { win: "Ctrl-W", mac: "Command-W" } },
+  { name:"workspace.gotofile"      , bindKey: { win: "Ctrl-P", mac: "Command-P" } },
   { name:"workspace.build"         , bindKey: { win: "Ctrl-B", mac: "Command-B" } },
   { name:"workspace.run"           , bindKey: { win: "Ctrl-R", mac: "Command-R" } },
   { name:"edit.undo"               , bindKey: { win: "Ctrl-Z", mac: "Command-Z" } },
@@ -74,14 +75,14 @@ var throttle = function(type, name, obj?) {
   obj.addEventListener(type, func);
 };
 
-class IDE extends View {
+class IDE extends views.View {
   workspace: Workspace;
-  content: DockLayout;
-  focus: View;
+  content: views.DockLayout;
+  focus: views.View;
   commands: AceAjax.CommandManager;
   keyBinding: AceAjax.KeyBinding;
   menu: menu.TitleMenu;
-  treeView: WorkspaceTreeView;
+  treeView: views.WorkspaceTreeView;
 
   constructor() {
     super();
@@ -94,7 +95,7 @@ class IDE extends View {
     window.addEventListener("optimizedResize", () => {
       this.resize();
     });
-    this.content= new DockLayout();
+    this.content= new views.DockLayout();
     this.content.appendTo(this.el);
     this.render();
 
@@ -102,8 +103,8 @@ class IDE extends View {
     (new async.Async(null, [
       this.workspace.outofsync.bind(this.workspace),
       (p) => {
-        this.treeView = new WorkspaceTreeView(this.workspace);
-        this.content.main.appendViewTo(this.treeView, DockLayout.Position.LEFT);
+        this.treeView = new views.WorkspaceTreeView(this.workspace);
+        this.content.main.appendViewTo(this.treeView, views.DockLayout.Position.LEFT);
       }
     ])).continue();
     this.menu = new menu.TitleMenu(defaultCommands, menus, this, (el) => {
@@ -111,11 +112,11 @@ class IDE extends View {
     });
   }
 
-  getChildViews() : View[] {
+  getChildViews() : views.View[] {
     return [this.content];
   }
 
-  setCurrentView(view: View) {
+  setCurrentView(view: views.View) {
     this.focus = view;
   }
 
@@ -130,21 +131,25 @@ class IDE extends View {
       case 'workspace.showbuildgraph':
         this.openBuildGraph(this.workspace);
         return true;
+      case 'workspace.gotofile':
+        var v = new views.WorkspaceGoToFile(this.workspace);
+        v.attach();
+        return true;
     }
     return false;
   }
 
 
   openFile(file) {
-    this.content.createViewIfNecessary(EditorView, [file]);
+    return this.content.createViewIfNecessary(views.EditorView, [file]);
   }
 
   openSettings(workspace) {
-    this.content.createViewIfNecessary(WorkspaceSettingsView, [workspace]);
+    return this.content.createViewIfNecessary(views.WorkspaceSettingsView, [workspace]);
   }
 
   openBuildGraph(workspace) {
-    this.content.createViewIfNecessary(WorkspaceGraphView, [workspace]);
+    return this.content.createViewIfNecessary(views.WorkspaceGraphView, [workspace]);
   }
 
   exec(command) {

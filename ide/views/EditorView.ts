@@ -170,7 +170,7 @@ class EditorView extends ContentView {
     super.destroy();
     this.editor.destroy();
     this.file.unref();
-    this.file.off("saved", this.fileEvt);
+    this.file.off("change", this.fileEvt);
   }
 
   tryDoAction(command) {

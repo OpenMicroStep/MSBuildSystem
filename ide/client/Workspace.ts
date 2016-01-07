@@ -37,7 +37,6 @@ class DiagnosticsByPath {
   get(p: string) {
     return this.map.get(p);
   }
-
   remove(d: Workspace.Diagnostic) {
     var dp = this.map.get(d.path);
     if (dp) {
@@ -72,12 +71,22 @@ class Workspace extends replication.DistantObject {
     this.on('taskinfo', this.ontaskinfo.bind(this));
   }
 
-  initWithData(e) {
+  initWithData(e, canSkipGraph?) {
     this.name = e.name;
     this.path = e.path;
     this.files = e.files;
     this.environments = e.environments;
     this.targets = e.targets;
+    if (!canSkipGraph || !this._graph) {
+      this._graph = (new async.Async(null, [
+        (p) => { this.remoteCall(p, "graph"); },
+        (p) => {
+          p.context.result = this._loadGraph(p.context.result);
+          async.run(null, [this.taskInfos.bind(this)]);
+          p.continue();
+        }
+      ])).continue();
+    }
   }
 
   outofsync(f: async.Flux) {
@@ -85,16 +94,6 @@ class Workspace extends replication.DistantObject {
       this.changeId(workspace.id);
       console.log(workspace.data);
       this.initWithData(workspace.data);
-      if (!this._graph) {
-        this._graph = (new async.Async(null, [
-          (p) => { this.remoteCall(p, "graph"); },
-          (p) => {
-            p.context.result = this._loadGraph(p.context.result);
-            async.run(null, [this.taskInfos.bind(this)]);
-            p.continue();
-          }
-        ])).continue();
-      }
       this.graph(f);
     });
   }

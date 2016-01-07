@@ -14,7 +14,7 @@ class View extends EventEmitter {
   el: ViewHTMLElement;
   $el: JQuery;
 
-  static findViewFromDOMElement(parentElement: Element) {
+  static findViewFromDOMElement(parentElement: HTMLElement) {
     var ret = null;
     while(ret === null && parentElement && parentElement !== document.body) {
       if ((<any>parentElement)._view instanceof View)
@@ -34,11 +34,17 @@ class View extends EventEmitter {
     this.$el = jQuery(this.el);
   }
 
-  destroy() {
-    this._signal('destroy', null);
+  detach() {
     var parentNode = this.el.parentNode;
     if (parentNode)
       parentNode.removeChild(this.el);
+  }
+
+  destroy() {
+    this._signal('destroy', null);
+    if ((<any>this)._eventRegistry)
+      (<any>this)._eventRegistry = {};
+    this.detach();
     $(this.el).empty();
   }
 
