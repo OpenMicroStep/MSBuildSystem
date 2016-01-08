@@ -7,14 +7,16 @@ import WorkspaceFile = require('./WorkspaceFile');
 import replication = require('./replication');
 import fs = require('fs');
 
-function taskInnerRUNCFGData(task: BuildSystem.Task) {
-  return {
-    id: task.id(),
-    name: task.name,
-    SHARED: task.getSharedData(),
-    TMP: task.getTmpData(),
-    CONFIGURE: task.getData(BuildSystem.Task.Action.CONFIGURE),
-    RUN: task.getData(BuildSystem.Task.Action.RUN)
+function taskInnerRUNCFGData(task: BuildSystem.Task, cb: (data) => void) {
+  var s = task.getStorage();
+  s.load(function() {
+    cb({
+      id: task.id(),
+      name: task.name,
+      data: s.all()
+    });
+  });
+  var data = {
   }
 }
 
@@ -28,13 +30,9 @@ function taskSimplifiedData(data) {
 }
 
 function taskInnerData(task: BuildSystem.Task) {
-  var cfg = task.getData(BuildSystem.Task.Action.CONFIGURE);
-  var run = task.getData(BuildSystem.Task.Action.RUN);
   return {
     id: task.id(),
     name: task.name,
-    CONFIGURE: taskSimplifiedData(cfg),
-    RUN: taskSimplifiedData(run),
     tasks: []
   }
 }
@@ -51,13 +49,21 @@ function taskData(task: BuildSystem.Task) : any {
 }
 
 class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
-  buildGraph: BuildSystem.core.Flux;
   isrunning: boolean;
+  graph: BuildSystem.core.Flux;
+  $childtaskend;
 
   constructor(directory: string) {
     super(new BuildSystem.Workspace(directory));
     this.isrunning = false;
-    this._reload();
+    this.$childtaskend = (task) => {
+      this.broadcast("taskend", {
+        id: task.id(),
+        name: task.name,
+        action: BuildSystem.Task.Action[task.action],
+        data: task.data
+      });
+    };
   }
 
   userData(pool) {
@@ -75,41 +81,37 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     });
   }
 
-  _reload() {
-    var t0 = BuildSystem.util.timeElapsed("Graph created");
-    this.buildGraph = this.obj.buildGraph({ variant: ['release', 'debug'] });
-    this.buildGraph.setEndCallbacks((p) => {
-      var g = p.context.root;
-      if (!g) return;
-      t0();
-      g.on("childtaskend", (task) => {
-        this.broadcast("taskend", {
-          id: task.id(),
-          name: task.name,
-          action: BuildSystem.Task.Action[task.action],
-          data: task.data
-        });
-      });
-    });
-  }
-
   reload(pool) {
     this.obj.reload();
     this.broadcast("reload", this.data());
-    this._reload();
     pool.continue();
   }
 
-  graph(pool) {
-    return this.buildGraph.setEndCallbacks((p) => {
-      var g = p.context.root;
-      if (g) BuildSystem.util.timeElapsed("graph export", () => { pool.context.response = taskData(g); });
-      pool.continue();
+  buildGraph(p, options: BuildSystem.Workspace.BuildGraphOptions) {
+    if (this.graph) {
+      this.graph.setEndCallbacks((f) => {
+        var g = f.context.root;
+        if (g) g.removeListener("childtaskend", this.$childtaskend);
+      });
+    }
+    this.graph = (new BuildSystem.core.Async(null, (p) => { this.obj.buildGraph(p, options); })).continue();
+    this.graph.setEndCallbacks((f) => {
+      var g = f.context.root;
+      if (g) {
+        g.on("childtaskend", this.$childtaskend);
+        BuildSystem.util.timeElapsed("graph export", () => { p.context.response = taskData(g); });
+      }
+      else {
+        console.warn("Unable to build graph", f.context.error, (f.context.error || {}).stack);
+      }
+      p.continue();
     });
   }
 
   taskInfos(pool) {
-    return this.buildGraph.setEndCallbacks((p) => {
+    if (!this.graph) { pool.context.error = "buildGraph wasn't called before taskInfo"; pool.continue(); return; }
+
+    return this.graph.setEndCallbacks((p) => {
       var g = p.context.root;
       if (g) {
         var t0 = BuildSystem.util.timeElapsed("logs export");
@@ -117,9 +119,11 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
         var i = 0, len = tasks.length;
         var next = () => {
           if (i < len) {
-            this.emit(pool.context.socket, "taskinfo", taskInnerRUNCFGData(tasks[i]));
+            taskInnerRUNCFGData(tasks[i], (d) => {
+              this.emit(pool.context.socket, "taskinfo", d);
+              setTimeout(next, 1);
+            });
             ++i;
-            setTimeout(next, 1);
           }
           else {
             t0();
@@ -133,16 +137,22 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   }
 
   taskInfo(pool, taskId) {
-    return this.buildGraph.setEndCallbacks((p) => {
+    if (!this.graph) { pool.context.error = "buildGraph wasn't called before taskInfo"; pool.continue(); return; }
+    return this.graph.setEndCallbacks((p) => {
       var g = p.context.root;
       if (g) {
         var task = g.findTask(true, (t) => { return t.id() === taskId });
-        if (!task)
+        if (!task) {
           pool.context.error = "unable to find task";
-        else
-          pool.context.response = taskInnerRUNCFGData(task);
+          pool.continue();
+        }
+        else {
+          taskInnerRUNCFGData(task, (d) => {
+            pool.context.response = d;
+            pool.continue();
+          })
+        }
       }
-      pool.continue();
     });
   }
 
@@ -152,8 +162,9 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
 
   start(pool, taskIds: string[]) {
     if (this.isrunning) { pool.context.error = "another task is already running"; pool.continue(); return ;}
+    if (!this.graph) { pool.context.error = "buildGraph wasn't called before taskInfo"; pool.continue(); return; }
 
-    this.buildGraph.setEndCallbacks((p) => {
+    this.graph.setEndCallbacks((p) => {
       var g = p.context.root;
       if (g) {
         if (g.state === BuildSystem.Task.State.RUNNING) { pool.context.error = "task is already running"; pool.continue(); return; }
@@ -180,19 +191,11 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   }
 
   data() {
-    var env = [];
-    for (var k in this.obj.environments) {
-      var e = this.obj.environments[k];
-      if (!_.isArray(e))
-        env.push({ name: k });
-      else
-        console.log("no environment name", e);
-    }
     return {
       name: this.obj.name,
       files: this.obj.files,
       path: this.obj.path,
-      environments: env,
+      environments: this.obj.environments,
       targets: this.obj.targets
     };
   }

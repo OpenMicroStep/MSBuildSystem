@@ -14,25 +14,32 @@ var targetClasses = [];
 class Target extends Graph {
   dependencies : Set<Target>;
   requiredBy : Set<Target>;
-  graph: Workspace.EnvironmentTask;
   info: Workspace.TargetInfo;
   workspace: Workspace;
+  taskspath: string;
   intermediates: string;
+  outputBasePath: string;
   output: string;
   modifiers: any[];
   env : Workspace.Environment;
   variant : string;
   targetName: string;
-  constructor(envTask: Workspace.EnvironmentTask, info: Workspace.TargetInfo, workspace: Workspace) {
-    super({type: "target", name: info.name}, envTask);
+  constructor(graph: Graph, info: Workspace.TargetInfo, env: Workspace.Environment, workspace: Workspace, options) {
+    super({type: "target", name: info.name}, graph);
     this.info = info;
     this.workspace = workspace;
-    this.intermediates = path.join(envTask.intermediates, info.name);
-    this.output = path.join(envTask.output, envTask.env.directories.target[this.classname]);
+    this.taskspath = options.taskspath;
+    this.intermediates = path.join(options.buildpath, env.directories.intermediates, options.variant, env.name);
+    this.outputBasePath = path.join(options.buildpath, env.directories.output, options.variant, env.name);
+    this.output = path.join(this.outputBasePath, env.directories.target[this.classname]);
     this.modifiers = [];
-    this.env = this.graph.env;
-    this.variant = this.graph.variant;
+    this.env = env;
+    this.variant = options.variant;
     this.targetName = this.info.name;
+  }
+
+  storagePath(task: Task) {
+    return this.taskspath + '/' + task.id();
   }
 
   static registerClass(cls, targetTypeName) {
@@ -44,15 +51,15 @@ class Target extends Graph {
   }
 
   uniqueKey(): string {
-    return this.graph.uniqueKey() + "|" + this.name.name;
+    return this.variant + "\t" + this.env.name + "\t" + this.name.name;
   }
 
   isInstanceOf(classname: string) {
     return (classname in targetClasses && this instanceof targetClasses[classname]);
   }
-  static createTarget(envTask: Workspace.EnvironmentTask, info: Workspace.TargetInfo, workspace: Workspace) {
+  static createTarget(graph: Graph, info: Workspace.TargetInfo, env: Workspace.Environment, workspace: Workspace, options) {
     var cls: typeof Target= targetClasses[info.type];
-    return cls ? new cls(envTask, info, workspace) : null;
+    return cls ? new cls(graph, info, env, workspace, options) : null;
   }
 
   addTaskModifier(taskTypeName: string, modifier:(target:Target, task: Task) => any) {

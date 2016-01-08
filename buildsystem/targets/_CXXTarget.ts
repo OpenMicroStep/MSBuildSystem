@@ -88,8 +88,18 @@ class CXXTarget extends Target {
     });
   }
 
-  addDefines(defines: string[]) {
-    this.addCompileFlags(defines.map(function(def) { return "-D" + def; }));
+  addDefines(defines: (string|{define: string, condition?: (target) => boolean})[]) {
+    var flags = [];
+    defines.forEach((def: any) => {
+      if (typeof def === "object") {
+        if (typeof def.condition === "function" && !def.condition(this))
+          return;
+        def = def.define;
+      }
+      if (typeof def === "string")
+        flags.push("-D" + def);
+    });
+    this.addCompileFlags(flags);
   }
 
   addLinkFlags(flags: string[]) {

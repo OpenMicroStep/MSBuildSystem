@@ -71,9 +71,9 @@ class Task extends events.EventEmitter {
   errors: number = 0;
 
   private sessionKey: string= undefined;
+  storage: BuildSession = null;
   data: Task.SessionData = null;
   sharedData: any = null;
-  tmpData: any = {};
 
   /** Get the task ready for the next run */
   reset() {
@@ -123,16 +123,19 @@ class Task extends events.EventEmitter {
   start(action: Task.Action, callback: (task: Task) => any) {
     if(this.state === Task.State.WAITING) {
       this.action = action;
-      this.observers.push(callback);
-      this.data = this.storage().retrieveInfo(this.id(), Task.Action[action]) || {};
-      this.sharedData = this.storage().retrieveInfo(this.id(), "SHARED") || {};
-      this.data.lastRunStartTime = Date.now();
-      this.data.lastRunEndTime = this.data.lastRunEndTime || 0;
-      this.data.lastSuccessTime = this.data.lastSuccessTime || 0;
-      this.preprocess();
-      this.emit("start", action);
       this.state = Task.State.RUNNING
-      this.runAction(action);
+      this.observers.push(callback);
+      this.storage = this.getStorage();
+      this.storage.load(() => {
+        this.data = this.storage.get(Task.Action[action]) || {};
+        this.sharedData = this.storage.get("SHARED") || {};
+        this.data.lastRunStartTime = Date.now();
+        this.data.lastRunEndTime = this.data.lastRunEndTime || 0;
+        this.data.lastSuccessTime = this.data.lastSuccessTime || 0;
+        this.preprocess();
+        this.emit("start", action);
+        this.runAction(action);
+      });
     }
     else if(this.state === Task.State.DONE) {
       callback(this);
@@ -160,20 +163,13 @@ class Task extends events.EventEmitter {
     return graph;
   }
 
-  getTmpData() : any {
-    return this.tmpData;
+  getStorage() : BuildSession {
+    var p = this.storagePath(this);
+    return p ? new BuildSession.FastJSONDatabase(p) : BuildSession.noop;;
   }
 
-  getSharedData() : any {
-    return this.storage().retrieveInfo(this.id(), "SHARED");
-  }
-
-  getData(action: Task.Action) : any {
-    return this.storage().retrieveInfo(this.id(), Task.Action[action]);
-  }
-
-  storage() : BuildSession {
-    return this.graph.storage();
+  storagePath(task: Task) {
+    return this.graph.storagePath(task);
   }
 
   end(errors: number = 0) {
@@ -185,23 +181,27 @@ class Task extends events.EventEmitter {
     this.data.lastRunEndTime = Date.now();
     this.data.lastSuccessTime = errors ? 0 : this.data.lastRunEndTime;
     this.postprocess();
-    var storage = this.storage();
-    storage.storeInfo(this.id(), Task.Action[this.action], this.data);
-    storage.storeInfo(this.id(), "SHARED", this.sharedData);
-    --Task.nbTaskRunning;
-    //process.stderr.write(this.logs);
-    if (Task.waitingTasks.length > 0) {
-      var task = Task.waitingTasks.shift();
-      ++Task.nbTaskRunning;
-      task.run();
-    }
-    this.observers.forEach((obs) => {
-      obs(this);
+    this.storage.set(Task.Action[this.action], this.data);
+    this.storage.set("SHARED", this.sharedData);
+    this.storage.save(() => {
+      --Task.nbTaskRunning;
+      //process.stderr.write(this.logs);
+      if (Task.waitingTasks.length > 0) {
+        var task = Task.waitingTasks.shift();
+        ++Task.nbTaskRunning;
+        task.run();
+      }
+      this.observers.forEach((obs) => {
+        obs(this);
+      });
+      var root = this.root();
+      if (root && root)
+        root.emit("childtaskend", this);
+      this.emit("end", this.action);
+      this.storage = null;
+      this.data = null;
+      this.sharedData = null;
     });
-    var root = this.root();
-    if (root && root)
-      root.emit("childtaskend", this);
-    this.emit("end", this.action);
   }
 
   protected runAction(action: Task.Action) {

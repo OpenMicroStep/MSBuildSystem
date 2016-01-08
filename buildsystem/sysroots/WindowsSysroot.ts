@@ -119,7 +119,7 @@ class WindowsSysroot extends Sysroot {
       return super.linkFinalPath(target);
     // No rpath, soname, install_name in windows
     // The only thing that could mimic this is the "Manifest SxS" system that no one seems to understand correctly :(
-    return path.join(target.graph.output, target.env.directories.target["Executable"], this.linkFinalName(target));
+    return path.join(target.outputBasePath, target.env.directories.target["Executable"], this.linkFinalName(target));
   }
   configure(target: CXXTarget, callback: ErrCallback) {
     target.env.linker = target.env.linker || "binutils";
@@ -130,7 +130,7 @@ class WindowsSysroot extends Sysroot {
       return callback(new Error("windows sysroot only supports binutils & msvc linker"));
     target.addTaskModifier('Copy', (target, task: CopyTask) => {
       this.installLibraries.forEach((relativePath) => {
-        task.willCopyFile(path.join(this.directory, relativePath), path.join(target.graph.output, target.env.directories.target["Executable"], path.basename(relativePath)));
+        task.willCopyFile(path.join(this.directory, relativePath), path.join(target.outputBasePath, target.env.directories.target["Executable"], path.basename(relativePath)));
       });
     });
     callback();

@@ -77,16 +77,6 @@ class Workspace extends replication.DistantObject {
     this.files = e.files;
     this.environments = e.environments;
     this.targets = e.targets;
-    if (!canSkipGraph || !this._graph) {
-      this._graph = (new async.Async(null, [
-        (p) => { this.remoteCall(p, "graph"); },
-        (p) => {
-          p.context.result = this._loadGraph(p.context.result);
-          async.run(null, [this.taskInfos.bind(this)]);
-          p.continue();
-        }
-      ])).continue();
-    }
   }
 
   outofsync(f: async.Flux) {
@@ -94,7 +84,7 @@ class Workspace extends replication.DistantObject {
       this.changeId(workspace.id);
       console.log(workspace.data);
       this.initWithData(workspace.data);
-      this.graph(f);
+      f.continue();
     });
   }
 
@@ -102,11 +92,41 @@ class Workspace extends replication.DistantObject {
     this.remoteCall(p, "reload");
   }
 
+  buildGraph(f: async.Flux, options) {
+    this._graph = (new async.Async(null, [
+      (p) => { this.remoteCall(p, "buildGraph", options); },
+      (p) => {
+        if (p.context.result)
+          p.context.result = this._loadGraph(p.context.result);
+        //async.run(null, [this.taskInfos.bind(this)]);
+        f.context.result = p.context.result;
+        f.continue();
+        p.continue();
+      }
+    ])).continue();
+  }
+
   graph(p: async.Flux) {
-    this._graph.setEndCallbacks((f) => {
-      p.context.result = f.context.result;
-      p.continue();
+    p.setFirstElements((p) => {
+      this._graph.setEndCallbacks((f) => {
+        p.context.result = f.context.result;
+        p.continue();
+      });
     });
+    if (!this._graph) {
+      p.setFirstElements((p) => {
+        var d = p.context.result || {};
+        var variants: string[] = Array.isArray(d.variants) ? d.variants : null;
+        var envs: string[] = Array.isArray(d.environments) ? d.environments : null;
+        var targets: string[] = Array.isArray(d.targets) ? d.targets : null;
+        var options = { variants: variants, environments: envs, targets: targets };
+        this.buildGraph(p, options);
+      });
+      this.userData(p);
+    }
+    else {
+      p.continue();
+    }
   }
 
   taskInfo(p: async.Flux, taskId: string) {
@@ -136,28 +156,9 @@ class Workspace extends replication.DistantObject {
   build(p: async.Flux) {
     p.setFirstElements([
       this.graph.bind(this),
-      (p) => { p.context.graph = p.context.result; p.continue(); },
-      this.userData.bind(this),
       (p) => {
-        var g = p.context.graph;
-        var d = p.context.result || {};
-        var variants: string[] = Array.isArray(d.variants) ? d.variants : null;
-        var envs: string[] = Array.isArray(d.environments) ? d.environments : null;
-        var targets: string[] = Array.isArray(d.targets) ? d.targets : null;
-        var taskIds = [];
-        if (!variants && !envs && !targets)
-          taskIds.push(g.id);
-        else {
-          g.tasks.forEach((variant) => {
-            variant.tasks.forEach((env) => {
-              env.tasks.forEach((target) => {
-                if (isEnabled(variants, variant) && isEnabled(envs, env) && isEnabled(targets, target))
-                  taskIds.push(target.id);
-              });
-            })
-          });
-        }
-        this._start(p, taskIds);
+        var g = p.context.result;
+        this._start(p, [g.id]);
       }
     ]);
     p.continue();
@@ -298,10 +299,11 @@ module Workspace {
   export interface TaskInfo {
     id: string,
     name: { name: string, type: string },
-    SHARED: any,
-    TMP: any,
-    RUN: ActionInfo,
-    CONFIGURE: ActionInfo
+    data: {
+      SHARED: any,
+      RUN: ActionInfo,
+      CONFIGURE: ActionInfo
+    }
   }
 
   export interface GraphInfo extends TaskInfo {
@@ -365,9 +367,9 @@ module Workspace {
     }
 
     oninfo(info: TaskInfo, diagnostics: DiagnosticsByPath) {
-      if (info.RUN) {
+      if (info.data && info.data.RUN) {
         this._setdiagnostics(() => {
-          return this.parseLogs(info.RUN, diagnostics);
+          return this.parseLogs(info.data.RUN, diagnostics);
         }, diagnostics);
       }
     }

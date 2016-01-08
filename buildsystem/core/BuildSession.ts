@@ -9,68 +9,64 @@ var zlib = require('zlib');
 
 /** Store information about the current build sessions (task informations) */
 interface BuildSession {
-  retrieveInfo(taskid: string, key: string) : any;
-  storeInfo(taskid: string, key: string, info: any);
+  load(cb: ()=> void);
+  save(cb: ()=> void);
+  all() : { [s: string] : any };
+  get(key: string) : any;
+  set(key: string, info: any);
 }
 module BuildSession {
   export class FastJSONDatabase implements BuildSession {
-    protected olds: { [s:string] : any };
-    protected news: { [s:string] : any };
-    constructor(public dbPath: string) {
-      this.news = {};
-      this.olds = {};
+    protected path: string;
+    protected data: any;
+    constructor(path: string) {
+      this.path = path;
+      this.data = null;
     }
-    loadData(callback: () => void) {
-      var t0 = util.timeElapsed('load data');
-      fs.readFile(this.dbPath, (err, data) => {
-        if (!err && data) {
-          try {
-            this.olds = JSON.parse(zlib.gunzipSync(data));
-            t0();
-          } catch(e) {}
-        }
-        callback();
+
+    load(cb: ()=> void) {
+      fs.readFile(this.path, 'utf8', (err, data) => {
+        try { this.data = JSON.parse(data); }
+        catch(e) { this.data = {}; }
+        cb();
       });
     }
-    saveData(callback: () => void) {
-      var t0 = t0 = util.timeElapsed('save data');
-      fs.writeFile(this.dbPath, zlib.gzipSync(new Buffer(JSON.stringify(this.news, null, 2), 'utf8')), () => {
-        t0();
-        callback();
-      });
+    save(cb: ()=> void) {
+      fs.writeFile(this.path, JSON.stringify(this.data), 'utf8', cb);
     }
-    retrieveInfo(taskid: string, key: string) {
-      var ret = this.news[taskid];
-      if (!ret) {
-        ret = this.olds[taskid];
-        if (ret) this.news[taskid] = ret;
-        else ret = {};
-      }
-      return ret[key];
+    all() : any {
+      return this.data;
     }
-    storeInfo(taskid: string, key: string, info: any) {
-      var o = this.news[taskid];
-      if (!o) {
-        o = {};
-        this.news[taskid] = o;
-      }
-      o[key] = info;
+    get(key: string) {
+      return this.data[key];
+    }
+    set(key: string, info: any) {
+      this.data[key] = info;
     }
   }
   export class InMemory implements BuildSession {
-    protected infos = new Map<string, any>();
-    retrieveInfo(taskid: string, key: string) {
-      return this.infos.get(taskid + '-' + key);
+    protected data = {};
+
+    load(cb: ()=> void) { cb(); }
+    save(cb: ()=> void) { cb(); }
+    all() : any {
+      return this.data;
     }
-    storeInfo(taskid: string, key: string, info: any) {
-      this.infos.set(taskid + '-' + key, info);
+    get(key: string) {
+      return this.data[key];
+    }
+    set(key: string, info: any) {
+      this.data[key] = info;
     }
   }
   export class Noop implements BuildSession {
-    retrieveInfo(taskid: string, key: string) {
+    load(cb: ()=> void) { cb(); }
+    save(cb: ()=> void) { cb(); }
+    all() : any { return {}; }
+    get(key: string) {
       return undefined;
     }
-    storeInfo(taskid: string, key: string, info: any) {}
+    set(key: string, info: any) {}
   }
   export var noop: BuildSession = new Noop();
 }

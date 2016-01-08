@@ -81,6 +81,10 @@ class Graph extends Task {
 
   findTask(deep: boolean, predicate: (task: Task) => boolean) : Task {
     var task = null;
+    var ret = predicate(this);
+    if (ret === true)
+      return this;
+
     this.iterate(deep, (t) => {
       var ret= !predicate(t);
       if (!ret)

@@ -192,10 +192,12 @@ class WorkspaceTaskView extends core.View {
     html +=   '<div class="col-xs-6">Type: ' + _.escape(t.name.type) + '</div>';
     html += '</div>';
 
-    if (t.TMP && t.TMP.command && t.TMP.command.args)
-      pills.push({ label: "Arguments", view: () => { return new TextEditorView(t.TMP.command.args.join('\n')); }});
-    if (t.SHARED && t.SHARED.headers)
-      pills.push({ label: "Headers", view: () => { return new TextEditorView(t.SHARED.headers.join('\n')); }});
+    var d = t.data;
+    if (!d) d= <any>{};
+    if (d.SHARED && d.SHARED.command && d.SHARED.command.args)
+      pills.push({ label: "Arguments", view: () => { return new TextEditorView(d.SHARED.command.args.join('\n')); }});
+    if (d.SHARED && d.SHARED.headers)
+      pills.push({ label: "Headers", view: () => { return new TextEditorView(d.SHARED.headers.join('\n')); }});
     if (g.diagnostics.length)
       pills.push({ label: "Diagnostics", view: () => { return new DiagnosticView(g.diagnostics); }});
 
@@ -215,8 +217,8 @@ class WorkspaceTaskView extends core.View {
       html +=   '</div>';
       html += '</div>';
     }
-    appendDetails('Configure', t.CONFIGURE);
-    appendDetails('Run', t.RUN);
+    appendDetails('Configure', d.CONFIGURE);
+    appendDetails('Run', d.RUN);
     if (pills.length > 0) {
       html += '<div class="row">';
       html +=   '<div class="col-xs-12">';

@@ -43,7 +43,7 @@ export function registerSocket(socket: Socket) : SocketInfo {
       o.removeListener(info);
   });
   socket.on('error', info._error = function(err) {
-    console.warn("Error on socket", err);
+    console.warn("Error on socket", err, err.stack);
     unregisterSocket(info);
   });
   socket.on('disconnect', info._close = function() {

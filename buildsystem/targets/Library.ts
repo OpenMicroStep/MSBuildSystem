@@ -38,7 +38,7 @@ class Library extends CXXTarget {
     }
   }
   buildPublicHeaderPath() {
-    return path.join(this.graph.output, this.env.directories.publicHeaders);
+    return path.join(this.outputBasePath, this.env.directories.publicHeaders);
   }
   addWorkspacePublicHeaders(headers: string[]) {
     this.addPublicHeaders(this.workspace.resolveFiles(headers));

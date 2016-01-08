@@ -80,7 +80,7 @@ class ProcessTask extends Task {
   }
 
   postprocess() {
-    this.tmpData.command = { provider: this.provider, args: this.args };
+    this.sharedData.command = { provider: this.provider, args: this.args };
     super.postprocess();
   }
 
