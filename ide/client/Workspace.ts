@@ -2,7 +2,7 @@
 
 import {replication, events, async} from '../core';
 import WorkspaceFile = require('./WorkspaceFile');
-
+var forceLoadWorkspaceFile = WorkspaceFile;
 //              1:path  2:row 3:col    4:ranges                      5:type                       6:msg     7:option     8:category
 var rxdiag  = /^([^:]+):(\d+):(\d+):(?:((?:\{\d+:\d+-\d+:\d+\})+):)? (warning|error|note|remark): (.+?)(?:\[([^,\]]+)(?:,([^\]]+))?\])?$/;
 //                     1:path       2-5:range                   6:replacement
@@ -52,6 +52,7 @@ class Workspace extends replication.DistantObject {
   files;
   targets;
   environments;
+  dependencies;
   _diagnostics: DiagnosticsByPath;
   _tasks: Map<string, Workspace.Graph>;
   _graph: async.Flux;
@@ -77,6 +78,7 @@ class Workspace extends replication.DistantObject {
     this.files = e.files;
     this.environments = e.environments;
     this.targets = e.targets;
+    this.dependencies = e.dependencies;
   }
 
   outofsync(f: async.Flux) {
@@ -245,6 +247,10 @@ class Workspace extends replication.DistantObject {
     return this._diagnostics.get(path);
   }
 
+  openDependency(pool, name: string) {
+    this.remoteCall(pool, "openDependency", name);
+  }
+
   openFile(p: async.Flux, path) {
     var ret = this._openFiles.get(path);
     if (!ret) {
@@ -268,7 +274,7 @@ class Workspace extends replication.DistantObject {
     });
   }
 }
-replication.registerClass("Workspace", WorkspaceFile);
+replication.registerClass("Workspace", Workspace);
 
 module Workspace {
   export var parseLogs = parseLogs;

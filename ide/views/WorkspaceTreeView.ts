@@ -10,6 +10,39 @@ import EditorView = require('./EditorView');
 // glyphicon glyphicon-folder-close
 // glyphicon glyphicon-folder-open
 
+
+class WorkspaceDepsTreeItem extends TreeItemView {
+  constructor(private workspace: Workspace) {
+    super();
+    var icon = document.createElement('span');
+    icon.className = "glyphicon glyphicon-flash";
+    this.nameContainer.appendChild(icon);
+    this.nameContainer.appendChild(document.createTextNode('dependencies'));
+    this.setCanExpand(true);
+  }
+
+  createChildItems(p) {
+    p.setFirstElements([
+      this.workspace.dependencies.map((w) => { return (p) => {
+        if (w.workspace) { p.continue(); return; }
+
+        p.setFirstElements((p) => {
+          w.workspace = p.context.result;
+          p.continue();
+        });
+        this.workspace.openDependency(p, w.name); };
+      }),
+      (p) => {
+        this.workspace.dependencies.forEach((w) => {
+          this.addChildItem(new WorkspaceTreeItem(w.workspace));
+        });
+        p.continue();
+      }
+    ]);
+    p.continue();
+  }
+}
+
 class WorkspaceTreeItem extends TreeItemView {
   constructor(private workspace: Workspace) {
     super();
@@ -17,19 +50,25 @@ class WorkspaceTreeItem extends TreeItemView {
     this.reload();
   }
   reload() {
-    var workspace = this.workspace;
-    this.removeChildItems();
     var icon = document.createElement('span');
-    icon.className = "glyphicon glyphicon-briefcase";
+    icon.className = "fa fa-fw fa-briefcase";
     this.nameContainer.innerHTML = '';
     this.nameContainer.appendChild(icon);
-    this.nameContainer.appendChild(document.createTextNode(workspace.name));
-    this.nameContainer.setAttribute('title', workspace.path);
+    this.nameContainer.appendChild(document.createTextNode(this.workspace.name));
+    this.nameContainer.setAttribute('title', this.workspace.path);
     this.nameContainer.addEventListener("click", () => {
-       globals.ide.openSettings(workspace);
+       globals.ide.openSettings(this.workspace);
     });
-    for(var f of workspace.files) {
-      this.addChildItem(new FileTreeItem(f, workspace));
+    this.removeChildItems();
+    this.setCanExpand(true);
+  }
+
+  createChildItems(p) {
+    if (this.workspace.dependencies.length) {
+      this.addChildItem(new WorkspaceDepsTreeItem(this.workspace));
+    }
+    for(var f of this.workspace.files) {
+      this.addChildItem(new FileTreeItem(f, this.workspace));
     }
     var file = null;
     this.addChildItem(new FileTreeItem({file:"make.js", onFocus: (view: EditorView) => {
@@ -39,17 +78,18 @@ class WorkspaceTreeItem extends TreeItemView {
           async.run(null, this.workspace.reload.bind(this.workspace));
         });
       }
-    }}, workspace));
+    }}, this.workspace));
+    p.continue();
   }
 }
-class FileTreeItem extends TreeItemView {
-  constructor(d, workspace) {
-    super();
 
+class FileTreeItem extends TreeItemView {
+  constructor(private d, private workspace) {
+    super();
     var icon = document.createElement('span');
     var text, tooltip;
     if (d.file) {
-      icon.className = "glyphicon glyphicon-file";
+      icon.className = "fa fa-fw fa-file";
       tooltip = d.file;
       text = d.file.replace(/^.+\//, '');
       this.nameContainer.addEventListener("click", () => {
@@ -65,25 +105,21 @@ class FileTreeItem extends TreeItemView {
       this.nameContainer.className += " tree-item-file";
     }
     else {
-      icon.className = "glyphicon glyphicon-folder-close";
+      icon.className = "fa fa-fw fa-folder";
       text = d.group;
-      for(var f of d.files) {
-        this.addChildItem(new FileTreeItem(f, workspace));
-      }
-      var closed = true;
-      this.nameContainer.addEventListener("click", () => {
-        closed = !closed;
-        $(icon).toggleClass("glyphicon-folder-open", !closed);
-        $(icon).toggleClass("glyphicon-folder-close", closed);
-        $(this.el).toggleClass("tree-item-closed", closed);
-      });
-      this.nameContainer.className += " tree-item-group";
-      $(this.el).toggleClass("tree-item-closed", true);
+      this.setCanExpand(true);
     }
     this.nameContainer.appendChild(icon);
     this.nameContainer.appendChild(document.createTextNode(" " + text));
     if (tooltip)
       this.nameContainer.setAttribute("title", tooltip);
+  }
+
+  createChildItems(p) {
+    for(var f of this.d.files) {
+      this.addChildItem(new FileTreeItem(f, this.workspace));
+    }
+    p.continue();
   }
 }
 
@@ -92,6 +128,7 @@ class WorkspaceTreeView extends ContentView {
   constructor(workspace: Workspace) {
     super();
     this.root = new WorkspaceTreeItem(workspace);
+    this.root.expand();
     this.root.appendTo(this.el);
     var progress = document.createElement('div');
     var progressAdv = document.createElement('div');

@@ -1,37 +1,83 @@
 /// <reference path="../../typings/browser.d.ts" />
 
+import async = require('../core/async');
 import View = require('./View');
+
+enum State {
+  LEAF,
+  COLLAPSED,
+  EXPANDING,
+  EXPANDED,
+}
 
 class TreeItemView extends View {
   nameContainer: HTMLElement;
+  caret: HTMLElement;
   childsContainer: HTMLElement;
   childs: TreeItemView[];
-  expanded: boolean;
+  $caretclick;
+  state: State;
 
   constructor() {
     super();
     this.el.className = "tree-item";
-    this.nameContainer = document.createElement('div');
+    var div = document.createElement('div');
+    this.caret = document.createElement('span');
+    this.nameContainer = document.createElement('span');
+    this.caret.className = "fa fa-fw";
+    this.$caretclick = null;
+    this.state = State.LEAF;
     this.childsContainer = document.createElement('div');
     this.childsContainer.className = "tree-childs";
     this.childs = [];
-    this.el.appendChild(this.nameContainer);
+    div.appendChild(this.caret);
+    div.appendChild(this.nameContainer);
+    this.el.appendChild(div);
     this.el.appendChild(this.childsContainer);
-    this.expanded = false;
+  }
+
+  setCanExpand(canexpand: boolean) {
+    if (this.$caretclick && !canexpand) {
+      this.state = State.LEAF;
+      this.removeChildItems(true);
+      this.caret.removeEventListener('click', this.$caretclick, false);
+    }
+    else if (!this.$caretclick && canexpand) {
+      this.state = State.COLLAPSED;
+      this.caret.className = "fa fa-fw fa-caret-right";
+      this.caret.addEventListener('click', this.$caretclick = this.toggle.bind(this), false);
+    }
+  }
+
+  createChildItems(p: async.Flux) {
+    p.continue();
   }
 
   expand() {
-    this.expanded = true;
+    this.state = State.EXPANDING;
+    async.run(null, [
+      this.createChildItems.bind(this),
+      (p) => {
+        this.state = State.EXPANDED;
+        this.caret.className = "fa fa-fw fa-caret-down";
+        p.continue();
+      }
+    ]);
+    if (this.state === State.EXPANDING) { // Async loading
+      this.caret.className = "fa fa-fw fa-circle-o-notch fa-spin";
+    }
   }
 
   collapse() {
-    this.expanded = false;
+    this.removeChildItems(true);
+    this.caret.className = "fa fa-fw fa-caret-right";
+    this.state = State.COLLAPSED;
   }
 
   toggle() {
-    if (this.expanded)
+    if (this.state === State.EXPANDED)
       this.collapse();
-    else
+    else if (this.state === State.COLLAPSED)
       this.expand();
   }
 
@@ -40,9 +86,14 @@ class TreeItemView extends View {
     this.childsContainer.appendChild(v.el);
   }
 
-  removeChildItems() {
+  removeChildItems(destroy: boolean = false) {
+    this.childs.forEach((c) => {
+      if (destroy)
+        c.destroy();
+      else
+        c.detach();
+    })
     this.childs.length = 0;
-    this.childsContainer.innerHTML = '';
   }
 
   getChildViews() {

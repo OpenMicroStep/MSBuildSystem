@@ -27,7 +27,7 @@ function createIcon(type: string) : HTMLElement {
   return icon;
 }
 class TaskTreeItem extends core.TreeItemView {
-  $onclick; $ondeepcountchange;
+  $ondeepcountchange;
   graph: Graph;
   graphview: WorkspaceGraphView;
   last: Node;
@@ -47,15 +47,9 @@ class TaskTreeItem extends core.TreeItemView {
         click: () => { (new core.async.Async(null, (p) => { this.graphview.workspace.start(p, [graph.id]); })).continue(); }
       }];
     });
-    if (graph.tasks && graph.tasks.length) {
-      this.$onclick = this.toggle.bind(this);
-      if (['root', 'variant'].indexOf(this.graph.name.type) !== -1)
-        this.expand();
-    }
-    else {
-      this.$onclick = () => { this.graphview.setTask(this.graph); }
-    }
-    this.nameContainer.addEventListener('click', this.$onclick, false);
+    if (graph.tasks && graph.tasks.length)
+      this.setCanExpand(true);
+    this.nameContainer.addEventListener('click', () => { this.graphview.setTask(this.graph); }, false);
     this.graph.on('deepcountchange', this.$ondeepcountchange = this.ondeepcountchange.bind(this));
     this.ondeepcountchange();
   }
@@ -65,27 +59,11 @@ class TaskTreeItem extends core.TreeItemView {
     super.destroy();
   }
 
-  _update() {
-    $(this.nameContainer).toggleClass('tree-item-name-cancollapse', this.expanded);
-    $(this.nameContainer).toggleClass('tree-item-name-canexpand', !this.expanded);
-  }
-
-  expand() {
-    if (this.graph.tasks && this.graph.tasks.length) {
-      for(var f of this.graph.tasks) {
-        this.addChildItem(new TaskTreeItem(f, this.graphview));
-      }
-      super.expand();
-      this._update();
-    }
-  }
-
-  collapse() {
-    if (this.graph.tasks && this.graph.tasks.length) {
-      this.removeChildItems();
-      super.collapse();
-      this._update();
-    }
+  createChildItems(p) {
+    this.graph.tasks.forEach((t) => {
+      this.addChildItem(new TaskTreeItem(t, this.graphview));
+    })
+    p.continue();
   }
 
   ondeepcountchange() {
@@ -277,13 +255,15 @@ class WorkspaceGraphView extends core.ContentView {
   }
 
   setGraph(g: Graph) {
+    var n =null;
     if (!this.graph)
-      this.layout.insertView(new TaskTreeItem(g, this), 0.25, 0);
+      this.layout.insertView(n= new TaskTreeItem(g, this), 0.25, 0);
     else if (g)
-      this.layout.replaceViewAt(0, new TaskTreeItem(g, this)).destroy();
+      this.layout.replaceViewAt(0, n= new TaskTreeItem(g, this)).destroy();
     else
       this.layout.removePart(0, true);
     this.graph = g;
+    if (n) n.expand();
   }
 
   setTask(t: Graph) {

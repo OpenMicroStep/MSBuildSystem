@@ -53,6 +53,22 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   graph: BuildSystem.core.Flux;
   $childtaskend;
 
+  private static workspaces = {};
+
+  /**
+   * Get a shared across the whole process file.
+   */
+  static getShared(workspacePath:string):Workspace {
+    workspacePath = path.normalize(workspacePath);
+    if (!path.isAbsolute(workspacePath))
+      throw "'workspacePath' must be absolute (workspacePath=" + workspacePath + ")";
+
+    var workspace = Workspace.workspaces[workspacePath];
+    if (!workspace)
+      workspace = Workspace.workspaces[workspacePath] = new Workspace(workspacePath);
+    return workspace;
+  }
+
   constructor(directory: string) {
     super(new BuildSystem.Workspace(directory));
     this.isrunning = false;
@@ -190,13 +206,26 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     });
   }
 
+  openDependency(pool, name: string) {
+    var d = this.obj.dependencies.find((d) => { return d.name === name; });
+    if (d) {
+      var depPath = d.path;
+        if (path.isAbsolute(depPath))
+          pool.context.response = Workspace.getShared(depPath);
+        else
+          pool.context.response = Workspace.getShared(path.join(this.obj.directory, depPath));
+    }
+    pool.continue();
+  }
+
   data() {
     return {
       name: this.obj.name,
       files: this.obj.files,
       path: this.obj.path,
       environments: this.obj.environments,
-      targets: this.obj.targets
+      targets: this.obj.targets,
+      dependencies: this.obj.dependencies
     };
   }
 }

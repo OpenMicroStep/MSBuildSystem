@@ -16,7 +16,7 @@ var io = socketio.listen(server);
 
 console.info("server args", process.argv);
 
-var workspace = new Workspace(process.argv[2]);
+var workspace = Workspace.getShared(process.argv[2]);
 io.on('connection', function(socket){
   console.info("New connection");
   var info = replication.registerSocket(socket);
