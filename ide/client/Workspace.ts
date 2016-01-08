@@ -59,6 +59,7 @@ class Workspace extends replication.DistantObject {
   _build: { pendings: (()=> void)[], progress: number, nb: number};
   _openFiles: Map<string, async.Flux>;
 
+  static workspaces = new Set<Workspace>();
   constructor() {
     super();
     (<any>window)._workspace = this;
@@ -70,6 +71,12 @@ class Workspace extends replication.DistantObject {
     this.on('reload', this.initWithData.bind(this));
     this.on("taskend", this.ontaskend.bind(this));
     this.on('taskinfo', this.ontaskinfo.bind(this));
+    Workspace.workspaces.add(this);
+  }
+
+  destroy() {
+    Workspace.workspaces.delete(this);
+    super.destroy();
   }
 
   initWithData(e, canSkipGraph?) {
@@ -86,8 +93,22 @@ class Workspace extends replication.DistantObject {
       this.changeId(workspace.id);
       console.log(workspace.data);
       this.initWithData(workspace.data);
-      f.continue();
+      this.loadDependencies(f);
     });
+  }
+
+  loadDependencies(p: async.Flux) {
+    p.setFirstElements([
+      this.dependencies.map((w) => { return (p) => {
+        if (w.workspace) { p.continue(); return; }
+        p.setFirstElements((p) => {
+          w.workspace = p.context.result;
+          w.workspace.loadDependencies(p);
+        });
+        this.openDependency(p, w.name);
+      };})
+    ]);
+    p.continue();
   }
 
   reload(p: async.Flux) {

@@ -11,7 +11,7 @@ var defaultCommands= [
   { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
   { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
   { name:"file.close"              , bindKey: { win: "Ctrl-W", mac: "Command-W" } },
-  { name:"workspace.gotofile"      , bindKey: { win: "Ctrl-P", mac: "Command-P" } },
+  { name:"file.gotofile"           , bindKey: { win: "Ctrl-P", mac: "Command-P" } },
   { name:"workspace.build"         , bindKey: { win: "Ctrl-B", mac: "Command-B" } },
   { name:"workspace.run"           , bindKey: { win: "Ctrl-R", mac: "Command-R" } },
   { name:"edit.undo"               , bindKey: { win: "Ctrl-Z", mac: "Command-Z" } },
@@ -131,8 +131,8 @@ class IDE extends views.View {
       case 'workspace.showbuildgraph':
         this.openBuildGraph(this.workspace);
         return true;
-      case 'workspace.gotofile':
-        var v = new views.WorkspaceGoToFile(this.workspace);
+      case 'file.gotofile':
+        var v = new views.GoToFile();
         v.attach();
         return true;
     }
