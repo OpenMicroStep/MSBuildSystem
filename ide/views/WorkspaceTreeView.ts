@@ -12,7 +12,7 @@ import EditorView = require('./EditorView');
 
 
 class WorkspaceDepsTreeItem extends TreeItemView {
-  constructor(private workspace: Workspace) {
+  constructor(public workspace: Workspace) {
     super();
     var icon = document.createElement('span');
     icon.className = "glyphicon glyphicon-flash";
@@ -22,37 +22,18 @@ class WorkspaceDepsTreeItem extends TreeItemView {
   }
 
   createChildItems(p) {
-    p.setFirstElements([
-      this.workspace.dependencies.map((w) => { return (p) => {
-        if (w.workspace) { p.continue(); return; }
-
-        p.setFirstElements((p) => {
-          w.workspace = p.context.result;
-          p.continue();
-        });
-        this.workspace.openDependency(p, w.name); };
-      }),
-      (p) => {
-        this.workspace.dependencies.forEach((w) => {
-          this.addChildItem(new WorkspaceTreeItem(w.workspace));
-        });
-        p.continue();
-      }
-    ]);
+    this.workspace.dependencies.forEach((w) => {
+      this.addChildItem(new WorkspaceTreeItem(w.workspace));
+    });
     p.continue();
   }
 }
 
 class WorkspaceTreeItem extends TreeItemView {
-  constructor(private workspace: Workspace) {
+  constructor(public workspace: Workspace) {
     super();
-    workspace.on('reload', this.reload.bind(this));
-    this.reload();
-  }
-  reload() {
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-briefcase";
-    this.nameContainer.innerHTML = '';
     this.nameContainer.appendChild(icon);
     this.nameContainer.appendChild(document.createTextNode(this.workspace.name));
     this.nameContainer.setAttribute('title', this.workspace.path);
@@ -124,7 +105,7 @@ class FileTreeItem extends TreeItemView {
 }
 
 class WorkspaceTreeView extends ContentView {
-  root: TreeItemView;
+  root: WorkspaceTreeItem;
   constructor(workspace: Workspace) {
     super();
     this.root = new WorkspaceTreeItem(workspace);
@@ -142,6 +123,14 @@ class WorkspaceTreeView extends ContentView {
       else $(progress).fadeOut();
       $(progressAdv).css('width', (e.progress * 100) + '%');
     });
+    workspace.on('reload', this.reload.bind(this));
+  }
+  reload() {
+    var w = this.root.workspace;
+    this.root.destroy();
+    this.root = new WorkspaceTreeItem(w);
+    this.root.expand();
+    this.root.appendTo(this.el);
   }
 
   getChildViews() {

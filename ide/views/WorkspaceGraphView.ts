@@ -37,7 +37,6 @@ class TaskTreeItem extends core.TreeItemView {
     this.graph = graph;
     this.graphview = graphview;
     this.nameContainer.className = "tree-item-task-name";
-    this.nameContainer.innerHTML = '';
     this.nameContainer.appendChild(createIcon(graph.name.type));
     this.last = document.createTextNode((classes[graph.name.type] ? "" : graph.name.type + " ") + graph.name.name)
     this.nameContainer.appendChild(this.last);

@@ -21,18 +21,16 @@ class TreeItemView extends View {
   constructor() {
     super();
     this.el.className = "tree-item";
-    var div = document.createElement('div');
     this.caret = document.createElement('span');
-    this.nameContainer = document.createElement('span');
+    this.nameContainer = document.createElement('div');
     this.caret.className = "fa fa-fw";
     this.$caretclick = null;
     this.state = State.LEAF;
     this.childsContainer = document.createElement('div');
     this.childsContainer.className = "tree-childs";
     this.childs = [];
-    div.appendChild(this.caret);
-    div.appendChild(this.nameContainer);
-    this.el.appendChild(div);
+    this.nameContainer.appendChild(this.caret);
+    this.el.appendChild(this.nameContainer);
     this.el.appendChild(this.childsContainer);
   }
 
