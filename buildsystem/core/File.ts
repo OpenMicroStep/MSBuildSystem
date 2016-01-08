@@ -12,8 +12,8 @@ import Barrier = require('./Barrier');
 // Theses replacements returns the same values but are about 100 times faster
 path.basename = function(path: string) : string {
   var idx = path.length, c;
-  while (idx > 1 && (c= path[--idx]) !== '/' && c !== '\\');
-  return idx > 0 ? path.substring(idx + 1) : path;
+  while (idx > 0 && (c= path[--idx]) !== '/' && c !== '\\');
+  return (c === '/' || c === '\\') ? path.substring(idx + 1) : path;
 }
 path.extname = function(path: string) : string {
   var idx = path.length, c;

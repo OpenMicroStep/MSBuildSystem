@@ -2,8 +2,8 @@
 
 export function pathBasename(path: string) : string {
   var idx = path.length, c;
-  while (idx > 1 && (c= path[--idx]) !== '/' && c !== '\\');
-  return idx > 0 ? path.substring(idx + 1) : path;
+  while (idx > 0 && (c= path[--idx]) !== '/' && c !== '\\');
+  return (c === '/' || c === '\\') ? path.substring(idx + 1) : path;
 }
 
 export function stringDistance(searchStr: string, str: string)
