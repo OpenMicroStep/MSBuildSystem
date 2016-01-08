@@ -21,10 +21,12 @@ class GoToView extends core.View {
     this.inputEl.addEventListener("keydown", (e) => {
       if (e.which == 40) // down
         this.moveSelection(+1);
-      else if (e.which == 38)
+      else if (e.which == 38) // up
         this.moveSelection(-1);
-      else if (e.which == 13)
+      else if (e.which == 13) // enter
         this.goToSelection();
+      else if (e.which == 27) // esc
+        this.destroy();
       else {
         setTimeout(() => { this.update() }, 0);
         return;
