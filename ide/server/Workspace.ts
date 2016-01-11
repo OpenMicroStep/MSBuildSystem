@@ -224,6 +224,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   data() {
     return {
       name: this.obj.name,
+      directory: this.obj.directory,
       files: this.obj.files,
       path: this.obj.path,
       environments: this.obj.environments,

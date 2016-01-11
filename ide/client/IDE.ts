@@ -6,6 +6,7 @@ declare function require(module);
 import views = require('../views');
 import {menu, globals, async} from '../core';
 import Workspace = require('./Workspace');
+import WorkspaceFile = require('./WorkspaceFile');
 
 var defaultCommands= [
   { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
@@ -83,6 +84,7 @@ class IDE extends views.View {
   keyBinding: AceAjax.KeyBinding;
   menu: menu.TitleMenu;
   treeView: views.WorkspaceTreeView;
+  _openFiles: Map<string, async.Flux>;
 
   constructor() {
     super();
@@ -95,6 +97,7 @@ class IDE extends views.View {
     window.addEventListener("optimizedResize", () => {
       this.resize();
     });
+    this._openFiles = new Map<any, any>();
     this.content= new views.DockLayout();
     this.content.appendTo(this.el);
     this.render();
@@ -139,9 +142,31 @@ class IDE extends views.View {
     return false;
   }
 
-
-  openFile(file) {
-    return this.content.createViewIfNecessary(views.EditorView, [file]);
+  openFile(p: async.Flux, path) {
+    var ret = this._openFiles.get(path);
+    if (!ret) {
+      ret = (new async.Async(null, [
+        (p) => { this.workspace.remoteCall(p, "openFile", path); },
+        (p) => {
+          var file: WorkspaceFile = p.context.result;
+          var workspace = Workspace.workspaces[file.path];
+          if (workspace) {
+            file.on('saved', () => { async.run(null, workspace.reload.bind(this)); });
+          }
+          file.on('destroy', () => {
+            this._openFiles.delete(path);
+          });
+          p.continue();
+          setTimeout(() => { file.unref(); }, 0);
+        }
+      ])).continue();
+      this._openFiles.set(path, ret);
+    }
+    ret.setEndCallbacks((f) => {
+      p.context.file = f.context.result;
+      p.context.view = this.content.createViewIfNecessary(views.EditorView, [p.context.file])
+      p.continue();
+    });
   }
 
   openSettings(workspace) {

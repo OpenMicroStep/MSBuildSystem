@@ -25,7 +25,7 @@ class Target extends Graph {
   variant : string;
   targetName: string;
   constructor(graph: Graph, info: Workspace.TargetInfo, env: Workspace.Environment, workspace: Workspace, options) {
-    super({type: "target", name: info.name}, graph);
+    super({ type: "target", name: info.name, environment: env.name, variant: options.variant, workspace: workspace.path }, graph);
     this.info = info;
     this.workspace = workspace;
     this.taskspath = options.taskspath;

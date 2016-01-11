@@ -60,7 +60,6 @@ class WorkspaceFile extends replication.DistantObject {
   private undomanager;
   private session;
   ignoreChanges: boolean;
-  workspace: Workspace;
   pendingsdeltas: async.Flux[];
   $informChange;
 
@@ -175,7 +174,7 @@ class WorkspaceFile extends replication.DistantObject {
       }
       else p.continue();
     });
-    this.workspace.remoteCall(p, "openFile", this.path);
+    globals.ide.workspace.remoteCall(p, "openFile", this.path);
   }
 
   ref() {

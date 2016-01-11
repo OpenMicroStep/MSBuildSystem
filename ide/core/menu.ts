@@ -280,6 +280,7 @@ export function bindContextMenuTo(el: HTMLElement, cb: () => MenuItemOptions[]) 
   el.addEventListener("contextmenu", function(event) {
     event.preventDefault();
     var opts = cb();
+    if (!opts) return;
     var menu = new ContextMenu(opts);
     menu.popup(event.clientX, event.clientY);
   }, true);

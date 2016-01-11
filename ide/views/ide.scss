@@ -169,11 +169,11 @@ body > div > .docklayout {
     padding: 0;
 }
 
-.badge-warning, .badge-error {
+.badge-warning, .badge-error, .badge-note {
   display: inline-block;
   padding:0 2px;
 }
-.badge-warning:before, .badge-error:before {
+.badge-warning:before, .badge-error:before, .badge-note::before {
   font: normal normal normal 14px/1 FontAwesome;
   font-size: inherit;
   text-rendering: auto;
@@ -189,6 +189,10 @@ body > div > .docklayout {
   font-size: 16px;
   content: "\f06a";
   color: $error-color;
+}
+.badge-note::before {
+    content: "\f075";
+    color: $note-color;
 }
 
 .badge-right {

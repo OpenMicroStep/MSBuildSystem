@@ -43,7 +43,11 @@ class TreeItemView extends View {
     else if (!this.$caretclick && canexpand) {
       this.state = State.COLLAPSED;
       this.caret.className = "fa fa-fw fa-caret-right";
-      this.caret.addEventListener('click', this.$caretclick = this.toggle.bind(this), false);
+      this.caret.addEventListener('click', this.$caretclick = (e) => {
+        this.toggle();
+        e.stopPropagation();
+        e.preventDefault();
+      }, false);
     }
   }
 

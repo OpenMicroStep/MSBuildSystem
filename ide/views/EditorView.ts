@@ -139,7 +139,8 @@ class EditorView extends ContentView {
     file.on("change", this.fileEvt = (e) => {
       this.titleEl.className = !this.file.hasUnsavedChanges() ? "editorview-title-saved" : "editorview-title-modified";
     });
-    file.workspace.on("diagnostic", this.ondiagnostics.bind(this));
+    Workspace.diagnostics.on("diagnostic", this.ondiagnostics.bind(this));
+    this.loadDiagnostics();
   }
 
   isViewFor(file) {
@@ -152,17 +153,19 @@ class EditorView extends ContentView {
   }
 
   loadDiagnostics() {
-    var diags = this.file.workspace.diagnosticsAtPath(this.file.path);
+    var info = Workspace.diagnostics.get(this.file.path);
     var session = this.editor.session;
     var annotations = [];
-    diags.forEach((d) => {
-      annotations.push({
-        row: d.row - 1,
-        column: d.col - 1,
-        text: d.msg,
-        type: d.type
-      })
-    });
+    if (info && info.diagnostics && info.diagnostics.set) {
+      info.diagnostics.set.forEach((d) => {
+        annotations.push({
+          row: d.row - 1,
+          column: d.col - 1,
+          text: d.msg,
+          type: d.type
+        })
+      });
+    }
     session.setAnnotations(annotations);
   }
 
@@ -223,6 +226,7 @@ EditorView.prototype.duplicate = function() {
 }
 
 module EditorView {
+  export var Range: typeof AceAjax.Range = ace.require("ace/range").Range;
   export interface SerializedEditor extends View.SerializedView {
     path: string;
     options: any;

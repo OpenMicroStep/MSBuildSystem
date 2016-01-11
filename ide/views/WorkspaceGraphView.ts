@@ -49,12 +49,10 @@ class TaskTreeItem extends core.TreeItemView {
     if (graph.tasks && graph.tasks.length)
       this.setCanExpand(true);
     this.nameContainer.addEventListener('click', () => { this.graphview.setTask(this.graph); }, false);
-    this.graph.on('deepcountchange', this.$ondeepcountchange = this.ondeepcountchange.bind(this));
-    this.ondeepcountchange();
+    this.loadDiagnostics();
   }
 
   destroy() {
-    this.graph.off('deepcountchange', this.$ondeepcountchange);
     super.destroy();
   }
 
@@ -65,7 +63,7 @@ class TaskTreeItem extends core.TreeItemView {
     p.continue();
   }
 
-  ondeepcountchange() {
+  loadDiagnostics() {
     while (this.nameContainer.lastChild !== this.last)
       this.nameContainer.removeChild(this.nameContainer.lastChild);
     var c: HTMLElement, el: HTMLElement;
@@ -220,10 +218,121 @@ class WorkspaceTaskView extends core.View {
   }
 }
 
+class WorkspaceDepsTreeItem extends core.TreeItemView {
+  constructor(public workspace: Workspace, public graphview: WorkspaceGraphView) {
+    super();
+    var icon = document.createElement('span');
+    icon.className = "glyphicon glyphicon-flash";
+    this.nameContainer.appendChild(icon);
+    this.nameContainer.appendChild(document.createTextNode('dependencies'));
+    this.setCanExpand(true);
+  }
+
+  createChildItems(p) {
+    this.workspace.dependencies.forEach((w) => {
+      this.addChildItem(new WorkspaceTreeItem(w.workspace, this.graphview));
+    });
+    p.continue();
+  }
+}
+
+class WorkspaceEnvTreeItem extends core.TreeItemView {
+  constructor(env: string, public targets: Graph[], public root: WorkspaceTreeItem) {
+    super();
+    var icon = document.createElement('span');
+    icon.className = "fa fa-fw fa-globe";
+    this.nameContainer.appendChild(icon);
+    this.nameContainer.appendChild(document.createTextNode(env));
+    this.setCanExpand(true);
+  }
+
+  createChildItems(p) {
+    this.targets.forEach((target) => {
+      var item = new TaskTreeItem(target, this.root.graphview);
+      this.root.targets[target.id] = item
+      this.addChildItem(item);
+    });
+    p.continue();
+  }
+
+  collapse() {
+    this.targets.forEach((target) => {
+      delete this.root.targets[target.id];
+    });
+    super.collapse();
+  }
+}
+
+class WorkspaceVariantTreeItem extends core.TreeItemView {
+  constructor(variant: string, public envs: { [s:string]: Graph[] }, public root: WorkspaceTreeItem) {
+    super();
+    var icon = document.createElement('span');
+    icon.className = "fa fa-fw fa-cog";
+    this.nameContainer.appendChild(icon);
+    this.nameContainer.appendChild(document.createTextNode(variant));
+    this.setCanExpand(true);
+  }
+
+  createChildItems(p) {
+    for(var env in this.envs) {
+      this.addChildItem(new WorkspaceEnvTreeItem(env, this.envs[env], this.root));
+    }
+    p.continue();
+  }
+}
+
+
+class WorkspaceTreeItem extends core.TreeItemView {
+  $ondiagnostic; targets: { [s:string]: TaskTreeItem };
+
+  constructor(public workspace: Workspace, public graphview: WorkspaceGraphView) {
+    super();
+    var icon = document.createElement('span');
+    icon.className = "fa fa-fw fa-briefcase";
+    this.targets = {};
+    this.nameContainer.appendChild(icon);
+    this.nameContainer.appendChild(document.createTextNode(this.workspace.name));
+    this.nameContainer.setAttribute('title', this.workspace.path);
+    this.removeChildItems();
+    this.setCanExpand(true);
+    Workspace.diagnostics.on("diagnostic", this.$ondiagnostic = this.ondiagnostic.bind(this));
+  }
+
+  destroy() {
+    Workspace.diagnostics.off("diagnostic", this.$ondiagnostic);
+    super.destroy();
+  }
+
+  ondiagnostic(e) {
+    var task = e.diag.task;
+    if (!task) return;
+    var recurse = (task) => {
+      var parent: any = task.name !== "target" ? recurse(task.parent) : this.targets[task.id];
+      var found = parent ? parent.childs.find((c) => { return c.graph === task }) : null;
+      if (found)
+        found.loadDiagnostics();
+      return found;
+    };
+    recurse(task);
+  }
+
+  createChildItems(p) {
+    if (this.workspace.dependencies.length) {
+      this.addChildItem(new WorkspaceDepsTreeItem(this.workspace, this.graphview));
+    }
+    var variants = this.graphview.workspaces[this.workspace.path];
+    for(var variant in variants) {
+      this.addChildItem(new WorkspaceVariantTreeItem(variant, variants[variant], this));
+    }
+    p.continue();
+  }
+}
+
+
 class WorkspaceGraphView extends core.ContentView {
   $onreload;
   workspace: Workspace;
-  graph: Graph;
+  workspaces: { [s: string]: { [s: string]: { [s: string]: Graph[] }}}
   layout: BoxLayout;
   taskview: WorkspaceTaskView;
   tree: TaskTreeItem;
@@ -232,7 +341,7 @@ class WorkspaceGraphView extends core.ContentView {
     super();
     this.workspace = workspace;
     this.titleEl.textContent = "Build graph";
-    this.graph = null;
+    this.workspaces = null;
     this.taskview = new WorkspaceTaskView();
     this.layout = new BoxLayout({userCanResize:true, orientation: BoxLayout.Orientation.HORIZONTAL});
     this.layout.appendTo(this.el);
@@ -254,14 +363,29 @@ class WorkspaceGraphView extends core.ContentView {
   }
 
   setGraph(g: Graph) {
-    var n =null;
-    if (!this.graph)
-      this.layout.insertView(n= new TaskTreeItem(g, this), 0.25, 0);
-    else if (g)
-      this.layout.replaceViewAt(0, n= new TaskTreeItem(g, this)).destroy();
+    var n;
+    var old = this.workspaces;
+    var workspaces: any = {};
+    if (g.tasks && g.tasks.length) {
+      g.tasks.forEach((target) => {
+        var n: any = target.name;
+        if (n.type !== "target" || !n.environment || !n.workspace || !n.variant) return;
+        var w = workspaces[n.workspace];
+        if (!w) w= workspaces[n.workspace]= {};
+        var v = w[n.variant];
+        if (!v) v= w[n.variant]= {};
+        var e = v[n.environment];
+        if (!e) e= v[n.environment] = [];
+        e.push(target);
+      })
+    }
+    this.workspaces = workspaces;
+    if (!old)
+      this.layout.insertView(n= new WorkspaceTreeItem(this.workspace, this), 0.25, 0);
+    else if (this.workspaces)
+      this.layout.replaceViewAt(0, n= new WorkspaceTreeItem(this.workspace, this)).destroy();
     else
       this.layout.removePart(0, true);
-    this.graph = g;
     if (n) n.expand();
   }
 
