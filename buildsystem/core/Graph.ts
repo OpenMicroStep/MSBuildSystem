@@ -122,9 +122,6 @@ class Graph extends Task {
 }
 
 module Graph {
-  export interface SessionData extends Task.SessionData {
-    tasks: string[];
-  }
   export type Tasks = Iterable<Task>;
   export interface BuildTasksCallback {
     (err: Error, tasks?: Tasks);

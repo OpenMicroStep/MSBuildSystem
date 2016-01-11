@@ -72,7 +72,7 @@ class Task extends events.EventEmitter {
 
   private sessionKey: string= undefined;
   storage: BuildSession = null;
-  data: Task.SessionData = null;
+  data = null;
   sharedData: any = null;
 
   /** Get the task ready for the next run */
@@ -256,13 +256,6 @@ class Task extends events.EventEmitter {
 
 module Task {
   export type Name = { type: string, name: string, [s: string]: string };
-  export interface SessionData {
-    logs: string;
-    errors: number;
-    lastRunStartTime:number;
-    lastRunEndTime:number;
-    lastSuccessTime: number;
-  }
   export enum State {
     UNINITIALIZED,
     WAITING,

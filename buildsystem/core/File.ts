@@ -46,6 +46,11 @@ class LocalFile {
       LocalFile.files.set(filePath, file= new LocalFile(filePath));
     return file;
   }
+  static clearStats() {
+    LocalFile.files.forEach((f) => {
+      f._stats = null;
+    })
+  }
 
   /**
    * Ensure that outputs can be written
@@ -114,7 +119,13 @@ class LocalFile {
     fs.writeFile(this.path, content, "utf8", cb);
   }
   stat(cb : (err: Error, stats: fs.Stats) => any) {
-    fs.stat(this.path, cb);
+    if (this._stats)
+      cb(null, this._stats);
+    else
+      fs.stat(this.path, (err, stats) => {
+        this._stats = stats;
+        cb(err, stats);
+      });
   }
   unlink(cb : (err: Error) => any) {
     fs.unlink(this.path, function(err) {

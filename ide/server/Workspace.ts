@@ -110,10 +110,12 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
         if (g) g.removeListener("childtaskend", this.$childtaskend);
       });
     }
+    var t0 = BuildSystem.util.timeElapsed("Build graph");
     this.graph = (new BuildSystem.core.Async(null, (p) => { this.obj.buildGraph(p, options); })).continue();
     this.graph.setEndCallbacks((f) => {
       var g = f.context.root;
       if (g) {
+        t0();
         g.on("childtaskend", this.$childtaskend);
         BuildSystem.util.timeElapsed("graph export", () => { p.context.response = taskData(g); });
       }
@@ -193,6 +195,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
         if (missing) { pool.context.error = "unable to find all tasks"; pool.continue(); return; }
         var t0 = BuildSystem.util.timeElapsed("Build");
         g.reset();
+        BuildSystem.core.File.clearStats();
         this.isrunning = true;
         tasks.forEach((t) => { t.enable(); });
         g.start(BuildSystem.Task.Action.RUN, () => {
