@@ -35,7 +35,7 @@ export function timeElapsed(a0?, a1?) : any {
     var diff = process.hrtime(t0);
     var ns = diff[0] * 1e9 + diff[1];
     if (title)
-      console.info(title + " in %d ms", Math.round(ns / 1e4) / 1e2);
+      console.info(title + " in %d ms", (ns / 1e6).toFixed(2));
     return ns;
   }
 }

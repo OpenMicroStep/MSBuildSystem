@@ -94,13 +94,15 @@ class Target extends Graph {
       try {
         this.configure((err) => {
           if(err) {
-            this.log(err.toString());
+            this.log("Configure failed: ");
+            this.log(err);
             this.end(1);
           }
           else {
             this.buildGraph((err) => {
               if(err) {
-                this.log(err.toString());
+                this.log("Build graph failed: ");
+                this.log(err);
                 this.end(1);
               }
               else {
@@ -118,6 +120,15 @@ class Target extends Graph {
     else {
       super.runAction(action);
     }
+  }
+
+  log(err) {
+    if (err instanceof Error) {
+      super.log(err.message);
+      if (err.stack)
+        super.log(err.stack);
+    }
+    super.log(err);
   }
   configure(callback: ErrCallback) {
     var barrier = new Barrier.FirstErrBarrier("Configure " + this.targetName, 1);

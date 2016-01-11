@@ -284,7 +284,7 @@ class Workspace {
             depWorkspace = Workspace.getShared(path.join(this.directory, depPath));
           var depEnvName = depInfo.environments[env.name];
           if (!depEnvName)
-            throw new Error("Dependency environment name for '" + env.name + "' not found");
+            throw new Error("Dependency '" + dep.workspace + "' environment name for '" + env.name + "' not found");
           depEnv = depWorkspace.environments.find((e) => { return e.name === depEnvName && !e.contains; });
           if (!depEnv)
             throw new Error("Dependency environment '" + depEnvName + "' not found");

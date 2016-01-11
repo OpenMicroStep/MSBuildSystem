@@ -27,10 +27,10 @@ class CXXTarget extends Target {
 
   configure(callback) {
     this.sysroot = Sysroot.find(this.env);
-    this.arch = this.env.arch;
-    this.platform = this.sysroot.platform;
     if (!this.sysroot)
       return callback("Unable to find sysroot for " + this.env.name);
+    this.arch = this.env.arch;
+    this.platform = this.sysroot.platform;
 
     if (this.info.files)
       this.addWorkspaceFiles(this.info.files);
