@@ -115,13 +115,30 @@ class WorkspaceFile extends replication.DistantObject {
 
   createEditSession() {
     var session = new EditSession(<any>this.document, this.session.getMode());
-    session.setOptions(this.session.getOptions());
+    session.setUndoManager = function(undoManager) {
+      this.$undoManager = undoManager;
+      this.$deltas = [];
+      this.$deltasDoc = [];
+      this.$deltasFold = [];
+
+      if (this.$informUndoManager)
+          this.$informUndoManager.cancel();
+
+      if (undoManager) {
+          var self = this;
+
+          this.$syncInformUndoManager = function() {
+              self.$informUndoManager.cancel();
+              self.$deltasFold = [];
+              self.$deltasDoc = [];
+              self.mergeUndoDeltas = false;
+              self.$deltas = [];
+          };
+          this.$informUndoManager = lang.delayedCall(this.$syncInformUndoManager);
+      }
+    }
     session.setUndoManager(new UndoManagerProxy(this.undomanager, session));
-    session.$informUndoManager = lang.delayedCall(function() {
-      session.$deltas = [];
-      session.$deltasDoc = [];
-      session.$deltasFold = [];
-    });
+    session.setOptions(this.session.getOptions());
     var evt;
     this.on('changeOptions', evt = (e) => {
       session.setOptions(e.options);
