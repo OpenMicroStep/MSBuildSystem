@@ -8,6 +8,20 @@ import {menu, globals, async} from '../core';
 import Workspace = require('./Workspace');
 import WorkspaceFile = require('./WorkspaceFile');
 
+interface FindOptions {
+  regexp       : boolean,
+  casesensitive: boolean,
+  wholeword    : boolean,
+  showcontext  : number,
+  searchtext   : string,
+  filter       : string,
+  preservecase : boolean,
+};
+
+interface ReplaceOptions extends FindOptions {
+  replacement  : string,
+};
+
 var defaultCommands= [
   { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
   { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
@@ -21,6 +35,7 @@ var defaultCommands= [
   { name:"edit.copy"               , bindKey: { win: "Ctrl-C", mac: "Command-C" } },
   { name:"edit.paste"              , bindKey: { win: "Ctrl-V", mac: "Command-V" } },
   { name:"edit.selectall"          , bindKey: { win: "Ctrl-A", mac: "Command-A" } },
+  { name:"find.findinfiles"        , bindKey: { win: "Ctrl-Shift-F", mac: "Command-Shift-F" } },
   { name:"workspace.showbuildgraph" },
   { name:"workspace.showsettings"   },
   { name:"editor.ace.touppercase"  , bindKey: { win: "Ctrl-K Ctrl-U", mac: "Command-K Command-U" } },
@@ -139,6 +154,9 @@ class IDE extends views.View {
         var v = new views.GoToFile();
         v.attach();
         return true;
+      case 'find.findinfiles':
+        this.content.createViewIfNecessary(views.SearchInFiles, []);
+        return true;
     }
     return false;
   }
@@ -156,6 +174,14 @@ class IDE extends views.View {
     ]);
     p.continue();
 
+  }
+
+  find(p: async.Flux, options: FindOptions) {
+    this.workspace.remoteCall(p, "find", options);
+  }
+
+  replace(p: async.Flux, options: ReplaceOptions) {
+    this.workspace.remoteCall(p, "replace", options);
   }
 
   openFile(p: async.Flux, path) {

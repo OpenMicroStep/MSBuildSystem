@@ -1,0 +1,40 @@
+.searchinfiles-find, .searchinfiles-filter, .searchinfiles-replace {
+  margin: 5px;
+}
+.searchinfiles .btn {
+  width: 40px;
+  padding-left: 11px;
+  outline: none !important;
+}
+.searchinfiles .btn.active {
+  position: relative;
+  z-index:10;
+}
+.searchinfiles .btn:hover {
+  position: relative;
+  z-index:11;
+}
+.searchinfiles-find > :last-child  > :last-child > .btn,
+.searchinfiles-replace > :last-child > :last-child > .btn {
+  width: 80px;
+}
+
+.searchinfiles-find {
+  top: 5px;
+}
+
+.searchinfiles-filter {
+  margin: 5px 85px 5px 157px;
+}
+
+.searchinfiles-replace {
+  margin-left: 118px;
+}
+
+.searchinfiles > :last-child {
+  position: absolute;
+  top: 125px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}

@@ -48,6 +48,10 @@ function taskData(task: BuildSystem.Task) : any {
   return r;
 }
 
+function escapeRegExp(str) {
+    return str.replace(/([.*+?^${}()|[\]\/\\])/g, '\\$1');
+}
+
 class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   isrunning: boolean;
   graph: BuildSystem.core.Flux;
@@ -80,6 +84,120 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
         data: task.data
       });
     };
+  }
+
+  _searchOrReplace(p, replace: boolean, options) {
+    var set= new Set<string>();
+    function iterate(files, directory) {
+      for(var i = 0, len = files.length; i < len; ++i) {
+        var file = files[i];
+        if (file.file)
+          set.add(path.join(directory, file.file));
+        else if (file.files)
+          iterate(file.files, directory);
+      }
+    }
+    for (var w in Workspace.workspaces) {
+      var workspace: Workspace = Workspace.workspaces[w];
+      iterate(workspace.obj.files, workspace.obj.directory);
+    }
+
+    var opts = [];
+    if (options.regexp) opts.push("regex");
+    if (options.casesensitive) opts.push("case sensitive");
+    if (options.wholeword) opts.push("whole word");
+    if (options.showcontext) opts.push("context");
+    var result = "Searching for " + options.searchtext + " inworkspaces files" + opts.join(', ') + "\n\n";
+    var files = Array.from(set);
+    var i = 0;
+    var context = typeof options.showcontext === "number" ? options.showcontext : 0;
+    var searchtext = options.regexp ? options.searchtext : escapeRegExp(options.searchtext);
+    if (options.wholeword) searchtext = "\\b" + searchtext + "\\b";
+    var rx = new RegExp(searchtext, options.casesensitive ? "g": "gi");
+    var matches = 0;
+    var matchFiles = 0;
+    var printline = (pad: string, row: number, line: string, context: boolean) => {
+      var r = (row + 1).toString();
+      result += pad.substring(0, pad.length - r.length) + r;
+      result += (context ? "  " : ": ") + line + "\n";
+    }
+    var parsecontent = (path: string, content: string) => {
+      var m, first= true, pad, ctxline, ctxend, last = -1;
+      var lines = content.split("\n");
+      for (var i = 0, len = lines.length; i < len; ++i) {
+        var line = lines[i];
+        var found = false;
+        while ((m = rx.exec(line)) !== null) {
+          ++matches;
+          if (first) {
+            ++matchFiles;
+            result += path + ":\n";
+            pad = "         ".substring(0, Math.max(len.toString().length + 1, 6));
+          }
+          var start = m.index;
+          var end = m.index + m[0].length;
+
+          if (!found) {
+            if (context > 0) {
+              var ctxstart = Math.max(i - context, last + 1, 0);
+              if (last !== -1 && last < ctxstart) {
+                for (ctxline= last + 1, ctxend= Math.min(last + context + 1, lines.length, ctxstart); ctxline < ctxend; ++ctxline)
+                  printline(pad, ctxline, lines[ctxline], true);
+                if (ctxline + 1 === ctxstart)
+                  printline(pad, ctxline, lines[ctxline], true);
+                else if (ctxline < ctxstart) {
+                  var dots = "..........".substring(0, ctxline.toString().length);
+                  result += pad.substring(0, pad.length - dots.length) + dots + "\n";
+                }
+              }
+              for (ctxline= ctxstart; ctxline < i; ++ctxline)
+                printline(pad, ctxline, lines[ctxline], true);
+            }
+            printline(pad, i, line, false);
+            last = i;
+          }
+          found = true;
+          first = false;
+        }
+      }
+      if (!first) {
+        if (context > 0) {
+          for (ctxline= last + 1, ctxend= Math.min(last + context + 1, lines.length); ctxline < ctxend; ++ctxline)
+            printline(pad, ctxline, lines[ctxline], true);
+        }
+        result += "\n";
+      }
+      next();
+    }
+    var next = () => {
+      if (i < files.length) {
+        var file = files[i++];
+        var wf = WorkspaceFile.files.get(file);
+        if (wf) {
+          parsecontent(file, wf.getLastVersion());
+        }
+        else {
+          fs.readFile(file, 'utf8', (err, data) => {
+            if (err) next();
+            else parsecontent(file, data);
+          })
+        }
+      }
+      else {
+        result += matches + " matches across " + matchFiles + " files";
+        p.context.response = result;
+        p.continue();
+      }
+    }
+    next();
+  }
+
+  find(p, options) {
+    this._searchOrReplace(p, false, options);
+  }
+
+  replace(p, options) {
+    this._searchOrReplace(p, true, options);
   }
 
   userData(pool) {

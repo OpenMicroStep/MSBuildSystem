@@ -231,6 +231,23 @@ module EditorView {
     path: string;
     options: any;
   }
+  export class SimpleEditorView extends View {
+    editor: AceAjax.Editor;
+
+    constructor() {
+      super();
+      this.editor = ace.edit(this.el);
+    }
+
+    resize() {
+      this.editor.resize();
+    }
+
+    destroy() {
+      super.destroy();
+      this.editor.destroy();
+    }
+  }
 }
 
 export = EditorView;

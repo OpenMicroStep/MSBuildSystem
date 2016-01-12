@@ -24,6 +24,11 @@ class WorkspaceFile extends replication.ServedObject<File> {
     };
   }
 
+  getLastVersion() {
+    // todo: apply deltas
+    return this.content;
+  }
+
   change(p, e) {
     if (e && Array.isArray(e.deltas)) {
       this.deltas.push(...e.deltas);
@@ -48,7 +53,7 @@ class WorkspaceFile extends replication.ServedObject<File> {
     });
   }
 
-  private static files: Map<string, WorkspaceFile> = new Map<any, any>();
+  static files: Map<string, WorkspaceFile> = new Map<any, any>();
   static getShared(pool, filePath) {
     filePath = path.normalize(filePath);
     if(!path.isAbsolute(filePath)) {
