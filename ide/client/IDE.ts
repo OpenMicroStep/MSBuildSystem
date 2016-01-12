@@ -126,7 +126,8 @@ class IDE extends views.View {
   tryDoAction(command) {
     switch (command.name) {
       case 'workspace.build':
-        (new async.Async(null, this.workspace.build.bind(this.workspace))).continue();
+        var files
+        async.run(null, this.build.bind(this));
         return true;
       case 'workspace.showsettings':
         this.openSettings(this.workspace);
@@ -140,6 +141,21 @@ class IDE extends views.View {
         return true;
     }
     return false;
+  }
+
+  build(p: async.Flux) {
+    var s = [];
+    this._openFiles.forEach((f) => {
+      var file = f.context.result;
+      if (file && file.hasUnsavedChanges())
+        s.push(file.save.bind(file));
+    });
+    p.setFirstElements([
+      s,
+      this.workspace.build.bind(this.workspace)
+    ]);
+    p.continue();
+
   }
 
   openFile(p: async.Flux, path) {

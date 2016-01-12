@@ -213,6 +213,7 @@ class WorkspaceFile extends replication.DistantObject {
     p.setFirstElements((p) => {
       if (p.context.result)
         this.saved({ version: p.context.result.version, content: content });
+      p.continue();
     });
     this.remoteCall(p, "save", content);
   }
