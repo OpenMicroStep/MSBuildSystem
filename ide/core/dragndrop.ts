@@ -111,11 +111,11 @@ export function draggable(item: HTMLElement, options: DragOptions) {
     }
   });
   item.addEventListener("dragend", (ev: DragEvent) => {
-    dragging = null;
     if (dragging && dragging.over) {
       dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
       dragging.over = null;
     }
+    dragging = null;
     if (options.ondragend)
       options.ondragend(ev.dataTransfer.dropEffect, options.data);
     ondragend.forEach((m) => { if (m.type === options.type) m.fn(ev.dataTransfer.dropEffect, options.data); });
