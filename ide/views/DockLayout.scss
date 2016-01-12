@@ -12,23 +12,11 @@
   height: 100%;
 }
 
-.docklayout-overlay > polygon {
-  fill:rgba(209, 157, 22, 0.7);
-  stroke:rgb(0,0,0);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  cursor: pointer;
-}
-
 .docklayout-placeholder {
   z-index: 100;
   position: fixed;
   pointer-events: none;
-  background: rgba(209, 157, 22, 0.7);
-}
-
-.docklayout-overlay > polygon:hover {
-  fill:rgba(209, 157, 22, 0.9);
+  background: rgba(0, 0, 0, .25);
 }
 
 .docklayout-drop > .boxlayout {
@@ -36,11 +24,4 @@
   right: 25px !important;
   bottom: 25px !important;
   left: 25px !important;
-}
-
-polygon.docklayout-overlay-root {
-  fill:rgba(157, 209, 22, 0.7);
-}
-polygon.docklayout-overlay-root:hover {
-  fill:rgba(157, 209, 22, 0.9);
 }

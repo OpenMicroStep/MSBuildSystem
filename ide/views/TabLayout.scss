@@ -26,7 +26,10 @@ $tablayout-tabsborder: 1px;
   height: $tablayout-tabsheight - $tablayout-tabsborder;
   vertical-align: top;
   border: 1px solid $border-color;
-  border-bottom: 0;
+}
+
+.tablayout-tabs > div {
+    height: 26px;
 }
 
 .tablayout-tab.active, .tablayout-tab.placeholder {
@@ -65,9 +68,11 @@ $tablayout-tabsborder: 1px;
   height: $tablayout-tabsheight;
   border-bottom: $tablayout-tabsborder solid $border-color;
 }
-
 .tablayout-top > .tablayout-content {
   @include pos-absolute($tablayout-tabsheight + $tablayout-tabspadding,0,0,0);
+}
+.tablayout-top > .tablayout-tabs > div > .tablayout-tab {
+  border-bottom: 0;
 }
 
 .tablayout-right > .tablayout-tabs {

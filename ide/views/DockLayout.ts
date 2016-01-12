@@ -56,6 +56,30 @@ function shrink(o: ClientRect, minpx: number, maxpourcent: number) {
   }
 }
 
+function collapse(o: ClientRect) {
+  return {
+    top: o.top + o.height/2 - 1,
+    right: o.right - o.width/2 + 1,
+    bottom: o.bottom - o.height/2 + 1,
+    left: o.left + o.width/2 - 1,
+    width: 0,
+    height: 0,
+  };
+}
+
+function reduceByPercent(o: ClientRect, p) {
+  var hpx = o.width * p;
+  var vpx = o.height * p;
+  return {
+    top: o.top + vpx ,
+    right: o.right - hpx,
+    bottom: o.bottom - vpx,
+    left: o.left + hpx,
+    width: o.width - hpx * 2 ,
+    height: o.height - vpx * 2,
+  };
+}
+
 function reduceByPx(o: ClientRect, px: number) {
   return {
     top: o.top + px ,
@@ -77,9 +101,7 @@ function removeOffset(o: ClientRect, ro: ClientRect) {
   }
 }
 
-function dropPlace(parent: HTMLElement, border0: ClientRect, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }, reducepx) {
-  var border = border0;
-  var border1 = shrink(border0, reducepx, 0.5);
+function dropPlace(parent: HTMLElement, border: ClientRect, border1: ClientRect, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }, reducepx) {
   var pos = { top: border.top, right: border.right, bottom: border.bottom, left: border.left };
   switch(lyplace.place) {
     case DockLayout.Position.TOP   : pos.bottom = border1.top   ; break;
@@ -166,8 +188,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
     var ret = null;
     this.iterateViews((view, container) => {
       if (view instanceof cstor && view.isViewFor(...args)) {
-        container.currentView = view;
-        container.currentView.focus();
+        container.setCurrentView(view);
         ret = view;
         return true;
       }
@@ -185,7 +206,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
     var border0 = this.el.getBoundingClientRect();
     var border1 = shrink(border0, 25, 0.5);
     lyplace.place = dropPlaceBetween(x, y, border1);
-    dropPlace(this.el, border0, lyplace, 25);
+    dropPlace(this.el, border0, border1, lyplace, 25);
   }
 
   root() {
@@ -339,27 +360,32 @@ module DockLayout {
     dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {
       var x = ev.clientX, y = ev.clientY;
       var border0 = this._elContent.getBoundingClientRect();
-      var border1 = shrink(border0, 50, 0.5);
+      var border1 = reduceByPercent(border0, 0.25);
       lyplace.place = dropPlaceBetween(x, y, border1);
-      dropPlace(this.el, this.el.getBoundingClientRect(), lyplace, 50);
+      dropPlace(this.el, border0, border1, lyplace, 0);
     }
 
     dropTabUpdatePlaceholder(ev: MouseEvent, placeholder: HTMLElement) {
       if (placeholder.parentNode === this._elTabs)
         this._elTabs.removeChild(placeholder);
       var idx = this.dropTabIndex(ev);
-      this._elTabs.insertBefore(placeholder, this._elTabs.childNodes[idx] || null);
+      this._elTabs.insertBefore(placeholder, idx < this._tabs.length ? this._tabs[idx].tab : null);
       return idx;
     }
 
     dropTabIndex(ev: MouseEvent) {
       var x = ev.clientX;
-      var tabs = this._elTabs.childNodes;
+      var y = ev.clientY;
+      var tabs = this._tabs;
       var idx = tabs.length;
+      var pos = this.position();
+      var h = pos == TabLayout.Position.TOP || pos == TabLayout.Position.BOTTOM;
       for (var i= 0; i < idx; ++i) {
-        var tab: HTMLElement = <HTMLElement>tabs[i];
+        var tab: HTMLElement = tabs[i].tab;
         var rect = tab.getBoundingClientRect();
-        if (x < rect.left + rect.width / 2)
+        if (h && x < rect.left + rect.width / 2)
+          idx= i;
+        if (!h && y < rect.top + rect.height / 2)
           idx= i;
       }
       return idx;
@@ -385,29 +411,24 @@ module DockLayout {
       }
     }
 
-    renderTabs() {
-      super.renderTabs();
-      // TODO: minimize to bar
-    }
-
-    renderTab(item, idx:number) {
-      var domItem = super.renderTab(item, idx);
-      dragndrop.draggable(domItem, {
+    createTab(view: ContentView, at:number) {
+      var item = super.createTab(view, at);
+      dragndrop.draggable(item.tab, {
         type: "tab",
-        data: { view: item.view, idx: idx },
+        data: item,
         ondragstart: () => {
-          this.removeTab(idx, false, false);
+          this.removeTab(item.idx, false, false);
         },
         ondragend: (dropped, data) => {
           if (dropped === dragndrop.DropAction.None) {
-            this.insertView(data.view, idx, true);
+            this.insertView(data.view, item.idx, true);
           }
           else {
             this.removeIfEmpty();
           }
         }
       });
-      return domItem;
+      return item;
     }
 
   }
