@@ -91,6 +91,56 @@ var throttle = function(type, name, obj?) {
   obj.addEventListener(type, func);
 };
 
+class IDEStatus extends views.View {
+  $statusContent: JQuery; $progression; $build; $run; $clean;
+  status: { label: string, warnings: number, errors: number, progression: number }
+
+  constructor(ide: IDE) {
+    super();
+    this.el.className = "navbar-status";
+    var btngroup = $('<div class="btn-group"/>').appendTo(this.$el);
+    var status = $('<div class="ide-status"/>').appendTo(btngroup);
+    this.$statusContent = $('<div/>').appendTo(status);
+
+    var progress = $('<div class="progress-line">').appendTo(status);
+    this.$progression = $('<div/>').appendTo(progress);
+    this.$build = $('<button class="btn btn-default" title="Build"><i class="fa fa-cogs"></i></button>').appendTo(btngroup);
+    this.$run = $('<button class="btn btn-default" title="Run"><i class="fa fa-play"></i></button>').appendTo(btngroup);
+    this.$clean = $('<button class="btn btn-default" title="Clean"><i class="fa fa-recycle"></i></button>').appendTo(btngroup);
+    this.status = { label: "", warnings: 0, errors: 0, progression: 0 };
+    this.$build.click(() => { async.run(null, (p) => { ide.build(p); }); });
+    //this.$run.click(() => { async.run(null, (p) => { ide.run(p); }); });
+    //this.$clean.click(() => { async.run(null, (p) => { ide.clean(p); }); });
+  }
+
+  setStatus(status: { label?: string, warnings?: number, errors?: number, progression?: number }) {
+    var change = false;
+    ["label", "warnings", "errors", "progression"].forEach((k) => {
+      var x;
+      if ((x = status[k]) !== void 0 && x !== this.status[k]) {
+        this.status[k] = x;
+        change= true;
+      }
+    });
+    if (change)
+      this.renderStatus();
+  }
+
+  renderStatus() {
+    this.$progression.toggleClass('text-danger', this.status.progression === 1 && this.status.errors > 0);
+    this.$progression.toggleClass('text-success', this.status.progression === 1 && this.status.errors === 0);
+    this.$progression.css('width', (this.status.progression * 100) + '%');
+    this.$statusContent.text(this.status.label);
+    if (this.status.warnings > 0 || this.status.errors > 0) {
+      var $badge = $('<span class="pull-right"/>').prependTo(this.$statusContent);
+      if (this.status.warnings > 0)
+        $badge.append(' <span class="badge-warning">'+this.status.warnings+'</span>');
+      if (this.status.errors > 0)
+        $badge.append(' <span class="badge-error">'+this.status.errors+'</span>');
+    }
+  }
+}
+
 class IDE extends views.View {
   workspace: Workspace;
   content: views.DockLayout;
@@ -100,6 +150,8 @@ class IDE extends views.View {
   menu: menu.TitleMenu;
   treeView: views.WorkspaceTreeView;
   _openFiles: Map<string, async.Flux>;
+  _serverstatus: HTMLElement;
+  _status: IDEStatus;
 
   constructor() {
     super();
@@ -118,6 +170,14 @@ class IDE extends views.View {
     this.render();
 
     this.workspace = new Workspace();
+    this.workspace.on('build', (e) => {
+      this._status.setStatus({
+        label: e.working ? "Building..." : (e.errors ? "Build failed" : "Build succeeded"),
+        progression: e.progress,
+        warnings: e.warnings,
+        errors: e.errors,
+      });
+    });
     (new async.Async(null, [
       this.workspace.outofsync.bind(this.workspace),
       (p) => {
@@ -125,9 +185,19 @@ class IDE extends views.View {
         this.content.main.appendViewTo(this.treeView, views.DockLayout.Position.LEFT);
       }
     ])).continue();
+
+    this._serverstatus = document.createElement('i');
+    this._serverstatus.className = "fa fa-fw fa-circle";
+    top.appendChild(this._serverstatus);
+
+    this._status = new IDEStatus(this);
+    this._status.appendTo(top);
+    this._status.setStatus({ label: "Idle" });
+
     this.menu = new menu.TitleMenu(defaultCommands, menus, this, (el) => {
-      top.appendChild(el);
+      top.insertBefore(el, this._serverstatus);
     });
+
   }
 
   getChildViews() : views.View[] {
@@ -173,7 +243,6 @@ class IDE extends views.View {
       this.workspace.build.bind(this.workspace)
     ]);
     p.continue();
-
   }
 
   find(p: async.Flux, options: FindOptions) {

@@ -19,7 +19,7 @@ class Workspace extends replication.DistantObject {
   dependencies;
   _tasks: Map<string, Workspace.Graph>;
   _graph: async.Flux;
-  _build: { pendings: (()=> void)[], progress: number, nb: number};
+  _build: { pendings: (()=> void)[], progress: number, nb: number, warnings: number, errors: number };
 
   static diagnostics: diagnostics.DiagnosticsByPath = new diagnostics.DiagnosticsByPath();
   static workspaces = new Set<Workspace>();
@@ -176,14 +176,16 @@ class Workspace extends replication.DistantObject {
     }
     else {
       var nb = this._counttasks(taskIds);
-      this._build = { pendings: [], progress: 0, nb: nb};
+      this._build = { pendings: [], progress: 0, nb: nb, warnings: 0, errors: 0 };
       p.setFirstElements((p) => {
         var pendings = this._build.pendings;
+        var e = { progress: 1.0, warnings: this._build.warnings, errors: this._build.errors, working: false };
         this._build = null;
-        this._signal("build", { progress: 1, working: false });
+        this._signal("build", e);
         pendings.forEach((fn) => { fn(); });
+        p.continue();
       });
-      this._signal("build", { progress: 0, working: true });
+      this._signal("build", { progress: 0.0, warnings: 0, errors: 0, working: true });
       this.remoteCall(p, "start", taskIds);
     }
   }
@@ -207,14 +209,16 @@ class Workspace extends replication.DistantObject {
   ontaskend(e) {
     var time = 0;
     var task = this._tasks.get(e.id);
-    if (this._build) {
-      this._build.progress++;
-      this._signal("build", { progress: this._build.progress / this._build.nb, working: true });
-    }
     if (task) {
       task.ontaskend(e);
     }
     else console.error("Task with not found", e);
+    if (this._build) {
+      this._build.progress++;
+      this._build.warnings += task ? task.selfWarnings : 0;
+      this._build.errors += task ? task.selfErrors : 0;
+      this._signal("build", { progress: this._build.progress / this._build.nb, warnings: this._build.warnings, errors: this._build.errors, working: true });
+    }
   }
 
   openDependency(pool, name: string) {

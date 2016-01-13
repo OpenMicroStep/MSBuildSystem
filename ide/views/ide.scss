@@ -11,7 +11,66 @@ body > div > .docklayout {
 }
 
 .navbar {
-  min-height: 24px;
+  text-align: center;
+  height: 24px;
+  min-height: initial;
+}
+
+.navbar-status {
+  height: 20px;
+  margin: auto;
+  margin-top: 2px;
+}
+
+.navbar-status .btn, .ide-status {
+  height: 20px;
+  line-height: 14px;
+  padding: 2px 6px;
+}
+
+.navbar > .fa-circle {
+  float:right;
+  height: 24px;
+  vertical-align: middle;
+  margin-right: 4px;
+  line-height: 24px;
+  color: $success-background-color;
+}
+
+.navbar > .fa-circle.text-danger {
+  color: $error-background-color;
+}
+
+.ide-status {
+  overflow: hidden;
+  color: #333;
+  background-color: #fff;
+  border-color: #ccc;
+  border-top-left-radius: 4px;
+  position: relative;
+  margin-right: -1px;
+  float: left;
+  display: inline-block;
+  width: 250px;
+  border-width: 1px;
+  border-style: solid;
+  border-bottom-left-radius: 4px;
+}
+
+.ide-status > .progress-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.ide-status > :first-child > .pull-right {
+    margin-right: -4px;
+    font-size: 0.9em;
+}
+
+ul.nav.menu-title {
+    float: left;
 }
 
 .dropdown-menu {
@@ -186,7 +245,7 @@ body > div > .docklayout {
   color: $warning-color;
 }
 .badge-error:before {
-  font-size: 16px;
+  font-size: 1.1em;
   content: "\f06a";
   color: $error-color;
 }
@@ -271,8 +330,14 @@ body > div > .docklayout {
 .progress-line > div {
   width: 0%;
   height: 2px;
-  transition: width 0.2s;
+  transition: width 0.2s, background-color 0.2s;
   background: #0089FF;
+}
+.progress-line > div.text-danger {
+  background: $error-background-color;
+}
+.progress-line > div.text-success {
+  background: $success-background-color;
 }
 
 ::-webkit-scrollbar {
