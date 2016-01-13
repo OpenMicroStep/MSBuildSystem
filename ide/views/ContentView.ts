@@ -9,7 +9,7 @@ class ContentView extends View {
   constructor(tagName: string = "div", titleTagName: string = "div") {
     super(tagName);
     this.titleEl = document.createElement(titleTagName);
-    this.el.addEventListener('click', this.focus.bind(this));
+    this.el.addEventListener('click', globals.ide.setCurrentView.bind(globals.ide, this));
   }
 
   isViewFor(...args: any[]) {
