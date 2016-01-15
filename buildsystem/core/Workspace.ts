@@ -193,7 +193,7 @@ class Workspace {
   }
 
   /** Construct build graph */
-  buildGraph(p: async.Flux, options: Workspace.BuildGraphOptions) {
+  buildGraph(p: async.Async, options: Workspace.BuildGraphOptions) {
     // Build Env/Target dependency graph
     try {
       var root = new RootGraph();

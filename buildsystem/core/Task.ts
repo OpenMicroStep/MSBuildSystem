@@ -173,6 +173,10 @@ class Task extends events.EventEmitter {
   }
 
   end(errors: number = 0) {
+    if (this.state !== Task.State.RUNNING) {
+      console.error("end called multiple times", this.name);
+      return;
+    }
     console.debug(this.name.type, this.name.name, "\n", this.logs);
     this.errors = errors;
     this.state = Task.State.DONE;

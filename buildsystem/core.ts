@@ -8,6 +8,5 @@ export import Graph     = require('./core/Graph'    );
 export import Target    = require('./core/Target'   );
 export import Workspace = require('./core/Workspace');
 import async = require('./core/async');
-export import Flux = async.Flux;
 export import Async = async.Async;
 

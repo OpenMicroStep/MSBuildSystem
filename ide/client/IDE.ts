@@ -7,6 +7,7 @@ import views = require('../views');
 import {menu, globals, async} from '../core';
 import Workspace = require('./Workspace');
 import WorkspaceFile = require('./WorkspaceFile');
+import Async = async.Async;
 
 interface FindOptions {
   regexp       : boolean,
@@ -149,7 +150,7 @@ class IDE extends views.View {
   keyBinding: AceAjax.KeyBinding;
   menu: menu.TitleMenu;
   treeView: views.WorkspaceTreeView;
-  _openFiles: Map<string, async.Flux>;
+  _openFiles: Map<string, Async>;
   _serverstatus: HTMLElement;
   _status: IDEStatus;
 
@@ -171,14 +172,22 @@ class IDE extends views.View {
 
     this.workspace = new Workspace();
     this.workspace.on('build', (e) => {
+      var lbl;
+      if (e.state === "done")
+        lbl = (e.errors ? "Build failed" : "Build succeeded");
+      else if (e.state === "graph")
+        lbl = "Creating build graph...";
+      else
+        lbl = "Building...";
+
       this._status.setStatus({
-        label: e.working ? "Building..." : (e.errors ? "Build failed" : "Build succeeded"),
+        label: lbl,
         progression: e.progress,
         warnings: e.warnings,
         errors: e.errors,
       });
     });
-    (new async.Async(null, [
+    (new Async(null, [
       this.workspace.outofsync.bind(this.workspace),
       (p) => {
         this.treeView = new views.WorkspaceTreeView(this.workspace);
@@ -231,12 +240,19 @@ class IDE extends views.View {
     return false;
   }
 
-  build(p: async.Flux) {
+  build(p: Async) {
     var s = [];
-    this._openFiles.forEach((f) => {
-      var file = f.context.result;
-      if (file && file.hasUnsavedChanges())
-        s.push(file.save.bind(file));
+    this._openFiles.forEach((once) => {
+      s.push(new Async(null, [
+        once,
+        (p) => {
+          var file = once.context.result;
+          if (file && file.hasUnsavedChanges())
+            file.save(p, file);
+          else
+            p.continue();
+        }
+      ]));
     });
     p.setFirstElements([
       s,
@@ -245,18 +261,18 @@ class IDE extends views.View {
     p.continue();
   }
 
-  find(p: async.Flux, options: FindOptions) {
+  find(p: Async, options: FindOptions) {
     this.workspace.remoteCall(p, "find", options);
   }
 
-  replace(p: async.Flux, options: ReplaceOptions) {
+  replace(p: Async, options: ReplaceOptions) {
     this.workspace.remoteCall(p, "replace", options);
   }
 
-  openFile(p: async.Flux, path) {
-    var ret = this._openFiles.get(path);
-    if (!ret) {
-      ret = (new async.Async(null, [
+  openFile(p: Async, path) {
+    var once = this._openFiles.get(path);
+    if (!once) {
+      once = new Async(null, Async.once([
         (p) => { this.workspace.remoteCall(p, "openFile", path); },
         (p) => {
           var file: WorkspaceFile = p.context.result;
@@ -270,14 +286,18 @@ class IDE extends views.View {
           p.continue();
           setTimeout(() => { file.unref(); }, 0);
         }
-      ])).continue();
-      this._openFiles.set(path, ret);
+      ]));
+      this._openFiles.set(path, once);
     }
-    ret.setEndCallbacks((f) => {
-      p.context.file = f.context.result;
-      p.context.view = this.content.createViewIfNecessary(views.EditorView, [p.context.file])
-      p.continue();
-    });
+    p.setFirstElements([
+      once,
+      (p) => {
+        p.context.file = once.context.result;
+        p.context.view = this.content.createViewIfNecessary(views.EditorView, [p.context.file])
+        p.continue();
+      }
+    ]);
+    p.continue();
   }
 
   openSettings(workspace) {
@@ -299,5 +319,7 @@ class IDE extends views.View {
     return true;
   }
 }
+
+(<any>window)._Async = Async;
 
 export = IDE;

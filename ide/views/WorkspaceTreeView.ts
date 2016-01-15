@@ -179,7 +179,7 @@ class FileTreeItem extends TreeItemView {
     this.loadDiagnostics();
   }
 
-  open() : async.Flux {
+  open() : async.Async {
     return async.run(null, (p) => { this.root.workspace.openFile(p, this.d.file); });
   }
 
@@ -237,18 +237,7 @@ class WorkspaceTreeView extends ContentView {
     this.root = new WorkspaceTreeItem(workspace);
     this.root.expand();
     this.root.appendTo(this.el);
-    var progress = document.createElement('div');
-    var progressAdv = document.createElement('div');
-    progress.className = "progress-line";
-    progress.appendChild(progressAdv);
     this.titleEl.appendChild(document.createTextNode("Workspace"));
-    this.titleEl.appendChild(progress);
-    $(progress).hide();
-    workspace.on('build', (e) => {
-      if (e.working) $(progress).show();
-      else $(progress).fadeOut();
-      $(progressAdv).css('width', (e.progress * 100) + '%');
-    });
     workspace.on('reload', this.reload.bind(this));
   }
   reload() {

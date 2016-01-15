@@ -4,6 +4,7 @@
 
 import {globals, events, replication, async} from '../core';
 import Workspace = require('./Workspace');
+import Async = async.Async;
 
 var Document    = ace.require('ace/document').Document;
 var EditSession = ace.require("ace/edit_session").EditSession;
@@ -60,7 +61,7 @@ class WorkspaceFile extends replication.DistantObject {
   private undomanager;
   private session;
   ignoreChanges: boolean;
-  pendingsdeltas: async.Flux[];
+  pendingsdeltas: Async[];
   $informChange;
 
   constructor() {
@@ -76,18 +77,19 @@ class WorkspaceFile extends replication.DistantObject {
 
     this.document.on("change", (e) => {
       if (!this.ignoreChanges) {
-        (new async.Async({ deltas: [e] } , [
+        var once= new Async({ deltas: [e] }, Async.once((p) => { this.change(p, { deltas: p.context.deltats }); }));
+        Async.run(null, [
           (p) => {
-            this.pendingsdeltas.push(p);
+            this.pendingsdeltas.push(once);
             p.continue();
           },
-          (p) => { this.change(p, { deltas: p.context.deltas }); },
+          once,
           (p) => {
-            var i = this.pendingsdeltas.lastIndexOf(p);
+            var i = this.pendingsdeltas.lastIndexOf(once);
             if (i !== -1) this.pendingsdeltas.splice(i, 1);
             p.continue();
           }
-        ])).continue();
+        ]);
       }
       this.$informChange.schedule();
     });
@@ -172,16 +174,19 @@ class WorkspaceFile extends replication.DistantObject {
     this.document.setValue(data.content);
     this.undomanager.reset();
     this.document.applyDeltas(data.deltas);
-    this.pendingsdeltas.forEach((p) => {
-      p.setEndCallbacks((p) => {
-        this.ignoreChanges = true;
-        this.document.applyDeltas(p.context.deltas);
-        this.ignoreChanges = false;
-      });
+    this.pendingsdeltas.forEach((once) => {
+      Async.run(null, [
+        once,
+        (p) => {
+          this.ignoreChanges = true;
+          this.document.applyDeltas(once.context.deltas);
+          this.ignoreChanges = false;
+        }
+      ]);
     });
   }
 
-  outofsync(p: async.Flux) {
+  outofsync(p: async.Async) {
     p.setFirstElements((p) => {
       var file = p.context.result;
       if (file !== this) {
@@ -208,7 +213,7 @@ class WorkspaceFile extends replication.DistantObject {
     return !this.undomanager.isClean();
   }
 
-  save(p: async.Flux) {
+  save(p: async.Async) {
     var content = this.document.getValue();
     p.setFirstElements((p) => {
       if (p.context.result)

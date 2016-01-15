@@ -51,7 +51,7 @@ class TreeItemView extends View {
     }
   }
 
-  createChildItems(p: async.Flux) {
+  createChildItems(p: async.Async) {
     p.continue();
   }
 

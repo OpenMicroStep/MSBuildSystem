@@ -6,6 +6,7 @@ import BuildSystem = require('../../buildsystem/BuildSystem');
 import WorkspaceFile = require('./WorkspaceFile');
 import replication = require('./replication');
 import fs = require('fs');
+import Async = BuildSystem.core.Async;
 
 function taskInnerRUNCFGData(task: BuildSystem.Task, cb: (data) => void) {
   var s = task.getStorage();
@@ -54,7 +55,7 @@ function escapeRegExp(str) {
 
 class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   isrunning: boolean;
-  graph: BuildSystem.core.Flux;
+  graph: (p: Async) => void;
   $childtaskend;
 
   private static workspaces = {};
@@ -221,110 +222,133 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     pool.continue();
   }
 
-  buildGraph(p, options: BuildSystem.Workspace.BuildGraphOptions) {
+  buildGraph(p: Async, options: BuildSystem.Workspace.BuildGraphOptions) {
     if (this.graph) {
-      this.graph.setEndCallbacks((f) => {
-        var g = f.context.root;
-        if (g) g.removeListener("childtaskend", this.$childtaskend);
-      });
+      Async.run(null, [
+        this.graph,
+        (p) => {
+          var g = p.context.root;
+          if (g) g.removeListener("childtaskend", this.$childtaskend);
+          p.continue();
+        }
+      ]);
     }
     var t0 = BuildSystem.util.timeElapsed("Build graph");
-    this.graph = (new BuildSystem.core.Async(null, (p) => { this.obj.buildGraph(p, options); })).continue();
-    this.graph.setEndCallbacks((f) => {
-      var g = f.context.root;
-      if (g) {
-        t0();
-        g.on("childtaskend", this.$childtaskend);
-        BuildSystem.util.timeElapsed("graph export", () => { p.context.response = taskData(g); });
-      }
-      else {
-        console.warn("Unable to build graph", f.context.error, (f.context.error || {}).stack);
-      }
+    var g = new Async(null, Async.once((p) => { this.obj.buildGraph(p, options); }));
+    this.graph = (p) => {
+      p.setFirstElements([g, (p) => { p.context.root = g.context.root; p.continue(); }]);
       p.continue();
-    });
-  }
-
-  taskInfos(pool) {
-    if (!this.graph) { pool.context.error = "buildGraph wasn't called before taskInfo"; pool.continue(); return; }
-
-    return this.graph.setEndCallbacks((p) => {
-      var g = p.context.root;
-      if (g) {
-        var t0 = BuildSystem.util.timeElapsed("logs export");
-        var tasks: BuildSystem.Task[] = <any>Array.from(g.allTasks(true));
-        var i = 0, len = tasks.length;
-        var next = () => {
-          if (i < len) {
-            taskInnerRUNCFGData(tasks[i], (d) => {
-              this.emit(pool.context.socket, "taskinfo", d);
-              setTimeout(next, 1);
-            });
-            ++i;
-          }
-          else {
-            t0();
-            pool.context.response = true;
-            pool.continue();
-          }
-        };
-        next();
-      }
-    });
-  }
-
-  taskInfo(pool, taskId) {
-    if (!this.graph) { pool.context.error = "buildGraph wasn't called before taskInfo"; pool.continue(); return; }
-    return this.graph.setEndCallbacks((p) => {
-      var g = p.context.root;
-      if (g) {
-        var task = g.findTask(true, (t) => { return t.id() === taskId });
-        if (!task) {
-          pool.context.error = "unable to find task";
-          pool.continue();
+    };
+    p.setFirstElements([
+      this.graph,
+      (p) => {
+        var g = p.context.root;
+        if (g) {
+          t0();
+          g.on("childtaskend", this.$childtaskend);
+          BuildSystem.util.timeElapsed("graph export", () => { p.context.response = taskData(g); });
         }
         else {
-          taskInnerRUNCFGData(task, (d) => {
-            pool.context.response = d;
-            pool.continue();
-          })
+          console.warn("Unable to build graph", p.context.error, (p.context.error || {}).stack);
+        }
+        p.continue();
+      }
+    ]);
+    p.continue();
+  }
+
+  taskInfos(p: Async) {
+    if (!this.graph) { p.context.error = "buildGraph wasn't called before taskInfo"; p.continue(); return; }
+    p.setFirstElements([
+      this.graph,
+      (p) => {
+        var g = p.context.root;
+        if (g) {
+          var t0 = BuildSystem.util.timeElapsed("logs export");
+          var tasks: BuildSystem.Task[] = <any>Array.from(g.allTasks(true));
+          var i = 0, len = tasks.length;
+          var next = () => {
+            if (i < len) {
+              taskInnerRUNCFGData(tasks[i], (d) => {
+                this.emit(p.context.socket, "taskinfo", d);
+                setTimeout(next, 1);
+              });
+              ++i;
+            }
+            else {
+              t0();
+              p.context.response = true;
+              p.continue();
+            }
+          };
+          next();
         }
       }
-    });
+    ]);
+    p.continue();
+  }
+
+  taskInfo(p: Async, taskId) {
+    if (!this.graph) { p.context.error = "buildGraph wasn't called before taskInfo"; p.continue(); return; }
+    p.setFirstElements([
+      this.graph,
+      (p) => {
+        var g = p.context.root;
+        if (g) {
+          var task = g.findTask(true, (t) => { return t.id() === taskId });
+          if (!task) {
+            p.context.error = "unable to find task";
+            p.continue();
+          }
+          else {
+            taskInnerRUNCFGData(task, (d) => {
+              p.context.response = d;
+              p.continue();
+            })
+          }
+        }
+      }
+    ]);
+    p.continue();
   }
 
   openFile(pool, filepath: string) {
     WorkspaceFile.getShared(pool, path.isAbsolute(filepath) ? filepath : path.join(this.obj.directory, filepath));
   }
 
-  start(pool, taskIds: string[]) {
-    if (this.isrunning) { pool.context.error = "another task is already running"; pool.continue(); return ;}
-    if (!this.graph) { pool.context.error = "buildGraph wasn't called before taskInfo"; pool.continue(); return; }
+  start(p: Async, taskIds: string[]) {
+    if (this.isrunning) {p.context.error = "another task is already running"; p.continue(); return ;}
+    if (!this.graph) { p.context.error = "buildGraph wasn't called before taskInfo"; p.continue(); return; }
 
-    this.graph.setEndCallbacks((p) => {
-      var g = p.context.root;
-      if (g) {
-        if (g.state === BuildSystem.Task.State.RUNNING) { pool.context.error = "task is already running"; pool.continue(); return; }
-        var missing = false;
-        var tasks = taskIds.map((id) => {
-          var ret = g.findTask(true, (t) => { return t.id() === id });
-          if (!ret) missing= true;
-          return ret;
-        });
-        if (missing) { pool.context.error = "unable to find all tasks"; pool.continue(); return; }
-        var t0 = BuildSystem.util.timeElapsed("Build");
-        g.reset();
-        BuildSystem.core.File.clearStats();
-        this.isrunning = true;
-        tasks.forEach((t) => { t.enable(); });
-        g.start(BuildSystem.Task.Action.RUN, () => {
-          this.isrunning = false;
-          t0();
-          pool.context.response = true;
-          pool.continue();
-        });
+    p.setFirstElements([
+      this.graph,
+      (p) => {
+        var g = p.context.root;
+        if (g) {
+          if (g.state === BuildSystem.Task.State.RUNNING) { p.context.error = "task is already running"; p.continue(); return; }
+          var missing = false;
+          var tasks = taskIds.map((id) => {
+            var ret = g.findTask(true, (t) => { return t.id() === id });
+            if (!ret) missing= true;
+            return ret;
+          });
+          if (missing) { p.context.error = "unable to find all tasks"; p.continue(); return; }
+          var t0 = BuildSystem.util.timeElapsed("Build");
+          g.reset();
+          BuildSystem.core.File.clearStats();
+          this.isrunning = true;
+          tasks.forEach((t) => { t.enable(); });
+          g.start(BuildSystem.Task.Action.RUN, () => {
+            this.isrunning = false;
+            t0();
+            p.context.response = true;
+            p.continue();
+          });
+        }
+        else { p.continue(); }
       }
-      else { pool.continue(); }
-    });
+    ]);
+    p.continue();
   }
 
   openDependency(pool, name: string) {

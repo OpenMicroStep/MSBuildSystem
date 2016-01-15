@@ -3,6 +3,7 @@
 import io = require('socket.io-client');
 import events = require('./events');
 import async = require('./async');
+import Async = async.Async;
 
 // The socket is globally shared to ease the replication system
 export var socket: SocketIOClient.Socket = io.connect('http://127.0.0.1:3000', { transports: ['websocket'] });
@@ -15,7 +16,7 @@ export interface DistantObjectProtocol {
   data: any;
 }
 
-interface Flux<T> extends async.Flux {
+interface Flux<T> extends Async {
   context: { result: T; error: any; };
 }
 
@@ -42,7 +43,7 @@ socket.on("reprec", function(id: string, data) {
     console.error("No object with id ", id);
   }
 });
-var reconnectPool = new async.Async(null, (p) => {
+var reconnectPool = new Async(null, (p) => {
   var o: DistantObject = p.context.obj;
   o.remoteCall(p, "reconnect");
 });
@@ -69,7 +70,7 @@ function decode(d) {
   return d;
 }
 
-var emptyPool = new async.Async();
+var emptyPool = new Async();
 export class DistantObject implements events.EventEmitter {
   _emit: (eventName: string, e?) => any;
   _signal: (eventName: string, e?) => void;
@@ -78,7 +79,7 @@ export class DistantObject implements events.EventEmitter {
   off: (eventName: string, callback: (e, emitter) => any) => void;
 
   id: string;
-  private _outofsync: async.Flux;
+  private _outofsync: (p: Async) => void;
 
   constructor() {
     this.id = null;
@@ -112,24 +113,28 @@ export class DistantObject implements events.EventEmitter {
 
   }
 
-  outofsync(p: async.Flux) { p.continue(); }
+  outofsync(p: Async) { p.continue(); }
 
-  private _replicate(p: async.Flux, type: string, ...args) {
+  private _replicate(p: Async, type: string, ...args) {
     socket.emit(type, this.id, ...args, (err, res) => {
       if (err == 404) {
         if (!this._outofsync) {
-          this._outofsync = (new async.Async(null, [
+          this._outofsync = Async.once([
             this.outofsync.bind(this),
             (p) => { this._outofsync = null; p.continue(); }
-          ])).continue();
+          ]);
         }
-        this._outofsync.setEndCallbacks(() => {
-          socket.emit(type, this.id, ...args, (err, res) => {
-            if (err) p.context.error = err;
-            else p.context.result = decode(res);
-            p.continue();
-          });
-        });
+        p.setFirstElements([
+          this._outofsync,
+          (p) => {
+            socket.emit(type, this.id, ...args, (err, res) => {
+              if (err) p.context.error = err;
+              else p.context.result = decode(res);
+              p.continue();
+            });
+          }
+        ]);
+        p.continue();
       }
       else {
         if (err) p.context.error = err;
@@ -139,7 +144,7 @@ export class DistantObject implements events.EventEmitter {
     });
   }
 
-  remoteCall<T>(p: async.Flux, fn: string, ...args) {
+  remoteCall<T>(p: Async, fn: string, ...args) {
     this._replicate(p, "repcall", fn,  ...args);
   }
 }
