@@ -181,7 +181,6 @@ class EditorView extends ContentView {
     }
     switch (command.name) {
       case 'file.save':
-        whitespace.trimTrailingSpace(this.editor.session, true);
         async.run(null, this.file.save.bind(this.file));
         return true;
     }

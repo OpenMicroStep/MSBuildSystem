@@ -5,6 +5,7 @@ import Async = async.Async;
 var Document    = ace.require('ace/document').Document;
 var EditSession = ace.require("ace/edit_session").EditSession;
 var UndoManager = ace.require("ace/undomanager").UndoManager;
+var whitespace = ace.require("ace/ext/whitespace");
 var modelist = ace.require("ace/ext/modelist");
 var lang = ace.require("ace/lib/lang");
 
@@ -73,7 +74,7 @@ class WorkspaceFile extends replication.DistantObject {
 
     this.document.on("change", (e) => {
       if (!this.ignoreChanges) {
-        var once= new Async({ deltas: [e] }, Async.once((p) => { this.change(p, { deltas: p.context.deltats }); }));
+        var once= new Async({ deltas: [e] }, Async.once((p) => { this.change(p, { deltas: p.context.deltas }); }));
         Async.run(null, [
           (p) => {
             this.pendingsdeltas.push(once);
@@ -210,6 +211,7 @@ class WorkspaceFile extends replication.DistantObject {
   }
 
   save(p: async.Async) {
+    whitespace.trimTrailingSpace(this.session, true);
     var content = this.document.getValue();
     p.setFirstElements((p) => {
       if (p.context.result)
