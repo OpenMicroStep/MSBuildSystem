@@ -14,39 +14,6 @@ interface BuildSession {
 
 module BuildSession {
   var caches = {};
-  var pendings= new Set<any>();
-  var pendingsTimeoutDuration = 500;
-  var pendingsTimeout = null;
-  var pendingsTimeoutDelay = false;
-
-  function onPendingsTimeout() {
-    if (pendingsTimeoutDelay) {
-      pendingsTimeoutDelay = false;
-      pendingsTimeout = setTimeout(onPendingsTimeout, pendingsTimeoutDuration);
-    }
-    else {
-      pendingsTimeout = null;
-      savePendings();
-    }
-  }
-
-  function savePendings() {
-    console.info("Saving " + pendings.size);
-    pendings.forEach((p) => {
-      fs.writeFile(p, JSON.stringify(caches[p]), 'utf8');
-    });
-    pendings.clear();
-  }
-  process.on('exit', function() {
-    if (pendings.size > 0) {
-      console.info("Saving " + pendings.size);
-      pendings.forEach((p) => {
-        fs.writeFileSync(p, JSON.stringify(caches[p]), 'utf8');
-      });
-      pendings.clear();
-      console.info("Saved");
-    }
-  });
 
   export class FastJSONDatabase implements BuildSession {
     protected path: string;
@@ -71,13 +38,7 @@ module BuildSession {
       });
     }
     save(cb: ()=> void) {
-      pendings.add(this.path);
-      if (pendingsTimeout) {
-        pendingsTimeoutDelay = true;
-      } else {
-        pendingsTimeout = setTimeout(onPendingsTimeout, pendingsTimeoutDuration);
-      }
-      cb();
+      fs.writeFile(this.path, JSON.stringify(this.data), 'utf8', cb);
     }
     all() : any {
       return this.data;
