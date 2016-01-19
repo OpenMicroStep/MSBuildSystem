@@ -66,7 +66,7 @@ class PlistInfoTask extends Task {
     });
   }
   clean() {
-    fs.unlink(this.path, function(err) {
+    fs.unlink(this.path, (err) => {
       if(err && (<NodeJS.ErrnoException>err).code === "ENOENT")
         err = null;
       this.end(err ? 1 : 0);
