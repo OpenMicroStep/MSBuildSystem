@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow weak */
-'use strict';
-
 //import Workspace = require('./Workspace');
 import Workspace = require('./Workspace');
 import Task = require('./Task');

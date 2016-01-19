@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import io = require('socket.io-client');
 import events = require('./events');
 import async = require('./async');

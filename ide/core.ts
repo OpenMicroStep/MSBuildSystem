@@ -1,5 +1,3 @@
-/// <reference path="../typings/browser.d.ts" />
-
 export import events       = require('./core/events');
 export import menu         = require('./core/menu');
 export import dragndrop    = require('./core/dragndrop');

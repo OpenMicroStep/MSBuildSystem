@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 export function pathBasename(path: string) : string {
   var idx = path.length, c;
   while (idx > 0 && (c= path[--idx]) !== '/' && c !== '\\');

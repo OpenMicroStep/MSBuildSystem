@@ -32,7 +32,10 @@
 				".tscache",
 				"toolchains",
 				"*/MSBuildSystem/sysroots",
-				"tools"
+				"tools",
+				"_/dist",
+				"_/node_modules",
+				"_/out/node_modules"
 			],
 			"path": ".."
 		}

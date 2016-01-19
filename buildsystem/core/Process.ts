@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow weak */
-'use strict';
-
 import child_process = require('child_process');
 var os = require('os');
 

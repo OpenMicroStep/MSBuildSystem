@@ -1,6 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow */
-'use strict';
 import path = require("path");
 import fsex = require("fs-extra");
 import fs = require("fs-extra");

@@ -1,6 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-"use strict";
-
 import async = require('../core/async');
 import io = require('socket.io');
 import Socket = SocketIO.Socket;

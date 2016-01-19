@@ -1,7 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-/* @flow */
-'use strict';
-
 import {globals, events, replication, async} from '../core';
 import Workspace = require('./Workspace');
 import Async = async.Async;

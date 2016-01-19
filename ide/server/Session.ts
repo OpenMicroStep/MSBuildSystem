@@ -1,4 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
 import replication = require('./replication');
 import WorkspaceFile = require('./WorkspaceFile');
 import Workspace = require('./Workspace');

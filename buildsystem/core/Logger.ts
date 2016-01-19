@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow */
-'use strict';
-
 var dateFormat = require("dateformat");
 import util = require('util');
 import chalk = require("chalk");

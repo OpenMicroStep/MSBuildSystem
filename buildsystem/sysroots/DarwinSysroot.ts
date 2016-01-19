@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow weak */
-'use strict';
-
 import CompileTask = require('../tasks/Compile');
 import File = require('../core/File');
 import Workspace = require('../core/Workspace');

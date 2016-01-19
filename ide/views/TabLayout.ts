@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import View = require('./View');
 import ContentView = require('./ContentView');
 import menu = require('../core/menu');

@@ -1,6 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow weak */
-'use strict';
 import Graph = require('./Graph');
 import events = require('events');
 import Barrier = require('./Barrier');

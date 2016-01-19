@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import { EventEmitter } from "../core/events";
 import globals = require('../core/globals');
 

@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import {globals, View, ContentView, TreeItemView, DockLayout, async, menu} from '../core';
 import Workspace = require('../client/Workspace');
 import diagnostics = require('../client/diagnostics');

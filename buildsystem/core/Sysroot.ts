@@ -1,5 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow weak */
 import CXXTarget = require('../targets/_CXXTarget');
 import Framework = require('../targets/Framework');
 import Task = require('./task');

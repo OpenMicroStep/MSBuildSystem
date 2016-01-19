@@ -1,5 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-
 import Task = require('./Task');
 import Barrier = require('./Barrier');
 import BuildSession = require('./BuildSession');

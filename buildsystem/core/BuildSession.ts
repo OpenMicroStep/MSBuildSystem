@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow */
-'use strict';
-
 import fs = require("fs");
 import path = require("path");
 import _ = require('underscore');

@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import async = require('../core/async');
 import View = require('./View');
 

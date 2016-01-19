@@ -1,6 +1,3 @@
-/// <reference path="../typings/tsd.d.ts" />
-'use strict';
-
 require('source-map-support').install();
 require("es6-shim");
 require('./core/Logger')(console, 'info');

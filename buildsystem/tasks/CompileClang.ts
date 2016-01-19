@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow weak */
-'use strict';
-
 import File = require('../core/File');
 import Task = require('../core/Task');
 import Graph = require('../core/Graph');
@@ -33,6 +29,14 @@ class CompileClangTask extends CompileTask {
     //  this.appendArgs(["-std=c11"]);
     //if(!(<any>process.stdout).isTTY)
     //  this.appendArgs(['-fno-color-diagnostics']);
+  }
+
+  autocomplete() {
+    // -fsyntax-only -Xclang -code-completion-macros -Xclang -code-completion-at=path:row:col
+    // COMPLETION: count : [#NSUInteger#]count
+    // COMPLETION: write : [#ssize_t#]write(<#int#>, <#const void *#>, <#size_t#>)
+    // OVERLOAD: [#NSUInteger#](<#id#>)
+    // the position must be at word start, then the completion list must be filtered with the word first characters
   }
 }
 Task.registerClass(CompileClangTask, "CompileClang");

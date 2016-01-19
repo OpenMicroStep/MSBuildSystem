@@ -1,5 +1,3 @@
-/// <reference path="../typings/browser.d.ts" />
-
 export import View         = require('./views/View');
 export import ContentView  = require('./views/ContentView');
 export import TreeItemView = require('./views/TreeItemView');

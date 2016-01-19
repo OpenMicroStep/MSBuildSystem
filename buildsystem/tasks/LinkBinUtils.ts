@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow weak */
-'use strict';
-
 import LinkTask = require('./Link');
 import Task = require('../core/Task');
 import Graph = require('../core/Graph');

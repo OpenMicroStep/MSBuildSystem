@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import core = require('../core');
 
 class GoToView extends core.View {

@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 interface ActionFct      {(pool: Flux): void;}
 interface SuperactionFct {(pool: Flux, arg: any): void;}
 interface ConditionalFct {(pool: Flux): boolean;}

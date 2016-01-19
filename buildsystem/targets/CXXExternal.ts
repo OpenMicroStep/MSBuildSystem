@@ -1,6 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-'use strict';
-
 import ProcessTask = require('../tasks/_Process');
 import Target = require('./../core/Target');
 import CXXTarget = require('./_CXXTarget');

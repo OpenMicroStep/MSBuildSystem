@@ -1,6 +1,3 @@
-/// <reference path="../typings/tsd.d.ts" />
-
-
 export import File      = require('./core/File'     );
 export import Process   = require('./core/Process'  );
 export import Task      = require('./core/Task'     );

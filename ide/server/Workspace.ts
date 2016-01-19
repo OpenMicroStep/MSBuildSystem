@@ -1,6 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-'use strict';
-
 import path = require('path');
 import BuildSystem = require('../../buildsystem/BuildSystem');
 import WorkspaceFile = require('./WorkspaceFile');

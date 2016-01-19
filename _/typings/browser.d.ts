@@ -13,3 +13,4 @@ interface Console {
   trace(...args: any[]);
 }
 
+declare module "term" {}

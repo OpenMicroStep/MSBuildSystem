@@ -1,6 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-'use strict';
-
 import path = require('path');
 import replication = require('./replication');
 import File = require('../../buildsystem/core/File');

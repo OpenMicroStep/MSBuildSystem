@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-// /* @flow weak */
-'use strict';
-
 import Target = require('../core/Target');
 import Graph = require('../core/Graph');
 import File = require('../core/File');

@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import core = require('../core');
 import GoToView = require('./GoToView');
 import Workspace = require('../client/Workspace');

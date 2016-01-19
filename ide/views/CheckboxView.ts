@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import View = require('./View');
 
 class CheckboxView extends View {

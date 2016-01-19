@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-"use strict";
 import core = require('../core');
 import Workspace = require('../client/Workspace');
 import ContentView = require('../views/ContentView');

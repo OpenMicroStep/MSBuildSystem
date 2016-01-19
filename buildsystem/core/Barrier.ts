@@ -1,7 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-/* @flow */
-'use strict';
-
 class Barrier {
   protected actions:((...args) => any)[];
   protected counter: number;

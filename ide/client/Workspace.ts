@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import {replication, events, async, util, globals} from '../core';
 import WorkspaceFile = require('./WorkspaceFile');
 import * as diagnostics from './diagnostics';

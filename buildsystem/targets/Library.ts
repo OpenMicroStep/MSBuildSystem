@@ -1,6 +1,3 @@
-/// <reference path="../../typings/tsd.d.ts" />
-'use strict';
-
 import path = require('path');
 import util = require('util');
 import Graph = require('../core/Graph');

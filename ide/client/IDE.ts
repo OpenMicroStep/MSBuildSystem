@@ -1,7 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-/* @flow */
-'use strict';
-
 declare function require(module);
 import views = require('../views');
 import {menu, globals, async} from '../core';

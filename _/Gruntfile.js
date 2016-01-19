@@ -55,8 +55,7 @@ module.exports = function (grunt) {
     // CSS Compilation
     sass: {
       options: {
-        style: "compressed",
-        sourcemap: "inline",
+        //style: "compressed",
       },
       ide: {
         files: [{src: '../ide/views/ide.scss', dest: '<%= config.ide.client.out %>/css/ide.css'}]
@@ -71,17 +70,23 @@ module.exports = function (grunt) {
       options: {
         noLib: true,
         target: 'es5',
-        sourceMap: true
+        sourceMap: true,
       },
       ide: {
         src: ['../ide/client/**/*.ts', '../ide/core/**/*.ts', '../ide/views/**/*.ts'],
         dest: '<%= config.ide.client.out %>/js',
-        options: { module: 'amd' }
+        options: {
+          module: 'amd',
+          references: ["typings/browser.d.ts"]
+        }
       },
       nodejs: {
         src: ['../buildsystem/**/*.ts', '../ide/server/**/*.ts'],
         dest: '<%= config.out %>',
-        options: { module: 'commonjs' }
+        options: {
+          module: 'commonjs',
+          references: ["typings/node.d.ts"]
+        }
       }
     },
     //
@@ -144,6 +149,13 @@ module.exports = function (grunt) {
           append: '});'
         },
         files: [{ src: "node_modules/bootstrap/dist/js/bootstrap.js", dest: "<%= config.ide.client.out %>/js/bootstrap.js" }]
+      },
+      term: {
+        options: {
+          prepend: "define(function (require, exports, module) {",
+          append: '});'
+        },
+        files: [{ src: "node_modules/term.js/src/term.js", dest: "<%= config.ide.client.out %>/js/term.js" }]
       },
     },
     //
@@ -261,6 +273,7 @@ module.exports = function (grunt) {
     grunt.log.writeln('Creating electron package.json');
     require('fs').writeFile('out/package.json', JSON.stringify({
       name: "electron",
+      "private": true,
       productName: "Electron",
       main: "ide/electron/main.js",
       dependencies: pkgjson.dependencies,
@@ -298,6 +311,7 @@ module.exports = function (grunt) {
   ]);
   grunt.registerTask('ide', [
     'surround:bootstrap',
+    'surround:term',
     'copy:ide', // Dependencies & Setup
     'jade:ide', // HTML
     'sass:ide', // CSS

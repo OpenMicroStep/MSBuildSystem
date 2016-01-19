@@ -1,5 +1,3 @@
-/// <reference path="../../typings/browser.d.ts" />
-
 import IDE = require('../client/IDE');
 
 var globals: {
