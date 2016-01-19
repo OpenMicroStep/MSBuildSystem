@@ -253,7 +253,11 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     var t0 = BuildSystem.util.timeElapsed("Build graph");
     var g = new Async(null, Async.once((p) => { this.obj.buildGraph(p, options); }));
     this.graph = (p) => {
-      p.setFirstElements([g, (p) => { p.context.root = g.context.root; p.continue(); }]);
+      p.setFirstElements([g, (p) => {
+        p.context.error = g.context.error;
+        p.context.root = g.context.root;
+        p.continue();
+      }]);
       p.continue();
     };
     p.setFirstElements([
@@ -340,7 +344,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     p.setFirstElements([
       this.graph,
       (p) => {
-        var g = p.context.root;
+        var g: BuildSystem.Graph = p.context.root;
         if (g) {
           if (g.state === BuildSystem.Task.State.RUNNING) { p.context.error = "task is already running"; p.continue(); return; }
           var missing = false;
@@ -358,7 +362,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
           g.start(type === "clean" ? BuildSystem.Task.Action.CLEAN : BuildSystem.Task.Action.RUN, () => {
             this.isrunning = false;
             t0();
-            p.context.response = true;
+            p.context.response = g.errors;
             p.continue();
           });
         }
@@ -434,7 +438,8 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
       targets: this.obj.targets,
       dependencies: this.obj.dependencies,
       runs: this.obj.runs,
-      variants: ["debug", "release"]
+      variants: ["debug", "release"],
+      error: this.obj.error
     };
   }
 }

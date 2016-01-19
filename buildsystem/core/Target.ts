@@ -5,6 +5,7 @@ import Graph = require('./Graph');
 import BuildSession = require('./BuildSession');
 import Barrier = require('./Barrier');
 import path = require('path');
+var fs = require('fs-extra');
 
 var targetClasses = [];
 class Target extends Graph {
@@ -24,14 +25,15 @@ class Target extends Graph {
     super({ type: "target", name: info.name, environment: env.name, variant: options.variant, workspace: workspace.path }, graph);
     this.info = info;
     this.workspace = workspace;
-    this.taskspath = options.taskspath;
-    this.intermediates = path.join(options.buildpath, env.directories.intermediates, options.variant, env.name);
-    this.outputBasePath = path.join(options.buildpath, env.directories.output, options.variant, env.name);
+    this.taskspath = path.join(options.buildpath, "tasks");
+    this.intermediates = path.join(options.buildpath, "intermediates", info.name);
+    this.outputBasePath = options.outputBasePath;
     this.output = path.join(this.outputBasePath, env.directories.target[this.classname]);
     this.modifiers = [];
     this.env = env;
     this.variant = options.variant;
     this.targetName = this.info.name;
+    fs.ensureDirSync(this.taskspath);
   }
 
   storagePath(task: Task) {

@@ -90,6 +90,8 @@ class Workspace extends replication.DistantObject {
       (p) => {
         if (p.context.result)
           p.context.result = this._loadGraph(p.context.result);
+        else
+          this._graph = null;
         this._signal("build", { progress: 1.0, warnings: 0, errors: p.context.result ? 0 : 1, state: "graph", working: false });
         //async.run(null, [this.taskInfos.bind(this)]);
         p.continue();
@@ -148,7 +150,10 @@ class Workspace extends replication.DistantObject {
       this.graph.bind(this),
       (p) => {
         var g = p.context.result;
-        this._start(p, [g.id], "build");
+        if (g)
+          this._start(p, [g.id], "build");
+        else
+          p.continue();
       }
     ]);
     p.continue();
@@ -218,8 +223,8 @@ class Workspace extends replication.DistantObject {
             return;
           }
           var pendings = this._build.pendings;
-          if (!p.context.result && this._build.errors == 0)
-            this._build.errors = 1;
+          if (p.context.result !== 0 && this._build.errors == 0)
+            this._build.errors += p.context.result;
           var e = { progress: 1.0, warnings: this._build.warnings, errors: this._build.errors, state: type, working: false };
           this._build = null;
           this._signal("build", e);
@@ -361,24 +366,24 @@ module Workspace {
     }
 
     ontaskend(e) {
-      var diags = e.data && e.data.diagnostics;
-      if (diags) {
-        this._setdiagnostics(() => {
-          this.selfWarnings = 0;
-          this.selfErrors = 0;
-          var diagsAfterMerge = [];
-          var diagnostics = Workspace.diagnostics;
-          for (var i=0,len= diags.length; i < len; ++i) {
-            var diag = diags[i];
-            if (diag.type === "warning")
-              this.selfWarnings++;
-            else if (diag.type === "error")
-              this.selfErrors++;
-            diagsAfterMerge.push(diagnostics.add(diag, this));
-          }
-          return diagsAfterMerge;
-        });
-      }
+      var diags = (e.data && e.data.diagnostics) || [];
+      this._setdiagnostics(() => {
+        this.selfWarnings = 0;
+        this.selfErrors = 0;
+        var diagsAfterMerge = [];
+        var diagnostics = Workspace.diagnostics;
+        for (var i=0,len= diags.length; i < len; ++i) {
+          var diag = diags[i];
+          if (diag.type === "warning")
+            this.selfWarnings++;
+          else if (diag.type === "error")
+            this.selfErrors++;
+          diagsAfterMerge.push(diagnostics.add(diag, this));
+        }
+        if (this.selfErrors === 0 && e.data.errors > 0)
+          this.selfErrors += e.data.errors;
+        return diagsAfterMerge;
+      });
     }
   }
 

@@ -50,6 +50,7 @@ class Workspace {
   public files:FileTree;
   public dependencies: Workspace.Dependency[];
   public runs: Workspace.Run[];
+  public error: string;
 
   constructor(directory) {
     this.directory = directory;
@@ -58,18 +59,25 @@ class Workspace {
   }
 
   reload() {
-    var Module = require('module');
-    var m = new Module(this.path, null);
-    m.load(this.path);
-    var settings = m.exports;
-    this.name = settings.name || "Unnamed";
-    this.environments = settings.environments || [];
-    this.targets = settings.targets || [];
-    this.files = settings.files || [];
-    this.dependencies = settings.dependencies || [];
-    this.runs = settings.runs || [];
-    prepareFiles(this.files);
-    this.loadEnvironments();
+    this.error = null;
+    try {
+      var Module = require('module');
+      var m = new Module(this.path, null);
+      m.load(this.path);
+      var settings = m.exports;
+      this.name = settings.name || "Unnamed";
+      this.environments = settings.environments || [];
+      this.targets = settings.targets || [];
+      this.files = settings.files || [];
+      this.dependencies = settings.dependencies || [];
+      this.runs = settings.runs || [];
+      prepareFiles(this.files);
+      this.loadEnvironments();
+    }
+    catch(e) {
+      console.error("reload failed", this.path, e, e.stack);
+      this.error = e;
+    }
   }
 
   private static workspaces = {};
@@ -147,6 +155,8 @@ class Workspace {
     var done = new Set();
     this.environments.forEach((env) => {
       if (env.contains) return;
+      if (!env.name && env.env)
+        env.name = env.env;
       envs.set(env.name, env);
     });
 
@@ -161,8 +171,6 @@ class Workspace {
       }
       _.defaults(env, {
         directories: {
-          intermediates: ".intermediates",
-          output: "out",
           publicHeaders: "include",
           target: {
             "Library": "lib",
@@ -198,11 +206,13 @@ class Workspace {
       var targets = options.targets || [];
       var environments = options.environments || [];
       var variants = options.variants || ["debug"];
+      var outputdir = options.outputdir || "/opt/microstep/$environment/$variant";
       variants.forEach((variant) => {
         var context = {
           root: root,
           environments: new Map<string, Map<string, Target>>(),
           variant: variant,
+          outputdir: outputdir,
         }
         this.targets.forEach((targetInfo) => {
           this.checkTargetInfo(targetInfo);
@@ -232,30 +242,48 @@ class Workspace {
 
   protected _targetEnvironments(targetInfo: Workspace.TargetInfo) : Set<Workspace.Environment> {
     var environments = new Set<any>();
-    var findByName = (name) => {
-      var e = this.environments.find((e) => { return e.name === name; });
-      if (e && e.contains)
-          e.contains.forEach(findByName);
-      else if (e)
-          environments.add(e);
+    if (targetInfo.environments) { // the target support a limited list of environments
+      var findByName = (name) => {
+        var e = this.environments.find((e) => { return e.name === name; });
+        if (e && e.contains)
+            e.contains.forEach(findByName);
+        else if (e)
+            environments.add(e);
+      }
+      targetInfo.environments.forEach(findByName);
     }
-    targetInfo.environments.forEach(findByName);
+    else { // Target supports all environments
+      this.environments.forEach((e) => {
+        if (e && !e.contains)
+          environments.add(e);
+      });
+    }
     return environments;
   }
+  protected _buildTargetTask(targetInfo: Workspace.TargetInfo, env: Workspace.Environment, context: { root: Graph, environments: Map<string, Map<string, Target>>, variant: string, outputdir: string }) : Target {
+    try {
+      return this.__buildTargetTask.apply(this, arguments);
+    } catch(e) {
+      if (!(e instanceof Error))
+        e = new Error(e);
+      e.message = targetInfo.name + " | " + env.name + " | " + context.variant + ": " + e.message;
+      throw e;
+    }
+  }
 
-  protected _buildTargetTask(targetInfo: Workspace.TargetInfo, env: Workspace.Environment, context: { root: Graph, environments: Map<string, Map<string, Target>>, variant: string }) : Target {
+  protected __buildTargetTask(targetInfo: Workspace.TargetInfo, env: Workspace.Environment, context: { root: Graph, environments: Map<string, Map<string, Target>>, variant: string, outputdir: string }) : Target {
     var targetsInEnv = context.environments.get(env.name);
     if (!targetsInEnv)
       context.environments.set(env.name, targetsInEnv = new Map<string, Target>());
     var target = targetsInEnv.get(targetInfo.name);
     if (!target) {
       console.trace("Building target dependency graph (env=%s, target=%s)", env.name, targetInfo.name);
+      var outputdir = context.outputdir.replace('$variant', context.variant).replace('$environment', env.name);
       var options = {
-        buildpath: path.join(this.directory, ".build"),
-        taskspath: path.join(this.directory, ".build", 'tasks'),
+        outputBasePath: outputdir,
+        buildpath: path.join(outputdir, ".build"),
         variant: context.variant
       };
-      fs.ensureDirSync(options.taskspath);
       var target = Target.createTarget(context.root, targetInfo, env, this, options);
       if(!target)
         throw new Error("Unable to create target of type " + targetInfo.type);
@@ -274,25 +302,23 @@ class Workspace {
         if (dep.workspace) {
           var depInfo = this.dependencies.find((d) => { return d.name === dep.workspace; });
           if (!depInfo)
-            throw new Error("Dependency workspace '" + dep.workspace + "' not found");
+            throw new Error(`Dependency workspace '${dep.workspace}' not found`);
           var depPath = depInfo.path;
           if (path.isAbsolute(depPath))
             depWorkspace = Workspace.getShared(depPath);
           else
             depWorkspace = Workspace.getShared(path.join(this.directory, depPath));
-          var depEnvName = depInfo.environments[env.name];
-          if (!depEnvName)
-            throw new Error("Dependency '" + dep.workspace + "' environment name for '" + env.name + "' not found");
+          var depEnvName = (depInfo.environments && depInfo.environments[env.name]) || env.name;
           depEnv = depWorkspace.environments.find((e) => { return e.name === depEnvName && !e.contains; });
           if (!depEnv)
-            throw new Error("Dependency environment '" + depEnvName + "' not found");
+            throw new Error(`Dependency environment '${depEnvName}' not found for '${dep.workspace}'`);
         }
 
         var depTargetInfo = depWorkspace.targets.find(function (targetInfo) {
           return targetInfo.name === dep.target;
         });
         if (!depTargetInfo)
-          throw("Dependency '" + dep.target + "' not found");
+          throw new Error("Dependency '" + dep.target + "' not found");
         target.addDependency(depWorkspace._buildTargetTask(depTargetInfo, depEnv, context));
       });
     }
@@ -318,7 +344,8 @@ module Workspace {
   export interface BuildGraphOptions {
     targets?: string[],
     environments?: string[],
-    variants?: string[]
+    variants?: string[],
+    outputdir?: string,
   };
   export interface BuildGraphCallback {
     (err: Error, graph?:Graph): any;
@@ -352,7 +379,8 @@ module Workspace {
   }
 
   export interface Environment {
-    name: string;
+    name?: string;
+    env: string;
     arch: string;
     platform: string;
     api: string;
