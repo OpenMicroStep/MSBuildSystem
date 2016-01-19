@@ -19,7 +19,7 @@ type MenuItemOptions = {
   enabled?: boolean;
   visible?: boolean;
   checked?: boolean;
-  submenu?: MenuItemOptions[];
+  submenu?: MenuItemOptions[] | (() => MenuItemOptions[]);
 }
 
 var remote = globals.electron && globals.electron.remote;
@@ -30,18 +30,96 @@ function isNative() {
   return !!(nativeMenu && nativeMenuItem);
 }
 
+
+var menus: { menu: HTMLElement, clear: () => void }[] = [];
+var onclear = new Set<() => void>();
+var menusParent = document.createElement('div');
+menusParent.className = "menus";
+document.body.appendChild(menusParent);
+
+function popup(menu: HTMLElement, r: ClientRect, side: string, clear?: () => void) : string {
+  menusParent.appendChild(menu);
+  var rw = $(menu).width();
+  var rh = $(menu).height();
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var c = document.createElement('div');
+  if (side === "right" && r.right + rw > w)
+    side = "left";
+
+  if (side === 'bottom') {
+    c.className = "menu-bottom";
+    menu.style.top = r.bottom + "px";
+    menu.style.left = r.left + "px";
+  }
+  else if (side === 'top') {
+    c.className = "menu-top";
+    menu.style.bottom = h - r.top + "px";
+    menu.style.left = r.left + "px";
+  }
+  else if (side === 'right' || side === "left") {
+    c.className = "menu-" + side;
+    if (side === 'right')
+      menu.style.left = r.right + "px";
+    else
+      menu.style.left = r.left - rw + "px";
+    if (r.top + rh > h && r.bottom + h/2 > h) {
+      menu.style.maxHeight = r.top - 15 + "px";
+      menu.style.bottom = h - r.bottom + "px";
+    }
+    else {
+      menu.style.top = r.top + "px";
+      menu.style.maxHeight = h - r.top - 15 + "px";
+    }
+  }
+  menu.style.display = "block";
+  c.appendChild(menu);
+  menusParent.appendChild(c);
+  menus.push({ menu: c, clear: clear });
+  return side;
+}
+
+var _clear = () => {
+  onclear.forEach((c) => { c(); })
+  clear(0);
+};
+var clear = (lvl: number) => {
+  if (!menus.length) return;
+  for (var i = lvl; i < menus.length; ++i) {
+    var m = menus[i];
+    $(m.menu).remove();
+    if (m.clear)
+      m.clear();
+  }
+  if (menus.length > lvl)
+    menus.length = lvl;
+};
+var keydown = (e) => {
+  if (!menus.length) return;
+  if (!/(38|40|27|32)/.test(e.which)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  _clear();
+};
+document.addEventListener('contextmenu', _clear, true);
+document.addEventListener('click', _clear, true);
+window.addEventListener('blur', _clear, false);
+document.addEventListener('keydown', keydown, true);
+
 class Menu {
   nativeMenu;
   domMenu: HTMLElement;
+  lastSide: string;
 
-  constructor(menu: MenuItemOptions[], allowBindings: boolean) {
-    if (isNative()) {
+  constructor(menu: MenuItemOptions[], allowBindings: boolean, allowNative = true) {
+    if (isNative() && allowNative) {
       this.nativeMenu = new nativeMenu();
       menu.forEach((opts) => {
         this.nativeMenu.append(this._buildNativeMenuItem(opts, allowBindings));
       });
     }
     else {
+      this.lastSide = "right";
       this.domMenu = document.createElement('ul');
       menu.forEach((opts) => {
         this._buildDomMenuItem(opts, allowBindings, this.domMenu, 0);
@@ -62,7 +140,6 @@ class Menu {
   }
   _buildDomMenuItem(opts: MenuItemOptions, allowBindings: boolean, parent: HTMLElement, level : number) {
     var dropdown, name, subMenu, subItems;
-    subItems = opts.submenu || [];
     dropdown = document.createElement('li');
     parent.appendChild(dropdown);
 
@@ -100,23 +177,45 @@ class Menu {
     if (opts.click)
       name.addEventListener('click', opts.click, false);
 
-    if (subItems.length) {
-      dropdown.className = level == 0 ? "dropdown" : "dropdown-submenu";
+    var subs =  [];
+    if (opts.submenu)
+      subs = (typeof opts.submenu === "function" ? (<any>opts.submenu)() : opts.submenu) || [];
+    this._buildDomMenuItemSubs(dropdown, subs, allowBindings, level);
+    return dropdown;
+  }
 
-      if (level == 0) {
-        name.setAttribute("data-toggle", "dropdown");
-        name.setAttribute("aria-haspopup", "true");
-        name.setAttribute("aria-expanded", "false");
-      }
-
-      subMenu = document.createElement("ul");
-      subMenu.className = "dropdown-menu";
-      dropdown.appendChild(subMenu);
-
-      for (var sub of subItems) {
-        this._buildDomMenuItem(sub, allowBindings, subMenu, level + 1);
-      }
+  _buildDomSubmenu(subs: MenuItemOptions[], allowBindings, level: number) {
+    var subMenu = document.createElement("ul");
+    subMenu.className = "dropdown-menu";
+    for (var sub of subs) {
+      this._buildDomMenuItem(sub, allowBindings, subMenu, level + 1);
     }
+    return subMenu;
+  }
+
+  _pop(dropdown: HTMLElement, subs: MenuItemOptions[], allowBindings, level: number) {
+    if (!subs || !subs.length) return;
+    var subMenu = this._buildDomSubmenu(subs, allowBindings, level);
+    clear(level + 1);
+    var r = dropdown.getBoundingClientRect();
+    $(dropdown).addClass('open');
+    this.lastSide = popup(subMenu, r, level == 0 ? "right" : this.lastSide, () => {
+      $(dropdown).removeClass('open');
+    });
+  }
+
+  _buildDomMenuItemSubs(dropdown: HTMLElement, subs: MenuItemOptions[], allowBindings, level: number) {
+    if (subs.length > 0)
+      $(dropdown).prepend('<i class="fa fa-fw fa-lg fa-caret-right dropdown-caret"></i>');
+    var hover = false;
+    dropdown.addEventListener('mouseover', () => {
+      if (hover) return;
+      hover = true;
+      this._pop(dropdown, subs, allowBindings, level);
+    }, false);
+    dropdown.addEventListener('mouseleave', () => {
+      hover = false;
+    }, false);
   }
 
   _buildNativeKeyBind(keyBind) {
@@ -139,10 +238,14 @@ class Menu {
     }
     if (allowBindings && opts.bindKey)
       native.accelerator = this._buildNativeKeyBind(opts.bindKey);
+    var subs =  [];
     if (opts.submenu)
-      native.submenu = opts.submenu.map((opts) => {
+      subs = (typeof opts.submenu === "function" ? (<any>opts.submenu)() : opts.submenu) || [];
+    if (subs.length) {
+      native.submenu = subs.map((opts) => {
         return this._buildNativeMenuItem(opts, allowBindings);
       });
+    }
     return native;
   }
   _buildNativeMenuItem(opts: MenuItemOptions, allowBindings: boolean) {
@@ -153,6 +256,7 @@ class Menu {
 export class TitleMenu extends Menu {
   commands;
   keyBinding;
+  open: boolean;
 
   constructor(defaultCommands, menu: MenuItemOptions[], ide, nonNativeCb: (menu: HTMLElement) => void) {
     applicationMenu = this;
@@ -188,6 +292,7 @@ export class TitleMenu extends Menu {
       return exec.apply(this, arguments);
     };
     this.commands.on("exec", (e) => { return ide.startOperation(e); });
+    this.open = false;
     super(menu, true);
     if (this.nativeMenu) {
       this.nativeMenu.append(new nativeMenuItem({ label: 'Dev', submenu: [ {
@@ -204,6 +309,47 @@ export class TitleMenu extends Menu {
     else {
       this.domMenu.className = "nav menu-title";
       nonNativeCb(this.domMenu);
+    }
+  }
+
+  _pop(dropdown: HTMLElement, subs: MenuItemOptions[], allowBindings, level: number) {
+    if (!subs || !subs.length) return;
+    var subMenu = this._buildDomSubmenu(subs, allowBindings, level);
+    clear(level);
+    var r = dropdown.getBoundingClientRect();
+    $(dropdown).addClass('open');
+    popup(subMenu, r, level == 0 ? 'bottom' : 'right', () => {
+      $(dropdown).removeClass('open');
+    });
+  }
+
+  _buildDomMenuItemSubs(dropdown: HTMLElement, subs: MenuItemOptions[], allowBindings, level: number) {
+    if (level == 0) {
+      dropdown.addEventListener('click', (e) => {
+        if (this.open) return;
+        this.open = true;
+        var c = () => {
+          this.open = false;
+          onclear.delete(c);
+        };
+        onclear.add(c)
+        this._pop(dropdown, subs, allowBindings, level);
+        e.preventDefault();
+        dropdown.blur();
+      }, false);
+      var hover = false;
+      dropdown.addEventListener('mouseover', () => {
+        if (hover) return;
+        hover = true;
+        if (this.open)
+          this._pop(dropdown, subs, allowBindings, level);
+      }, false);
+      dropdown.addEventListener('mouseleave', () => {
+        hover = false;
+      }, false);
+    }
+    else {
+      super._buildDomMenuItemSubs(dropdown, subs, allowBindings, level);
     }
   }
 
@@ -233,37 +379,7 @@ export class ContextMenu extends Menu {
 
   popup(x: number, y: number) {
     if (this.domMenu) {
-      document.body.appendChild(this.domMenu);
-      var rw = $(this.domMenu).width();
-      var rh = $(this.domMenu).height();
-      var w = window.innerWidth;
-      var h = window.innerHeight;
-      this.domMenu.style.left = Math.min(x, w - rw - 5) + "px";
-      if (y + rh + 15 > h && y > h / 2) {
-        this.domMenu.style.bottom = (h - y) + "px";
-        this.domMenu.style.maxHeight = (y - 15) + "px";
-      }
-      else {
-        this.domMenu.style.top = y + "px";
-        this.domMenu.style.maxHeight = (h - y - 15) + "px";
-      }
-      (<any>$(this.domMenu)).dropdown('toggle');
-      var clear = () => {
-        document.removeEventListener('contextmenu', clear, true);
-        document.removeEventListener('click', clear, true);
-        document.removeEventListener('keydown', keydown, true);
-        document.body.removeChild(this.domMenu);
-        $(this.domMenu).empty();
-      };
-      var keydown = (e) => {
-        if (!/(38|40|27|32)/.test(e.which)) return;
-        e.preventDefault();
-        e.stopPropagation();
-        clear();
-      };
-      document.addEventListener('contextmenu', clear, true);
-      document.addEventListener('click', clear, true);
-      document.addEventListener('keydown', keydown, true);
+      popup(this.domMenu, { top:y, bottom:y, height:0, right: x, left:x, width: 0 }, "right");
     }
     else {
       console.log(this.nativeMenu);
@@ -272,14 +388,29 @@ export class ContextMenu extends Menu {
   }
 }
 
+export class Dropdown extends Menu {
+  constructor(menu: MenuItemOptions[]) {
+    super(menu, false, false);
+    this.domMenu.className += "dropdown-menu menu-contextmenu";
+  }
+
+  showRelativeToElement(element: HTMLElement, side = "right") {
+    popup(this.domMenu, element.getBoundingClientRect(), side);
+  }
+}
+
 export var applicationMenu: TitleMenu = null;
 
 export function bindContextMenuTo(el: HTMLElement, cb: () => MenuItemOptions[]) {
-  el.addEventListener("contextmenu", function(event) {
+  el.addEventListener("contextmenu", createContextMenuEvent(cb), true);
+}
+
+export function createContextMenuEvent(cb: () => MenuItemOptions[]) {
+  return function(event: MouseEvent) {
     event.preventDefault();
     var opts = cb();
-    if (!opts) return;
+    if (!opts || !opts.length) return;
     var menu = new ContextMenu(opts);
     menu.popup(event.clientX, event.clientY);
-  }, true);
+  };
 }
