@@ -14,3 +14,4 @@ export import WorkspaceGraphView    = require('./views/WorkspaceGraphView');
 export import WorkspaceTreeView     = require('./views/WorkspaceTreeView');
 export import GoToFile              = require('./views/GoToFile');
 export import SearchInFiles         = require('./views/SearchInFiles');
+export import TerminalView          = require('./views/TerminalView');

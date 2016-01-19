@@ -2,9 +2,24 @@ import path = require('path');
 import BuildSystem = require('../../buildsystem/BuildSystem');
 import WorkspaceFile = require('./WorkspaceFile');
 import replication = require('./replication');
+import Terminal = require('./Terminal');
 import fs = require('fs');
 import Async = BuildSystem.core.Async;
 
+var errors = {
+  buildGraphMissing: {
+    code: "buildGraphMissing",
+    msg: "buildGraph wasn't called before taskInfo"
+  },
+  buildRunning: {
+    code: "buildRunning",
+    msg: "another task is already running"
+  },
+  runnerMissing: {
+    code: "runnerMissing",
+    msg: "runner not found"
+  }
+}
 function taskInnerRUNCFGData(task: BuildSystem.Task, cb: (data) => void) {
   var s = task.getStorage();
   s.load(function() {
@@ -55,7 +70,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   graph: (p: Async) => void;
   $childtaskend;
 
-  private static workspaces = {};
+  static workspaces = {};
 
   /**
    * Get a shared across the whole process file.
@@ -209,6 +224,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     fs.writeFile(path.join(this.obj.directory, ".userdata"), JSON.stringify(data, null, 2), 'utf8', (err) => {
       if (!err) pool.context.response = true;
       else pool.context.error = err;
+      this.clearGraph();
       pool.continue();
     });
   }
@@ -219,7 +235,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     pool.continue();
   }
 
-  buildGraph(p: Async, options: BuildSystem.Workspace.BuildGraphOptions) {
+  clearGraph() {
     if (this.graph) {
       Async.run(null, [
         this.graph,
@@ -229,7 +245,11 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
           p.continue();
         }
       ]);
+      this.graph = null;
     }
+  }
+
+  buildGraph(p: Async, options: BuildSystem.Workspace.BuildGraphOptions) {
     var t0 = BuildSystem.util.timeElapsed("Build graph");
     var g = new Async(null, Async.once((p) => { this.obj.buildGraph(p, options); }));
     this.graph = (p) => {
@@ -255,7 +275,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   }
 
   taskInfos(p: Async) {
-    if (!this.graph) { p.context.error = "buildGraph wasn't called before taskInfo"; p.continue(); return; }
+    if (!this.graph) { p.context.error = errors.buildGraphMissing; p.continue(); return; }
     p.setFirstElements([
       this.graph,
       (p) => {
@@ -286,7 +306,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   }
 
   taskInfo(p: Async, taskId) {
-    if (!this.graph) { p.context.error = "buildGraph wasn't called before taskInfo"; p.continue(); return; }
+    if (!this.graph) { p.context.error = errors.buildGraphMissing; p.continue(); return; }
     p.setFirstElements([
       this.graph,
       (p) => {
@@ -313,9 +333,9 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     WorkspaceFile.getShared(pool, path.isAbsolute(filepath) ? filepath : path.join(this.obj.directory, filepath));
   }
 
-  start(p: Async, taskIds: string[]) {
-    if (this.isrunning) {p.context.error = "another task is already running"; p.continue(); return ;}
-    if (!this.graph) { p.context.error = "buildGraph wasn't called before taskInfo"; p.continue(); return; }
+  start(p: Async, taskIds: string[], type) {
+    if (this.isrunning) {p.context.error = errors.buildRunning; p.continue(); return ;}
+    if (!this.graph) { p.context.error = errors.buildGraphMissing; p.continue(); return; }
 
     p.setFirstElements([
       this.graph,
@@ -335,7 +355,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
           BuildSystem.core.File.clearStats();
           this.isrunning = true;
           tasks.forEach((t) => { t.enable(); });
-          g.start(BuildSystem.Task.Action.RUN, () => {
+          g.start(type === "clean" ? BuildSystem.Task.Action.CLEAN : BuildSystem.Task.Action.RUN, () => {
             this.isrunning = false;
             t0();
             p.context.response = true;
@@ -345,6 +365,50 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
         else { p.continue(); }
       }
     ]);
+    p.continue();
+  }
+
+  run(p: Async, run, env, variant) {
+    if (!this.graph) { p.context.error = errors.buildGraphMissing; return p.continue(); }
+    var runner = this.obj.runs.find((r) => { return r.name === run; });
+    if (!runner) { p.context.error = errors.runnerMissing; return p.continue(); }
+    console.info("will run", run, env, variant);
+    p.setFirstElements([
+      this.graph,
+      (p) => {
+        var g: BuildSystem.Graph = p.context.root;
+        if (g) {
+          var err = [];
+          var expand = (what) => {
+            if (typeof what === "string")
+              return what;
+            if (what.target) {
+              var target: any = g.findTask(false, (t: any) => {
+                return t.name.name === what.target
+                    && t.name.environment === env
+                    && t.name.variant === variant
+              });
+              if (target)
+                return target.sysroot.linkFinalPath(target);
+            }
+            err.push(what);
+          };
+          var path = expand(runner.path);
+          var args = runner.arguments ? runner.arguments.map(expand) : [];
+          //args.unshift(path);
+          console.info("run", path, args);
+          if (err.length == 0)
+            p.context.response = new Terminal(path, args);
+          p.continue();
+        }
+        else { p.continue(); }
+      }
+    ]);
+    p.continue();
+  }
+
+  terminal(p: Async) {
+    p.context.response = new Terminal("bash", ["-l"]);
     p.continue();
   }
 
@@ -368,7 +432,9 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
       path: this.obj.path,
       environments: this.obj.environments,
       targets: this.obj.targets,
-      dependencies: this.obj.dependencies
+      dependencies: this.obj.dependencies,
+      runs: this.obj.runs,
+      variants: ["debug", "release"]
     };
   }
 }

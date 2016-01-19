@@ -1,8 +1,10 @@
 import {replication, events, async, util, globals} from '../core';
 import WorkspaceFile = require('./WorkspaceFile');
+import Terminal = require('./Terminal');
 import * as diagnostics from './diagnostics';
 import Async = async.Async;
 var forceLoadWorkspaceFile = WorkspaceFile;
+var forceLoadTerminal = Terminal;
 
 function isEnabled(list: string[], g: Workspace.Graph) {
   return !list || list.indexOf(g.name.name) !== -1;
@@ -13,12 +15,14 @@ class Workspace extends replication.DistantObject {
   directory: string;
   name: string;
   files: diagnostics.FileInfo[];
-  targets;
-  environments;
-  dependencies;
+  targets: any[];
+  environments: any[];
+  dependencies: any[];
+  runs: any[];
+  variants: string[];
   _tasks: Map<string, Workspace.Graph>;
   _graph: (p: Async) => void;
-  _build: { pendings: (()=> void)[], progress: number, nb: number, warnings: number, errors: number };
+  _build: { pendings: (()=> void)[], progress: number, nb: number, warnings: number, errors: number, type: string };
 
   static diagnostics: diagnostics.DiagnosticsByPath = new diagnostics.DiagnosticsByPath();
   static workspaces = new Set<Workspace>();
@@ -48,14 +52,14 @@ class Workspace extends replication.DistantObject {
     this.environments = e.environments;
     this.targets = e.targets;
     this.dependencies = e.dependencies;
+    this.runs = e.runs;
+    this.variants = e.variants;
   }
 
-  outofsync(f: Async) {
-    replication.socket.emit('rootWorkspace', (workspace: replication.DistantObjectProtocol) => {
+  outofsync(p: Async) {
+    replication.socket.emit('workspace', this.directory, (workspace: replication.DistantObjectProtocol) => {
       this.changeId(workspace.id);
-      console.log(workspace.data);
-      this.initWithData(workspace.data);
-      this.loadDependencies(f);
+      p.continue();
     });
   }
 
@@ -80,13 +84,13 @@ class Workspace extends replication.DistantObject {
   buildGraph(p: Async, options) {
     var a = new Async(null, Async.once([
       (p) => {
-        this._signal("build", { progress: 0.0, warnings: 0, errors: 0, state: "graph" });
+        this._signal("build", { progress: 0.0, warnings: 0, errors: 0, state: "graph", working: true });
         this.remoteCall(p, "buildGraph", options);
       },
       (p) => {
         if (p.context.result)
           p.context.result = this._loadGraph(p.context.result);
-        this._signal("build", { progress: 1.0, warnings: 0, errors: p.context.result ? 0 : 1, state: "graph" });
+        this._signal("build", { progress: 1.0, warnings: 0, errors: p.context.result ? 0 : 1, state: "graph", working: false });
         //async.run(null, [this.taskInfos.bind(this)]);
         p.continue();
       }
@@ -144,16 +148,37 @@ class Workspace extends replication.DistantObject {
       this.graph.bind(this),
       (p) => {
         var g = p.context.result;
-        this._start(p, [g.id]);
+        this._start(p, [g.id], "build");
       }
     ]);
     p.continue();
   }
 
-  start(p: Async, taskIds: string[]) {
+  run(p: Async, run, env, variant) {
+    var runner = this.runs.find((r) => { return r.name == run; });
+    if (!runner || !env) {
+      p.context.error = "Unable to find runner";
+      p.continue();
+      return;
+    }
+    this.remoteCall(p, "run", run, env, variant);
+  }
+
+  clean(p: Async) {
     p.setFirstElements([
       this.graph.bind(this),
-      (p) => { this._start(p, taskIds); }
+      (p) => {
+        var g = p.context.result;
+        this._start(p, [g.id], "clean");
+      }
+    ]);
+    p.continue();
+  }
+
+  start(p: Async, taskIds: string[], type = "build") {
+    p.setFirstElements([
+      this.graph.bind(this),
+      (p) => { this._start(p, taskIds, type); }
     ]);
     p.continue();
   }
@@ -174,23 +199,37 @@ class Workspace extends replication.DistantObject {
     return nb;
   }
 
-  _start(p: Async, taskIds: string[]) {
+  _start(p: Async, taskIds: string[], type) {
     if (this._build) {
-      this._build.pendings.push(() => { this._start(p, taskIds); });
+      this._build.pendings.push(() => { this._start(p, taskIds, type); });
     }
     else {
-      var nb = this._counttasks(taskIds);
-      this._build = { pendings: [], progress: 0, nb: nb, warnings: 0, errors: 0 };
-      p.setFirstElements((p) => {
-        var pendings = this._build.pendings;
-        var e = { progress: 1.0, warnings: this._build.warnings, errors: this._build.errors, state: "done" };
-        this._build = null;
-        this._signal("build", e);
-        pendings.forEach((fn) => { fn(); });
-        p.continue();
-      });
-      this._signal("build", { progress: 0.0, warnings: 0, errors: 0, state: "build" });
-      this.remoteCall(p, "start", taskIds);
+      var start = (p: Async, taskIds, type) => {
+        var nb = this._counttasks(taskIds);
+        this._build = { pendings: [], progress: 0, nb: nb, warnings: 0, errors: 0, type: type };
+        p.setFirstElements((p) => {
+          if (p.context.error && p.context.error.code === "buildGraphMissing") {
+            this._graph = null;
+            p.setFirstElements([
+              this.graph.bind(this),
+              (p) => { start(p, taskIds, type); }
+            ]);
+            p.continue();
+            return;
+          }
+          var pendings = this._build.pendings;
+          if (!p.context.result && this._build.errors == 0)
+            this._build.errors = 1;
+          var e = { progress: 1.0, warnings: this._build.warnings, errors: this._build.errors, state: type, working: false };
+          this._build = null;
+          this._signal("build", e);
+          pendings.forEach((fn) => { fn(); });
+          p.continue();
+        });
+        this._signal("build", { progress: 0.0, warnings: 0, errors: 0, state: type, working: true });
+        this.remoteCall(p, "start", taskIds, type);
+      }
+      start(p, taskIds, type);
     }
   }
 
@@ -221,7 +260,7 @@ class Workspace extends replication.DistantObject {
       this._build.progress++;
       this._build.warnings += task ? task.selfWarnings : 0;
       this._build.errors += task ? task.selfErrors : 0;
-      this._signal("build", { progress: this._build.progress / this._build.nb, warnings: this._build.warnings, errors: this._build.errors, state: "build" });
+      this._signal("build", { progress: this._build.progress / this._build.nb, warnings: this._build.warnings, errors: this._build.errors, state: this._build.type, working: true });
     }
   }
 

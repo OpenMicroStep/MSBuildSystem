@@ -49,6 +49,7 @@ class Workspace {
   public targets:Workspace.TargetInfo[];
   public files:FileTree;
   public dependencies: Workspace.Dependency[];
+  public runs: Workspace.Run[];
 
   constructor(directory) {
     this.directory = directory;
@@ -66,6 +67,7 @@ class Workspace {
     this.targets = settings.targets || [];
     this.files = settings.files || [];
     this.dependencies = settings.dependencies || [];
+    this.runs = settings.runs || [];
     prepareFiles(this.files);
     this.loadEnvironments();
   }
@@ -341,6 +343,12 @@ module Workspace {
     configure?:(target:Target) => Error;
     exports?: TargetExportInfo;
     deepExports?: TargetExportInfo
+  }
+
+  export interface Run {
+    name: string;
+    path: string | { target: string };
+    arguments: (string | { target: string })[];
   }
 
   export interface Environment {

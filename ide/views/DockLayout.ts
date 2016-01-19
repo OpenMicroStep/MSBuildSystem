@@ -125,12 +125,12 @@ function appendViewTo(to: DockLayout.DockTabLayout | DockLayout.DockBoxLayout, v
       parent.appendView(to, 1.0);
     }
     var tab = new DockLayout.DockTabLayout(to.parent);
-    tab.appendView(view, true);
     var p = <DockLayout.DockBoxLayout>to.parent;
     var idx = p.findView(to);
-    // assert(idx != 0)
     idx += isAppend[position] ? +1 : 0;
     p.insertView(tab, 0.25, idx);
+    tab.appendView(view, true);
+    // assert(idx != 0)
   }
 }
 

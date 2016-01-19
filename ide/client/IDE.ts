@@ -1,6 +1,6 @@
 declare function require(module);
 import views = require('../views');
-import {menu, globals, async} from '../core';
+import {menu, globals, async, replication} from '../core';
 import Workspace = require('./Workspace');
 import WorkspaceFile = require('./WorkspaceFile');
 import Async = async.Async;
@@ -35,6 +35,7 @@ var defaultCommands= [
   { name:"find.findinfiles"        , bindKey: { win: "Ctrl-Shift-F", mac: "Command-Shift-F" } },
   { name:"workspace.showbuildgraph" },
   { name:"workspace.showsettings"   },
+  { name:"view.openterminal"        },
   { name:"editor.ace.touppercase"  , bindKey: { win: "Ctrl-K Ctrl-U", mac: "Command-K Command-U" } },
   { name:"editor.ace.tolowercase"  , bindKey: { win: "Ctrl-K Ctrl-L", mac: "Command-K Command-L" } },
 ];
@@ -63,11 +64,14 @@ var menus = [
       { label: "Lower case", command: "editor.ace.tolowercase"         },
     ]},
   ]},
+  {id: "view", label: "View", submenu: [
+    { label: "Open terminal"      , command: "view.openterminal"       },
+  ]},
   {id: "workspace", label: "Workspace", submenu: [
     { label: "Settings"           , command: "workspace.showsettings"  },
     { label: "Build Graph"        , command: "workspace.showbuildgraph"},
     { label: "Build"              , command: "workspace.build"         },
-    { label: "Run (TODO)"         , command: "workspace.run"           },
+    { label: "Run"                , command: "workspace.run"           },
   ]},
   {id: "settings", label: "Preferences", submenu: [
     { label: "Settings (TODO)" }
@@ -89,38 +93,137 @@ var throttle = function(type, name, obj?) {
 };
 
 class IDEStatus extends views.View {
-  $statusContent: JQuery; $progression; $build; $run; $clean;
-  status: { label: string, warnings: number, errors: number, progression: number }
+  $statusContent: JQuery; $progression; $build; $run; $clean; $runner;
+  status: { label: string, warnings: number, errors: number, progression: number };
+  runners: { runner: {name: string}, workspace: Workspace, envs: string[] }[];
+  runner; env; variant;
 
   constructor(ide: IDE) {
     super();
     this.el.className = "navbar-status";
     var btngroup = $('<div class="btn-group"/>').appendTo(this.$el);
     var status = $('<div class="ide-status"/>').appendTo(btngroup);
-    this.$statusContent = $('<div/>').appendTo(status);
+    this.$statusContent = $('<div><i class="fa fa-circle-o-notch fa-spin"></i></div>').appendTo(status);
 
     var progress = $('<div class="progress-line">').appendTo(status);
     this.$progression = $('<div/>').appendTo(progress);
     this.$build = $('<button class="btn btn-default" title="Build"><i class="fa fa-cogs"></i></button>').appendTo(btngroup);
-    this.$run = $('<button class="btn btn-default" title="Run"><i class="fa fa-play"></i></button>').appendTo(btngroup);
     this.$clean = $('<button class="btn btn-default" title="Clean"><i class="fa fa-recycle"></i></button>').appendTo(btngroup);
+    this.$runner = $('<button class="btn btn-default" title="Current run"></button>').appendTo(btngroup);
+    this.$run = $('<button class="btn btn-default" title="Run"><i class="fa fa-play"></i></button>').appendTo(btngroup);
     this.status = { label: "", warnings: 0, errors: 0, progression: 0 };
+    this.runner = null;
+    this.runners = [];
     this.$build.click(() => { async.run(null, (p) => { ide.build(p); }); });
-    //this.$run.click(() => { async.run(null, (p) => { ide.run(p); }); });
-    //this.$clean.click(() => { async.run(null, (p) => { ide.clean(p); }); });
+    this.$clean.click(() => { async.run(null, (p) => { ide.clean(p); }); });
+    this.$runner.click(() => {
+      var dropdown = new menu.Dropdown(this.runners.map((r) => {
+        return {
+          label: r.runner.name,
+          click: this.setRunner.bind(this, r, null, null),
+          checked: r === this.runner,
+          submenu: () => { return r.envs.map((e) => {
+            return {
+              label: e,
+              click: this.setRunner.bind(this, r, e, null),
+              checked: r === this.runner && this.env === e,
+              submenu: () => { return r.workspace.variants.map((v) => {
+                return {
+                  label: v,
+                  type: "checkbox",
+                  click: this.setRunner.bind(this, r, e, v),
+                  checked: r === this.runner && this.env === e && this.variant === v
+                }
+              });}
+            }
+          });}
+        }
+      }));
+      dropdown.showRelativeToElement(this.$runner[0], 'bottom');
+    });
+    this.$run.click(ide.tryDoAction.bind(ide, { name: "workspace.run" }));
+    ide.workspace.on('build', (e) => {
+      var lbl;
+      if (e.state === "build")
+        lbl = e.working ? "Building..." : (e.errors ? "Build failed" : "Build succeeded");
+      else if (e.state === "graph")
+        lbl = "Creating build graph...";
+      else if (e.state === "clean")
+        lbl = e.working ? "Cleaning..." : (e.errors ? "Clean failed" : "Clean succeeded");
+
+      this.setStatus({
+        label: lbl,
+        progression: e.progress,
+        warnings: e.warnings,
+        errors: e.errors,
+      });
+    });
   }
 
-  setStatus(status: { label?: string, warnings?: number, errors?: number, progression?: number }) {
+  _changes(list: string[], o, n) {
     var change = false;
-    ["label", "warnings", "errors", "progression"].forEach((k) => {
+    list.forEach((k) => {
       var x;
-      if ((x = status[k]) !== void 0 && x !== this.status[k]) {
-        this.status[k] = x;
+      if ((x = n[k]) !== void 0 && x !== o[k]) {
+        o[k] = x;
         change= true;
       }
     });
-    if (change)
+    return change;
+  }
+
+  setStatus(status: { label?: string, warnings?: number, errors?: number, progression?: number, error?: any }) {
+    if (status.error) {
+      status.label = typeof status.error === "string" ? status.error : status.error.msg;
+      status.errors = this.status.errors + 1;
+    }
+    if (this._changes(["label", "warnings", "errors", "progression"], this.status, status))
       this.renderStatus();
+  }
+
+  setRunner(r, e, v) {
+    this.runner = r;
+    this.env = e ? e : (r ? r.envs.find((re) => { return re == e; }) || r.envs[0] : null);
+    this.variant = v ? v : (this.variant || r.workspace.variants[0]);
+    this.$runner
+      .text(r ? r.runner.name : "No runner")
+      .attr("title", r ? (r.runner.name + " | " + (this.env || "No environment") + " | " + (this.variant || "No variant")) : "No runner")
+  }
+
+  loadRunners(w: Workspace) {
+    this.runners = [];
+    var ws = new Set<Workspace>();
+    var load = (w: Workspace) => {
+      if (ws.has(w)) return;
+      ws.add(w);
+      w.runs.forEach((r) => {
+        var envs = new Set<string>();
+        if (r.dependencies) {
+          var resolve = (envname) => {
+            var e = w.environments.find((e) => { return e.name === envname; });
+            if (e && e.contains)
+              e.contains.forEach(resolve);
+            else if (e)
+              envs.add(e.name);
+          }
+          r.dependencies.forEach((d: string) => {
+            var t = w.targets.find((t) => { return t.name === d });
+            if (t && t.environments) {
+              t.environments.forEach(resolve);
+            }
+          });
+        }
+        this.runners.push({
+          runner: r,
+          workspace: w,
+          envs: Array.from(envs)
+        });
+      });
+      w.dependencies.forEach((d) => { load(d.workspace); });
+    }
+    load(w);
+    console.log("runners", this.runners);
+    this.setRunner(this.runners[0], null, null);
   }
 
   renderStatus() {
@@ -167,37 +270,35 @@ class IDE extends views.View {
     this.render();
 
     this.workspace = new Workspace();
-    this.workspace.on('build', (e) => {
-      var lbl;
-      if (e.state === "done")
-        lbl = (e.errors ? "Build failed" : "Build succeeded");
-      else if (e.state === "graph")
-        lbl = "Creating build graph...";
-      else
-        lbl = "Building...";
-
-      this._status.setStatus({
-        label: lbl,
-        progression: e.progress,
-        warnings: e.warnings,
-        errors: e.errors,
-      });
+    replication.socket.emit('rootWorkspace', (workspace) => {
+      this.workspace.changeId(workspace.id);
+      console.log(workspace.data);
+      this.workspace.initWithData(workspace.data);
+      Async.run(null, [
+        this.workspace.loadDependencies.bind(this.workspace),
+        (p) => {
+          this._status.setStatus({ label: "Idle" });
+          this.treeView = new views.WorkspaceTreeView(this.workspace);
+          this.content.main.appendViewTo(this.treeView, views.DockLayout.Position.LEFT);
+          this._status.loadRunners(this.workspace);
+        }
+      ]);
     });
-    (new Async(null, [
-      this.workspace.outofsync.bind(this.workspace),
-      (p) => {
-        this.treeView = new views.WorkspaceTreeView(this.workspace);
-        this.content.main.appendViewTo(this.treeView, views.DockLayout.Position.LEFT);
-      }
-    ])).continue();
 
     this._serverstatus = document.createElement('i');
     this._serverstatus.className = "fa fa-fw fa-circle";
+    this._serverstatus.title = "Connection status";
     top.appendChild(this._serverstatus);
+    $(this._serverstatus).toggleClass("text-danger", !replication.socket.connected);
+    replication.socket.on('connect', () => {
+      $(this._serverstatus).removeClass('text-danger');
+    });
+    replication.socket.on('disconnect', () => {
+      $(this._serverstatus).addClass('text-danger');
+    });
 
     this._status = new IDEStatus(this);
     this._status.appendTo(top);
-    this._status.setStatus({ label: "Idle" });
 
     this.menu = new menu.TitleMenu(defaultCommands, menus, this, (el) => {
       top.insertBefore(el, this._serverstatus);
@@ -219,6 +320,11 @@ class IDE extends views.View {
         var files
         async.run(null, this.build.bind(this));
         return true;
+      case 'workspace.run':
+        var status = this._status;
+        if (status.runner && status.env && status.variant)
+            async.run(null, (p) => { this.run(p, status.runner.runner.name, status.env, status.variant); });
+        return true;
       case 'workspace.showsettings':
         this.openSettings(this.workspace);
         return true;
@@ -232,11 +338,21 @@ class IDE extends views.View {
       case 'find.findinfiles':
         this.content.createViewIfNecessary(views.SearchInFiles, []);
         return true;
+      case 'view.openterminal':
+        async.run(null, [
+          (p) => { this.workspace.remoteCall(p, "terminal"); },
+          (p) => {
+            var tty = p.context.result;
+            this.content.createViewIfNecessary(views.TerminalView, [tty]);
+            tty.spawn(p);
+          }
+        ]);
+        return true;
     }
     return false;
   }
 
-  build(p: Async) {
+  saveFiles(p: Async) {
     var s = [];
     this._openFiles.forEach((once) => {
       s.push(new Async(null, [
@@ -250,11 +366,46 @@ class IDE extends views.View {
         }
       ]));
     });
+    p.setFirstElements([s]);
+    p.continue();
+  }
+
+  build(p: Async) {
     p.setFirstElements([
-      s,
-      this.workspace.build.bind(this.workspace)
+      this.saveFiles.bind(this),
+      this.workspace.build.bind(this.workspace),
+      (p) => {
+        if (p.context.error)
+          this._status.setStatus({ label: p.context.error, errors: 1 });
+        p.continue();
+      }
     ]);
     p.continue();
+  }
+
+  run(p: Async, runner: string, env: string, variant: string) {
+    p.setFirstElements([
+      this.build.bind(this),
+      (p) => {
+        this.workspace.run(p, runner, env, variant);
+      },
+      (p) => {
+        if (p.context.error)
+          this._status.setStatus({ error: p.context.error });
+        else {
+          var run = p.context.result;
+          this.content.createViewIfNecessary(views.TerminalView, [run]);
+          run.spawn(p);
+        }
+        p.continue();
+      }
+    ]);
+    p.continue();
+  }
+
+
+  clean(p: Async) {
+    this.workspace.clean(p);
   }
 
   find(p: Async, options: FindOptions) {
@@ -272,9 +423,13 @@ class IDE extends views.View {
         (p) => { this.workspace.remoteCall(p, "openFile", path); },
         (p) => {
           var file: WorkspaceFile = p.context.result;
-          var workspace = Workspace.workspaces[file.path];
+          var workspace = null;
+          Workspace.workspaces.forEach((w) => { if (w.path === file.path) workspace = w; });
           if (workspace) {
-            file.on('saved', () => { async.run(null, workspace.reload.bind(this)); });
+            file.on('saved', () => { async.run(null, [
+              workspace.reload.bind(workspace),
+              workspace.loadDependencies.bind(workspace),
+            ]); });
           }
           file.on('destroy', () => {
             this._openFiles.delete(path);
