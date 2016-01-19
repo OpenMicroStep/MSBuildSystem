@@ -23,24 +23,34 @@ class WorkspaceDepsTreeItem extends TreeItemView {
 }
 
 class WorkspaceTreeItem extends TreeItemView {
-  $ondiagnostic;
+  $ondiagnostic; $reload; name: Text;
 
   constructor(public workspace: Workspace) {
     super();
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-briefcase";
     this.nameContainer.appendChild(icon);
-    this.nameContainer.appendChild(document.createTextNode(this.workspace.name));
+    this.nameContainer.appendChild(this.name = document.createTextNode(this.workspace.name));
     this.nameContainer.setAttribute('title', this.workspace.path);
     this.nameContainer.addEventListener("click", () => {
        globals.ide.openSettings(this.workspace);
     });
-    this.removeChildItems();
     this.setCanExpand(true);
+    this.removeChildItems();
     Workspace.diagnostics.on("diagnostic", this.$ondiagnostic = this.ondiagnostic.bind(this));
+    this.workspace.on('reload', this.$reload = this.reload.bind(this));
+  }
+
+  reload() {
+    this.name.data = this.workspace.name;
+    if (this.state === TreeItemView.State.EXPANDED) {
+      this.collapse();
+      this.expand();
+    }
   }
 
   destroy() {
+    this.workspace.off('reload', this.$reload);
     Workspace.diagnostics.off("diagnostic", this.$ondiagnostic);
     super.destroy();
   }
@@ -236,14 +246,6 @@ class WorkspaceTreeView extends ContentView {
     this.root.expand();
     this.root.appendTo(this.el);
     this.titleEl.appendChild(document.createTextNode("Workspace"));
-    workspace.on('reload', this.reload.bind(this));
-  }
-  reload() {
-    var w = this.root.workspace;
-    this.root.destroy();
-    this.root = new WorkspaceTreeItem(w);
-    this.root.expand();
-    this.root.appendTo(this.el);
   }
 
   getChildViews() {

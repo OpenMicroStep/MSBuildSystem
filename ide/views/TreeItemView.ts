@@ -9,6 +9,8 @@ enum State {
 }
 
 class TreeItemView extends View {
+  static State = State;
+
   nameContainer: HTMLElement;
   caret: HTMLElement;
   childsContainer: HTMLElement;
