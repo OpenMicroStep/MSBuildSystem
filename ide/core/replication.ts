@@ -18,6 +18,7 @@ interface Flux<T> extends Async {
   context: { result: T; error: any; };
 }
 
+var pendings = new Set<(err, res?) => void>();
 var instances: {[s: string]: DistantObject} = {};
 var classes: {[s: string]: any} = {};
 export function registerClass(cls: string, ctor) {
@@ -45,6 +46,10 @@ var reconnectPool = new Async(null, (p) => {
   var o: DistantObject = p.context.obj;
   o.remoteCall(p, "reconnect");
 });
+socket.on('disconnect', function() {
+  pendings.forEach((p) => { p("connection lost"); });
+  pendings.clear();
+})
 socket.on('connect', function() {
   for(var k in instances) {
     if (instances.hasOwnProperty(k)) {
@@ -114,7 +119,9 @@ export class DistantObject implements events.EventEmitter {
   outofsync(p: Async) { p.continue(); }
 
   private _replicate(p: Async, type: string, ...args) {
-    socket.emit(type, this.id, ...args, (err, res) => {
+    p.context.error = null;
+    p.context.result = null;
+    var pending = (err, res) => {
       if (err == 404) {
         if (!this._outofsync) {
           this._outofsync = Async.once([
@@ -126,6 +133,7 @@ export class DistantObject implements events.EventEmitter {
           this._outofsync,
           (p) => {
             socket.emit(type, this.id, ...args, (err, res) => {
+              pendings.delete(pending);
               if (err) p.context.error = err;
               else p.context.result = decode(res);
               p.continue();
@@ -135,11 +143,14 @@ export class DistantObject implements events.EventEmitter {
         p.continue();
       }
       else {
+        pendings.delete(pending);
         if (err) p.context.error = err;
         else p.context.result = decode(res);
         p.continue();
       }
-    });
+    };
+    pendings.add(pending);
+    socket.emit(type, this.id, ...args, pending);
   }
 
   remoteCall<T>(p: Async, fn: string, ...args) {

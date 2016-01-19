@@ -18,19 +18,19 @@ type SocketInfo = {
 
 export function registerSocket(socket: Socket) : SocketInfo {
   var info: SocketInfo = { socket: socket, replicatedObjects: new Set<ServedObject<any>>() };
-  socket.on('repcall', info._repcall = function(id, fn, args, cb) {
-    cb = arguments[arguments.length - 1];
+  socket.on('repcall', info._repcall = function(id, fn, _args, _cb) {
+    var cb = arguments[arguments.length - 1];
     var o = objectWithId(id);
     if (o) {
       if (!info.replicatedObjects.has(o)) {
         o.addListener(info);
         info.socket.emit('reprec', o.id, o.reconnectData());
       }
-      args= [];
+      var args= [];
       for(var i = 2, end = arguments.length - 1; i < end; ++i) {
         args.push(arguments[i]);
       }
-      o.handleCall(info, cb, fn, ...args);
+      o.handleCall(info, cb, fn, args);
     }
     else cb(404);
   });
@@ -92,9 +92,16 @@ export class ServedObject<T> {
     this.obj = obj;
   }
 
+  register() {
+    registerObject(this);
+  }
+  unregister() {
+    unregisterObject(this);
+  }
+
   addListener(info: SocketInfo) {
     if (this.listeners.size === 0)
-      registerObject(this);
+      this.register();
     this.listeners.add(info.socket);
     info.replicatedObjects.add(this);
   }
@@ -102,7 +109,7 @@ export class ServedObject<T> {
     this.listeners.delete(info.socket);
     info.replicatedObjects.delete(this);
     if (this.listeners.size === 0)
-      unregisterObject(this);
+      this.unregister();
   }
 
   broadcast(evt: string, e?: any) {
@@ -132,10 +139,10 @@ export class ServedObject<T> {
     return null;
   }
 
-  handleCall(socket: SocketInfo, cb: (err:string, ret?: any) => any, fn: string, ...args) {
+  handleCall(socket: SocketInfo, cb: (err: any, ret?: any) => any, fn: string, args: any[]) {
     var f = this[fn];
     if (typeof f !== "function")
-      return cb(fn + " is not a function");
+      return cb({ code: "missingfn", msg: fn + " is not a function", args: [fn] });
     var pool = new async.Async({ socket: socket.socket }, [
       (p) => {
         args.unshift(p);
@@ -145,7 +152,7 @@ export class ServedObject<T> {
         if (p.context.response !== void 0)
           cb(null, encode(socket, p.context.response));
         else
-          cb(p.context.error || "unknown error");
+          cb(p.context.error || { code: "unknown", msg: "unknown error" });
       }
     ]);
     pool.continue();
@@ -168,6 +175,4 @@ export class ServedObject<T> {
     });
   }
 }
-
-MSTools.defineHiddenConstant(ServedObject.prototype, 'isa', 'ServedObject');
 
