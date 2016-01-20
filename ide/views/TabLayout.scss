@@ -4,6 +4,13 @@ $tablayout-tabspadding: 4px;
 $tablayout-tabsheight: 26px;
 $tablayout-tabsborder: 1px;
 
+@mixin tabborder($background-color, $border-color) {
+  border-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='36' height='26'>"
+    +"<path d='M0 26 C 9 26, 5 0, 16 0 L20 0 C 31 0, 27 26, 36 26 L 0 26 Z' fill='%23" + str-slice(""+ $background-color, 2) + "'/>"
+    +"<path d='M0 26 C 9 26, 5 0.5, 16 0.5 L20 0.5 C 31 0.5, 27 26, 36 26' stroke='%23" + str-slice(""+ $border-color, 2) + "' fill='none'/>"
+  +"</svg>") 26 16 0 fill stretch;
+}
+
 .tablayout {
   @include pos-absolute(0,0,0,0);
 }
@@ -18,25 +25,43 @@ $tablayout-tabsborder: 1px;
 }
 
 .tablayout-tab {
+  position:relative;
   cursor: default;
   display: inline-block;
+  vertical-align: top;
   margin: 0 6px;
   padding: 4px;
-  background:#F6F6F6;
   height: $tablayout-tabsheight - $tablayout-tabsborder;
-  vertical-align: top;
-  border: 1px solid $border-color;
+}
+.tablayout-tab:first-child {
+  margin-left: 12px;
 }
 
 .tablayout-tabs > div {
-    height: 26px;
+  height: 26px;
 }
 
-.tablayout-tab.active, .tablayout-tab.placeholder {
-  background: $active-color;
+.tablayout-tab::before {
+  content: '';
+  z-index: -1;
+  position: absolute;
+  top: 0;
+  bottom:-1px;
+  left: -12px;
+  right: -12px;
+  border-style: solid;
+  border-width: 26px 16px 0px;
+  @include tabborder($disable-color, $border-color);
+}
+.tablayout-tab.active {
+  z-index: 1;
+}
+.tablayout-tab.active::before {
+  @include tabborder($background-color, $border-color);
 }
 
 .tablayout-tab.placeholder {
+  z-index: 2;
   width: 100px;
   pointer-events: none;
 }
@@ -62,14 +87,21 @@ $tablayout-tabsborder: 1px;
     left: 0;
     background: linear-gradient(to right, #f6f6f6 75%, rgba(192,192,192,0) 100%)
 }
-
+.tablayout-tabs::after {
+  content: '';
+  display: block;
+  background: $border-color;
+}
 .tablayout-top > .tablayout-tabs {
   @include pos-absolute($tablayout-tabspadding,0,auto,0);
   height: $tablayout-tabsheight;
-  border-bottom: $tablayout-tabsborder solid $border-color;
 }
 .tablayout-top > .tablayout-content {
   @include pos-absolute($tablayout-tabsheight + $tablayout-tabspadding,0,0,0);
+}
+.tablayout-top > .tablayout-tabs::after {
+  @include pos-absolute(auto,0,0,0);
+  height: 1px;
 }
 .tablayout-top > .tablayout-tabs > div > .tablayout-tab {
   border-bottom: 0;
@@ -78,7 +110,6 @@ $tablayout-tabsborder: 1px;
 .tablayout-right > .tablayout-tabs {
   @include pos-absolute(0,$tablayout-tabspadding,0,auto);
   width: $tablayout-tabsheight;
-  border-left: $tablayout-tabsborder solid $border-color;
 }
 .tablayout-right > .tablayout-content {
   @include pos-absolute(0,$tablayout-tabsheight + $tablayout-tabspadding,0,0);
@@ -88,24 +119,33 @@ $tablayout-tabsborder: 1px;
   transform: rotate(0.25turn);
   transform-origin: bottom left;
 }
+.tablayout-right > .tablayout-tabs::after {
+  @include pos-absolute(0,0,0,auto);
+  width: 1px;
+}
 
 .tablayout-bottom > .tablayout-tabs {
   @include pos-absolute(auto,0,$tablayout-tabspadding,0);
   height: $tablayout-tabsheight;
-  border-top: $tablayout-tabsborder solid $border-color;
 }
-
 .tablayout-bottom > .tablayout-content {
   @include pos-absolute(0,0,$tablayout-tabsheight + $tablayout-tabspadding,0);
 }
 .tablayout-bottom > .tablayout-tabs > div > .tablayout-tab {
   border-top: 0;
 }
+.tablayout-bottom > .tablayout-tabs::after {
+  @include pos-absolute(0,0,auto,0);
+  height: 1px;
+}
+.tablayout-bottom > .tablayout-tabs > div > .tablayout-tab::before {
+  transform: rotate(0.5turn);
+  transform-origin: 50% 50%;
+}
 
 .tablayout-left > .tablayout-tabs {
   @include pos-absolute(0,auto,0,$tablayout-tabspadding);
   width: $tablayout-tabsheight;
-  border-right: $tablayout-tabsborder solid $border-color;
 }
 .tablayout-left > .tablayout-content {
   @include pos-absolute(0,0,0,$tablayout-tabsheight + $tablayout-tabspadding);
@@ -114,6 +154,10 @@ $tablayout-tabsborder: 1px;
   margin-top: - $tablayout-tabsheight;
   transform: rotate(0.25turn);
   transform-origin: bottom left;
+}
+.tablayout-right > .tablayout-tabs::after {
+  @include pos-absolute(0,auto,0,0);
+  width: 1px;
 }
 .tablayout-left > .tablayout-tabs > div > .tablayout-tab {
   transform: rotate(0.5turn);
