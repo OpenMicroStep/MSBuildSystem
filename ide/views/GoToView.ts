@@ -43,9 +43,13 @@ class GoToView extends core.View {
     return el;
   }
 
+  focus() {
+    this.inputEl.focus();
+  }
+
   attach() {
     document.body.appendChild(this.el);
-    this.inputEl.focus()
+    this.focus()
   }
 
   moveSelection(nb: number) {

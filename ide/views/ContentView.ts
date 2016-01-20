@@ -16,7 +16,7 @@ class ContentView extends View {
 
   destroy() {
     super.destroy();
-    if (globals.ide.focus === this)
+    if (globals.ide._focus === this)
       globals.ide.setCurrentView(null);
   }
 

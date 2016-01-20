@@ -35,6 +35,7 @@ class GoToFile extends GoToView {
     var results = [];
     Workspace.workspaces.forEach((w) => {
       searchInFiles(this.str, w, w.files, results);
+      searchInFiles(this.str, w, [{ file: 'make.js' }], results);
     })
     return this.str.length > 0 ? results.sort(sortSearchResult) : results;
   }
@@ -42,6 +43,10 @@ class GoToFile extends GoToView {
   createItem(result: any) : HTMLElement {
     var el = super.createItem(result);
     var b = document.createElement('b');
+    var w = document.createElement('span');
+    w.className = "pull-right";
+    w.textContent = result.workspace.name;
+    el.appendChild(w)
     el.appendChild(b);
     core.util.appendStringDistanceToElement(b, this.str, core.util.pathBasename(result.path));
     el.appendChild(document.createElement('br'));

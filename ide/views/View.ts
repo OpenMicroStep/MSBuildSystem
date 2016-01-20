@@ -32,6 +32,10 @@ class View extends EventEmitter {
     this.$el = jQuery(this.el);
   }
 
+  focus() {
+
+  }
+
   detach() {
     var parentNode = this.el.parentNode;
     if (parentNode)

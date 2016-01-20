@@ -244,7 +244,7 @@ class IDEStatus extends views.View {
 class IDE extends views.View {
   workspace: Workspace;
   content: views.DockLayout;
-  focus: views.View;
+  _focus: views.View;
   commands: AceAjax.CommandManager;
   keyBinding: AceAjax.KeyBinding;
   menu: menu.TitleMenu;
@@ -252,6 +252,7 @@ class IDE extends views.View {
   _openFiles: Map<string, Async>;
   _serverstatus: HTMLElement;
   _status: IDEStatus;
+  _gotofile: views.GoToFile;
 
   constructor() {
     super();
@@ -311,7 +312,7 @@ class IDE extends views.View {
   }
 
   setCurrentView(view: views.View) {
-    this.focus = view;
+    this._focus = view;
   }
 
   tryDoAction(command) {
@@ -332,8 +333,14 @@ class IDE extends views.View {
         this.openBuildGraph(this.workspace);
         return true;
       case 'file.gotofile':
-        var v = new views.GoToFile();
-        v.attach();
+        if (!this._gotofile) {
+          this._gotofile = new views.GoToFile();
+          this._gotofile.attach();
+          this._gotofile.once('destroy', () => { this._gotofile = null });
+        }
+        else {
+          this._gotofile.focus();
+        }
         return true;
       case 'find.findinfiles':
         this.content.createViewIfNecessary(views.SearchInFiles, []);
@@ -460,7 +467,7 @@ class IDE extends views.View {
   }
 
   exec(command) {
-    if (!this.focus || !this.focus.tryDoAction(command))
+    if (!this._focus || !this._focus.tryDoAction(command))
       this.tryDoAction(command);
   }
 
