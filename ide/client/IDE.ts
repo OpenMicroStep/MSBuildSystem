@@ -197,8 +197,9 @@ class IDEStatus extends views.View {
       if (ws.has(w)) return;
       ws.add(w);
       w.runs.forEach((r) => {
-        var envs = new Set<string>();
+        var commonenvs: Set<string> = null;
         if (r.dependencies) {
+          var envs = null;
           var resolve = (envname) => {
             var e = w.environments.find((e) => { return e.name === envname; });
             if (e && e.contains)
@@ -209,14 +210,23 @@ class IDEStatus extends views.View {
           r.dependencies.forEach((d: string) => {
             var t = w.targets.find((t) => { return t.name === d });
             if (t && t.environments) {
+              envs= new Set<string>();
               t.environments.forEach(resolve);
+              if (!commonenvs)
+                commonenvs = envs;
+              else {
+                Array.from(commonenvs).forEach((env) => {
+                  if (!envs.has(env))
+                    commonenvs.delete(env);
+                });
+              }
             }
           });
         }
         this.runners.push({
           runner: r,
           workspace: w,
-          envs: Array.from(envs)
+          envs: Array.from(commonenvs)
         });
       });
       w.dependencies.forEach((d) => { load(d.workspace); });
