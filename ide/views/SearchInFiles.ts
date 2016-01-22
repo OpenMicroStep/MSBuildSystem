@@ -126,16 +126,51 @@ class SearchInFiles extends core.ContentView {
   }
 
   find() {
-    core.async.run(null, [
-      (p) => { core.globals.ide.find(p, this.options()); },
-      (p) => { this.setResults(p.context.result); }
-    ]);
+    this._findOrReplace(false);
   }
 
   replace() {
+    this._findOrReplace(true);
+  }
+
+  _findOrReplace(replace) {
     core.async.run(null, [
-      (p) => { core.globals.ide.replace(p, this.options()); },
-      (p) => { this.setResults(p.context.result); }
+      (p) => {
+        var options = this.options();
+        var opts = [];
+        if (options.regexp) opts.push("regex");
+        if (options.casesensitive) opts.push("case sensitive");
+        if (options.wholeword) opts.push("whole word");
+        if (options.showcontext) opts.push("context");
+        var result = "Searching for " + options.searchtext + " inworkspaces files" + opts.join(', ') + "\n\n";
+        this.setResults(result);
+        core.globals.ide[replace ? "replace" : "find"](p, this.options());
+      },
+      (p) => {
+        if (p.context.result && p.context.result.search) {
+          this.setResults(p.context.result.search);
+          if (replace && p.context.result.replacements) {
+            var replacements = p.context.result.replacements;
+            replacements.forEach((r) => {
+              core.async.run(null, [
+                (p) => { core.globals.ide.openFile(p, r.path); },
+                (p) => {
+                  var ed: AceAjax.Editor = p.context.view && p.context.view.editor;
+                  var session: AceAjax.IEditSession = ed.getSession();
+                  if (ed) {
+                    for(var i = r.replacements.length; i > 0;) {
+                      var replacement = r.replacements[--i];
+                      var range = new EditorView.Range(replacement.row, replacement.col, replacement.row, replacement.col + replacement.length);
+                      session.replace(range, replacement.text);
+                    }
+                  }
+                  p.continue();
+                }
+              ])
+            });
+          }
+        }
+      }
     ]);
   }
 

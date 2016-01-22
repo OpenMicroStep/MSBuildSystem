@@ -127,6 +127,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     var searchtext = options.regexp ? options.searchtext : escapeRegExp(options.searchtext);
     if (options.wholeword) searchtext = "\\b" + searchtext + "\\b";
     var rx = new RegExp(searchtext, options.casesensitive ? "g": "gi");
+    var replacerx = replace? new RegExp(searchtext, options.casesensitive ? "g": "gi") : null;
     var matches = 0;
     var matchFiles = 0;
     var printline = (pad: string, row: number, line: string, context: boolean) => {
@@ -134,9 +135,11 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
       result += pad.substring(0, pad.length - r.length) + r;
       result += (context ? "  " : ": ") + line + "\n";
     }
+    var replacementsByPath = replace ? [] : null;
     var parsecontent = (path: string, content: string) => {
       var m, first= true, pad, ctxline, ctxend, last = -1;
       var lines = content.split("\n");
+      var replacements = replace ? [] : null;
       for (var i = 0, len = lines.length; i < len; ++i) {
         var line = lines[i];
         var found = false;
@@ -149,6 +152,8 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
           }
           var start = m.index;
           var end = m.index + m[0].length;
+          if (replace)
+            replacements.push({ row: i, col: start, length: end - start, text: m[0].replace(replacerx, options.replacement) });
 
           if (!found) {
             if (context > 0) {
@@ -180,6 +185,8 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
         }
         result += "\n";
       }
+      if (replacements && replacements.length)
+        replacementsByPath.push({ path: path, replacements: replacements, regexp: rx });
       next();
     }
     var next = () => {
@@ -198,7 +205,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
       }
       else {
         result += matches + " matches across " + matchFiles + " files";
-        p.context.response = result;
+        p.context.response = { search: result, replacements: replacementsByPath };
         p.continue();
       }
     }
