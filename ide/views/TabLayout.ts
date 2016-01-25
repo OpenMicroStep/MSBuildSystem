@@ -68,8 +68,8 @@ class TabLayout extends View {
   currentIdx(): number {
     return this._current ? this._current.idx : -1;
   }
-  setCurrentIdx(current:number) {
-    if (this._current && current === this._current.idx) return;
+  setCurrentIdx(current:number, force?: boolean) {
+    if (this._current && current === this._current.idx && !force) return;
     if (this._current)
       $(this._current.tab).removeClass('active');
     this._current = current >= 0 && current < this._tabs.length ? this._tabs[current] : null;
@@ -133,7 +133,7 @@ class TabLayout extends View {
     this._tabs.splice(at, 1);
     this._elTabs.removeChild(item.tab);
     if (this._current === item)
-      this.setCurrentIdx(at < this._tabs.length ? at : this._tabs.length - 1);
+      this.setCurrentIdx(at < this._tabs.length ? at : this._tabs.length - 1, true);
   }
 
   moveTab(from:number, to:number) {
