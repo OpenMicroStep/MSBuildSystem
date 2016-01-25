@@ -1,9 +1,11 @@
 import View = require('../views/View');
+import {pathBasename} from './util';
 
 type DragOptions = {
   type: string;
   mindist?: number;
   data?: any;
+  dnd?: { text: string, data: string, file: string }
   ondragstart?:(data: any) => void;
   ondragend?:(type: string,data: any) => void;
 };
@@ -58,12 +60,13 @@ function _start(event: MouseEvent, item: HTMLElement, options: DragOptions): voi
   }
 }
 */
-var dragging: { item: HTMLElement, options: DragOptions, over: HTMLElement } = null;
+var dragging: { item: HTMLElement, options: DragOptions, over: HTMLElement, dropEffect: string } = null;
 var ondragstart = [];
 var ondragend = [];
 var ondrag = [];
 
 document.addEventListener('dragover', (ev) => {
+  console.log("dragover", ev && ev.dataTransfer && ev.dataTransfer.getData("__custom"));
   if (dragging && dragging.over) {
     var rect = dragging.over.getBoundingClientRect();
     var x = ev.clientX, y = ev.clientY;
@@ -93,14 +96,21 @@ export function draggable(item: HTMLElement, options: DragOptions) {
   item.draggable = true;item.addEventListener("dragstart", (ev: DragEvent) => {
     ev.dataTransfer.effectAllowed = "moveCopy";
     ev.dataTransfer.dropEffect = "none";
+    var data = options.dnd && options.dnd.data;
+    var file = options.dnd && options.dnd.file;
+    var text = options.dnd && options.dnd.text;
     ev.dataTransfer.setData("__custom", "");
+    if (text || file)
+      ev.dataTransfer.setData("text/plain", text || file);
+    if (file)
+      ev.dataTransfer.setData("DownloadURL","application/octet-stream:" + pathBasename(file) + ":file://" + file);
     /* var dataTransfer:any = ev.dataTransfer;
     if (dataTransfer.setDragImage) {
       var blankImage = document.createElement("img");
       blankImage.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
       dataTransfer.setDragImage(blankImage, 0, 0);
     }*/
-    dragging = { item: item, options: options, over: null };
+    dragging = { item: item, options: options, over: null, dropEffect: "none" };
     if (options.ondragstart) {
       setTimeout(() => {
         options.ondragstart(options.data);
@@ -125,18 +135,18 @@ export function droppable(item: HTMLElement, options: DropOptions) {
     if (dragging && dragging.over == item) {
       dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
       dragging.over = null;
-      options.ondrop(dragging.options.data, ev.dataTransfer.dropEffect);
+      options.ondrop(dragging.options.data, dragging.dropEffect);
       ev.dataTransfer.dropEffect = "move";
       ev.preventDefault();
       ev.stopPropagation();
     }
-  }, false);
+  }, true);
   item.addEventListener('dragover', (ev) => {
     if (dragging && dragging.options.type === options.type) {
       if (dragging.over !== item && dragging.over)
         dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
       dragging.over = item;
-      ev.dataTransfer.dropEffect = options.ondragover(ev, dragging.options.data);
+      ev.dataTransfer.dropEffect = dragging.dropEffect = options.ondragover(ev, dragging.options.data);
       ev.preventDefault();
       ev.stopPropagation();
     }

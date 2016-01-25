@@ -145,6 +145,12 @@ class EditorView extends ContentView {
     return this.file === file;
   }
 
+  dragndrop() {
+    return {
+      file: this.file.path
+    };
+  }
+
   ondiagnostics(e: {diag: Workspace.Diagnostic}) {
     if (e.diag && e.diag.path === this.file.path)
       this.loadDiagnostics();

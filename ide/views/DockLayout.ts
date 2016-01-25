@@ -169,15 +169,18 @@ class DockLayout extends View implements DockLayout.DockParentView {
       ondragover: (ev, data) => {
         if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
         this.dropPlace(ev, lyplace);
-        return lyplace.place !== DockLayout.Position.MIDDLE ? dragndrop.DropAction.Move : dragndrop.DropAction.None;
+        return lyplace.place !== DockLayout.Position.MIDDLE ? (ev.altKey ? dragndrop.DropAction.Copy : dragndrop.DropAction.Move) : dragndrop.DropAction.None;
       },
       ondragexit: (ev, data) => {
         if (!lyplace.placeholder) return;
         if (lyplace.placeholder.parentNode)
           lyplace.placeholder.parentNode.removeChild(lyplace.placeholder);
       },
-      ondrop: (data) => {
-        this.appendViewTo(data.view, lyplace.place);
+      ondrop: (data, dropEffect) => {
+        var view = data.view;
+        if (dropEffect === dragndrop.DropAction.Copy)
+          view = data.view.duplicate();
+        this.appendViewTo(view, lyplace.place);
       }
     });
   }
@@ -324,7 +327,7 @@ module DockLayout {
         ondragover: (ev, data) => {
           if (!tabplaceholder) tabplaceholder = this.createPlaceholderTab();
           tabidx= this.dropTabUpdatePlaceholder(ev, tabplaceholder);
-          return dragndrop.DropAction.Move;
+          return ev.altKey ? dragndrop.DropAction.Copy : dragndrop.DropAction.Move;
         },
         ondragexit: (ev, data) => {
           if (!tabplaceholder) return;
@@ -332,8 +335,11 @@ module DockLayout {
             this._elTabs.removeChild(tabplaceholder);
           tabplaceholder = null;
         },
-        ondrop: (data) => {
-          this.insertView(data.view, tabidx, true);
+        ondrop: (data, dropEffect) => {
+          var view = data.view;
+          if (dropEffect === dragndrop.DropAction.Copy)
+            view = data.view.duplicate();
+          this.insertView(view, tabidx, true);
         }
       });
       var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
@@ -342,15 +348,18 @@ module DockLayout {
         ondragover: (ev, data) => {
         if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
           this.dropPlace(ev, lyplace);
-          return lyplace.place !== DockLayout.Position.MIDDLE ? dragndrop.DropAction.Move : dragndrop.DropAction.None;
+          return lyplace.place !== DockLayout.Position.MIDDLE ? (ev.altKey ? dragndrop.DropAction.Copy : dragndrop.DropAction.Move) : dragndrop.DropAction.None;
         },
         ondragexit: (ev, data) => {
           if (!lyplace.placeholder) return;
           if (lyplace.placeholder.parentNode)
             lyplace.placeholder.parentNode.removeChild(lyplace.placeholder);
         },
-        ondrop: (data) => {
-          this.appendViewTo(data.view, lyplace.place);
+        ondrop: (data, dropEffect) => {
+          var view = data.view;
+          if (dropEffect === dragndrop.DropAction.Copy)
+            view = data.view.duplicate();
+          this.appendViewTo(view, lyplace.place);
         }
       });
     }
@@ -414,11 +423,12 @@ module DockLayout {
       dragndrop.draggable(item.tab, {
         type: "tab",
         data: item,
+        dnd: (<any>item.view).dragndrop ? (<any>item.view).dragndrop() : null,
         ondragstart: () => {
           this.removeTab(item.idx, false, false);
         },
         ondragend: (dropped, data) => {
-          if (dropped === dragndrop.DropAction.None) {
+          if (dropped !== dragndrop.DropAction.Move) {
             this.insertView(data.view, item.idx, true);
           }
           else {
