@@ -14,13 +14,12 @@ var server = app.listen(3000, function () {
 });
 var io = socketio.listen(server);
 
-console.info("server args", process.argv);
-
-var workspace = Workspace.getShared(process.argv[2]);
 io.on('connection', function(socket){
   console.info("New connection");
   var info = replication.registerSocket(socket);
-  socket.on('rootWorkspace', function(cb) {
+  socket.on('rootWorkspace', function(path, cb) {
+    console.info("rootWorkspace", path);
+    var workspace = Workspace.getShared(path);
     cb(replication.encode(info, workspace));
   });
 });

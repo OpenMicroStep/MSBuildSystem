@@ -5,6 +5,7 @@
   "dependencies": {
     "MSTools": "git+ssh://git@192.168.40.6:MSTools.js#master",
     "ace-builds": "^1.2.2",
+    "appdirectory": "^0.1.0",
     "bootstrap": "^3.3.6",
     "bunyan": "^1.5.1",
     "chalk": "^1.0.0",

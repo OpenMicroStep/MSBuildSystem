@@ -281,10 +281,10 @@ class IDE extends views.View {
     this.render();
 
     this.workspace = new Workspace();
-    replication.socket.emit('rootWorkspace', (workspace) => {
+    replication.socket.emit('rootWorkspace', location.hash.substring(1), (workspace) => {
       this.workspace.changeId(workspace.id);
-      console.log(workspace.data);
       this.workspace.initWithData(workspace.data);
+      document.title = this.workspace.name;
       Async.run(null, [
         this.workspace.loadDependencies.bind(this.workspace),
         (p) => {
