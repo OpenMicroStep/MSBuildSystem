@@ -183,6 +183,12 @@ class EditorView extends ContentView {
       case 'file.save':
         async.run(null, this.file.save.bind(this.file));
         return true;
+      case 'edit.redo':
+        this.editor.execCommand("redo");
+        return true;
+      case 'edit.undo':
+        this.editor.execCommand("undo");
+        return true;
     }
     return super.tryDoAction(command);
   }

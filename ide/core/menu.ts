@@ -157,8 +157,7 @@ class Menu {
     if (opts.command) {
       var cmd = applicationMenu.commandWithName(opts.command);
       if (cmd) {
-        if (opts.role) {
-          cmd.native = true;
+        if (opts.role && opts.role !== "undo" && opts.role !== "redo") {
           opts.click = () => { alert("TODO: this action is only available via shortcuts"); };
         }
         else {
@@ -232,7 +231,7 @@ class Menu {
       if (cmd) {
         cmd.native = true;
         opts.bindKey = cmd.bindKey;
-        if (!opts.role)
+        if (!opts.role || opts.role === "undo" || opts.role === "redo")
           opts.click = () => { globals.ide.exec(cmd); };
       }
     }
