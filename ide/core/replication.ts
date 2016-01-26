@@ -44,7 +44,7 @@ socket.on("reprec", function(id: string, data) {
 });
 var reconnectPool = new Async(null, (p) => {
   var o: DistantObject = p.context.obj;
-  o.remoteCall(p, "reconnect");
+  o._reconnect(p);
 });
 socket.on('disconnect', function() {
   pendings.forEach((p) => { p("connection lost"); });
@@ -54,6 +54,7 @@ socket.on('connect', function() {
   for(var k in instances) {
     if (instances.hasOwnProperty(k)) {
       var d: DistantObject= instances[k];
+      console.log("reconnecting", d);
       reconnectPool.continue(null, { obj: d });
     }
   }
@@ -118,19 +119,22 @@ export class DistantObject implements events.EventEmitter {
 
   outofsync(p: Async) { p.continue(); }
 
+  _reconnect(p: Async) {
+    if (!this._outofsync) {
+      this._outofsync = Async.once([
+        this.outofsync.bind(this),
+        (p) => { this._outofsync = null; p.continue(); }
+      ]);
+    }
+    this._outofsync(p);
+  }
   private _replicate(p: Async, type: string, ...args) {
     p.context.error = null;
     p.context.result = null;
     var pending = (err, res) => {
       if (err == 404) {
-        if (!this._outofsync) {
-          this._outofsync = Async.once([
-            this.outofsync.bind(this),
-            (p) => { this._outofsync = null; p.continue(); }
-          ]);
-        }
         p.setFirstElements([
-          this._outofsync,
+          this._reconnect.bind(this),
           (p) => {
             socket.emit(type, this.id, ...args, (err, res) => {
               pendings.delete(pending);
@@ -150,7 +154,10 @@ export class DistantObject implements events.EventEmitter {
       }
     };
     pendings.add(pending);
-    socket.emit(type, this.id, ...args, pending);
+    if (this._outofsync)
+      pending(404, null);
+    else
+      socket.emit(type, this.id, ...args, pending);
   }
 
   remoteCall<T>(p: Async, fn: string, ...args) {

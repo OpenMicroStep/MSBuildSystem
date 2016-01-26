@@ -1,5 +1,6 @@
 import BoxLayout = require('./BoxLayout');
 import Workspace = require('../client/Workspace');
+import Session = require('../client/Session');
 import core = require('../core');
 import _ = require('underscore');
 
@@ -27,10 +28,10 @@ function createIcon(type: string) : HTMLElement {
 class TaskTreeItem extends core.TreeItemView {
   $ondeepcountchange;
   graph: Graph;
-  graphview: WorkspaceGraphView;
+  graphview: SessionGraphView;
   last: Node;
 
-  constructor(graph: Graph, graphview: WorkspaceGraphView) {
+  constructor(graph: Graph, graphview: SessionGraphView) {
     super();
     this.graph = graph;
     this.graphview = graphview;
@@ -41,7 +42,7 @@ class TaskTreeItem extends core.TreeItemView {
     core.menu.bindContextMenuTo(this.nameContainer, () => {
       return [{
         label: "Run",
-        click: () => { (new core.async.Async(null, (p) => { this.graphview.workspace.start(p, [graph.id]); })).continue(); }
+        click: () => { (new core.async.Async(null, (p) => { this.graphview.session.start(p, [graph.id]); })).continue(); }
       }];
     });
     if (graph.tasks && graph.tasks.length)
@@ -217,7 +218,7 @@ class WorkspaceTaskView extends core.View {
 }
 
 class WorkspaceDepsTreeItem extends core.TreeItemView {
-  constructor(public workspace: Workspace, public graphview: WorkspaceGraphView) {
+  constructor(public workspace: Workspace, public graphview: SessionGraphView) {
     super();
     var icon = document.createElement('span');
     icon.className = "glyphicon glyphicon-flash";
@@ -283,7 +284,7 @@ class WorkspaceVariantTreeItem extends core.TreeItemView {
 class WorkspaceTreeItem extends core.TreeItemView {
   $ondiagnostic; targets: { [s:string]: TaskTreeItem };
 
-  constructor(public workspace: Workspace, public graphview: WorkspaceGraphView) {
+  constructor(public workspace: Workspace, public graphview: SessionGraphView) {
     super();
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-briefcase";
@@ -327,35 +328,35 @@ class WorkspaceTreeItem extends core.TreeItemView {
 }
 
 
-class WorkspaceGraphView extends core.ContentView {
+class SessionGraphView extends core.ContentView {
   $onreload;
-  workspace: Workspace;
+  session: Session;
   workspaces: { [s: string]: { [s: string]: { [s: string]: Graph[] }}}
   layout: BoxLayout;
   taskview: WorkspaceTaskView;
   tree: TaskTreeItem;
 
-  constructor(workspace: Workspace) {
+  constructor() {
     super();
-    this.workspace = workspace;
+    this.session = core.globals.ide.session;
     this.titleEl.textContent = "Build graph";
     this.workspaces = null;
     this.taskview = new WorkspaceTaskView();
     this.layout = new BoxLayout({userCanResize:true, orientation: BoxLayout.Orientation.HORIZONTAL});
     this.layout.appendTo(this.el);
     this.layout.appendView(this.taskview, 1.0);
-    this.workspace.on('reload', this.$onreload = this.reload.bind(this));
+    this.session.on('reload', this.$onreload = this.reload.bind(this));
     this.reload();
   }
 
   destroy() {
-    this.workspace.off('reload', this.$onreload);
+    this.session.off('reload', this.$onreload);
     super.destroy();
   }
 
   reload() {
     (new core.async.Async(null, [
-      this.workspace.graph.bind(this.workspace),
+      this.session.graph.bind(this.session),
       (p) => { this.setGraph(p.context.result); p.continue(); }
     ])).continue();
   }
@@ -379,9 +380,9 @@ class WorkspaceGraphView extends core.ContentView {
     }
     this.workspaces = workspaces;
     if (!old)
-      this.layout.insertView(n= new WorkspaceTreeItem(this.workspace, this), 0.25, 0);
+      this.layout.insertView(n= new WorkspaceTreeItem(this.session.workspace, this), 0.25, 0);
     else if (this.workspaces)
-      this.layout.replaceViewAt(0, n= new WorkspaceTreeItem(this.workspace, this)).destroy();
+      this.layout.replaceViewAt(0, n= new WorkspaceTreeItem(this.session.workspace, this)).destroy();
     else
       this.layout.removePart(0, true);
     if (n) n.expand();
@@ -389,14 +390,20 @@ class WorkspaceGraphView extends core.ContentView {
 
   setTask(t: Graph) {
     (new core.async.Async(null, [
-      (p) => { this.workspace.taskInfo(p, t.id); },
+      (p) => { this.session.taskInfo(p, t.id); },
       (p) => { this.taskview.setTask(p.context.result, t); p.continue(); }
     ])).continue();
   }
 
-  isViewFor(workspace) {
-    return this.workspace === workspace;
+  isViewFor(session) {
+    return this.session === session;
+  }
+
+  data() {
+    return null;
   }
 }
 
-export = WorkspaceGraphView;
+core.ContentView.register(SessionGraphView, "sessiongraphview");
+
+export = SessionGraphView;

@@ -1,9 +1,10 @@
 var BuildSystem = require('../../buildsystem/BuildSystem');
-var Workspace = require('./Workspace');
+var Session = require('./Session');
 var replication = require('./replication');
 var express = require('express');
 var app = express();
 var socketio = require('socket.io');
+var crypto = require('crypto');
 app.use(express.static(__dirname + '/../'));
 
 var server = app.listen(3000, function () {
@@ -14,12 +15,16 @@ var server = app.listen(3000, function () {
 });
 var io = socketio.listen(server);
 
-io.on('connection', function(socket){
-  console.info("New connection");
+io.on('connection', function(socket) {
   var info = replication.registerSocket(socket);
-  socket.on('rootWorkspace', function(path, cb) {
-    console.info("rootWorkspace", path);
-    var workspace = Workspace.getShared(path);
-    cb(replication.encode(info, workspace));
+  socket.on('getsession', function(sessionid, cb) {
+    if (!(/^\w+$/.test(sessionid))) {
+      var hash = crypto.createHash('sha256');
+      hash.update(sessionid);
+      sessionid = hash.digest('hex');
+    }
+    var session = new Session(sessionid);
+    console.info("New session:" + sessionid);
+    cb(replication.encode(info, session));
   });
 });

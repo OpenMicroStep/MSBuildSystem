@@ -4,6 +4,7 @@
 body {
   background: $background-color;
   font-size: 13px;
+  @include pos-absolute(0,0,0,0);
 }
 
 body > div > .docklayout {
@@ -79,6 +80,10 @@ ul.nav.menu-title {
   margin: 0;
   z-index: 2000;
 }
+
+.dropdown-menu > li > a,
+.menu-title > li > a
+{ cursor: default; }
 
 .dropdown-menu > li.open > a {
   background: #f5f5f5;

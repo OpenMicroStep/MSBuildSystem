@@ -59,7 +59,7 @@ class GoToFile extends GoToView {
   }
 
   goTo(result: any) {
-    core.async.run(null, (p) => { result.workspace.openFile(p, result.path, result.path); });
+    core.async.run(null, (p) => { core.globals.ide.openFile(p, { path: result.workspace.filePath(result.path) }); });
     super.goTo(result);
   }
 }

@@ -10,11 +10,6 @@ enum Orientation {
   HORIZONTAL
 }
 
-interface SerializedBoxLayout extends View.SerializedView {
-  orientation: string;
-  items: View.SerializedView[];
-}
-
 /**
 DOM structure:
  <div class="boxlayout [boxlayout-horizontal or boxlayout-vertical] [boxlayout-canresize]"> <!-- BoxLayout.el -->
@@ -109,7 +104,7 @@ class BoxLayout extends  View {
     this._items.splice(at, 0, {view: view, size:0});
 
     // Sizing
-    this.rescaleItem(at, size);
+    this.rescaleItem(at, this._items.length === 1 ? 1.0 : size);
   }
 
   replaceView(oldView: View, newView: View) : View {
@@ -228,30 +223,18 @@ class BoxLayout extends  View {
         this.rescaleSep(i, orsize + diff);
         window.getSelection().removeAllRanges();
       };
-      document.addEventListener("mousemove", mvfn = function (event:MouseEvent) {
+      document.addEventListener("mousemove", mvfn = (event:MouseEvent) => {
         moved(event);
       }, true);
-      document.addEventListener("mouseup", upfn = function (event:MouseEvent) {
+      document.addEventListener("mouseup", upfn = (event:MouseEvent) => {
         if (event.button === 0) {
           moved(event);
+          this._signal("resized");
           document.removeEventListener("mousemove", mvfn, true);
           document.removeEventListener("mouseup", upfn, true);
         }
       }, true);
     }
-  }
-
-  decode(s : SerializedBoxLayout) {
-    this.orientation = Orientation[s.orientation];
-    // s.type === (<any>this.constructor).name
-  }
-  encode() : SerializedBoxLayout {
-    var r = <SerializedBoxLayout>super.encode();
-    r.orientation = Orientation[this.orientation];
-    r.items = this._items.map((item) => {
-      return item.view.encode();
-    });
-    return r;
   }
 }
 

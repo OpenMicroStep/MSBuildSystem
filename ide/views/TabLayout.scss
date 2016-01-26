@@ -41,6 +41,18 @@ $tablayout-tabsborder: 1px;
   height: 26px;
 }
 
+.tablayout-list {
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%,rgba(255,255,255,1) 25%);
+  z-index: 10;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 1px;
+  width: 24px;
+  text-align: right;
+  padding: 4px;
+}
+
 .tablayout-tab::before {
   content: '';
   z-index: -1;

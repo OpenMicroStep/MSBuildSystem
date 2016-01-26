@@ -31,6 +31,20 @@ class TabLayout extends View {
     tabs.className = "tablayout-tabs";
     this._elTabs = document.createElement('div');
     tabs.appendChild(this._elTabs);
+    var list = document.createElement('div');
+    list.className = "tablayout-list";
+    this._elTabs.appendChild(list);
+    var $caret = $('<span class="fa fa-fw fa-lg fa-caret-down"></span>').appendTo(list);
+    $caret[0].addEventListener("click", menu.createContextMenuEvent(() => {
+      var items = [];
+      this._tabs.forEach((tab) => {
+        items.push({
+          label: tab.tab.textContent,
+          click: () => {}
+        });
+      });
+      return items;
+    }), true);
 
     this._elContent = document.createElement('div');
     this._elContent.className = "tablayout-content";

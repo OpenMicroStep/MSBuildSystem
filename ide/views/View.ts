@@ -5,9 +5,6 @@ interface ViewHTMLElement extends HTMLElement {
   _view: View;
 }
 
-function parentView(parentElement: HTMLElement) {
-}
-
 class View extends EventEmitter {
   el: ViewHTMLElement;
   $el: JQuery;
@@ -43,6 +40,7 @@ class View extends EventEmitter {
   }
 
   destroy() {
+    this.getChildViews().forEach(function(c) { c.destroy() });
     this._signal('destroy', null);
     if ((<any>this)._eventRegistry)
       (<any>this)._eventRegistry = {};
@@ -61,11 +59,6 @@ class View extends EventEmitter {
 
   getParentView() : View {
     return View.findViewFromDOMElement(this.el.parentElement);
-  }
-
-  tryDoAction(command): boolean {
-    console.log("will do", command);
-    return false;
   }
 
   /** update the view */
@@ -89,25 +82,12 @@ class View extends EventEmitter {
     }
   }
 
-  decode(s : View.SerializedView) {
-    // s.type === (<any>this.constructor).name
-  }
-  encode() : View.SerializedView {
-    return { type: <string>(<any>this.constructor).name };
-  }
-
   protected createElement() {
     return document.createElement('div');
   }
 
   static placeholder() : View {
     return new View();
-  }
-}
-
-module View {
-  export interface SerializedView {
-    type: string;
   }
 }
 

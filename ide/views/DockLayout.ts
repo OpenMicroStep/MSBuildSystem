@@ -3,6 +3,9 @@ import ContentView = require('./ContentView');
 import TabLayout = require("./TabLayout");
 import BoxLayout = require("./BoxLayout");
 import dragndrop = require("../core/dragndrop");
+import globals = require("../core/globals");
+import async = require("../core/async");
+import Async = async.Async;
 
 var orientations = [
   BoxLayout.Orientation.VERTICAL, // top
@@ -112,13 +115,33 @@ function dropPlace(parent: HTMLElement, border: ClientRect, border1: ClientRect,
   $(lyplace.placeholder).css({ top: pos.top, width: pos.right - pos.left, height: pos.bottom - pos.top, left: pos.left });
 }
 
+function ondrop(ev, cb: (view: ContentView) => any) {
+  var view = ev.data && ev.data.view;
+  if (view) {
+    if (ev.dropEffect === dragndrop.DropAction.Copy)
+      view = view.duplicate();
+    cb(view);
+  }
+  else if (ev.externaldata && ev.externaldata.type) {
+    view = ContentView.deserialize(ev.externaldata);
+    if (view)
+      cb(view);
+  }
+}
+
 function appendViewTo(to: DockLayout.DockTabLayout | DockLayout.DockBoxLayout, view:ContentView, position:DockLayout.Position) {
   if (position === DockLayout.Position.MIDDLE) {
     (<DockLayout.DockTabLayout>to).appendView(view, true);
   }
   else {
     var orientation = orientations[position];
-    if (to.parent instanceof DockLayout || (<DockLayout.DockBoxLayout>to.parent).orientation !== orientation) {
+    if (to.parent instanceof DockLayout && to instanceof DockLayout.DockBoxLayout && (<any>to).orientation === orientation) {
+      var tab = new DockLayout.DockTabLayout(to);
+      to.insertView(tab, 0.25, isAppend[position] ? to.count : 0);
+      tab.appendView(view, true);
+      return;
+    }
+    if ((<DockLayout.DockBoxLayout>to.parent).orientation !== orientation) {
       var parent = new DockLayout.DockBoxLayout(to.parent, {orientation: orientation, userCanResize: true});
       to.parent.replaceView(to, parent);
       to.parent = parent;
@@ -145,15 +168,18 @@ class DockLayout extends View implements DockLayout.DockParentView {
   _root: DockLayout.DockTabLayout | DockLayout.DockBoxLayout;
   _main: DockLayout.DockTabLayout;
 
+  _init() {
+    this._main = new DockLayout.DockTabLayout(this);
+    this._main.canMinimize = false;
+    this._main.canRemove = false;
+    this._root = this._main;
+  }
   constructor() {
     super();
 
     this.el.className = "docklayout";
-    this._main = new DockLayout.DockTabLayout(this);
-    this._main.canMinimize = false;
-    this._main.canRemove = false;
+    this._init();
     this._main.appendTo(this.el);
-    this._root = this._main;
 
     var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
     dragndrop.droppable(this.el, {
@@ -165,6 +191,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
       ondragend:() => {
         $(this.el).toggleClass("docklayout-drop", false);
         this.resize();
+        this._layoutChange();
       },
       ondragover: (ev, data) => {
         if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
@@ -176,11 +203,8 @@ class DockLayout extends View implements DockLayout.DockParentView {
         if (lyplace.placeholder.parentNode)
           lyplace.placeholder.parentNode.removeChild(lyplace.placeholder);
       },
-      ondrop: (data, dropEffect) => {
-        var view = data.view;
-        if (dropEffect === dragndrop.DropAction.Copy)
-          view = data.view.duplicate();
-        this.appendViewTo(view, lyplace.place);
+      ondrop: (ev) => {
+        ondrop(ev, (view) => { this.appendViewTo(view, lyplace.place); });
       }
     });
   }
@@ -238,12 +262,64 @@ class DockLayout extends View implements DockLayout.DockParentView {
     return this._main;
   }
 
-  loadLayout(layout) {
-
+  _layoutChange() {
+    this._signal("layoutChange");
   }
 
-  exportLayout() {
+  deserialize(data) {
+    this._root.destroy();
+    this._init();
+    var traverse = (data, parent) : any => {
+      var type = data.type;
+      if (type === "hbox" || type === "vbox") {
+        var box = new DockLayout.DockBoxLayout(parent, {orientation: type === "hbox" ? BoxLayout.Orientation.HORIZONTAL : BoxLayout.Orientation.VERTICAL, userCanResize: true});
+        data.items.forEach((item) => {
+          box.appendView(traverse(item, box), item.size);
+        })
+        return box;
+      }
+      else if (type === "main" || type === "tabs") {
+        var tabs = type === "main" ? this._main : new DockLayout.DockTabLayout(parent);
+        tabs.parent = parent;
+        data.tabs.forEach((item) => {
+          var view = ContentView.deserialize(item);
+          if (view) tabs.appendView(view);
+        });
+        return tabs;
+      }
+      throw new Error("invalid layout data, type '"+type+"' unknown");
+    }
+    console.log("loading", data);
+    this._root = traverse(data, this);
+    this._root.appendTo(this.el);
+    this._layoutChange();
+  }
 
+  serialize() {
+    var main = this._main;
+    function traverse(view, r) {
+      if (view instanceof DockLayout.DockBoxLayout)
+        traversebox(view, r);
+      else
+        traversetabs(view, r);
+    }
+    function traversebox(view: DockLayout.DockBoxLayout, ret) {
+      ret.type = view._orientation === BoxLayout.Orientation.HORIZONTAL ? "hbox" : "vbox";
+      ret.items = view._items.map(function(item) {
+        var r = { size: item.size };
+        traverse(item.view, r);
+        return r;
+      });
+    }
+    function traversetabs(view: DockLayout.DockTabLayout, ret) {
+      ret.type = view !== main ? "tabs" : "main";
+      ret.tabs = view._tabs.map(function(item) {
+        return item.view.serialize();
+      });
+    }
+    var ret = {};
+    traverse(this._root, ret);
+    return ret;
   }
 
   getChildViews() : View[] {
@@ -293,6 +369,7 @@ module DockLayout {
 
     constructor(public parent: DockParentView, options) {
       super(options);
+      this.on("resized", () => { this.root()._layoutChange() });
     }
 
     appendView(view:DockTabLayout | DockBoxLayout, size:number) {
@@ -303,10 +380,11 @@ module DockLayout {
       super.insertView(view, size, at);
     }
 
-    removePart(at: number) {
-      super.removePart(at);
+    removePart(at: number, destroy?) {
+      super.removePart(at, destroy);
       if (this.count == 1) { // Simplify the layout
         var view = <DockTabLayout | DockBoxLayout>this._items[0].view;
+        this.removePart(0);
         this.parent.replaceView(this, view);
         view.parent = this.parent;
         this.destroy();
@@ -335,11 +413,8 @@ module DockLayout {
             this._elTabs.removeChild(tabplaceholder);
           tabplaceholder = null;
         },
-        ondrop: (data, dropEffect) => {
-          var view = data.view;
-          if (dropEffect === dragndrop.DropAction.Copy)
-            view = data.view.duplicate();
-          this.insertView(view, tabidx, true);
+        ondrop: (ev) => {
+          ondrop(ev, (view) => { this.insertView(view, tabidx, true); });
         }
       });
       var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
@@ -355,13 +430,17 @@ module DockLayout {
           if (lyplace.placeholder.parentNode)
             lyplace.placeholder.parentNode.removeChild(lyplace.placeholder);
         },
-        ondrop: (data, dropEffect) => {
-          var view = data.view;
-          if (dropEffect === dragndrop.DropAction.Copy)
-            view = data.view.duplicate();
-          this.appendViewTo(view, lyplace.place);
+        ondrop: (ev) => {
+          ondrop(ev, (view) => { this.appendViewTo(view, lyplace.place); });
         }
       });
+    }
+
+    exportLayout() {
+      return {
+        type:"tabs",
+        childs: this.getChildViews().map((c: any) => { return "tab"; })
+      }
     }
 
     dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {
@@ -423,7 +502,7 @@ module DockLayout {
       dragndrop.draggable(item.tab, {
         type: "tab",
         data: item,
-        dnd: (<any>item.view).dragndrop ? (<any>item.view).dragndrop() : null,
+        dnd: item.view.dragndrop ? item.view.dragndrop.bind(item.view) : null,
         ondragstart: () => {
           this.removeTab(item.idx, false, false);
         },

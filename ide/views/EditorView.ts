@@ -1,4 +1,4 @@
-import {View, ContentView, async, menu} from '../core';
+import {View, ContentView, async, menu, globals} from '../core';
 import WorkspaceFile = require('../client/WorkspaceFile');
 import Workspace = require('../client/Workspace');
 
@@ -35,16 +35,19 @@ function detectIndentation(self) {
 }
 
 class EditorView extends ContentView {
-  file: WorkspaceFile; fileEvt;
+  path: string;
+  _file: WorkspaceFile; fileEvt;
+  _once;
   editor: AceAjax.Editor;
   editorEl: HTMLElement;
   statusEl: HTMLElement;
+  $onChangeOptions;
 
-  constructor(file: WorkspaceFile) {
+  constructor(opts: { path: string }) {
     super();
-    this.file = file;
-    this.titleEl.textContent = file.name;
 
+    this.path = opts.path;
+    this._file = null;
     this.editorEl = document.createElement('div');
     this.statusEl = document.createElement('div');
     this.el.appendChild(this.editorEl);
@@ -54,8 +57,6 @@ class EditorView extends ContentView {
     this.statusEl.className = "editor-status";
     this.editor = new Editor(new Renderer(this.editorEl));
     this.editor.commands.addCommands(whitespace.commands);
-    this.editor.setSession(this.file.createEditSession());
-    //this.editor.setTheme("ace/theme/monokai");
     this.editor.$blockScrolling = Infinity;
     this.editor.setOptions({
       scrollPastEnd: true,
@@ -65,11 +66,11 @@ class EditorView extends ContentView {
     });
 
     /// Status bar
-    var onChangeOptions = () => {
+    this.$onChangeOptions = () => {
       var session = this.editor.session;
       var txt = session.getUseSoftTabs() ? "Spaces: " : "Tabs: ";
       tabEl.textContent = txt += session.getTabSize();
-      modeEl.textContent = this.file.mode.caption;
+      modeEl.textContent = this._file.mode.caption;
     };
 
     var posEl = document.createElement('div');
@@ -86,7 +87,7 @@ class EditorView extends ContentView {
         label: "Indent using spaces",
         type: "checkbox",
         checked: softtabs,
-        click: () => { this.file.setOptions({ "useSoftTabs": !softtabs }); }
+        click: () => { this._file.setOptions({ "useSoftTabs": !softtabs }); }
       },
       { type: "separator" },
       mktabsize(this, tabwidth, 2),
@@ -117,7 +118,7 @@ class EditorView extends ContentView {
       var m = new menu.ContextMenu(modelist.modes.map((mode) => {
         return {
           label: mode.caption,
-          click: () => { this.file.setMode(mode); }
+          click: () => { this._file.setMode(mode); }
         };
       }));
       m.popup(e.clientX, e.clientY);
@@ -128,36 +129,55 @@ class EditorView extends ContentView {
     this.statusEl.appendChild(settingsEl);
     (<any>this.editor.renderer).on('scrollbarVisibilityChanged', this.onscrollbarVisibilityChanged.bind(this));
     this.onscrollbarVisibilityChanged();
-    this.file.on('changeOptions', onChangeOptions);
-    onChangeOptions();
     ///
 
-    this.file.ref();
+    async.run(null, this._once = async.Async.once([
+      (p) => { globals.ide.session.openFile(p, this.path); },
+      (p) => {
+        var file = p.context.file;
+        if (file)
+          this.initWithFile(file);
+        p.continue();
+      }
+    ]));
+  }
+
+  initWithFile(file) {
+    this._file = file;
+    this.titleEl.textContent = file.name;
+
+    this.editor.setSession(this._file.createEditSession());
+    //this.editor.setTheme("ace/theme/monokai");
+
+    this._file.ref();
     this.titleEl.className = file.saved ? "editorview-title-saved" : "editorview-title-modified";
     file.on("change", this.fileEvt = (e) => {
-      this.titleEl.className = !this.file.hasUnsavedChanges() ? "editorview-title-saved" : "editorview-title-modified";
+      this.titleEl.className = !this._file.hasUnsavedChanges() ? "editorview-title-saved" : "editorview-title-modified";
     });
+    this._file.on('changeOptions', this.$onChangeOptions);
+    this.$onChangeOptions();
     Workspace.diagnostics.on("diagnostic", this.ondiagnostics.bind(this));
     this.loadDiagnostics();
   }
 
-  isViewFor(file) {
-    return this.file === file;
+  getFile(p: async.Async) {
+    p.setFirstElements([
+      this._once,
+      (p) => { p.context.file = this._file; }
+    ]);
   }
 
-  dragndrop() {
-    return {
-      file: this.file.path
-    };
+  isViewFor(opts) {
+    return opts && this.path === opts.path;
   }
 
   ondiagnostics(e: {diag: Workspace.Diagnostic}) {
-    if (e.diag && e.diag.path === this.file.path)
+    if (e.diag && e.diag.path === this._file.path)
       this.loadDiagnostics();
   }
 
   loadDiagnostics() {
-    var info = Workspace.diagnostics.get(this.file.path);
+    var info = Workspace.diagnostics.get(this._file.path);
     var session = this.editor.session;
     var annotations = [];
     if (info && info.diagnostics && info.diagnostics.set) {
@@ -176,18 +196,18 @@ class EditorView extends ContentView {
   destroy() {
     super.destroy();
     this.editor.destroy();
-    this.file.unref();
-    this.file.off("change", this.fileEvt);
+    this._file.unref();
+    this._file.off("change", this.fileEvt);
   }
 
-  tryDoAction(command) {
+  tryDoAction(p, command) {
     if (command.name.startsWith('editor.ace.')) {
       this.editor.execCommand(command.name.substring('editor.ace.'.length));
       return true;
     }
     switch (command.name) {
       case 'file.save':
-        async.run(null, this.file.save.bind(this.file));
+        this._file.save(p);
         return true;
       case 'edit.redo':
         this.editor.execCommand("redo");
@@ -196,7 +216,7 @@ class EditorView extends ContentView {
         this.editor.execCommand("undo");
         return true;
     }
-    return super.tryDoAction(command);
+    return super.tryDoAction(p, command);
   }
 
   focus() {
@@ -218,28 +238,25 @@ class EditorView extends ContentView {
       .toggleClass('editor-status-padv', v);
   }
 
-  decode(s : EditorView.SerializedEditor) {
-    // s.type === (<any>this.constructor).name
-    this.editor.setOptions(s.options);
+  data() {
+    return { path: this.path };
   }
-  encode() : EditorView.SerializedEditor {
-    var r = <EditorView.SerializedEditor>super.encode();
-    r.path = "";
-    r.options = this.editor.getOptions();
-    return r;
+  dragndrop() {
+    return {
+      data: this.serialize(),
+      file: this.path
+    };
   }
 }
 
 EditorView.prototype.duplicate = function() {
-  return new EditorView(this.file);
+  return new EditorView(this.path);
 }
+
+ContentView.register(EditorView, "editor");
 
 module EditorView {
   export var Range: typeof AceAjax.Range = ace.require("ace/range").Range;
-  export interface SerializedEditor extends View.SerializedView {
-    path: string;
-    options: any;
-  }
   export class SimpleEditorView extends View {
     editor: AceAjax.Editor;
 

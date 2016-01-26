@@ -2,9 +2,9 @@ import path = require('path');
 import BuildSystem = require('../../buildsystem/BuildSystem');
 import WorkspaceFile = require('./WorkspaceFile');
 import replication = require('./replication');
-import Terminal = require('./Terminal');
 import fs = require('fs');
 import Async = BuildSystem.core.Async;
+import Terminal = require('./Terminal');
 
 var errors = {
   buildGraphMissing: {
@@ -61,10 +61,6 @@ function taskData(task: BuildSystem.Task) : any {
   return r;
 }
 
-function escapeRegExp(str) {
-    return str.replace(/([.*+?^${}()|[\]\/\\])/g, '\\$1');
-}
-
 class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   isrunning: boolean;
   graph: (p: Async) => void;
@@ -72,9 +68,6 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
 
   static workspaces = {};
 
-  /**
-   * Get a shared across the whole process file.
-   */
   static getShared(workspacePath:string):Workspace {
     workspacePath = path.normalize(workspacePath);
     if (!path.isAbsolute(workspacePath))
@@ -99,147 +92,41 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     };
   }
 
-  _searchOrReplace(p, replace: boolean, options) {
-    var set= new Set<string>();
-    function iterate(files, directory) {
-      for(var i = 0, len = files.length; i < len; ++i) {
-        var file = files[i];
-        if (file.file)
-          set.add(path.join(directory, file.file));
-        else if (file.files)
-          iterate(file.files, directory);
-      }
-    }
-    for (var w in Workspace.workspaces) {
-      var workspace: Workspace = Workspace.workspaces[w];
-      iterate(workspace.obj.files, workspace.obj.directory);
-    }
-
-    var opts = [];
-    if (options.regexp) opts.push("regex");
-    if (options.casesensitive) opts.push("case sensitive");
-    if (options.wholeword) opts.push("whole word");
-    if (options.showcontext) opts.push("context");
-    var result = "Searching for " + options.searchtext + " inworkspaces files" + opts.join(', ') + "\n\n";
-    var files = Array.from(set);
-    var i = 0;
-    var context = typeof options.showcontext === "number" ? options.showcontext : 0;
-    var searchtext = options.regexp ? options.searchtext : escapeRegExp(options.searchtext);
-    if (options.wholeword) searchtext = "\\b" + searchtext + "\\b";
-    var rx = new RegExp(searchtext, options.casesensitive ? "g": "gi");
-    var replacerx = replace? new RegExp(searchtext, options.casesensitive ? "g": "gi") : null;
-    var matches = 0;
-    var matchFiles = 0;
-    var printline = (pad: string, row: number, line: string, context: boolean) => {
-      var r = (row + 1).toString();
-      result += pad.substring(0, pad.length - r.length) + r;
-      result += (context ? "  " : ": ") + line + "\n";
-    }
-    var replacementsByPath = replace ? [] : null;
-    var parsecontent = (path: string, content: string) => {
-      var m, first= true, pad, ctxline, ctxend, last = -1;
-      var lines = content.split("\n");
-      var replacements = replace ? [] : null;
-      for (var i = 0, len = lines.length; i < len; ++i) {
-        var line = lines[i];
-        var found = false;
-        while ((m = rx.exec(line)) !== null) {
-          ++matches;
-          if (first) {
-            ++matchFiles;
-            result += path + ":\n";
-            pad = "         ".substring(0, Math.max(len.toString().length + 1, 6));
-          }
-          var start = m.index;
-          var end = m.index + m[0].length;
-          if (replace)
-            replacements.push({ row: i, col: start, length: end - start, text: m[0].replace(replacerx, options.replacement) });
-
-          if (!found) {
-            if (context > 0) {
-              var ctxstart = Math.max(i - context, last + 1, 0);
-              if (last !== -1 && last < ctxstart) {
-                for (ctxline= last + 1, ctxend= Math.min(last + context + 1, lines.length, ctxstart); ctxline < ctxend; ++ctxline)
-                  printline(pad, ctxline, lines[ctxline], true);
-                if (ctxline + 1 === ctxstart)
-                  printline(pad, ctxline, lines[ctxline], true);
-                else if (ctxline < ctxstart) {
-                  var dots = "..........".substring(0, ctxline.toString().length);
-                  result += pad.substring(0, pad.length - dots.length) + dots + "\n";
-                }
-              }
-              for (ctxline= ctxstart; ctxline < i; ++ctxline)
-                printline(pad, ctxline, lines[ctxline], true);
-            }
-            printline(pad, i, line, false);
-            last = i;
-          }
-          found = true;
-          first = false;
-        }
-      }
-      if (!first) {
-        if (context > 0) {
-          for (ctxline= last + 1, ctxend= Math.min(last + context + 1, lines.length); ctxline < ctxend; ++ctxline)
-            printline(pad, ctxline, lines[ctxline], true);
-        }
-        result += "\n";
-      }
-      if (replacements && replacements.length)
-        replacementsByPath.push({ path: path, replacements: replacements, regexp: rx });
-      next();
-    }
-    var next = () => {
-      if (i < files.length) {
-        var file = files[i++];
-        var wf = WorkspaceFile.files.get(file);
-        if (wf) {
-          parsecontent(file, wf.getLastVersion());
-        }
-        else {
-          fs.readFile(file, 'utf8', (err, data) => {
-            if (err) next();
-            else parsecontent(file, data);
-          })
-        }
-      }
-      else {
-        result += matches + " matches across " + matchFiles + " files";
-        p.context.response = { search: result, replacements: replacementsByPath };
-        p.continue();
-      }
-    }
-    next();
-  }
-
-  find(p, options) {
-    this._searchOrReplace(p, false, options);
-  }
-
-  replace(p, options) {
-    this._searchOrReplace(p, true, options);
-  }
-
-  userData(pool) {
-    fs.readFile(path.join(this.obj.directory, ".userdata"), 'utf8', (err, data) => {
-      pool.context.response = (data && JSON.parse(data)) || {};
-      pool.continue();
-    });
-  }
-  setUserData(pool, data: any) {
-    this.broadcast("userdata", data);
-    fs.writeFile(path.join(this.obj.directory, ".userdata"), JSON.stringify(data, null, 2), 'utf8', (err) => {
-      if (!err) pool.context.response = true;
-      else pool.context.error = err;
-      this.clearGraph();
-      pool.continue();
-    });
-  }
-
   reload(pool) {
     this.obj.reload();
     this.broadcast("reload", this.data());
     pool.continue();
+  }
+
+  openFile(pool, filepath: string) {
+    WorkspaceFile.getShared(pool, path.isAbsolute(filepath) ? filepath : path.join(this.obj.directory, filepath));
+  }
+
+  openDependency(pool, name: string) {
+    var d = this.obj.dependencies.find((d) => { return d.name === name; });
+    if (d) {
+      var depPath = d.path;
+        if (path.isAbsolute(depPath))
+          pool.context.response = Workspace.getShared(depPath);
+        else
+          pool.context.response = Workspace.getShared(path.join(this.obj.directory, depPath));
+    }
+    pool.continue();
+  }
+
+  data() {
+    return {
+      name: this.obj.name,
+      directory: this.obj.directory,
+      files: this.obj.files,
+      path: this.obj.path,
+      environments: this.obj.environments,
+      targets: this.obj.targets,
+      dependencies: this.obj.dependencies,
+      runs: this.obj.runs,
+      variants: ["debug", "release"],
+      error: this.obj.error
+    };
   }
 
   clearGraph() {
@@ -340,10 +227,6 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     p.continue();
   }
 
-  openFile(pool, filepath: string) {
-    WorkspaceFile.getShared(pool, path.isAbsolute(filepath) ? filepath : path.join(this.obj.directory, filepath));
-  }
-
   start(p: Async, taskIds: string[], type) {
     if (this.isrunning) {p.context.error = errors.buildRunning; p.continue(); return ;}
     if (!this.graph) { p.context.error = errors.buildGraphMissing; p.continue(); return; }
@@ -418,37 +301,6 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     p.continue();
   }
 
-  terminal(p: Async) {
-    p.context.response = new Terminal("bash", ["-l"]);
-    p.continue();
-  }
-
-  openDependency(pool, name: string) {
-    var d = this.obj.dependencies.find((d) => { return d.name === name; });
-    if (d) {
-      var depPath = d.path;
-        if (path.isAbsolute(depPath))
-          pool.context.response = Workspace.getShared(depPath);
-        else
-          pool.context.response = Workspace.getShared(path.join(this.obj.directory, depPath));
-    }
-    pool.continue();
-  }
-
-  data() {
-    return {
-      name: this.obj.name,
-      directory: this.obj.directory,
-      files: this.obj.files,
-      path: this.obj.path,
-      environments: this.obj.environments,
-      targets: this.obj.targets,
-      dependencies: this.obj.dependencies,
-      runs: this.obj.runs,
-      variants: ["debug", "release"],
-      error: this.obj.error
-    };
-  }
 }
 
 export = Workspace;

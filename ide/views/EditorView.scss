@@ -54,3 +54,7 @@
   padding-right: 0;
   right: 14px;
 }
+
+.docklayout-drop .ace_editor {
+    pointer-events: none;
+}

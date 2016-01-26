@@ -33,7 +33,7 @@ class WorkspaceTreeItem extends TreeItemView {
     this.nameContainer.appendChild(this.name = document.createTextNode(this.workspace.name));
     this.nameContainer.setAttribute('title', this.workspace.path);
     this.nameContainer.addEventListener("click", () => {
-       globals.ide.openSettings(this.workspace);
+       //globals.ide.openSettings(this.workspace);
     });
     this.setCanExpand(true);
     this.removeChildItems();
@@ -101,7 +101,7 @@ class FixitTreeItem extends TreeItemView {
 
   open(apply?: boolean) {
     async.run(null, [
-      (p) => { globals.ide.openFile(p, this.fixit.path); },
+      (p) => { globals.ide.openFile(p, {path: this.fixit.path }); },
       (p) => {
         var ed: AceAjax.Editor = p.context.view && p.context.view.editor;
         if (ed) { setTimeout(() => {
@@ -141,14 +141,7 @@ class DiagTreeItem extends TreeItemView {
   }
 
   open() {
-    async.run(null, [
-      (p) => { globals.ide.openFile(p, this.diag.path); },
-      (p) => {
-        var ed = p.context.view && p.context.view.editor;
-        if (ed)
-          setTimeout(() => { ed.gotoLine(this.diag.row, this.diag.col - 1, true); }, 0);
-      }
-    ]);
+    async.run(null, (p) => { globals.ide.openFile(p, { path: this.diag.path, row: this.diag.row - 1, col: this.diag.col - 1 }); });;
   }
 
   createChildItems(p) {
@@ -188,7 +181,7 @@ class FileTreeItem extends TreeItemView {
   }
 
   open() : async.Async {
-    return async.run(null, (p) => { this.root.workspace.openFile(p, this.d.file); });
+    return async.run(null, (p) => { globals.ide.openFile(p, { path: this.root.workspace.filePath(this.d.file) }); });
   }
 
   _createBadge(type: string, nb: number) {
@@ -240,9 +233,9 @@ class FileTreeItem extends TreeItemView {
 
 class WorkspaceTreeView extends ContentView {
   root: WorkspaceTreeItem;
-  constructor(workspace: Workspace) {
+  constructor() {
     super();
-    this.root = new WorkspaceTreeItem(workspace);
+    this.root = new WorkspaceTreeItem(globals.ide.session.workspace);
     this.root.expand();
     this.root.appendTo(this.el);
     this.titleEl.appendChild(document.createTextNode("Workspace"));
@@ -251,6 +244,10 @@ class WorkspaceTreeView extends ContentView {
   getChildViews() {
     return [this.root];
   }
+  data() {
+    return null;
+  }
 }
+ContentView.register(WorkspaceTreeView, "treeview");
 
 export = WorkspaceTreeView;

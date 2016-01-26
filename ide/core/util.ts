@@ -111,3 +111,15 @@ export function scrollIntoViewIfNeeded(element) {
     parent.scrollLeft = element.offsetLeft - parent.offsetLeft - parent.clientWidth / 2 - parentBorderLeftWidth + element.clientWidth / 2;
   }
 }
+
+export function schedule(cb, delay = 250) {
+  var to = null;
+  return function() {
+    if (to)
+      clearTimeout(to);
+    to = setTimeout(function() {
+      cb();
+      to = null;
+    }, delay);
+  }
+}

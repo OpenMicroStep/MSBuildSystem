@@ -1,5 +1,6 @@
 import View = require('../views/View');
 import globals = require('./globals');
+import async = require('./async');
 
 var useragent = ace.require("ace/lib/useragent");
 var aceevent = ace.require('ace/lib/event');
@@ -148,7 +149,6 @@ class Menu {
       return;
     }
     name = document.createElement("a");
-    name.setAttribute("href", "#");
     name.textContent = opts.label;
     if (opts.checked === true)
       name.className = "menuitem-checked";
@@ -161,7 +161,7 @@ class Menu {
           opts.click = () => { alert("TODO: this action is only available via shortcuts"); };
         }
         else {
-          opts.click = () => { globals.ide.exec(cmd); };
+          opts.click = () => { globals.ide.exec(null, cmd); };
         }
         if (!opts.bindKey)
           opts.bindKey = cmd.bindKey;
@@ -232,7 +232,7 @@ class Menu {
         cmd.native = true;
         opts.bindKey = cmd.bindKey;
         if (!opts.role || opts.role === "undo" || opts.role === "redo")
-          opts.click = () => { globals.ide.exec(cmd); };
+          opts.click = () => { globals.ide.exec(null, cmd); };
       }
     }
     if (allowBindings && opts.bindKey)

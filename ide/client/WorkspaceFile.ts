@@ -112,6 +112,36 @@ class WorkspaceFile extends replication.DistantObject {
     this.ignoreChanges = false;
   }
 
+  reconnect(data) {
+    this.ignoreChanges = true;
+    this.document.setValue(data.content);
+    this.undomanager.reset();
+    this.document.applyDeltas(data.deltas);
+    this.pendingsdeltas.forEach((once) => {
+      Async.run(null, [
+        once,
+        (p) => {
+          this.ignoreChanges = true;
+          this.document.applyDeltas(once.context.deltas);
+          this.ignoreChanges = false;
+        }
+      ]);
+    });
+  }
+
+  outofsync(p: async.Async) {
+    p.setFirstElements((p) => {
+      var file = p.context.file;
+      if (file !== this) {
+        this.changeId(file.id);
+        console.warn("The server has a different version, propose to the user to save his version");
+        file.destroy();
+      }
+      else p.continue();
+    });
+    globals.ide.session.openFile(p, this.path, true);
+  }
+
   createEditSession() {
     var session = new EditSession(<any>this.document, this.session.getMode());
     session.setUndoManager = function(undoManager) {
@@ -164,36 +194,6 @@ class WorkspaceFile extends replication.DistantObject {
   setOptions(options) {
     this.session.setOptions(options);
     this._signal('changeOptions', { options: options });
-  }
-
-  reconnect(data) {
-    this.ignoreChanges = true;
-    this.document.setValue(data.content);
-    this.undomanager.reset();
-    this.document.applyDeltas(data.deltas);
-    this.pendingsdeltas.forEach((once) => {
-      Async.run(null, [
-        once,
-        (p) => {
-          this.ignoreChanges = true;
-          this.document.applyDeltas(once.context.deltas);
-          this.ignoreChanges = false;
-        }
-      ]);
-    });
-  }
-
-  outofsync(p: async.Async) {
-    p.setFirstElements((p) => {
-      var file = p.context.result;
-      if (file !== this) {
-        this.changeId(file.id);
-        console.warn("The server has a different version, propose to the user to save his version");
-        file.destroy();
-      }
-      else p.continue();
-    });
-    globals.ide.workspace.remoteCall(p, "openFile", this.path);
   }
 
   ref() {

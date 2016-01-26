@@ -1,8 +1,22 @@
 import View = require('./View');
 import globals = require('../core/globals');
 
-class ContentView extends View {
+abstract class ContentView extends View {
   titleEl : HTMLElement;
+
+  static registered = new Map<string, (data)=> ContentView>();
+  static register(cls, type: string, deserialize?: (data: any) => ContentView) {
+    deserialize = deserialize || function(data) { return new cls(data); };
+    cls.prototype.serialize = function() { return {
+      type: type,
+      data: this.data()
+    };};
+    ContentView.registered.set(type, deserialize);
+  }
+  static deserialize(data: { type: string, data }) {
+    var cstor = ContentView.registered.get(data.type);
+    return cstor ? cstor(data.data || {}) : null;
+  }
 
   constructor(tagName: string = "div", titleTagName: string = "div") {
     super(tagName);
@@ -29,6 +43,11 @@ class ContentView extends View {
     this.resizeTitle();
   }
 
+  tryDoAction(p, command): boolean {
+    console.log("will do", command);
+    return false;
+  }
+
   resizeTitle() {
 
   }
@@ -37,7 +56,13 @@ class ContentView extends View {
 
   }
 
+  dragndrop() : { text?: string, data?: any, file?: string } {
+    return { data: this.serialize() }
+  }
+  abstract data(): any;
+
   // Optionals
+  serialize:() => { type: string, data: any };
   duplicate: () => ContentView;
 }
 

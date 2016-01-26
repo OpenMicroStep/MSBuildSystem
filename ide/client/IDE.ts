@@ -1,27 +1,15 @@
 declare function require(module);
 import views = require('../views');
 import {menu, globals, async, replication} from '../core';
+import Session = require('./Session');
 import Workspace = require('./Workspace');
 import WorkspaceFile = require('./WorkspaceFile');
 import Async = async.Async;
 
-interface FindOptions {
-  regexp       : boolean,
-  casesensitive: boolean,
-  wholeword    : boolean,
-  showcontext  : number,
-  searchtext   : string,
-  filter       : string,
-  preservecase : boolean,
-};
-
-interface ReplaceOptions extends FindOptions {
-  replacement  : string,
-};
 
 var defaultCommands= [
-  { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
-  { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
+  { name:"file.newfile"            , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
+  { name:"file.savefile"           , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
   { name:"file.close"              , bindKey: { win: "Ctrl-W", mac: "Command-W" } },
   { name:"file.gotofile"           , bindKey: { win: "Ctrl-P", mac: "Command-P" } },
   { name:"workspace.build"         , bindKey: { win: "Ctrl-B", mac: "Command-B" } },
@@ -36,8 +24,9 @@ var defaultCommands= [
   { name:"workspace.showbuildgraph" },
   { name:"workspace.showsettings"   },
   { name:"view.openterminal"        },
-  { name:"editor.ace.touppercase"  , bindKey: { win: "Ctrl-K Ctrl-U", mac: "Command-K Command-U" } },
-  { name:"editor.ace.tolowercase"  , bindKey: { win: "Ctrl-K Ctrl-L", mac: "Command-K Command-L" } },
+  { name:"view.resetlayout"         },
+  { name:"edit.touppercase"        , bindKey: { win: "Ctrl-K Ctrl-U", mac: "Command-K Command-U" } },
+  { name:"edit.tolowercase"        , bindKey: { win: "Ctrl-K Ctrl-L", mac: "Command-K Command-L" } },
 ];
 
 var menus = [
@@ -66,6 +55,7 @@ var menus = [
   ]},
   {id: "view", label: "View", submenu: [
     { label: "Open terminal"      , command: "view.openterminal"       },
+    { label: "Reset layout"       , command: "view.resetlayout"        },
   ]},
   {id: "workspace", label: "Workspace", submenu: [
     { label: "Settings"           , command: "workspace.showsettings"  },
@@ -78,18 +68,25 @@ var menus = [
   ]}
 ];
 
-var throttle = function(type, name, obj?) {
-  obj = obj || window;
-  var running = false;
+var defaultLayout = { type: "hbox", items: [
+  { type: "tabs", size: 0.25, tabs: [
+    { type: "treeview" }
+  ]},
+  { type: "main", size: 0.75, tabs: [] },
+]};
+
+
+var throttle = function(fn) {
+  var running = null;
   var func = function() {
-      if (running) { return; }
-      running = true;
-      requestAnimationFrame(function() {
-          obj.dispatchEvent(new CustomEvent(name));
-          running = false;
-      });
+    if (running) { return; }
+    running = function() {
+      fn();
+      running = null;
+    };
+    requestAnimationFrame(running);
   };
-  obj.addEventListener(type, func);
+  return func;
 };
 
 class IDEStatus extends views.View {
@@ -114,8 +111,8 @@ class IDEStatus extends views.View {
     this.status = { label: "", warnings: 0, errors: 0, progression: 0 };
     this.runner = null;
     this.runners = [];
-    this.$build.click(() => { async.run(null, (p) => { ide.build(p); }); });
-    this.$clean.click(() => { async.run(null, (p) => { ide.clean(p); }); });
+    this.$build.click(() => { async.run(null, (p) => { ide.session.build(p); }); });
+    this.$clean.click(() => { async.run(null, (p) => { ide.session.clean(p); }); });
     this.$runner.click(() => {
       var dropdown = new menu.Dropdown(this.runners.map((r) => {
         return {
@@ -141,8 +138,8 @@ class IDEStatus extends views.View {
       }));
       dropdown.showRelativeToElement(this.$runner[0], 'bottom');
     });
-    this.$run.click(ide.tryDoAction.bind(ide, { name: "workspace.run" }));
-    ide.workspace.on('build', (e) => {
+    this.$run.click(ide.exec.bind(ide, null, { name: "workspace.run" }));
+    ide.session.on('status', (e) => {
       var lbl;
       if (e.state === "build")
         lbl = e.working ? "Building..." : (e.errors ? "Build failed" : "Build succeeded");
@@ -232,7 +229,6 @@ class IDEStatus extends views.View {
       w.dependencies.forEach((d) => { load(d.workspace); });
     }
     load(w);
-    console.log("runners", this.runners);
     this.setRunner(this.runners[0], null, null);
   }
 
@@ -250,16 +246,13 @@ class IDEStatus extends views.View {
     }
   }
 }
-
 class IDE extends views.View {
-  workspace: Workspace;
+  session: Session;
   content: views.DockLayout;
-  _focus: views.View;
-  commands: AceAjax.CommandManager;
+  _focus: views.ContentView;
+  commands: { [s:string]: (p: Async, args?: any) => void };
   keyBinding: AceAjax.KeyBinding;
   menu: menu.TitleMenu;
-  treeView: views.WorkspaceTreeView;
-  _openFiles: Map<string, Async>;
   _serverstatus: HTMLElement;
   _status: IDEStatus;
   _gotofile: views.GoToFile;
@@ -271,29 +264,25 @@ class IDE extends views.View {
     var top = document.createElement('div');
     top.className = "navbar navbar-fixed-top navbar-default";
     this.el.appendChild(top);
-    throttle("resize", "optimizedResize");
-    window.addEventListener("optimizedResize", () => {
+    window.addEventListener("resize", throttle(() => {
       this.resize();
-    });
-    this._openFiles = new Map<any, any>();
+    }));
     this.content= new views.DockLayout();
+    this.content.on("layoutChange", () => {
+      this.session.set('layout', this.content.serialize());
+    });
     this.content.appendTo(this.el);
     this.render();
-
-    this.workspace = new Workspace();
-    replication.socket.emit('rootWorkspace', location.hash.substring(1), (workspace) => {
-      this.workspace.changeId(workspace.id);
-      this.workspace.initWithData(workspace.data);
-      document.title = this.workspace.name;
-      Async.run(null, [
-        this.workspace.loadDependencies.bind(this.workspace),
-        (p) => {
-          this._status.setStatus({ label: "Idle" });
-          this.treeView = new views.WorkspaceTreeView(this.workspace);
-          this.content.main.appendViewTo(this.treeView, views.DockLayout.Position.LEFT);
-          this._status.loadRunners(this.workspace);
-        }
-      ]);
+    this.session = new Session();
+    this.session.on("ready", () => {
+      this._status.setStatus({ label: "Idle" });
+      this.content.deserialize(this.session.get('layout', defaultLayout));
+      //this.treeView = new views.WorkspaceTreeView(this.session.workspace);
+      //this.content.main.appendViewTo(this.treeView, views.DockLayout.Position.LEFT);
+      this._status.loadRunners(this.session.workspace);
+    });
+    this.session.on("error", () => {
+      this._status.setStatus({ label: "Error while loading workspace" });
     });
 
     this._serverstatus = document.createElement('i');
@@ -314,35 +303,31 @@ class IDE extends views.View {
     this.menu = new menu.TitleMenu(defaultCommands, menus, this, (el) => {
       top.insertBefore(el, this._serverstatus);
     });
-
-  }
-
-  getChildViews() : views.View[] {
-    return [this.content];
-  }
-
-  setCurrentView(view: views.View) {
-    this._focus = view;
-  }
-
-  tryDoAction(command) {
-    switch (command.name) {
-      case 'workspace.build':
-        var files
-        async.run(null, this.build.bind(this));
-        return true;
-      case 'workspace.run':
+    this.commands = {
+      'workspace.showsettings': (p) => {
+        this.content.createViewIfNecessary(views.WorkspaceSettingsView, []);
+        p.continue();
+      },
+      'workspace.build': (p) => { this.session.build(p); },
+      'workspace.run': (p) => {
         var status = this._status;
-        if (status.runner && status.env && status.variant)
-            async.run(null, (p) => { this.run(p, status.runner.runner.name, status.env, status.variant); });
-        return true;
-      case 'workspace.showsettings':
-        this.openSettings(this.workspace);
-        return true;
-      case 'workspace.showbuildgraph':
-        this.openBuildGraph(this.workspace);
-        return true;
-      case 'file.gotofile':
+        if (status.runner && status.env && status.variant) {
+          p.setFirstElements((p) => {
+            if (p.context.error)
+              this._status.setStatus({ error: p.context.error });
+            else {
+              var run = p.context.result;
+              this.content.createViewIfNecessary(views.TerminalView, [run]);
+              run.spawn(p);
+            }
+            p.continue();
+          });
+          this.session.run(p, status.runner.runner.name, status.env, status.variant);
+        }
+        else
+          p.continue();
+      },
+      'file.gotofile': (p) => {
         if (!this._gotofile) {
           this._gotofile = new views.GoToFile();
           this._gotofile.attach();
@@ -351,138 +336,72 @@ class IDE extends views.View {
         else {
           this._gotofile.focus();
         }
-        return true;
-      case 'find.findinfiles':
+        p.continue();
+      },
+      'file.open': (p, args) => {
+        if (args) {
+          this.openFile(p, args);
+        }
+        else {
+          //TODO Ask the user the file to open
+          p.continue();
+        }
+      },
+      'find.findinfiles': (p) => {
         this.content.createViewIfNecessary(views.SearchInFiles, []);
-        return true;
-      case 'view.openterminal':
-        async.run(null, [
-          (p) => { this.workspace.remoteCall(p, "terminal"); },
+        p.continue();
+      },
+      'view.resetlayout': (p) => {
+        this.content.deserialize(defaultLayout);
+        p.continue();
+      },
+      'view.openterminal': (p) => {
+        p.setFirstElements([
+          (p) => { this.session.remoteCall(p, "terminal"); },
           (p) => {
             var tty = p.context.result;
             this.content.createViewIfNecessary(views.TerminalView, [tty]);
             tty.spawn(p);
           }
         ]);
-        return true;
+        p.continue();
+      }
+    };
+  }
+
+  getChildViews() : views.View[] {
+    return [this.content];
+  }
+
+  setCurrentView(view: views.ContentView) {
+    this._focus = view;
+  }
+
+  tryDoAction(p, command) {
+    var cmd = this.commands[command.name];
+    if (cmd)
+      cmd(p, command.args);
+    return !!cmd;
+  }
+
+  openFile(p: Async, opts: { path: string, row?: number, col?: number, duplicate?: boolean }) {
+    if (opts.duplicate)
+      p.context.view = new views.EditorView({ path: opts.path });
+    else
+      p.context.view = this.content.createViewIfNecessary(views.EditorView, [{ path: opts.path }]);
+    p.continue();
+  }
+
+  exec(p, command) {
+    if (!p) {
+      async.run(null, (p) => { this.exec(p, command); });
+      return;
     }
-    return false;
+    if (!this._focus || !this._focus.tryDoAction(p, command))
+      this.tryDoAction(p, command);
   }
-
-  saveFiles(p: Async) {
-    var s = [];
-    this._openFiles.forEach((once) => {
-      s.push(new Async(null, [
-        once,
-        (p) => {
-          var file = once.context.result;
-          if (file && file.hasUnsavedChanges())
-            file.save(p, file);
-          else
-            p.continue();
-        }
-      ]));
-    });
-    p.setFirstElements([s]);
-    p.continue();
-  }
-
-  build(p: Async) {
-    p.setFirstElements([
-      this.saveFiles.bind(this),
-      this.workspace.build.bind(this.workspace),
-      (p) => {
-        if (p.context.error)
-          this._status.setStatus({ label: p.context.error, errors: 1 });
-        p.continue();
-      }
-    ]);
-    p.continue();
-  }
-
-  run(p: Async, runner: string, env: string, variant: string) {
-    p.setFirstElements([
-      this.build.bind(this),
-      (p) => {
-        this.workspace.run(p, runner, env, variant);
-      },
-      (p) => {
-        if (p.context.error)
-          this._status.setStatus({ error: p.context.error });
-        else {
-          var run = p.context.result;
-          this.content.createViewIfNecessary(views.TerminalView, [run]);
-          run.spawn(p);
-        }
-        p.continue();
-      }
-    ]);
-    p.continue();
-  }
-
-
-  clean(p: Async) {
-    this.workspace.clean(p);
-  }
-
-  find(p: Async, options: FindOptions) {
-    this.workspace.remoteCall(p, "find", options);
-  }
-
-  replace(p: Async, options: ReplaceOptions) {
-    this.workspace.remoteCall(p, "replace", options);
-  }
-
-  openFile(p: Async, path) {
-    var once = this._openFiles.get(path);
-    if (!once) {
-      once = new Async(null, Async.once([
-        (p) => { this.workspace.remoteCall(p, "openFile", path); },
-        (p) => {
-          var file: WorkspaceFile = p.context.result;
-          var workspace = null;
-          Workspace.workspaces.forEach((w) => { if (w.path === file.path) workspace = w; });
-          if (workspace) {
-            file.on('saved', () => { async.run(null, [
-              workspace.reload.bind(workspace),
-              workspace.loadDependencies.bind(workspace),
-            ]); });
-          }
-          file.on('destroy', () => {
-            this._openFiles.delete(path);
-          });
-          p.continue();
-          setTimeout(() => { file.unref(); }, 0);
-        }
-      ]));
-      this._openFiles.set(path, once);
-    }
-    p.setFirstElements([
-      once,
-      (p) => {
-        p.context.file = once.context.result;
-        p.context.view = this.content.createViewIfNecessary(views.EditorView, [p.context.file])
-        p.continue();
-      }
-    ]);
-    p.continue();
-  }
-
-  openSettings(workspace) {
-    return this.content.createViewIfNecessary(views.WorkspaceSettingsView, [workspace]);
-  }
-
-  openBuildGraph(workspace) {
-    return this.content.createViewIfNecessary(views.WorkspaceGraphView, [workspace]);
-  }
-
-  exec(command) {
-    if (!this._focus || !this._focus.tryDoAction(command))
-      this.tryDoAction(command);
-  }
-
   startOperation(e) {
-    this.exec(e.command);
+    this.exec(null, e.command);
     e.preventDefault();
     return true;
   }

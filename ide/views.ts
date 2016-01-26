@@ -10,7 +10,7 @@ export import DockLayout   = require('./views/DockLayout');
 
 export import EditorView            = require('./views/EditorView');
 export import WorkspaceSettingsView = require('./views/WorkspaceSettingsView');
-export import WorkspaceGraphView    = require('./views/WorkspaceGraphView');
+export import SessionGraphView      = require('./views/SessionGraphView');
 export import WorkspaceTreeView     = require('./views/WorkspaceTreeView');
 export import GoToFile              = require('./views/GoToFile');
 export import SearchInFiles         = require('./views/SearchInFiles');

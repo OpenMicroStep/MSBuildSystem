@@ -5,14 +5,16 @@ var dirs = new AppDirectory('MicroStep IDE');
 var userDataPath = dirs.userData();
 
 class UserData {
-  protected path: string;
-  protected data: any;
+  path: string;
+  data: any;
   constructor(name: string) {
     this.path = path.join(userDataPath, name);
     this.data = null;
   }
 
-  load(p) {
+  load(p, force?) {
+    if (this.data && !force)
+      return p.continue();
     fs.readFile(this.path, 'utf8', (err, data) => {
       try { this.data = JSON.parse(data); }
       catch(e) { this.data = {}; }

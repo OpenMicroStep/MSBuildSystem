@@ -29,20 +29,18 @@ interface InternalDefinition {
 }
 
 class WorkspaceSettingsView extends ContentView {
-  workspace: Workspace;
+  session;
   _defs: Definition[];
   _data: any;
-  _save;
   $setdata;
 
-  constructor(workspace: Workspace) {
+  constructor() {
     super();
-    this.workspace = workspace;
-    this.titleEl.textContent = workspace.name;
+    this.titleEl.textContent = "Settings";
 
     this.el.className = "settings";
     this._data = {};
-    this._save = null;
+    this.session = core.globals.ide.session;
     this.setDefinition([
     {
       label: 'Variants',
@@ -59,7 +57,7 @@ class WorkspaceSettingsView extends ContentView {
         type: Type.Checklist,
         default: true,
         path: ['environments'],
-        list: workspace.environments.map(n => n.name)
+        list: this.session.workspace.environments.filter(n => !!n.env).map(n => n.name)
       }]
     },
     {
@@ -68,19 +66,14 @@ class WorkspaceSettingsView extends ContentView {
         type: Type.Checklist,
         default: true,
         path: ['targets'],
-        list: workspace.targets.map(n => n.name)
+        list: this.session.workspace.targets.map(n => n.name)
       }]
     }
     ]);
-    (new core.async.Async(null, [
-      this.workspace.userData.bind(this.workspace),
-      (p) => { this.setData(p.context.result); p.continue(); }
-    ])).continue();
-    this.workspace.on('userdata', this.$setdata = this.setData.bind(this));
+    this.setData(this.session.get('buildgraph', {}));
   }
 
   destroy() {
-    this.workspace.off('userdata', this.$setdata);
     super.destroy();
   }
 
@@ -151,23 +144,12 @@ class WorkspaceSettingsView extends ContentView {
     for(var i = 0, len = path.length - 1; d !== void 0 && i < len; ++i)
       d = d[path[i]];
     d[path[i]] = value;
-    this._willsave();
-  }
-
-  _willsave() {
-    if (this._save)
-      clearTimeout(this._save);
-    this._save = setTimeout(() => {
-      this._save = null;
-      this.save();
-    }, 1000);
+    this.save();
   }
 
   save() {
-    console.log("save", this._data);
-    (new core.async.Async(null, [
-      (p) => { this.workspace.setUserData(p, this._data); }
-    ])).continue();
+    this.session.set('buildgraph', this._data);
+    this.session.clearGraph();
   }
 
   _applydef(def: Definition) {
@@ -203,15 +185,16 @@ class WorkspaceSettingsView extends ContentView {
     this._data = d;
     console.log("load", this._data);
     this._applydefs(this._defs);
-    if (this._save) {
-      clearTimeout(this._save);
-      this._save = null;
-    }
   }
 
-  isViewFor(workspace) {
-    return this.workspace === workspace;
+  isViewFor() {
+    return true;
+  }
+
+  data() {
+    return null;
   }
 }
+core.ContentView.register(WorkspaceSettingsView, "settings");
 
 export = WorkspaceSettingsView;

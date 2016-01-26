@@ -5,9 +5,10 @@ type DragOptions = {
   type: string;
   mindist?: number;
   data?: any;
-  dnd?: { text: string, data: string, file: string }
+  dnd?: () => { text?: string, data?: any, file?: string };
   ondragstart?:(data: any) => void;
   ondragend?:(type: string,data: any) => void;
+  external?: boolean;
 };
 
 type DropOptions = {
@@ -17,56 +18,77 @@ type DropOptions = {
   ondragover:(ev: MouseEvent, data: any) => string;
   ondragexit?:(ev: MouseEvent, data: any) => void;
   ondrag?:(ev: MouseEvent, data: any) => void;
-  ondrop:(data: any, type: string) => void;
+  ondrop:(ev: { data?:any, dropEffect: string, externaldata?: any }) => void;
 };
-/*
-function _start(event: MouseEvent, item: HTMLElement, options: DragOptions): void {
-  if (event.button === 0) {
-    var upfn, mvfn;
-    var root = this.root();
-    var dragnode: HTMLElement = null;
-    var sx = event.screenX, sy = event.screenY;
-    document.addEventListener("mousemove", mvfn = (event:MouseEvent) => {
-      if (!dragnode) {
-        var x = event.screenX, y = event.screenY;
-        var dx = sx - x, dy = sy - y;
-        if (dx * dx + dy * dy > options.mindist) {
-          dragnode= document.createElement('div');
-          document.body.appendChild(dragnode);
-          dragnode.appendChild(item);
-          if (options.ondragstart)
-            options.ondragstart(options.data);
-        }
-      }
-    }, true);
-    document.addEventListener("mouseup", upfn = (event:MouseEvent) => {
-      if (event.button === 0) {
-        if (dragnode) {
-          var el:any = document.elementFromPoint(event.clientX, event.clientY);
-          var data = el._docklayout;
-          if (data && data.root == root) {
-            var view = this._tabs[idx].view;
-            if (data.tab !== this || this._tabs.length > 1) {
-              this.removeTab(idx);
-              data.tab.appendViewTo(view, data.pos);
-            }
-          }
-          root.hideDockPlaces();
-        }
-        document.removeEventListener("mousemove", mvfn, true);
-        document.removeEventListener("mouseup", upfn, true);
-      }
-    }, true);
-  }
-}
-*/
-var dragging: { item: HTMLElement, options: DragOptions, over: HTMLElement, dropEffect: string } = null;
+
+var dragging: { options: DragOptions, over: HTMLElement, dropEffect: string } = null;
 var ondragstart = [];
 var ondragend = [];
 var ondrag = [];
+var dragexternaltimeout = null;
+var prefix = "custom/";
+
+function dragstart(options) {
+  if (ondragstart.length > 0 || options.ondragstart) {
+    setTimeout(() => {
+      if (options.ondragstart)
+        options.ondragstart(options.data);
+      ondragstart.forEach((m) => { if (m.type === options.type) m.fn(options.data); });
+    }, 0);
+  }
+}
+
+function dragend(options, ev, dropEffect, data) {
+  if (dragexternaltimeout) {
+    clearTimeout(dragexternaltimeout);
+    dragexternaltimeout = null;
+  }
+  if (dragging && dragging.over) {
+    dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
+    dragging.over = null;
+  }
+  dragging = null;
+  if (options.ondragend)
+    options.ondragend(ev.dataTransfer.dropEffect, options.data);
+  ondragend.forEach((m) => { if (m.type === options.type) m.fn(dropEffect, data); });
+}
+
+function externaldata(ev: DragEvent) {
+  try {
+    return JSON.parse(ev.dataTransfer.getData("__customdata"));
+  } catch(e) {
+    return null;
+  }
+}
+
+function externaltimeoutcheck(ev) {
+  if (dragging && dragging.options.external) {
+    if (dragexternaltimeout) {
+      clearTimeout(dragexternaltimeout);
+    }
+    dragexternaltimeout = setTimeout(function() {
+      dragend(dragging.options, ev, "none", null);
+    }, 250);
+  }
+}
 
 document.addEventListener('dragover', (ev) => {
-  console.log("dragover", ev && ev.dataTransfer && ev.dataTransfer.getData("__custom"));
+  externaltimeoutcheck(ev);
+  if (!dragging) {
+    var types = ev.dataTransfer.types;
+    for (var i = 0, len = types.length; i < len; ++i) {
+      var type = types[i];
+      if (type.startsWith(prefix)) {
+        var options = { type: type.substring(prefix.length), external: true };
+        dragging = { options: options, over: null, dropEffect: "none" };
+        externaltimeoutcheck(ev);
+        dragstart(options);
+        i = len;
+      }
+    }
+  }
+}, true);
+document.addEventListener('dragover', (ev) => {
   if (dragging && dragging.over) {
     var rect = dragging.over.getBoundingClientRect();
     var x = ev.clientX, y = ev.clientY;
@@ -77,13 +99,7 @@ document.addEventListener('dragover', (ev) => {
     ondrag.forEach((m) => { if (m.type === dragging.options.type) m.fn(ev, dragging.options.data); });
   }
 }, false);
-/*
-document.addEventListener('drop', (ev) => {
-  if (dragging && dragging.over) {
-    dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
-    dragging.over = null;
-  }
-}, true);*/
+
 
 export var DropAction = {
   Copy: "copy",
@@ -96,37 +112,22 @@ export function draggable(item: HTMLElement, options: DragOptions) {
   item.draggable = true;item.addEventListener("dragstart", (ev: DragEvent) => {
     ev.dataTransfer.effectAllowed = "moveCopy";
     ev.dataTransfer.dropEffect = "none";
-    var data = options.dnd && options.dnd.data;
-    var file = options.dnd && options.dnd.file;
-    var text = options.dnd && options.dnd.text;
-    ev.dataTransfer.setData("__custom", "");
+    var dnd: any = options.dnd ? options.dnd() : {};
+    var data = dnd.data;
+    var file = dnd.file;
+    var text = dnd.text;
+    ev.dataTransfer.setData(prefix + options.type, "");
+    if (data)
+      ev.dataTransfer.setData("__customdata", JSON.stringify(data));
     if (text || file)
       ev.dataTransfer.setData("text/plain", text || file);
     if (file)
       ev.dataTransfer.setData("DownloadURL","application/octet-stream:" + pathBasename(file) + ":file://" + file);
-    /* var dataTransfer:any = ev.dataTransfer;
-    if (dataTransfer.setDragImage) {
-      var blankImage = document.createElement("img");
-      blankImage.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
-      dataTransfer.setDragImage(blankImage, 0, 0);
-    }*/
-    dragging = { item: item, options: options, over: null, dropEffect: "none" };
-    if (options.ondragstart) {
-      setTimeout(() => {
-        options.ondragstart(options.data);
-        ondragstart.forEach((m) => { if (m.type === options.type) m.fn(options.data); });
-      }, 0);
-    }
+    dragging = { options: options, over: null, dropEffect: "none" };
+    dragstart(options);
   });
   item.addEventListener("dragend", (ev: DragEvent) => {
-    if (dragging && dragging.over) {
-      dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
-      dragging.over = null;
-    }
-    dragging = null;
-    if (options.ondragend)
-      options.ondragend(ev.dataTransfer.dropEffect, options.data);
-    ondragend.forEach((m) => { if (m.type === options.type) m.fn(ev.dataTransfer.dropEffect, options.data); });
+    dragend(options, ev, ev.dataTransfer.dropEffect, options.data);
   });
 }
 
@@ -135,10 +136,13 @@ export function droppable(item: HTMLElement, options: DropOptions) {
     if (dragging && dragging.over == item) {
       dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
       dragging.over = null;
-      options.ondrop(dragging.options.data, dragging.dropEffect);
-      ev.dataTransfer.dropEffect = "move";
+
+      options.ondrop({ data: dragging.options.data, dropEffect: dragging.dropEffect, externaldata: externaldata(ev) });
+      ev.dataTransfer.dropEffect = dragging.dropEffect;
       ev.preventDefault();
       ev.stopPropagation();
+      if (dragging.options.external)
+        dragend(dragging.options, ev, dragging.dropEffect, null);
     }
   }, true);
   item.addEventListener('dragover', (ev) => {

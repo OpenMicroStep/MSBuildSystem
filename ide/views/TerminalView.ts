@@ -56,6 +56,12 @@ class TerminalView extends core.ContentView {
     }
     super.resize();
   }
+
+  data() {
+    return {  };
+  }
 }
+
+//core.ContentView.register(TerminalView, "terminal");
 
 export = TerminalView;

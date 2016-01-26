@@ -15,7 +15,7 @@ class SearchInFiles extends core.ContentView {
   $pcase; $replacement; $replace;
   contextsize: number;
 
-  constructor() {
+  constructor(options? : SearchInFiles.ReplaceOptions) {
     super();
     this.titleEl.textContent = "Search in files";
     this.el.className = "searchinfiles";
@@ -74,17 +74,7 @@ class SearchInFiles extends core.ContentView {
             path = token.value;
         }
         if (path && pathrow) {
-          setTimeout(() => {
-            core.async.run(null, [
-              (p) => { core.globals.ide.openFile(p, path); },
-              (p) => {
-                var ed = p.context.view && p.context.view.editor;
-                if (ed)
-                  setTimeout(() => { ed.gotoLine(pathrow, pathcol, true); }, 0);
-                p.continue();
-              }
-            ])
-          }, 0);
+          core.async.run(null, (p) => { core.globals.ide.openFile(p, {path: path, row: pathrow, col: pathcol }); });
         }
       }
     });
@@ -153,7 +143,7 @@ class SearchInFiles extends core.ContentView {
             var replacements = p.context.result.replacements;
             replacements.forEach((r) => {
               core.async.run(null, [
-                (p) => { core.globals.ide.openFile(p, r.path); },
+                (p) => { core.globals.ide.openFile(p, {path: r.path}); },
                 (p) => {
                   var ed: AceAjax.Editor = p.context.view && p.context.view.editor;
                   var session: AceAjax.IEditSession = ed.getSession();
@@ -180,7 +170,7 @@ class SearchInFiles extends core.ContentView {
     this.editor.editor.focus();
   }
 
-  options() {
+  options() : SearchInFiles.ReplaceOptions {
     return {
       regexp       : $(this.$rx).hasClass('active'),
       casesensitive: $(this.$cs).hasClass('active'),
@@ -191,6 +181,10 @@ class SearchInFiles extends core.ContentView {
       preservecase : $(this.$pcase).hasClass('active'),
       replacement  : $(this.$replacement).val(),
     }
+  }
+
+  data() {
+    return this.options();
   }
 
   _reloadOptions() {
@@ -230,6 +224,24 @@ class SearchInFiles extends core.ContentView {
 
 SearchInFiles.prototype.duplicate = function() {
   return new SearchInFiles();
+}
+
+core.ContentView.register(SearchInFiles, "searchinfiles");
+
+module SearchInFiles {
+  export interface FindOptions {
+    regexp       : boolean,
+    casesensitive: boolean,
+    wholeword    : boolean,
+    showcontext  : number,
+    searchtext   : string,
+    filter       : string,
+    preservecase : boolean,
+  };
+
+  export interface ReplaceOptions extends FindOptions {
+    replacement  : string,
+  };
 }
 
 export = SearchInFiles;
