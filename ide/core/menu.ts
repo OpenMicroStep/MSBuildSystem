@@ -303,7 +303,17 @@ export class TitleMenu extends Menu {
         accelerator: 'CmdOrCtrl+Alt+I',
         click: function() { remote.getCurrentWindow().webContents.openDevTools(); }
       }]}));
-      nativeMenu.setApplicationMenu(this.nativeMenu);
+      var w = remote.getCurrentWindow();
+      if (remote.process.platform === "darwin") {
+        w.on("focus", () => {
+          nativeMenu.setApplicationMenu(this.nativeMenu);
+        });
+        if (w.isFocused())
+          nativeMenu.setApplicationMenu(this.nativeMenu);
+      }
+      else {
+        w.setMenu(this.nativeMenu);
+      }
     }
     else {
       this.domMenu.className = "nav menu-title";
