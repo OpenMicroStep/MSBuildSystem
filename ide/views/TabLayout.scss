@@ -20,42 +20,53 @@ $tablayout-tabsborder: 1px;
   white-space: nowrap;
 }
 
-.tablayout-content {
+.tablayout-content {
   overflow: auto;
 }
 
 .tablayout-tab {
-  position:relative;
+  position: relative;
   cursor: default;
   display: inline-block;
   vertical-align: top;
-  margin: 0 6px;
+  margin-right: 12px;
   padding: 4px;
   height: $tablayout-tabsheight - $tablayout-tabsborder;
 }
 .tablayout-tab:first-child {
-  margin-left: 12px;
+  transition: margin-left 0.2s;
 }
 
 .tablayout-tabs > div {
+  margin: 0 10px;
   height: 26px;
+  position: relative;
 }
 
-.tablayout-list {
-  background: linear-gradient(to right, rgba(255,255,255,0) 0%,rgba(255,255,255,1) 25%);
-  z-index: 10;
+.tablayout-tab > * {
+  position: relative;
+}
+
+.tablayout-tabs > div::before, .tablayout-tabs > div::after {
+  content: '';
   position: absolute;
-  right: 0;
   top: 0;
   bottom: 1px;
-  width: 24px;
-  text-align: right;
-  padding: 4px;
+  width: 16px;
+  z-index:2;
+  pointer-events: none;
+}
+.tablayout-tabs > div::before {
+  background: linear-gradient(to right, $background-color 0%,rgba(255,255,255,0) 100%);
+  left: -10px;
+}
+.tablayout-tabs > div::after {
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%,$background-color 100%);
+  right: -10px;
 }
 
 .tablayout-tab::before {
   content: '';
-  z-index: -1;
   position: absolute;
   top: 0;
   bottom:-1px;
@@ -173,4 +184,18 @@ $tablayout-tabsborder: 1px;
 }
 .tablayout-left > .tablayout-tabs > div > .tablayout-tab {
   transform: rotate(0.5turn);
+}
+
+.tablayout-content-loading {
+    background-repeat: no-repeat;
+    background-size: 30% 2px;
+    background-image:
+  url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNg6Pz/HwAEnQKI7jrFOwAAAABJRU5ErkJggg==);
+    background-position: 0 bottom;
+    animation: tablayout-content-loading  1s ease infinite;
+}
+
+@keyframes tablayout-content-loading {
+    0%{background-position:-50% 100%; }
+    100%{background-position:150% 100%;}
 }

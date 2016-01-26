@@ -21,30 +21,24 @@ class TabLayout extends View {
   _position:Position;
   _elTabs:HTMLElement;
   _elContent:HTMLElement;
+  _leftOffset: number;
 
   constructor() {
     super();
     this._tabs = [];
     this._current = null;
+    this._leftOffset = 0;
 
     var tabs = document.createElement('div');
     tabs.className = "tablayout-tabs";
     this._elTabs = document.createElement('div');
     tabs.appendChild(this._elTabs);
-    var list = document.createElement('div');
-    list.className = "tablayout-list";
-    this._elTabs.appendChild(list);
-    var $caret = $('<span class="fa fa-fw fa-lg fa-caret-down"></span>').appendTo(list);
-    $caret[0].addEventListener("click", menu.createContextMenuEvent(() => {
-      var items = [];
-      this._tabs.forEach((tab) => {
-        items.push({
-          label: tab.tab.textContent,
-          click: () => {}
-        });
-      });
-      return items;
-    }), true);
+    this._elTabs.addEventListener("wheel", (ev) => {
+      if (!this._tabs.length) return;
+      var delta =  -ev.deltaX +ev.deltaY;
+      this._offset(delta > 0 ? this._tabs[this._tabs.length - 1].tab : this._tabs[0].tab, delta);
+      ev.preventDefault();
+    });
 
     this._elContent = document.createElement('div');
     this._elContent.className = "tablayout-content";
@@ -54,6 +48,36 @@ class TabLayout extends View {
 
     this.el.appendChild(tabs);
     this.el.appendChild(this._elContent);
+  }
+
+  resize() {
+    if (this._tabs.length)
+      this._offset(this._tabs[this._tabs.length - 1].tab, undefined, true);
+    super.resize();
+  }
+
+  _offset(tab: HTMLElement, delta?, limit?) {
+    var crect = this._elTabs.getBoundingClientRect();
+    var tab0 = this._tabs[0].tab;
+    var trect = tab.getBoundingClientRect();
+    var pending = this._leftOffset - tab0.offsetLeft;
+    if (delta !== void 0) {
+      if (delta > 0 && trect.right + pending > crect.right)
+        this._leftOffset -= Math.min(delta, trect.right + pending - crect.right);
+      else if (delta < 0 && trect.left < crect.left + pending)
+        this._leftOffset += Math.min(-delta, crect.left - trect.left - pending);
+    }
+    else if (limit !== void 0) {
+      if (this._leftOffset < 0 && trect.right + pending < crect.right)
+        this._leftOffset -= trect.right + pending - crect.right;
+    }
+    else {
+      if (trect.right + pending > crect.right)
+        this._leftOffset -= trect.right + pending - crect.right;
+      else if (trect.left < crect.left + pending)
+        this._leftOffset += crect.left - trect.left - pending;
+    }
+    tab0.style.marginLeft = this._leftOffset + "px";
   }
 
   getChildViews():View[] {
@@ -90,6 +114,7 @@ class TabLayout extends View {
     this._elContent.innerHTML = "";
     if (this._current) {
       $(this._current.tab).addClass('active');
+      this._offset(this._current.tab);
       var view = this._current.view;
       this._elContent.appendChild(view.el);
       view.resize();

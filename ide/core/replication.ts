@@ -54,7 +54,6 @@ socket.on('connect', function() {
   for(var k in instances) {
     if (instances.hasOwnProperty(k)) {
       var d: DistantObject= instances[k];
-      console.log("reconnecting", d);
       reconnectPool.continue(null, { obj: d });
     }
   }

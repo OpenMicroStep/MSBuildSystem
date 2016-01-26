@@ -1,4 +1,4 @@
-import {View, ContentView, async, menu, globals} from '../core';
+import {View, ContentView, async, menu, globals, util} from '../core';
 import WorkspaceFile = require('../client/WorkspaceFile');
 import Workspace = require('../client/Workspace');
 
@@ -55,6 +55,9 @@ class EditorView extends ContentView {
     this.el.className = "editor";
     this.editorEl.className = "editor-ace";
     this.statusEl.className = "editor-status";
+    this.titleEl.textContent = util.pathBasename(this.path);
+    this.titleEl.className = "tablayout-content-loading";
+    //$('<i class="fa fa-circle-o-notch fa-spin"></i>').appendTo(this.titleEl);
     this.editor = new Editor(new Renderer(this.editorEl));
     this.editor.commands.addCommands(whitespace.commands);
     this.editor.$blockScrolling = Infinity;
@@ -145,6 +148,7 @@ class EditorView extends ContentView {
   initWithFile(file) {
     this._file = file;
     this.titleEl.textContent = file.name;
+    this.titleEl.className = "";
 
     this.editor.setSession(this._file.createEditSession());
     //this.editor.setTheme("ace/theme/monokai");

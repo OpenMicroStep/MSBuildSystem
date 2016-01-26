@@ -272,10 +272,13 @@ class DockLayout extends View implements DockLayout.DockParentView {
     var traverse = (data, parent) : any => {
       var type = data.type;
       if (type === "hbox" || type === "vbox") {
-        var box = new DockLayout.DockBoxLayout(parent, {orientation: type === "hbox" ? BoxLayout.Orientation.HORIZONTAL : BoxLayout.Orientation.VERTICAL, userCanResize: true});
-        data.items.forEach((item) => {
-          box.appendView(traverse(item, box), item.size);
-        })
+        var box = new DockLayout.DockBoxLayout(parent, {
+          orientation: type === "hbox" ? BoxLayout.Orientation.HORIZONTAL : BoxLayout.Orientation.VERTICAL,
+          userCanResize: true
+        });
+        box._setViews(data.items.map((item) => {
+          return { view: traverse(item, box), size: item.size };
+        }));
         return box;
       }
       else if (type === "main" || type === "tabs") {
@@ -289,7 +292,6 @@ class DockLayout extends View implements DockLayout.DockParentView {
       }
       throw new Error("invalid layout data, type '"+type+"' unknown");
     }
-    console.log("loading", data);
     this._root = traverse(data, this);
     this._root.appendTo(this.el);
     this._layoutChange();

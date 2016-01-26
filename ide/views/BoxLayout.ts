@@ -31,12 +31,13 @@ class BoxLayout extends  View {
   _userCanResize: boolean;
   _orientation: Orientation;
 
-  constructor(options: { userCanResize?: boolean, orientation?: Orientation } = {}) {
+  constructor(options: { userCanResize?: boolean, orientation?: Orientation, items?: { view: View, size: number }[] } = {}) {
     super();
     this._items= [];
     this.el.className = "boxlayout";
     this.userCanResize= typeof options.userCanResize === "boolean" ? options.userCanResize : false;
     this.orientation= typeof options.orientation == "number" ? options.orientation : Orientation.HORIZONTAL;
+
   }
 
   getChildViews() : View[] {
@@ -70,12 +71,16 @@ class BoxLayout extends  View {
       return item.view === view;
     });
   }
+  _setViews(items: { view: View, size: number }[]) {
+    items.forEach((item, idx) => {
+      this._insertView(item.view, item.size, idx);
+    });
+    this.updateScales();
+  }
   appendView(view: View, size: number) {
     this.insertView(view, size, this._items.length);
   }
-  insertView(view: View, size: number, at: number) {
-    if (at < 0 || at > this._items.length) throw  "'at' is out of bounds [0, " + this._items.length + "]";
-
+  _insertView(view: View, size: number, at: number) {
     // DOM
     if (this._items.length > 0) {
       var domSep = document.createElement('div');
@@ -99,11 +104,13 @@ class BoxLayout extends  View {
     domItem.className= "boxlayout-item";
     domItem.appendChild(domContainer);
     this.el.insertBefore(domItem, this.el.childNodes[at * 2]);
+    this._items.splice(at, 0, {view: view, size:size});
+  }
 
-    // Items
-    this._items.splice(at, 0, {view: view, size:0});
+  insertView(view: View, size: number, at: number) {
+    if (at < 0 || at > this._items.length) throw  "'at' is out of bounds [0, " + this._items.length + "]";
 
-    // Sizing
+    this._insertView(view, 0, at);
     this.rescaleItem(at, this._items.length === 1 ? 1.0 : size);
   }
 
