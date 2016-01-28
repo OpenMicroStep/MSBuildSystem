@@ -10,6 +10,7 @@ import Async = async.Async;
 var defaultCommands= [
   { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
   { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
+  { name:"file.saveall"            , bindKey: { win: "Ctrl-Alt-S", mac: "Command-Alt-S" } },
   { name:"file.close"              , bindKey: { win: "Ctrl-W", mac: "Command-W" } },
   { name:"file.gotofile"           , bindKey: { win: "Ctrl-P", mac: "Command-P" } },
   { name:"workspace.build"         , bindKey: { win: "Ctrl-B", mac: "Command-B" } },
@@ -355,6 +356,9 @@ class IDE extends views.View {
           this._gotofile.focus();
         }
         p.continue();
+      },
+      'file.saveall': (p) => {
+        this.session.saveFiles(p);
       },
       'file.open': (p, args) => {
         if (args) {
