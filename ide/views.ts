@@ -16,3 +16,4 @@ export import GoToFile              = require('./views/GoToFile');
 export import SearchInFiles         = require('./views/SearchInFiles');
 export import TerminalView          = require('./views/TerminalView');
 export import DiagnosticsView       = require('./views/DiagnosticsView');
+export import CounterpartsView      = require('./views/CounterpartsView');

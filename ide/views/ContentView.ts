@@ -18,10 +18,11 @@ abstract class ContentView extends View {
     return cstor ? cstor(data.data || {}) : null;
   }
 
-  constructor(tagName: string = "div", titleTagName: string = "div") {
+  constructor(tagName: string = "div", titleTagName: string = "div", canBeIDECurrentView = false) {
     super(tagName);
     this.titleEl = document.createElement(titleTagName);
-    this.el.addEventListener('click', globals.ide.setCurrentView.bind(globals.ide, this));
+    if (canBeIDECurrentView)
+      this.el.addEventListener('click', globals.ide.setCurrentView.bind(globals.ide, this));
   }
 
   isViewFor(...args: any[]) {
@@ -30,6 +31,7 @@ abstract class ContentView extends View {
 
   destroy() {
     super.destroy();
+    $(this.titleEl).remove();
     if (globals.ide._focus === this)
       globals.ide.setCurrentView(null);
   }
@@ -60,6 +62,17 @@ abstract class ContentView extends View {
     return { data: this.serialize() }
   }
   abstract data(): any;
+
+  extendsContextMenu(items, tabLayout, idx) {
+    if (this.duplicate) {
+      items.push({
+        label: "Duplicate view",
+        click: () => {
+          tabLayout.insertView(this.duplicate(), idx + 1, false);
+        }
+      });
+    }
+  }
 
   // Optionals
   serialize:() => { type: string, data: any };

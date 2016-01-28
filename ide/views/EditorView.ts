@@ -44,7 +44,7 @@ class EditorView extends ContentView {
   $onChangeOptions;
 
   constructor(opts: { path: string, row?: number, col?: number }) {
-    super();
+    super(undefined, undefined, true);
 
     this.path = opts.path;
     this._file = null;
@@ -148,6 +148,7 @@ class EditorView extends ContentView {
   }
 
   initWithFile(file) {
+    if (!this.editor) return;
     this._file = file;
     this.titleEl.textContent = file.name;
     this.titleEl.className = "";
@@ -175,9 +176,9 @@ class EditorView extends ContentView {
   goTo(opts: { row?: number, col?: number }) {
     if (opts.row === void 0) return;
     if (this._file)
-      this.editor.gotoLine(opts.row - 1, opts.col);
+      this.editor.gotoLine(opts.row + 1, opts.col);
     else
-      this.once("ready", () => { setTimeout(() => { this.editor.gotoLine(opts.row - 1, opts.col); }, 0); });
+      this.once("ready", () => { setTimeout(() => { this.editor.gotoLine(opts.row + 1, opts.col); }, 0); });
   }
 
   getFile(p: async.Async) {
@@ -216,8 +217,11 @@ class EditorView extends ContentView {
   destroy() {
     super.destroy();
     this.editor.destroy();
-    this._file.unref();
-    this._file.off("change", this.fileEvt);
+    this.editor = null;
+    if (this._file) {
+      this._file.unref();
+      this._file.off("change", this.fileEvt);
+    }
   }
 
   tryDoAction(p, command) {

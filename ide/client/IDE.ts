@@ -26,6 +26,10 @@ var defaultCommands= [
   { name:"workspace.showdiagnostics"},
   { name:"view.openterminal"        },
   { name:"view.resetlayout"         },
+  { name:"view.counterparts.srcorheader"},
+  { name:"view.counterparts.doc"        },
+  { name:"view.counterparts.src"        },
+  { name:"view.counterparts.header"     },
   { name:"edit.touppercase"        , bindKey: { win: "Ctrl-K Ctrl-U", mac: "Command-K Command-U" } },
   { name:"edit.tolowercase"        , bindKey: { win: "Ctrl-K Ctrl-L", mac: "Command-K Command-L" } },
 ];
@@ -57,6 +61,12 @@ var menus = [
   {id: "view", label: "View", submenu: [
     { label: "Open terminal"      , command: "view.openterminal"       },
     { label: "Reset layout"       , command: "view.resetlayout"        },
+    { label: "Counterparts"       , submenu: [
+      { label: "Source or header" , command: "view.counterparts.srcorheader"},
+      { label: "Documentation"    , command: "view.counterparts.doc"        },
+      { label: "Source"           , command: "view.counterparts.src"        },
+      { label: "Header"           , command: "view.counterparts.header"     },
+    ]},
   ]},
   {id: "workspace", label: "Workspace", submenu: [
     { label: "Build"              , command: "workspace.build"         },
@@ -355,6 +365,10 @@ class IDE extends views.View {
           p.continue();
         }
       },
+      'view.counterparts.srcorheader': _commandCreateView(views.CounterpartsView, [{ type: "srcorheader"}]).bind(this),
+      'view.counterparts.doc'        : _commandCreateView(views.CounterpartsView, [{ type: "doc"        }]).bind(this),
+      'view.counterparts.src'        : _commandCreateView(views.CounterpartsView, [{ type: "src"        }]).bind(this),
+      'view.counterparts.header'     : _commandCreateView(views.CounterpartsView, [{ type: "header"     }]).bind(this),
       'find.findinfiles'             : _commandCreateView(views.SearchInFiles, []).bind(this),
       'view.resetlayout': (p) => {
         this.content.deserialize(defaultLayout);
@@ -379,7 +393,14 @@ class IDE extends views.View {
   }
 
   setCurrentView(view: views.ContentView) {
-    this._focus = view;
+    if (this._focus !== view) {
+      this._focus = view;
+      this._signal("currentViewChange", { view: view });
+    }
+  }
+
+  currentView() {
+    return this._focus;
   }
 
   tryDoAction(p, command) {

@@ -511,8 +511,10 @@ module DockLayout {
     }
 
     setCurrentIdx(current:number, force?: boolean) {
+      var c = this._current;
       super.setCurrentIdx(current, force);
-      this.root()._layoutChange();
+      if (this._current !== c)
+        this.root()._layoutChange();
     }
 
     insertView(view:ContentView, at:number, makeCurrent?: boolean) {

@@ -1,7 +1,33 @@
-export function pathBasename(path: string) : string {
+export function pathBasename(path: string) : string
+{
   var idx = path.length, c;
   while (idx > 0 && (c= path[--idx]) !== '/' && c !== '\\');
   return (c === '/' || c === '\\') ? path.substring(idx + 1) : path;
+}
+
+export function splitPath(path) : { directory: string, name: string, extension: string }
+{
+  var idx = path.length, extidx, c;
+  var dir, name, ext;
+  while (idx > 0 && (c= path[--idx]) !== '/' && c !== '\\' && c !== '.');
+  if (c === '.') {
+    ext = path.substring(idx + 1);
+    extidx = idx;
+    while (idx > 0 && (c= path[--idx]) !== '/' && c !== '\\');
+  }
+  else {
+    extidx = path.length;
+    ext = "";
+  }
+  if (c === '/' || c === '\\') {
+    name = path.substring(idx + 1, extidx);
+    dir = path.substring(0, idx);
+  }
+  else {
+    name = path.substring(0, extidx);
+    dir = "";
+  }
+  return { directory: dir, name: name, extension: ext };
 }
 
 export function stringDistance(searchStr: string, str: string)

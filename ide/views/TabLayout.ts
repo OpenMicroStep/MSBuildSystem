@@ -204,7 +204,12 @@ class TabLayout extends View {
     domItem.className = "tablayout-tab";
     view.appendTitleTo(domItem);
     var item = { view: view, idx: at, tab: domItem };
-    domItem.addEventListener('click', (event) => { this.setCurrentIdx(item.idx); });
+    domItem.addEventListener('click', (e) => {
+      if (e.button === 1)
+        this.removeTab(item.idx, true);
+      else
+        this.setCurrentIdx(item.idx);
+    });
     menu.bindContextMenuTo(domItem, () => {
       var items = [{
         label: "Close",
@@ -233,14 +238,7 @@ class TabLayout extends View {
             this.removeTab(i, true);
         }
       }];
-      if (item.view.duplicate) {
-        items.push({
-          label: "Duplicate view",
-          click: () => {
-            this.insertView(item.view.duplicate(), item.idx + 1, false);
-          }
-        });
-      }
+      item.view.extendsContextMenu(items, this, item.idx);
       return items;
     });
     return item;
