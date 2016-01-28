@@ -7,7 +7,7 @@ var socketio = require('socket.io');
 var crypto = require('crypto');
 app.use(express.static(__dirname + '/../'));
 
-var server = app.listen(3000, function () {
+var server = app.listen(3000, "127.0.0.1", function () {
   var host = server.address().address;
   var port = server.address().port;
 
@@ -27,4 +27,9 @@ io.on('connection', function(socket) {
     console.info("New session:" + sessionid);
     cb(replication.encode(info, session));
   });
+});
+
+app.get('/file/:path', function(req, res) {
+  console.info("file requested", req.params.path);
+  res.download(req.params.path);
 });

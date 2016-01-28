@@ -121,8 +121,11 @@ export function draggable(item: HTMLElement, options: DragOptions) {
       ev.dataTransfer.setData("__customdata", JSON.stringify(data));
     if (text || file)
       ev.dataTransfer.setData("text/plain", text || file);
-    if (file)
-      ev.dataTransfer.setData("DownloadURL","application/octet-stream:" + pathBasename(file) + ":file://" + file);
+    if (file) {
+      var uri = "application/octet-stream:" + pathBasename(file) + ":" + location.origin +"/file/" + encodeURIComponent(file);
+      console.log(uri);
+      ev.dataTransfer.setData("DownloadURL",uri);
+    }
     dragging = { options: options, over: null, dropEffect: "none" };
     dragstart(options);
   });
