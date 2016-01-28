@@ -2,9 +2,13 @@
   margin: 5px;
 }
 .searchinfiles .btn {
-  width: 40px;
+  width: 36px;
   padding-left: 11px;
   outline: none !important;
+}
+.searchinfiles .form-control, .searchinfiles .btn {
+  height: 28px;
+  font-size: 12px;
 }
 .searchinfiles .btn.active {
   position: relative;
@@ -24,16 +28,16 @@
 }
 
 .searchinfiles-filter {
-  margin: 5px 85px 5px 157px;
+  margin: 5px 84px 5px 142px;
 }
 
 .searchinfiles-replace {
-  margin-left: 118px;
+  margin-left: 107px;
 }
 
 .searchinfiles > :last-child {
   position: absolute;
-  top: 125px;
+  top: 105px;
   bottom: 0;
   left: 0;
   right: 0;
