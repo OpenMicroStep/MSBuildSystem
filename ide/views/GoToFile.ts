@@ -26,7 +26,7 @@ function sortSearchResult(a, b) {
 }
 
 class GoToFile extends GoToView {
-  line: number;
+  row: number;
 
   constructor() {
     super();
@@ -35,11 +35,11 @@ class GoToFile extends GoToView {
 
   search() : any[] {
     this.str = this.str.toLowerCase();
-    this.line = undefined;
+    this.row = undefined;
     var m = this.str.match(/:(\d*)$/);
     if (m) {
       this.str = this.str.substring(0, m.index);
-      this.line = m[1].length > 0 ? parseInt(m[1]) : undefined;
+      this.row = m[1].length > 0 ? parseInt(m[1]) - 1 : undefined;
     }
     var results = [];
     if (this.str.length > 0) {
@@ -71,8 +71,8 @@ class GoToFile extends GoToView {
   }
 
   goToSelection() {
-    if (this.str.length == 0 && this.line !== void 0 && core.globals.ide._focus instanceof EditorView) {
-      (<EditorView>core.globals.ide._focus).goTo({ row: this.line });
+    if (this.str.length == 0 && this.row !== void 0 && core.globals.ide._focus instanceof EditorView) {
+      (<EditorView>core.globals.ide._focus).goTo({ row: this.row });
       this.destroy();
     }
     else
@@ -80,7 +80,7 @@ class GoToFile extends GoToView {
   }
 
   goTo(result: any) {
-    core.async.run(null, (p) => { core.globals.ide.openFile(p, { path: result.workspace.filePath(result.path), row: this.line }); });
+    core.async.run(null, (p) => { core.globals.ide.openFile(p, { path: result.workspace.filePath(result.path), row: this.row }); });
     super.goTo(result);
   }
 }

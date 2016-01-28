@@ -167,12 +167,17 @@ class EditorView extends ContentView {
     this._signal("ready");
   }
 
+  ready(p) {
+    if (this._file) p.continue();
+    else this.once("ready", p.continue.bind(p));
+  }
+
   goTo(opts: { row?: number, col?: number }) {
     if (opts.row === void 0) return;
     if (this._file)
-      this.editor.gotoLine(opts.row, opts.col);
+      this.editor.gotoLine(opts.row - 1, opts.col);
     else
-      this.once("ready", () => { setTimeout(() => { this.editor.gotoLine(opts.row, opts.col); }, 0); });
+      this.once("ready", () => { setTimeout(() => { this.editor.gotoLine(opts.row - 1, opts.col); }, 0); });
   }
 
   getFile(p: async.Async) {
@@ -255,7 +260,7 @@ class EditorView extends ContentView {
 
   data() {
     var pos = this.editor.getCursorPosition();
-    return { path: this.path, row: pos.row + 1, col: pos.column };
+    return { path: this.path, row: pos.row, col: pos.column };
   }
   dragndrop() {
     return {

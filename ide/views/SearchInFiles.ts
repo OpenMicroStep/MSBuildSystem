@@ -150,7 +150,8 @@ class SearchInFiles extends core.ContentView {
             var replacements = p.context.result.replacements;
             replacements.forEach((r) => {
               core.async.run(null, [
-                (p) => { core.globals.ide.openFile(p, {path: r.path}); },
+                (p) => { core.globals.ide.openFile(p, {path: r.path, row: (r.replacements[0] || {}).row, col: (r.replacements[0] || {}).col }); },
+                (p) => { if(p.context.view) p.context.view.ready(p); else p.continue(); },
                 (p) => {
                   var ed: AceAjax.Editor = p.context.view && p.context.view.editor;
                   var session: AceAjax.IEditSession = ed.getSession();
@@ -243,11 +244,11 @@ module SearchInFiles {
     showcontext  : number,
     searchtext   : string,
     filter       : string,
-    preservecase : boolean,
   };
 
   export interface ReplaceOptions extends FindOptions {
     replacement  : string,
+    preservecase : boolean,
   };
 }
 

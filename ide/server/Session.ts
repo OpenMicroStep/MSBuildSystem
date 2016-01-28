@@ -13,6 +13,21 @@ function escapeRegExp(str) {
     return str.replace(/([.*+?^${}()|[\]\/\\])/g, '\\$1');
 }
 
+function preservecase(o: string, n: string) : string {
+  var i, len, out = "";
+  for (i = 0, len = Math.min(o.length, n.length); i < len; ++i) {
+    if (o[i] === o[i].toUpperCase())
+      out += n[i].toUpperCase();
+    else if (o[i] === o[i].toLowerCase())
+      out += n[i].toLowerCase();
+    else
+      out += n[i];
+  }
+  for (len = n.length; i < n.length; ++i)
+    out += n[i];
+  return out;
+}
+
 class Session extends replication.ServedObject<any> {
   sessionid: string;
   userdata: UserData;
@@ -85,8 +100,12 @@ class Session extends replication.ServedObject<any> {
           }
           var start = m.index;
           var end = m.index + m[0].length;
-          if (replace)
-            replacements.push({ row: i, col: start, length: end - start, text: m[0].replace(replacerx, options.replacement) });
+          if (replace) {
+            var replacetext = m[0].replace(replacerx, options.replacement);
+            if (options.preservecase)
+              replacetext = preservecase(m[0], replacetext);
+            replacements.push({ row: i, col: start, length: end - start, text: replacetext });
+          }
 
           if (!found) {
             if (context > 0) {
