@@ -1,5 +1,6 @@
 import core = require('../core');
 import GoToView = require('./GoToView');
+import EditorView = require('./EditorView');
 import Workspace = require('../client/Workspace');
 
 function searchInFiles(text: string, w, files: any[], results: any[]) {
@@ -25,6 +26,8 @@ function sortSearchResult(a, b) {
 }
 
 class GoToFile extends GoToView {
+  line: number;
+
   constructor() {
     super();
     this.update();
@@ -32,12 +35,21 @@ class GoToFile extends GoToView {
 
   search() : any[] {
     this.str = this.str.toLowerCase();
+    this.line = undefined;
+    var m = this.str.match(/:(\d*)$/);
+    if (m) {
+      this.str = this.str.substring(0, m.index);
+      this.line = m[1].length > 0 ? parseInt(m[1]) : undefined;
+    }
     var results = [];
-    Workspace.workspaces.forEach((w) => {
-      searchInFiles(this.str, w, w.files, results);
-      searchInFiles(this.str, w, [{ file: 'make.js' }], results);
-    })
-    return this.str.length > 0 ? results.sort(sortSearchResult) : results;
+    if (this.str.length > 0) {
+      Workspace.workspaces.forEach((w) => {
+        searchInFiles(this.str, w, w.files, results);
+        searchInFiles(this.str, w, [{ file: 'make.js' }], results);
+      })
+      results = results.sort(sortSearchResult);
+    }
+    return results;
   }
 
   createItem(result: any) : HTMLElement {
@@ -58,8 +70,17 @@ class GoToFile extends GoToView {
     return a.file === b.file;
   }
 
+  goToSelection() {
+    if (this.str.length == 0 && this.line !== void 0 && core.globals.ide._focus instanceof EditorView) {
+      (<EditorView>core.globals.ide._focus).goTo({ row: this.line });
+      this.destroy();
+    }
+    else
+      super.goToSelection();
+  }
+
   goTo(result: any) {
-    core.async.run(null, (p) => { core.globals.ide.openFile(p, { path: result.workspace.filePath(result.path) }); });
+    core.async.run(null, (p) => { core.globals.ide.openFile(p, { path: result.workspace.filePath(result.path), row: this.line }); });
     super.goTo(result);
   }
 }

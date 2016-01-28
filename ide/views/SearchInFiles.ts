@@ -30,7 +30,14 @@ class SearchInFiles extends core.ContentView {
       { label: "“”", tooltip: "Whole word", id:"$ww" },
       { label: "☰", tooltip: "Show context", id:"$ctx" },
     ]));
-    group.appendChild(this.createInput({ id: "$search", placeholder: "Search for..." }));
+    var input = this.createInput({ id: "$search", placeholder: "Search for..." });
+    input.addEventListener("keydown", (e) => {
+      if (e.which == 13) { // enter
+        this.find();
+        e.preventDefault();
+      }
+    }, false);
+    group.appendChild(input);
     group.appendChild(this.createOptionBtnGroup([
       { label: "Find", id:"$find", click: this.find.bind(this) },
     ]));
@@ -134,7 +141,7 @@ class SearchInFiles extends core.ContentView {
         if (options.showcontext) opts.push("context");
         var result = "Searching for " + options.searchtext + " inworkspaces files" + opts.join(', ') + "\n\n";
         this.setResults(result);
-        core.globals.ide[replace ? "replace" : "find"](p, this.options());
+        core.globals.ide.session[replace ? "replace" : "find"](p, this.options());
       },
       (p) => {
         if (p.context.result && p.context.result.search) {
