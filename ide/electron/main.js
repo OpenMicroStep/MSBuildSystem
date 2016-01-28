@@ -119,6 +119,9 @@ function onready(p) {
   }
 
   server = child_process.fork(__dirname + "/../server/main.js", []);
+  app.on('will-quit', function() {
+    server.kill();
+  });
   console.info("all", userData.all());
   var workspaces = userData.get("workspaces", []);
   if (workspaces.length > 0) {
