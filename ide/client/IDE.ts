@@ -8,8 +8,8 @@ import Async = async.Async;
 
 
 var defaultCommands= [
-  { name:"file.newfile"            , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
-  { name:"file.savefile"           , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
+  { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
+  { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
   { name:"file.close"              , bindKey: { win: "Ctrl-W", mac: "Command-W" } },
   { name:"file.gotofile"           , bindKey: { win: "Ctrl-P", mac: "Command-P" } },
   { name:"workspace.build"         , bindKey: { win: "Ctrl-B", mac: "Command-B" } },
