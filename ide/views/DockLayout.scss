@@ -19,6 +19,10 @@
   background: rgba(0, 0, 0, .25);
 }
 
+.docklayout-drop {
+  top: 0 !important;
+  z-index: 1040;
+}
 .docklayout-drop > .boxlayout {
   top: 25px !important;
   right: 25px !important;

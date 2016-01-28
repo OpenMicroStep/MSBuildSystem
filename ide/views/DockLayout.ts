@@ -5,6 +5,7 @@ import BoxLayout = require("./BoxLayout");
 import dragndrop = require("../core/dragndrop");
 import globals = require("../core/globals");
 import async = require("../core/async");
+import util = require("../core/util");
 import Async = async.Async;
 
 var orientations = [
@@ -167,6 +168,8 @@ class DockLayout extends View implements DockLayout.DockParentView {
   _items: DockLayout.DockItem[];
   _root: DockLayout.DockTabLayout | DockLayout.DockBoxLayout;
   _main: DockLayout.DockTabLayout;
+  _delayLayoutChange: number;
+  _scheduleLayoutChange;
 
   _init() {
     this._main = new DockLayout.DockTabLayout(this);
@@ -178,6 +181,10 @@ class DockLayout extends View implements DockLayout.DockParentView {
     super();
 
     this.el.className = "docklayout";
+    this._delayLayoutChange = 0;
+    this._scheduleLayoutChange = util.schedule(() => {
+      this._signal("layoutChange");
+    });
     this._init();
     this._main.appendTo(this.el);
 
@@ -185,13 +192,14 @@ class DockLayout extends View implements DockLayout.DockParentView {
     dragndrop.droppable(this.el, {
       type: "tab",
       ondragstart: () => {
+        this._delayLayoutChanges();
         $(this.el).toggleClass("docklayout-drop", true);
         this.resize();
       },
       ondragend:() => {
         $(this.el).toggleClass("docklayout-drop", false);
         this.resize();
-        this._layoutChange();
+        this._delayedLayoutChanges();
       },
       ondragover: (ev, data) => {
         if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
@@ -221,6 +229,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
     if (!ret) {
       ret = create ? create() : new (Function.prototype.bind.apply(cstor, [cstor].concat(args)));
       this.main.appendViewTo(ret, DockLayout.Position.MIDDLE);
+      this._layoutChange();
     }
     ret.focus();
     return ret;
@@ -263,10 +272,25 @@ class DockLayout extends View implements DockLayout.DockParentView {
   }
 
   _layoutChange() {
-    this._signal("layoutChange");
+    if (this._delayLayoutChange === 0)
+      this._scheduleLayoutChange();
+    else
+      this._delayLayoutChange = 2;
+  }
+
+  _delayLayoutChanges() {
+    if (this._delayLayoutChange === 0)
+      this._delayLayoutChange = 1;
+  }
+
+  _delayedLayoutChanges() {
+    if (this._delayLayoutChange === 2)
+      this._scheduleLayoutChange();
+    this._delayLayoutChange = 0;
   }
 
   deserialize(data) {
+    this._delayLayoutChanges();
     this._root.destroy();
     this._init();
     var traverse = (data, parent) : any => {
@@ -288,13 +312,15 @@ class DockLayout extends View implements DockLayout.DockParentView {
           var view = ContentView.deserialize(item);
           if (view) tabs.appendView(view);
         });
+        if (data.tabindex > 0)
+          tabs.setCurrentIdx(data.tabindex);
         return tabs;
       }
       throw new Error("invalid layout data, type '"+type+"' unknown");
     }
     this._root = traverse(data, this);
     this._root.appendTo(this.el);
-    this._layoutChange();
+    this._delayedLayoutChanges();
   }
 
   serialize() {
@@ -318,6 +344,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
       ret.tabs = view._tabs.map(function(item) {
         return item.view.serialize();
       });
+      ret.tabindex = view.currentIdx();
     }
     var ret = {};
     traverse(this._root, ret);
@@ -483,6 +510,16 @@ module DockLayout {
       return this.parent.root();
     }
 
+    setCurrentIdx(current:number, force?: boolean) {
+      super.setCurrentIdx(current, force);
+      this.root()._layoutChange();
+    }
+
+    insertView(view:ContentView, at:number, makeCurrent?: boolean) {
+      super.insertView(view, at, makeCurrent);
+      this.root()._layoutChange();
+    }
+
     appendViewTo(view:ContentView, position:Position) {
       appendViewTo(this, view, position);
     }
@@ -490,6 +527,7 @@ module DockLayout {
     removeTab(at: number, destroy: boolean = false, canRemove: boolean = true) {
       super.removeTab(at, destroy);
       if (canRemove) this.removeIfEmpty();
+      this.root()._layoutChange();
     }
 
     removeIfEmpty() {
@@ -506,15 +544,12 @@ module DockLayout {
         data: item,
         dnd: item.view.dragndrop ? item.view.dragndrop.bind(item.view) : null,
         ondragstart: () => {
-          this.removeTab(item.idx, false, false);
+          $(item.tab).addClass("ghost");
         },
         ondragend: (dropped, data) => {
-          if (dropped !== dragndrop.DropAction.Move) {
-            this.insertView(data.view, item.idx, true);
-          }
-          else {
-            this.removeIfEmpty();
-          }
+          $(item.tab).removeClass("ghost");
+          if (dropped === dragndrop.DropAction.Move)
+            this.removeTab(item.idx, false);
         }
       });
       return item;

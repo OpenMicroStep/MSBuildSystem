@@ -79,6 +79,9 @@ $tablayout-tabsborder: 1px;
 .tablayout-tab.active {
   z-index: 1;
 }
+.tablayout-tab.ghost {
+  opacity: 0.5;
+}
 .tablayout-tab.active::before {
   @include tabborder($background-color, $border-color);
 }

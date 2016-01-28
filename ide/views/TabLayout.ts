@@ -53,6 +53,8 @@ class TabLayout extends View {
   resize() {
     if (this._tabs.length)
       this._offset(this._tabs[this._tabs.length - 1].tab, undefined, true);
+    if (this._current)
+      this._offset(this._current.tab);
     super.resize();
   }
 
