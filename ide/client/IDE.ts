@@ -308,6 +308,10 @@ class IDE extends views.View {
         this.content.createViewIfNecessary(views.WorkspaceSettingsView, []);
         p.continue();
       },
+      'workspace.showbuildgraph': (p) => {
+        this.content.createViewIfNecessary(views.SessionGraphView, []);
+        p.continue();
+      },
       'workspace.build': (p) => { this.session.build(p); },
       'workspace.run': (p) => {
         var status = this._status;
