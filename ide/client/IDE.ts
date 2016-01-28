@@ -180,8 +180,8 @@ class IDEStatus extends views.View {
 
   setRunner(r, e, v) {
     this.runner = r;
-    this.env = e ? e : (r ? r.envs.find((re) => { return re == e; }) || r.envs[0] : null);
-    this.variant = v ? v : (this.variant || r.workspace.variants[0]);
+    this.env = e ? e : (r ? r.envs.find((re) => { return re == this.env; }) || r.envs[0] : null);
+    this.variant = v ? v : (r ? r.workspace.variants.find((rv) => { return rv == this.variant}) || r.workspace.variants[0] : null);
     this.$runner
       .text(r ? r.runner.name : "No runner")
       .attr("title", r ? (r.runner.name + " | " + (this.env || "No environment") + " | " + (this.variant || "No variant")) : "No runner")
