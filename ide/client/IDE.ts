@@ -393,6 +393,7 @@ class IDE extends views.View {
       p.context.view = new views.EditorView({ path: opts.path });
     else
       p.context.view = this.content.createViewIfNecessary(views.EditorView, [{ path: opts.path }]);
+    p.context.view.goTo(opts);
     p.continue();
   }
 

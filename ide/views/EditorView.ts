@@ -43,7 +43,7 @@ class EditorView extends ContentView {
   statusEl: HTMLElement;
   $onChangeOptions;
 
-  constructor(opts: { path: string }) {
+  constructor(opts: { path: string, row?: number, col?: number }) {
     super();
 
     this.path = opts.path;
@@ -143,6 +143,8 @@ class EditorView extends ContentView {
         p.continue();
       }
     ]));
+    if (opts.row !== void 0)
+      this.goTo(opts);
   }
 
   initWithFile(file) {
@@ -162,6 +164,15 @@ class EditorView extends ContentView {
     this.$onChangeOptions();
     Workspace.diagnostics.on("diagnostic", this.ondiagnostics.bind(this));
     this.loadDiagnostics();
+    this._signal("ready");
+  }
+
+  goTo(opts: { row?: number, col?: number }) {
+    if (opts.row === void 0) return;
+    if (this._file)
+      this.editor.gotoLine(opts.row, opts.col);
+    else
+      this.once("ready", () => { setTimeout(() => { this.editor.gotoLine(opts.row, opts.col); }, 0); });
   }
 
   getFile(p: async.Async) {
@@ -243,7 +254,8 @@ class EditorView extends ContentView {
   }
 
   data() {
-    return { path: this.path };
+    var pos = this.editor.getCursorPosition();
+    return { path: this.path, row: pos.row + 1, col: pos.column };
   }
   dragndrop() {
     return {
@@ -254,7 +266,7 @@ class EditorView extends ContentView {
 }
 
 EditorView.prototype.duplicate = function() {
-  return new EditorView(this.path);
+  return new EditorView(this.data());
 }
 
 ContentView.register(EditorView, "editor");
@@ -267,6 +279,7 @@ module EditorView {
     constructor() {
       super();
       this.editor = ace.edit(this.el);
+      this.editor.$blockScrolling = Infinity;
     }
 
     resize() {
