@@ -23,6 +23,7 @@ var defaultCommands= [
   { name:"find.findinfiles"        , bindKey: { win: "Ctrl-Shift-F", mac: "Command-Shift-F" } },
   { name:"workspace.showbuildgraph" },
   { name:"workspace.showsettings"   },
+  { name:"workspace.showdiagnostics"},
   { name:"view.openterminal"        },
   { name:"view.resetlayout"         },
   { name:"edit.touppercase"        , bindKey: { win: "Ctrl-K Ctrl-U", mac: "Command-K Command-U" } },
@@ -58,10 +59,12 @@ var menus = [
     { label: "Reset layout"       , command: "view.resetlayout"        },
   ]},
   {id: "workspace", label: "Workspace", submenu: [
-    { label: "Settings"           , command: "workspace.showsettings"  },
-    { label: "Build Graph"        , command: "workspace.showbuildgraph"},
     { label: "Build"              , command: "workspace.build"         },
     { label: "Run"                , command: "workspace.run"           },
+    { type: "separator" },
+    { label: "Diagnostics"        , command: "workspace.showdiagnostics"},
+    { label: "Build Graph"        , command: "workspace.showbuildgraph"},
+    { label: "Settings"           , command: "workspace.showsettings"  },
   ]},
   {id: "settings", label: "Preferences", submenu: [
     { label: "Settings (TODO)" }
@@ -246,6 +249,12 @@ class IDEStatus extends views.View {
     }
   }
 }
+function _commandCreateView(view, args) {
+  return function(p) {
+    this.content.createViewIfNecessary(view, args);
+    p.continue();
+  }
+}
 class IDE extends views.View {
   session: Session;
   content: views.DockLayout;
@@ -304,14 +313,9 @@ class IDE extends views.View {
       top.insertBefore(el, this._serverstatus);
     });
     this.commands = {
-      'workspace.showsettings': (p) => {
-        this.content.createViewIfNecessary(views.WorkspaceSettingsView, []);
-        p.continue();
-      },
-      'workspace.showbuildgraph': (p) => {
-        this.content.createViewIfNecessary(views.SessionGraphView, []);
-        p.continue();
-      },
+      'workspace.showsettings'   : _commandCreateView(views.WorkspaceSettingsView, []).bind(this),
+      'workspace.showbuildgraph' : _commandCreateView(views.SessionGraphView, []).bind(this),
+      'workspace.showdiagnostics': _commandCreateView(views.DiagnosticsView, []).bind(this),
       'workspace.build': (p) => { this.session.build(p); },
       'workspace.run': (p) => {
         var status = this._status;
@@ -351,10 +355,7 @@ class IDE extends views.View {
           p.continue();
         }
       },
-      'find.findinfiles': (p) => {
-        this.content.createViewIfNecessary(views.SearchInFiles, []);
-        p.continue();
-      },
+      'find.findinfiles'             : _commandCreateView(views.SearchInFiles, []).bind(this),
       'view.resetlayout': (p) => {
         this.content.deserialize(defaultLayout);
         p.continue();

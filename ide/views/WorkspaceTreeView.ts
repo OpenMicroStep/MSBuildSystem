@@ -3,6 +3,7 @@ import Workspace = require('../client/Workspace');
 import diagnostics = require('../client/diagnostics');
 import WorkspaceSettingsView = require('./WorkspaceSettingsView');
 import EditorView = require('./EditorView');
+import DiagnosticsView = require('./DiagnosticsView');
 
 class WorkspaceDepsTreeItem extends TreeItemView {
   constructor(public workspace: Workspace) {
@@ -81,80 +82,6 @@ class WorkspaceTreeItem extends TreeItemView {
   }
 }
 
-class FixitTreeItem extends TreeItemView {
-  applied: boolean;
-  constructor(public fixit: diagnostics.Fixit) {
-    super();
-    this.applied = false;
-    var icon = document.createElement('span');
-    icon.className = "fa fa-fw fa-wrench";
-    this.nameContainer.appendChild(icon);
-    this.nameContainer.appendChild(document.createTextNode("fixit: replace with " + fixit.replacement));
-    this.nameContainer.addEventListener("click", this.open.bind(this, false));
-    menu.bindContextMenuTo(this.nameContainer, () => {
-      return this.applied ? null : [{
-        label: "Apply",
-        click: this.open.bind(this, true)
-      }]
-    })
-  }
-
-  open(apply?: boolean) {
-    async.run(null, [
-      (p) => { globals.ide.openFile(p, {path: this.fixit.path }); },
-      (p) => {
-        var ed: AceAjax.Editor = p.context.view && p.context.view.editor;
-        if (ed) { setTimeout(() => {
-          var r = this.fixit.range;
-          var s = ed.getSelection();
-          var edrange = new EditorView.Range(r.srow - 1, r.scol - 1, r.erow - 1, r.ecol - 1);
-          s.setSelectionRange(edrange);
-          ed.scrollToLine(r.srow - 1, true, true, void 0);
-          if (apply && !this.applied) {
-            ed.getSession().replace(edrange, this.fixit.replacement);
-            this.applied = true;
-          }
-        }, 0);}
-      }
-    ]);
-  }
-}
-
-class DiagTreeItem extends TreeItemView {
-  constructor(public diag: Workspace.Diagnostic) {
-    super();
-    var icon = document.createElement('span');
-    icon.className = "badge-" + diag.type;
-    this.nameContainer.appendChild(icon);
-    this.nameContainer.appendChild(document.createTextNode(diag.msg));
-    this.nameContainer.addEventListener("click", this.open.bind(this));
-    if (diag.tasks) {
-      var tooltip = "";
-      diag.tasks.forEach((task) => {
-        var target = task.target();
-        if (!target) return;
-        tooltip += target.name.variant + " " + target.name.environment + " " + target.name.name + "\n";
-      });
-      this.nameContainer.setAttribute('title', tooltip);
-    }
-    this.setCanExpand(this.diag.notes.length > 0 || this.diag.fixits.length > 0);
-  }
-
-  open() {
-    async.run(null, (p) => { globals.ide.openFile(p, { path: this.diag.path, row: this.diag.row - 1, col: this.diag.col - 1 }); });;
-  }
-
-  createChildItems(p) {
-    this.diag.notes.forEach((note) => {
-      this.addChildItem(new DiagTreeItem(note));
-    });
-    this.diag.fixits.forEach((fixit) => {
-      this.addChildItem(new FixitTreeItem(fixit));
-    });
-    p.continue();
-  }
-}
-
 class FileTreeItem extends TreeItemView {
   diags: HTMLElement;
   constructor(public d, public root: WorkspaceTreeItem) {
@@ -219,7 +146,7 @@ class FileTreeItem extends TreeItemView {
     if (this.d.file) {
       var diags: Workspace.Diagnostic[] = this.d.diagnostics.set;
       diags.forEach((diag) => {
-        this.addChildItem(new DiagTreeItem(diag));
+        this.addChildItem(new DiagnosticsView.DiagTreeItem(diag));
       });
     }
     else {
