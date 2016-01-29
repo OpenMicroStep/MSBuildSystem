@@ -1,6 +1,7 @@
 import View = require('./View');
 import ContentView = require('./ContentView');
 import menu = require('../core/menu');
+import util = require('../core/util');
 
 type TabItem = {
   view: ContentView;
@@ -15,13 +16,19 @@ enum Position {
   LEFT
 }
 
+function isgreater(a, b) {
+  return a - b >= 1;
+}
+
 class TabLayout extends View {
   _tabs:TabItem[];
   _current:TabItem;
   _position:Position;
+  _elTabsContainer:HTMLElement;
   _elTabs:HTMLElement;
   _elContent:HTMLElement;
   _leftOffset: number;
+  _pendingDelta: (delta) => void;
 
   constructor() {
     super();
@@ -31,12 +38,26 @@ class TabLayout extends View {
 
     var tabs = document.createElement('div');
     tabs.className = "tablayout-tabs";
+    this._elTabsContainer = tabs;
     this._elTabs = document.createElement('div');
     tabs.appendChild(this._elTabs);
+    var pendingdelta = 0;
+    var deltaframe = util.throttle(() => {
+      var delta = pendingdelta * 0.25;
+      pendingdelta -= delta;
+      this._offset(<any>(delta > 0 ? this._elTabs.lastElementChild : this._elTabs.firstElementChild), delta);
+      if (pendingdelta < -1 || pendingdelta > 1)
+        deltaframe();
+    });
+    this._pendingDelta = function(delta) {
+      pendingdelta += delta;
+      deltaframe();
+    }
     this._elTabs.addEventListener("wheel", (ev) => {
       if (!this._tabs.length) return;
       var delta =  -ev.deltaX +ev.deltaY;
-      this._offset(delta > 0 ? this._tabs[this._tabs.length - 1].tab : this._tabs[0].tab, delta);
+      this.scrollTabs(delta);
+
       ev.preventDefault();
     });
 
@@ -50,11 +71,13 @@ class TabLayout extends View {
     this.el.appendChild(this._elContent);
   }
 
+  scrollTabs(delta) {
+    this._pendingDelta(delta);
+  }
+
   resize() {
     if (this._tabs.length)
       this._offset(this._tabs[this._tabs.length - 1].tab, undefined, true);
-    if (this._current)
-      this._offset(this._current.tab);
     super.resize();
   }
 
@@ -64,19 +87,21 @@ class TabLayout extends View {
     var trect = tab.getBoundingClientRect();
     var pending = this._leftOffset - tab0.offsetLeft;
     if (delta !== void 0) {
-      if (delta > 0 && trect.right + pending > crect.right)
+      if (delta > 0 && isgreater(trect.right + pending, crect.right))
         this._leftOffset -= Math.min(delta, trect.right + pending - crect.right);
-      else if (delta < 0 && trect.left < crect.left + pending)
+      else if (delta < 0 && isgreater(crect.left + pending, trect.left))
         this._leftOffset += Math.min(-delta, crect.left - trect.left - pending);
     }
     else if (limit !== void 0) {
-      if (this._leftOffset < 0 && trect.right + pending < crect.right)
+      if (this._leftOffset < 0 && isgreater(crect.right + pending, trect.right))
         this._leftOffset -= trect.right + pending - crect.right;
+      else if (this._current)
+        this._offset(this._current.tab);
     }
     else {
-      if (trect.right + pending > crect.right)
+      if (isgreater(trect.right + pending, crect.right))
         this._leftOffset -= trect.right + pending - crect.right;
-      else if (trect.left < crect.left + pending)
+      else if (isgreater(crect.left + pending, trect.left))
         this._leftOffset += crect.left - trect.left - pending;
     }
     tab0.style.marginLeft = this._leftOffset + "px";

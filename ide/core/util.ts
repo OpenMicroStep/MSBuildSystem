@@ -149,3 +149,15 @@ export function schedule(cb, delay = 250) {
     }, delay);
   }
 }
+
+export function throttle(fn) {
+  var running = null;
+  return function() {
+    if (running) { return; }
+    running = function() {
+      running = null;
+      fn();
+    };
+    requestAnimationFrame(running);
+  };
+};

@@ -226,8 +226,9 @@ class BoxLayout extends  View {
       var pos = this.orientation === Orientation.HORIZONTAL ? event.screenX : event.screenY;
       var moved = (event:MouseEvent) => {
         var newpos = this.orientation === Orientation.HORIZONTAL ? event.screenX : event.screenY;
-        var diff = (newpos - pos) / size;
-        this.rescaleSep(i, orsize + diff);
+        var diff = orsize + (newpos - pos) / size;
+        if (0 < diff && diff < 1)
+          this.rescaleSep(i, diff);
         window.getSelection().removeAllRanges();
       };
       document.addEventListener("mousemove", mvfn = (event:MouseEvent) => {

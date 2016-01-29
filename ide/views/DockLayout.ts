@@ -429,7 +429,7 @@ module DockLayout {
       super();
       var tabplaceholder: HTMLElement;
       var tabidx: number;
-      dragndrop.droppable(this._elTabs, {
+      dragndrop.droppable(this._elTabsContainer, {
         type: "tab",
         ondragover: (ev, data) => {
           if (!tabplaceholder) tabplaceholder = this.createPlaceholderTab();
@@ -483,17 +483,12 @@ module DockLayout {
     dropTabUpdatePlaceholder(ev: MouseEvent, placeholder: HTMLElement) {
       if (placeholder.parentNode === this._elTabs)
         this._elTabs.removeChild(placeholder);
-      var idx = this.dropTabIndex(ev);
-      this._elTabs.insertBefore(placeholder, idx < this._tabs.length ? this._tabs[idx].tab : null);
-      return idx;
-    }
-
-    dropTabIndex(ev: MouseEvent) {
       var x = ev.clientX;
       var y = ev.clientY;
       var tabs = this._tabs;
       var idx = tabs.length;
       var pos = this.position();
+      var crect = this._elTabsContainer.getBoundingClientRect();
       var h = pos == TabLayout.Position.TOP || pos == TabLayout.Position.BOTTOM;
       for (var i= 0; i < idx; ++i) {
         var tab: HTMLElement = tabs[i].tab;
@@ -503,6 +498,14 @@ module DockLayout {
         if (!h && y < rect.top + rect.height / 2)
           idx= i;
       }
+      this._elTabs.insertBefore(placeholder, idx < this._tabs.length ? this._tabs[idx].tab : null);
+      var x = ev.clientX;
+      var y = ev.clientY;
+      var d;
+      if ((d= (h ? x - crect.left : y - crect.top)) < 25)
+        this.scrollTabs(-25/d);
+      if ((d= (h ? crect.right - x : crect.bottom - y)) < 25)
+        this.scrollTabs(+25/d);
       return idx;
     }
 
