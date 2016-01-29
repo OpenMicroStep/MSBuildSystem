@@ -36,7 +36,7 @@ class WorkspaceSettingsView extends ContentView {
 
   constructor() {
     super();
-    this.titleEl.textContent = "Settings";
+    this.titleEl.textContent = "Workspace settings";
 
     this.el.className = "settings";
     this._data = {};
@@ -148,7 +148,7 @@ class WorkspaceSettingsView extends ContentView {
   }
 
   save() {
-    this.session.set('buildgraph', this._data);
+    this.session.set(['buildgraph'], this._data);
     this.session.clearGraph();
   }
 
@@ -195,6 +195,6 @@ class WorkspaceSettingsView extends ContentView {
     return null;
   }
 }
-core.ContentView.register(WorkspaceSettingsView, "settings");
+core.ContentView.register(WorkspaceSettingsView, "workspace-settings");
 
 export = WorkspaceSettingsView;

@@ -8,6 +8,7 @@ import Async = async.Async;
 
 
 var defaultCommands= [
+  { name:"ide.showsettings"         },
   { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
   { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
   { name:"file.saveall"            , bindKey: { win: "Ctrl-Alt-S", mac: "Command-Alt-S" } },
@@ -78,7 +79,7 @@ var menus = [
     { label: "Settings"           , command: "workspace.showsettings"  },
   ]},
   {id: "settings", label: "Preferences", submenu: [
-    { label: "Settings (TODO)" }
+    { label: "Settings"           , command: "ide.showsettings" }
   ]}
 ];
 
@@ -276,6 +277,7 @@ class IDE extends views.View {
   _serverstatus: HTMLElement;
   _status: IDEStatus;
   _gotofile: views.GoToFile;
+  _theme: HTMLLinkElement;
 
   constructor() {
     super();
@@ -283,27 +285,36 @@ class IDE extends views.View {
       this.el.className = "electron";
     var top = document.createElement('div');
     top.className = "navbar navbar-fixed-top navbar-light bg-faded";
+    this._theme = document.createElement('link');
+    this._theme.rel = "stylesheet";
+    this._theme.href = "css/theme-light.css";
+    document.head.appendChild(this._theme);
     this.el.appendChild(top);
     window.addEventListener("resize", throttle(() => {
       this.resize();
     }));
     this.content= new views.DockLayout();
     this.content.on("layoutChange", () => {
-      this.session.set('layout', this.content.serialize());
+      this.session.set(['layout'], this.content.serialize());
     });
     this.content.appendTo(this.el);
     this.render();
     this.session = new Session();
     this.session.on("ready", () => {
       this._status.setStatus({ label: "Idle" });
-      this.content.deserialize(this.session.get('layout', defaultLayout));
+      views.IDESettingsView.definition.fillWithDefaults();
+      this.content.deserialize(this.session.get(['layout'], defaultLayout));
       //this.treeView = new views.WorkspaceTreeView(this.session.workspace);
       //this.content.main.appendViewTo(this.treeView, views.DockLayout.Position.LEFT);
       this._status.loadRunners(this.session.workspace);
+      this._theme.href = "css/theme-" + this.session.get(["settings", "ide", "theme"], 'light') + ".css";
     });
     this.session.on("error", () => {
       this._status.setStatus({ label: "Error while loading workspace" });
     });
+    this.session.onSet(["settings", "ide", "theme"], (value) => {
+      this._theme.href = "css/theme-" + value + ".css";
+    }, 'light');
 
     this._serverstatus = document.createElement('i');
     this._serverstatus.className = "fa fa-fw fa-circle";
@@ -324,6 +335,7 @@ class IDE extends views.View {
       top.insertBefore(el, this._serverstatus);
     });
     this.commands = {
+      'ide.showsettings'         : _commandCreateView(views.IDESettingsView, []).bind(this),
       'workspace.showsettings'   : _commandCreateView(views.WorkspaceSettingsView, []).bind(this),
       'workspace.showbuildgraph' : _commandCreateView(views.SessionGraphView, []).bind(this),
       'workspace.showdiagnostics': _commandCreateView(views.DiagnosticsView, []).bind(this),

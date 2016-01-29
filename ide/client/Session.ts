@@ -4,6 +4,22 @@ import WorkspaceFile = require('./WorkspaceFile');
 import Workspace = require('./Workspace');
 import Async = async.Async;
 
+function inpath(ep, pp) {
+  var pl = pp.length;
+  var el = ep.length;
+  if (pl > el) return false;
+  for (var i = 0; i < pl && pp[i] === ep[i]; ++i);
+  return (i === pl);
+}
+
+function samepath(pp, ep) {
+  var pl = pp.length;
+  var el = ep.length;
+  if (pl !== el) return false;
+  for (var i = 0; i < pl && pp[i] === ep[i]; ++i);
+  return (i === pl);
+}
+
 class Session extends replication.DistantObject {
   sessionid: string;
   path: string;
@@ -14,6 +30,7 @@ class Session extends replication.DistantObject {
   _tasks: Map<string, Workspace.Graph>;
   _graph: (p: Async) => void;
   _build: { pendings: (()=> void)[], progress: number, nb: number, warnings: number, errors: number, type: string };
+  _onsets: { path: string[], cb: (value: any) => void, defaultValue:any }[];
 
   constructor() {
     super();
@@ -21,6 +38,7 @@ class Session extends replication.DistantObject {
     this._tasks = new Map<any, any>();
     this._graph = null;
     this._build = null;
+    this._onsets = [];
     this.path = location.hash.substring(1);
     this.sessionid = this.path;
     this.userdata = null;
@@ -49,6 +67,11 @@ class Session extends replication.DistantObject {
         }
         p.continue();
       },
+      /*(p) => {
+        this._onsets.forEach((p) => {
+          p.cb(this.get(p.path, p.defaultValue));
+        });
+      }*/
     ]);
   }
 
@@ -158,7 +181,7 @@ class Session extends replication.DistantObject {
     if (!this._graph) {
       p.setFirstElements([
         (p) => {
-          var d = this.get('buildgraph', {});
+          var d = this.get(['buildgraph'], {});
           var variants: string[] = Array.isArray(d.variants) ? d.variants : null;
           var envs: string[] = Array.isArray(d.environments) ? d.environments : null;
           var targets: string[] = Array.isArray(d.targets) ? d.targets : null;
@@ -313,22 +336,45 @@ class Session extends replication.DistantObject {
     }
   }
 
-  get(key, defaultvalue?) {
-    var v = this.userdata[key];
-    if (v === void 0 && defaultvalue !== void 0) {
-      v = this.userdata[key] = defaultvalue;
-      this.userdataschedule();
+  get(path: string[], defaultvalue?) {
+    var d = this.userdata;
+    for(var i = 0, len = path.length; d !== void 0 && i < len; ++i)
+      d = d[path[i]];
+    d = i == len ? d : undefined;
+    if (d === void 0 && defaultvalue !== void 0) {
+      this.set(path, defaultvalue);
+      d = defaultvalue
     }
-    return v;
+    return d;
   }
 
-  set(key, value) {
-    this.userdata[key] = value;
+  set(path: string[], value) {
+    var t, d = this.userdata;
+    for(var i = 0, len = path.length - 1; i < len; ++i) {
+      t = d[path[i]];
+      if (t === void 0 || typeof t !== "object")
+        d[path[i]] = t = {};
+      d = t;
+    }
+    d[path[i]] = value;
     this.userdataschedule();
+    this._onsets.forEach((p) => {
+      if (inpath(path, p.path))
+        p.cb(this.get(p.path));
+    });
+  }
+
+  onSet(path: string[], cb: (value: any) => void, defaultValue?) {
+    this._onsets.push({ path: path, cb: cb, defaultValue: defaultValue });
+  }
+  offSet(path: string[], cb) {
+    var idx = this._onsets.findIndex((i) => { return i.cb === cb && samepath(i.path, path); });
+    if (idx !== -1)
+      this._onsets.splice(idx, 1);
   }
 
   _setuserdata() {
-    console.log("set user data", this.userdata);
+    //console.log("set user data", this.userdata);
     Async.run(null, (p) => { this.remoteCall(p, "setUserData", this.userdata); });
   }
 

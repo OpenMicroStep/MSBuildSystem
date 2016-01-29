@@ -14,24 +14,43 @@ function mktabsize(self, tabwidth, newtabwidth) {
     label: "Tab size: " + newtabwidth,
     type: "radio",
     checked: tabwidth == newtabwidth,
-    click: () => { self.file.setOptions({ 'tabSize': newtabwidth }); }
+    click: () => { if (self._file) self._file.setOptions({ 'tabSize': newtabwidth }); }
   };
 }
 
 function convertIndentation(self, useSoftTabs, tabSize) {
+  if (!self._file) return;
   self.editor.execCommand("convertIndentation", { ch: useSoftTabs ? " " : "\t", length: tabSize });
-  self.file.setOptions({
+  self._file.setOptions({
     useSoftTabs: useSoftTabs,
     tabSize: tabSize
   });
 }
 
 function detectIndentation(self) {
+  if (!self._file) return;
   self.editor.execCommand("detectIndentation");
-  self.file.setOptions({
+  self._file.setOptions({
     useSoftTabs: self.editor.session.getOption('useSoftTabs'),
     tabSize: self.editor.session.getOption('tabSize')
   });
+}
+
+var _onEditorOptionChangeList: any[] = null;
+function onEditorOptionChange(cb: (options) => void) {
+  if (!_onEditorOptionChangeList) {
+    globals.ide.session.onSet(['settings', 'ace-editor'], function(options) {
+      _onEditorOptionChangeList.forEach(function(cb) { cb(options); });
+    }, {});
+    _onEditorOptionChangeList = [];
+  }
+  _onEditorOptionChangeList.push(cb);
+  cb(globals.ide.session.get(['settings', 'ace-editor'], {}));
+}
+function offEditorOptionChange(cb: (options) => void) {
+  var idx = _onEditorOptionChangeList.indexOf(cb);
+  if (idx !== -1)
+    _onEditorOptionChangeList.splice(idx, 1);
 }
 
 class EditorView extends ContentView {
@@ -41,7 +60,7 @@ class EditorView extends ContentView {
   editor: AceAjax.Editor;
   editorEl: HTMLElement;
   statusEl: HTMLElement;
-  $onChangeOptions;
+  $onChangeOptions; $onEdChangeOptions
 
   constructor(opts: { path: string, row?: number, col?: number }) {
     super(undefined, undefined, true);
@@ -67,6 +86,9 @@ class EditorView extends ContentView {
       enableSnippets: true,
       enableLiveAutocompletion: true
     });
+    onEditorOptionChange(this.$onEdChangeOptions = (options) => {
+      this.editor.setOptions(options);
+    });
 
     /// Status bar
     this.$onChangeOptions = () => {
@@ -90,7 +112,7 @@ class EditorView extends ContentView {
         label: "Indent using spaces",
         type: "checkbox",
         checked: softtabs,
-        click: () => { this._file.setOptions({ "useSoftTabs": !softtabs }); }
+        click: () => { if (this._file) this._file.setOptions({ "useSoftTabs": !softtabs }); }
       },
       { type: "separator" },
       mktabsize(this, tabwidth, 2),
@@ -217,6 +239,7 @@ class EditorView extends ContentView {
   destroy() {
     super.destroy();
     this.editor.destroy();
+    offEditorOptionChange(this.$onEdChangeOptions);
     this.editor = null;
     if (this._file) {
       this._file.unref();
@@ -283,12 +306,15 @@ ContentView.register(EditorView, "editor");
 module EditorView {
   export var Range: typeof AceAjax.Range = ace.require("ace/range").Range;
   export class SimpleEditorView extends View {
-    editor: AceAjax.Editor;
+    editor: AceAjax.Editor; $onEdChangeOptions;
 
     constructor() {
       super();
       this.editor = ace.edit(this.el);
       this.editor.$blockScrolling = Infinity;
+      onEditorOptionChange(this.$onEdChangeOptions = (options) => {
+      this.editor.setOptions(options);
+    });
     }
 
     resize() {
@@ -297,6 +323,7 @@ module EditorView {
 
     destroy() {
       super.destroy();
+      offEditorOptionChange(this.$onEdChangeOptions);
       this.editor.destroy();
     }
   }

@@ -45,18 +45,23 @@ function popup(menu: HTMLElement, r: ClientRect, side: string, clear?: () => voi
   var w = window.innerWidth;
   var h = window.innerHeight;
   var c = document.createElement('div');
+  var padding = 15;
   if (side === "right" && r.right + rw > w)
     side = "left";
+  if (side === "bottom" && r.bottom + rh > h && r.bottom > h / 2)
+    side = "top";
 
   if (side === 'bottom') {
     c.className = "menu-bottom";
     menu.style.top = r.bottom + "px";
     menu.style.left = r.left + "px";
+    menu.style.maxHeight = h - r.bottom - padding + "px";
   }
   else if (side === 'top') {
     c.className = "menu-top";
     menu.style.bottom = h - r.top + "px";
     menu.style.left = r.left + "px";
+    menu.style.maxHeight = r.top - padding + "px";
   }
   else if (side === 'right' || side === "left") {
     c.className = "menu-" + side;
@@ -65,12 +70,12 @@ function popup(menu: HTMLElement, r: ClientRect, side: string, clear?: () => voi
     else
       menu.style.left = r.left - rw + "px";
     if (r.top + rh > h && r.bottom + h/2 > h) {
-      menu.style.maxHeight = r.top - 15 + "px";
+      menu.style.maxHeight = r.top - padding + "px";
       menu.style.bottom = h - r.bottom + "px";
     }
     else {
       menu.style.top = r.top + "px";
-      menu.style.maxHeight = h - r.top - 15 + "px";
+      menu.style.maxHeight = h - r.bottom - padding + "px";
     }
   }
   menu.style.display = "block";
@@ -132,7 +137,7 @@ class Menu {
     var bind = keyBind[useragent.isMac ? "mac" : "win"];
     if (bind) {
       bind = bind
-        .replace(/-/g, ' ')
+        .replace(/-(-?)/g, ' $1')
         .replace(/Command/g, '⌘')
         .replace(/Shift/g, '⇧')
         .replace(/Alt/g, '⌥');
@@ -175,7 +180,7 @@ class Menu {
       name.appendChild(shrt);
     }
     if (opts.click)
-      name.addEventListener('click', opts.click, false);
+      dropdown.addEventListener('click', opts.click, false);
 
     var subs =  [];
     if (opts.submenu)
@@ -221,7 +226,7 @@ class Menu {
   _buildNativeKeyBind(keyBind) {
     var bind = keyBind[useragent.isMac ? "mac" : "win"];
     if (bind) {
-      bind = bind.replace(/-/g, '+');
+      bind = bind.replace(/-(-?)/g, '+$1');
     }
     return bind;
   }

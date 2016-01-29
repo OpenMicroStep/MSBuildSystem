@@ -13,3 +13,4 @@ export import TreeItemView = require('./views/TreeItemView');
 export import BoxLayout    = require('./views/BoxLayout');
 export import TabLayout    = require('./views/TabLayout');
 export import DockLayout   = require('./views/DockLayout');
+export import inputs       = require('./views/inputs');

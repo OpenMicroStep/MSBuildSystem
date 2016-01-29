@@ -4,6 +4,7 @@ $font-size-root: 13px;
 $text-color: #BFBFBF;
 $text-soft-color: #7b7b7b;
 $border-color: #1C1C1C;
+$border-soft-color: #7b7b7b;
 $background-color: #303030;
 $active-color: #252525;
 $disable-color: #3F3F3F;
@@ -15,7 +16,7 @@ $input-color: $text-color;
 $dropdown-bg: #494949;
 $dropdown-border-color: $border-color;
 $dropdown-link-hover-bg: #0275d8;
-$dropdown-divider-bg: $text-soft-color;
+$dropdown-divider-bg: $border-soft-color;
 
 $note-color: #5bc0de;
 $warning-color: #f0ad4e;
