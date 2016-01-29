@@ -38,7 +38,7 @@ $tablayout-tabsborder: 1px;
 }
 
 .tablayout-tabs > div {
-  margin: 0 10px;
+  margin: 0 20px;
   height: 26px;
   position: relative;
 }
@@ -58,11 +58,11 @@ $tablayout-tabsborder: 1px;
 }
 .tablayout-tabs > div::before {
   background: linear-gradient(to right, $background-color 0%,rgba(255,255,255,0) 100%);
-  left: -10px;
+  left: -20px;
 }
 .tablayout-tabs > div::after {
   background: linear-gradient(to right, rgba(255,255,255,0) 0%,$background-color 100%);
-  right: -10px;
+  right: -20px;
 }
 
 .tablayout-tab::before {
@@ -92,27 +92,6 @@ $tablayout-tabsborder: 1px;
   pointer-events: none;
 }
 
-.tablayout-tabs-overflow::before, .tablayout-tabs-overflow::after {
-    content:'';
-    position: absolute;
-    width: 30px;
-    height: 26px;
-    top: 0;
-    font-size: 19px;
-    z-index: 1;
-}
-
-.tablayout-tabs-overflow::after {
-    text-align: right;
-    right: 0;
-    background: linear-gradient(to left, #f6f6f6 75%, rgba(192,192,192,0) 100%)
-}
-
-.tablayout-tabs-overflow::before {
-    text-align: left;
-    left: 0;
-    background: linear-gradient(to right, #f6f6f6 75%, rgba(192,192,192,0) 100%)
-}
 .tablayout-tabs::after {
   content: '';
   display: block;

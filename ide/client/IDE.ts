@@ -118,10 +118,10 @@ class IDEStatus extends views.View {
 
     var progress = $('<div class="progress-line">').appendTo(status);
     this.$progression = $('<div/>').appendTo(progress);
-    this.$build = $('<button class="btn btn-default" title="Build"><i class="fa fa-cogs"></i></button>').appendTo(btngroup);
-    this.$clean = $('<button class="btn btn-default" title="Clean"><i class="fa fa-recycle"></i></button>').appendTo(btngroup);
-    this.$runner = $('<button class="btn btn-default" title="Current run"></button>').appendTo(btngroup);
-    this.$run = $('<button class="btn btn-default" title="Run"><i class="fa fa-play"></i></button>').appendTo(btngroup);
+    this.$build = $('<button class="btn btn-secondary" title="Build"><i class="fa fa-cogs"></i></button>').appendTo(btngroup);
+    this.$clean = $('<button class="btn btn-secondary" title="Clean"><i class="fa fa-recycle"></i></button>').appendTo(btngroup);
+    this.$runner = $('<button class="btn btn-secondary" title="Current run"></button>').appendTo(btngroup);
+    this.$run = $('<button class="btn btn-secondary" title="Run"><i class="fa fa-play"></i></button>').appendTo(btngroup);
     this.status = { label: "", warnings: 0, errors: 0, progression: 0 };
     this.runner = null;
     this.runners = [];
@@ -282,7 +282,7 @@ class IDE extends views.View {
     if (globals.electron)
       this.el.className = "electron";
     var top = document.createElement('div');
-    top.className = "navbar navbar-fixed-top navbar-default";
+    top.className = "navbar navbar-fixed-top navbar-light bg-faded";
     this.el.appendChild(top);
     window.addEventListener("resize", throttle(() => {
       this.resize();

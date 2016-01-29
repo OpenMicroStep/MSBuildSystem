@@ -142,16 +142,17 @@ class Menu {
   _buildDomMenuItem(opts: MenuItemOptions, allowBindings: boolean, parent: HTMLElement, level : number) {
     var dropdown, name, subMenu, subItems;
     dropdown = document.createElement('li');
+    dropdown.className = "dropdown-item";
     parent.appendChild(dropdown);
 
     if (opts.type === "separator") {
-      dropdown.appendChild(document.createElement('hr'));
+      dropdown.className = "dropdown-divider";
       return;
     }
-    name = document.createElement("a");
+    name = document.createElement("span");
     name.textContent = opts.label;
     if (opts.checked === true)
-      name.className = "menuitem-checked";
+      name.className += " menuitem-checked";
     dropdown.appendChild(name);
 
     if (opts.command) {
@@ -193,9 +194,9 @@ class Menu {
   }
 
   _pop(dropdown: HTMLElement, subs: MenuItemOptions[], allowBindings, level: number) {
+    clear(level + 1);
     if (!subs || !subs.length) return;
     var subMenu = this._buildDomSubmenu(subs, allowBindings, level);
-    clear(level + 1);
     var r = dropdown.getBoundingClientRect();
     $(dropdown).addClass('open');
     this.lastSide = popup(subMenu, r, level == 0 ? "right" : this.lastSide, () => {
@@ -322,9 +323,9 @@ export class TitleMenu extends Menu {
   }
 
   _pop(dropdown: HTMLElement, subs: MenuItemOptions[], allowBindings, level: number) {
+    clear(level);
     if (!subs || !subs.length) return;
     var subMenu = this._buildDomSubmenu(subs, allowBindings, level);
-    clear(level);
     var r = dropdown.getBoundingClientRect();
     $(dropdown).addClass('open');
     popup(subMenu, r, level == 0 ? 'bottom' : 'right', () => {
@@ -334,6 +335,7 @@ export class TitleMenu extends Menu {
 
   _buildDomMenuItemSubs(dropdown: HTMLElement, subs: MenuItemOptions[], allowBindings, level: number) {
     if (level == 0) {
+      dropdown.className = "nav-item";
       dropdown.addEventListener('click', (e) => {
         if (this.open) return;
         this.open = true;

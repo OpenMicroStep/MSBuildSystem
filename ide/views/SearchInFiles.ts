@@ -216,7 +216,7 @@ class SearchInFiles extends core.ContentView {
   }
   createOptionBtn(btn: { label: string, tooltip?: string, id: string, click?: any }) {
     var el = document.createElement("button");
-    el.className = "btn btn-default";
+    el.className = "btn btn-secondary";
     el.textContent = btn.label;
     el.title = btn.tooltip;
     this[btn.id] = el;

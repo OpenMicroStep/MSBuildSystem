@@ -8,12 +8,12 @@
   @include pos-absolute(0,0,0,0);
 }
 
-@media (max-resolution: 120dpi) {
-  /* On non HiDPI display, webkit font rendering of white code on dark background looks bad */
+/*@media (max-resolution: 120dpi) {
+  // On non HiDPI display, webkit font rendering of white code on dark background looks bad
   .ace_dark {
     -webkit-font-smoothing: antialiased;
   }
-}
+}*/
 
 .editor-status {
   @include noselect;

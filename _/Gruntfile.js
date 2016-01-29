@@ -58,7 +58,10 @@ module.exports = function (grunt) {
         //style: "compressed",
       },
       ide: {
-        files: [{src: '../ide/views/ide.scss', dest: '<%= config.ide.client.out %>/css/ide.css'}]
+        files: [
+          {src: '../ide/views/theme-light.scss', dest: '<%= config.ide.client.out %>/css/theme-light.css'},
+          {src: '../ide/views/theme-dark.scss', dest: '<%= config.ide.client.out %>/css/theme-dark.css'}
+        ]
       }
     },
     //
@@ -118,6 +121,7 @@ module.exports = function (grunt) {
           expand: true,
           flatten: true,
           src: [
+            'node_modules/tether/dist/js/tether.js',
             'node_modules/requirejs/require.js',
             'node_modules/jquery/dist/jquery.js',
             'node_modules/underscore/underscore.js',
@@ -145,7 +149,7 @@ module.exports = function (grunt) {
     surround: {
       bootstrap: {
         options: {
-          prepend: "define(['jquery'], function (jQuery) {",
+          prepend: "define(['jquery', 'tether'], function (jQuery, Tether) { window.Tether = Tether;",
           append: '});'
         },
         files: [{ src: "node_modules/bootstrap/dist/js/bootstrap.js", dest: "<%= config.ide.client.out %>/js/bootstrap.js" }]

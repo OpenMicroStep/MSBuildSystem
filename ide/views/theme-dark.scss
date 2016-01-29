@@ -1,0 +1,48 @@
+// IDE colors
+
+$font-size-root: 13px;
+$text-color: #BFBFBF;
+$text-soft-color: #7b7b7b;
+$border-color: #1C1C1C;
+$background-color: #303030;
+$active-color: #252525;
+$disable-color: #3F3F3F;
+
+$input-bg: $active-color;
+$input-border-color: $border-color;
+$input-color: $text-color;
+
+$dropdown-bg: #494949;
+$dropdown-border-color: $border-color;
+$dropdown-link-hover-bg: #0275d8;
+$dropdown-divider-bg: $text-soft-color;
+
+$note-color: #5bc0de;
+$warning-color: #f0ad4e;
+$error-color: #d9534f;
+$success-color: #5cb85c;
+$error-background-color: $error-color;
+$success-background-color: $success-color;
+
+// Bootstrap variables
+
+$gray-dark:                 #f7f7f9;
+$gray:                      #eceeef;
+$gray-light:                #818a91;
+$gray-lighter:              #55595c;
+$gray-lightest:             $active-color;
+
+$brand-primary:             #0275d8;
+$brand-success:             $success-color;
+$brand-info:                $note-color;
+$brand-warning:             $warning-color;
+$brand-danger:              $error-color;
+
+$btn-secondary-bg:          #212121;
+$btn-secondary-border:      #050505;
+
+$font-size-root: 13px;
+
+@import "../../_/node_modules/bootstrap/scss/bootstrap.scss";
+
+@import "ide";

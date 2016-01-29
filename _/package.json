@@ -6,7 +6,6 @@
     "MSTools": "git+ssh://git@192.168.40.6:MSTools.js#master",
     "ace-builds": "^1.2.2",
     "appdirectory": "^0.1.0",
-    "bootstrap": "^3.3.6",
     "bunyan": "^1.5.1",
     "chalk": "^1.0.0",
     "dateformat": "^1.0.11",
@@ -26,6 +25,7 @@
     "underscore": "^1.8.3"
   },
   "devDependencies": {
+    "bootstrap": "^4.0.0-alpha.2",
     "grunt": "^0.4.5",
     "grunt-amd-wrap": "^1.0.1",
     "grunt-contrib-compress": "^0.14.0",
@@ -43,6 +43,7 @@
     "grunt-surround": "^0.1.0",
     "grunt-typescript": "^0.8.0",
     "term.js": "0.0.7",
+    "tether": "^1.1.1",
     "time-grunt": "^1.2.1"
   }
 }

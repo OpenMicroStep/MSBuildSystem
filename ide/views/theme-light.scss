@@ -1,3 +1,5 @@
+$font-size-root: 13px;
+
 $border-color: #dedede;
 $background-color: #fcfcfc;
 $active-color: #f1f1f1;
@@ -6,8 +8,18 @@ $disable-color: #eee;
 $text-color: #333333;
 $text-soft-color: #7b7b7b;
 
+$input-bg: #fff;
+$input-border-color: #ccc;
+$input-color: #333;
+
 $note-color: #5b8acd;
 $warning-color: #f0ad4e;
 $error-color: #d9534f;
 $error-background-color: #d9534f;
 $success-background-color: #2EBA30;
+
+$dropdown-link-hover-color: #f7f7f9;
+$dropdown-link-hover-bg: #63acff;
+
+@import "../../_/node_modules/bootstrap/scss/bootstrap.scss";
+@import "ide";

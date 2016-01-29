@@ -5,12 +5,8 @@ html
         meta(charset="utf-8")
         meta(http-equiv="X-UA-Compatible", content="IE=edge")
         meta(name="viewport", content="width=device-width, initial-scale=1")
-        if debug
-            link(href="css/font-awesome.css", rel="stylesheet")
-            link(href="css/bootstrap.css", rel="stylesheet")
-            link(href="css/ide.css", rel="stylesheet")
-        else
-            link(href="ide.css", rel="stylesheet")
+        link(href="css/font-awesome.css", rel="stylesheet")
+        link(href="css/theme-light.css", rel="stylesheet")
         script(type='text/javascript') window.electron = window.require && window.require('electron');
         script(type='text/javascript', src='js/require.js')
         script(type='text/javascript', src='js/ace/ace.js')
@@ -18,8 +14,5 @@ html
         script(type='text/javascript', src='js/ace/ext-statusbar.js')
         script(type='text/javascript', src='js/ace/ext-whitespace.js')
         script(type='text/javascript', src='js/ace/ext-modelist.js')
-        if debug
-            script(type='text/javascript', src='js/main.js')
-        else
-            script(type='text/javascript', src='ide.js')
+        script(type='text/javascript', src='js/main.js')
     body
