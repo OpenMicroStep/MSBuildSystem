@@ -27,6 +27,7 @@ class Sysroot implements Sysroot.Interface {
   "api-version":string;
 
   constructor(public directory:string, extension:{}) {
+    console.info("sysroot", directory, extension);
     _.extend(this, extension);
     var providers = extension["provides"];
     if (Array.isArray(providers)) {

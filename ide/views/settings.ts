@@ -46,10 +46,10 @@ export class SettingsDefinition {
         label = document.createElement('label');
         label.className = "col-sm-4 form-control-label";
         label.textContent = def.label;
+        c.appendChild(label);
       }
       input = document.createElement('div');
       input.className = def.label ? "col-sm-8" : "col-sm-8 col-sm-offset-4";
-      c.appendChild(label);
       c.appendChild(input);
       parent.appendChild(c);
       var i = new def.type(def.options);var v = this._value(def, false);

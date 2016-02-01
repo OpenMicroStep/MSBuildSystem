@@ -155,7 +155,7 @@ export class Async {
 
 export var run = Async.run;
 
-class Flux extends Async {
+export class Flux extends Async {
   context:       any;
   _actions:      ActionFct[];
   _state:        number;

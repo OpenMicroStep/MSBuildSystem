@@ -56,20 +56,22 @@ class PlistInfoTask extends Task {
   uniqueKey(): string {
     return JSON.stringify({info: this.info, path: this.path});
   }
-  isRunRequired(callback: (err: Error, required?:boolean) => any) {
-    File.ensure([this.path], this.data.lastSuccessTime, {ensureDir:true}, callback);
+  isRunRequired(step, callback: (err: Error, required?:boolean) => any) {
+    File.ensure(step, [this.path], {ensureDir:true}, callback);
   }
-  run() {
+  run(step) {
     fs.writeFile(this.path, Plist.stringify(this.info), 'utf8', (err) => {
-      if(err) this.log(err.toString());
-      this.end(err ? 1 : 0);
+      if(err) step.error(err.toString());
+      step.continue();
     });
   }
-  clean() {
+  clean(step) {
     fs.unlink(this.path, (err) => {
       if(err && (<NodeJS.ErrnoException>err).code === "ENOENT")
         err = null;
-      this.end(err ? 1 : 0);
+      if (err)
+        step.error(err);
+      step.continue();
     });
   }
 }

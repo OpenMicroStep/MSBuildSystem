@@ -93,3 +93,53 @@ export class TextInput extends Input<string> {
     }
   }
 }
+
+export class ChecklistInput extends Input<string[]> {
+  list: { label: string, value: string, chk: CheckboxInput }[];
+  silent: number;
+  constructor(list: {label: string, value: string}[]) {
+    super('div');
+    this.silent = 0;
+    this.list = list.map((e) => {
+      var chk = new CheckboxInput();
+      var item: any = typeof e === "string" ? {label: e, value: e, chk: chk} : {label: e.label, value: e.value, chk: chk};
+      var el = document.createElement('div');
+      el.className = "checklist-item";
+      chk.on('change', this.onchecked.bind(this));
+      el.appendChild(chk.el);
+      var lbl = document.createElement("span");
+      lbl.textContent = item.label;
+      el.appendChild(lbl);
+      this.el.appendChild(el);
+      return item;
+    });
+  }
+
+  onchecked() {
+    if (this.silent === 0)
+      this._emit('change', { value: this.value() });
+    else
+      this.silent = 2;
+  }
+
+  value() {
+    var val = [];
+    this.list.forEach((item, i) => {
+      if (item.chk.value())
+        val.push(item.value);
+    });
+    return val;
+  }
+
+  setValue(val) {
+    if (Array.isArray(val)) {
+      this.silent = 1;
+      this.list.forEach((item, idx) => {
+        item.chk.setValue(val.indexOf(item.value) !== -1);
+      });
+      if (this.silent === 2)
+        this._emit('change', { value: this.value() });
+      this.silent = 0;
+    }
+  }
+}

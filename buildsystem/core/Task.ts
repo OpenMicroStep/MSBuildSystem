@@ -1,24 +1,22 @@
 import Graph = require('./Graph');
 import events = require('events');
-import Barrier = require('./Barrier');
+import Runner = require('./Runner');
 import BuildSession = require('./BuildSession');
 import util = require('util');
 import crypto = require('crypto');
-import os = require('os');
+import File = require('./File');
 
 var __id_counter: number = 0;
 
 var classes = {};
 
 class Task extends events.EventEmitter {
-  static maxConcurrentTasks: number = os.cpus().length;
-  static nbTaskRunning: number = 0;
-  private static waitingTasks: Task[] = [];
-
   dependencies : Set<Task> = new Set<Task>();
   requiredBy : Set<Task> = new Set<Task>();
   name: Task.Name;
   graph: Graph;
+  sessionKey: string;
+
   classname: string; // on the prototype, see registerClass
   constructor(name: Task.Name, graph: Graph) {
     super();
@@ -59,41 +57,6 @@ class Task extends events.EventEmitter {
     task.requiredBy.add(this);
   }
 
-  state: Task.State = Task.State.UNINITIALIZED;
-  enabled: number = 0;
-  action: Task.Action = null;
-  private observers: Array<(task: Task) => any> = [];
-  requirements: number = 0;
-  logs: string = "";
-  errors: number = 0;
-
-  private sessionKey: string= undefined;
-  storage: BuildSession = null;
-  data = null;
-  sharedData: any = null;
-
-  /** Get the task ready for the next run */
-  reset() {
-    this.enabled = 0;
-    this.action = null;
-    this.state = Task.State.WAITING;
-    this.observers = [];
-    this.logs = "";
-    this.errors = 0;
-    this.requirements = this.dependencies.size;
-    this.requiredBy.forEach(function(input) {input.reset();});
-  }
-
-  enable() {
-    var parent = this.graph;
-    while (parent) {
-      if (parent.enabled !== 1)
-        parent.enabled = 2;
-      parent = parent.graph;
-    }
-    this.enabled = 1;
-  }
-
   uniqueKey(): string { return "__" + (++__id_counter).toString(); }
 
   id() {
@@ -107,50 +70,6 @@ class Task extends events.EventEmitter {
       }
     }
     return this.sessionKey;
-  }
-
-  preprocess() {
-
-  }
-
-  postprocess() {
-
-  }
-
-  start(action: Task.Action, callback: (task: Task) => any) {
-    if(this.state === Task.State.WAITING) {
-      this.action = action;
-      this.state = Task.State.RUNNING
-      this.observers.push(callback);
-      this.storage = this.getStorage();
-      this.storage.load(() => {
-        this.data = this.storage.get(Task.Action[action]) || {};
-        this.sharedData = this.storage.get("SHARED") || {};
-        this.data.lastRunStartTime = Date.now();
-        this.data.lastRunEndTime = this.data.lastRunEndTime || 0;
-        this.data.lastSuccessTime = this.data.lastSuccessTime || 0;
-        this.preprocess();
-        this.emit("start", action);
-        this.runAction(action);
-      });
-    }
-    else if(this.state === Task.State.DONE) {
-      callback(this);
-    }
-    else if(this.state === Task.State.RUNNING) {
-      this.observers.push(callback);
-    }
-    else {
-      this.reset();
-      this.log("Task was not initialized");
-      this.end(1);
-    }
-  }
-
-  log(msg: string) {
-    this.logs += msg;
-    if(msg.length && msg[msg.length - 1] != "\n")
-      this.logs += "\n";
   }
 
   root() : Graph {
@@ -169,105 +88,57 @@ class Task extends events.EventEmitter {
     return this.graph.storagePath(task);
   }
 
-  end(errors: number = 0) {
-    if (this.state !== Task.State.RUNNING) {
-      console.error("end called multiple times", this.name);
-      return;
-    }
-    console.debug(this.name.type, this.name.name, "\n", this.logs);
-    this.errors = errors;
-    this.state = Task.State.DONE;
-    this.data.logs = this.logs;
-    this.data.errors = errors;
-    this.data.lastRunEndTime = Date.now();
-    this.data.lastSuccessTime = errors ? 0 : this.data.lastRunEndTime;
-    this.postprocess();
-    this.storage.set(Task.Action[this.action], this.data);
-    this.storage.set("SHARED", this.sharedData);
-    this.storage.save(() => {
-      --Task.nbTaskRunning;
-      //process.stderr.write(this.logs);
-      if (Task.waitingTasks.length > 0) {
-        var task = Task.waitingTasks.shift();
-        ++Task.nbTaskRunning;
-        task.run();
-      }
-      this.observers.forEach((obs) => {
-        obs(this);
-      });
-      var root = this.root();
-      if (root && root)
-        root.emit("childtaskend", this);
-      this.emit("end", this.action);
-      this.storage = null;
-      this.data = null;
-      this.sharedData = null;
-    });
-  }
+  listOutputFiles(set: Set<File>) { }
 
-  protected runAction(action: Task.Action) {
-    switch (action) {
-      case Task.Action.RUN:
-        this.isRunRequired((err, required) => {
+  do(step: Runner.Step) {
+    switch(step.runner.action) {
+      case "build":
+        this.isRunRequired(step, (err, required) => {
           if (err) {
-            this.log(err.toString());
-            this.end(1);
+            step.error(err);
+            step.continue();
           }
           else if (required) {
-            if (Task.nbTaskRunning < Task.maxConcurrentTasks) {
-              ++Task.nbTaskRunning;
-              this.run();
-            } else {
-              Task.waitingTasks.push(this);
-            }
+            this.run(step);
           }
           else {
-            this.logs = this.data.logs || "";
-            this.end();
+            step.log(step.data.logs);
+            step.continue();
           }
         });
         break;
-      case Task.Action.CLEAN:
-        this.clean();
+
+      case "clean":
+        this.clean(step);
         break;
+
       default:
-        this.end(0);
+        step.continue();
         break;
     }
   }
 
-  isRunRequired(callback: (err: Error, required?:boolean) => any) {
+  isRunRequired(step: Runner.Step, callback: (err, required:boolean) => any) {
     callback(null, true);
   }
-  run() {
-    this.log("'run' must be reimplemented by subclasses");
-    this.end(1);
+
+  run(step: Runner.Step) {
+    step.error("'run' must be reimplemented by subclasses");
+    step.continue();
   }
-  clean() {
-    this.end();
+  clean(step: Runner.Step) {
+    step.continue();
   }
 
   toString() {
-    return this.name;
+    return this.name.type + ":" + this.name.name;
   }
   description() {
-    return this.name + ", state=" + Task.State[this.state];
+    return this.toString();
   }
 }
 
 module Task {
   export type Name = { type: string, name: string, [s: string]: string };
-  export enum State {
-    UNINITIALIZED,
-    WAITING,
-    RUNNING,
-    DONE
-  }
-
-  export enum Action {
-    CONFIGURE, // Load data, prepare tasks
-    RUN      , // Run tasks
-    CLEAN    , // Clean tasks
-  }
 }
 export = Task;

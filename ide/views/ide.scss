@@ -175,20 +175,18 @@ ul.nav.menu-title {
   border-radius: 6px 0 6px 6px;
 }
 
-.checkboxview {
+.checklist-item {
+  margin: 5px 0;
   cursor: default;
-  height: 24px;
-  line-height: 24px;
-  vertical-align: top;
-  display: inline-block;
 }
 
-.checkboxview > span {
-  vertical-align: top;
+.checklist-item > span {
+  vertical-align: middle;
   margin-left: 5px;
 }
 
 .form-control-checkbox {
+  vertical-align: middle;
   display: inline-block;
   user-select: none;
   margin: 0;
@@ -329,7 +327,7 @@ ul.nav.menu-title {
 .diagnostic {
   padding: 10px;
   margin: 20px 0;
-  border: 1px solid #eee;
+  border: 1px solid $border-soft-color;
   border-left-width: 5px;
   border-radius: 3px;
 }

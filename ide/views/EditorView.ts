@@ -308,13 +308,18 @@ module EditorView {
   export class SimpleEditorView extends View {
     editor: AceAjax.Editor; $onEdChangeOptions;
 
-    constructor() {
+    constructor(options?: { content?: string }) {
       super();
+      this.el.className += "fill";
       this.editor = ace.edit(this.el);
       this.editor.$blockScrolling = Infinity;
       onEditorOptionChange(this.$onEdChangeOptions = (options) => {
-      this.editor.setOptions(options);
-    });
+        this.editor.setOptions(options);
+      });
+      if (options && options.content) {
+        this.editor.setValue(options.content);
+        this.editor.clearSelection();
+      }
     }
 
     resize() {

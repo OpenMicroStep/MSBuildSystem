@@ -36,22 +36,24 @@ class CompileTask extends ProcessTask {
     this.appendArgs(["-MMD", "-MF", this.hmapFile.path]);
   }
 
-  parseHeaderMap(cb: () => any) {
+  parseHeaderMap(step) {
     this.hmapFile.readUtf8File((err, content) => {
-      if(err) return cb();
-      var headers = [];
-      var lines = content.split("\n");
-      for(var i = 1, len = lines.length; i <len; ++i) {
-        var header = lines[i];
-        if(header.endsWith("\\"))
-          header = header.substring(0, header.length - 1).trim();
-        else
-          header = header.trim();
-        if(header.length)
-          headers.push(header);
+      if(err) { step.error(err); }
+      else {
+        var headers = [];
+        var lines = content.split("\n");
+        for(var i = 1, len = lines.length; i <len; ++i) {
+          var header = lines[i];
+          if(header.endsWith("\\"))
+            header = header.substring(0, header.length - 1).trim();
+          else
+            header = header.trim();
+          if(header.length)
+            headers.push(header);
+        }
+        step.sharedData.headers = headers;
       }
-      this.sharedData.headers = headers;
-      cb();
+      step.continue();
     })
   }
 
@@ -102,23 +104,27 @@ class CompileTask extends ProcessTask {
     return diags;
   }
 
-  runProcess(provider, callback) {
-    super.runProcess(provider, (err, output) => {
-      this.data.diagnostics = output ? this.parseLogs(output) : [];
-      this.parseHeaderMap(() => {
-        callback(err, output);
-      });
+  runProcess(step, provider) {
+    step.setFirstElements((step) => {
+      var output = step.context.output;
+      step.data.diagnostics = output ? this.parseLogs(output) : [];
+      this.parseHeaderMap(step);
     });
+    super.runProcess(step, provider);
   }
 
-  isRunRequired(callback: (err: Error, required?:boolean) => any) {
+  providerRequires() {
+    return ["inputs", "outputs", "files", "dependencies outputs"];
+  }
+
+  isRunRequired(step, callback: (err: Error, required?:boolean) => any) {
     var barrier = new File.EnsureBarrier("Compile.isRunRequired", 3);
-    if(this.sharedData.headers)
-      File.ensure(this.sharedData.headers, this.data.lastSuccessTime, {}, (err, required) => { barrier.dec(null, !!err || required) });
+    if(step.sharedData.headers)
+      File.ensure(step, step.sharedData.headers, {}, (err, required) => { barrier.dec(null, !!err || required) });
     else
       barrier.dec(null, true);
-    File.ensure(this.inputFiles, this.data.lastSuccessTime, {}, barrier.decCallback());
-    File.ensure(this.outputFiles, this.data.lastSuccessTime, {ensureDir: true}, barrier.decCallback());
+    File.ensure(step, this.inputFiles, {}, barrier.decCallback());
+    File.ensure(step, this.outputFiles, {ensureDir: true}, barrier.decCallback());
     barrier.endWith(callback);
   }
 }

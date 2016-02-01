@@ -11,6 +11,7 @@ class CompileClangTask extends CompileTask {
     this.appendArgs([
       "-o", objFile.path,
       "-c", srcFile.path,
+      "-Wall",
       "-fdiagnostics-show-note-include-stack",
       "-fmessage-length=0",
       "-fmacro-backtrace-limit=0",

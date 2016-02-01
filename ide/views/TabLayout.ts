@@ -157,6 +157,11 @@ class TabLayout extends View {
     return this._tabs.length;
   }
 
+  clear(destroy: boolean = true) {
+    for(var i = this.count(); i > 0;)
+      this.removeTab(--i, destroy);
+  }
+
   findView(view: ContentView) : number {
     return this._tabs.findIndex((item) => {
       return item.view === view;

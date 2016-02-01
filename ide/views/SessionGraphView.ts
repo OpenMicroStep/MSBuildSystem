@@ -1,4 +1,5 @@
 import BoxLayout = require('./BoxLayout');
+import EditorView = require('./EditorView');
 import Workspace = require('../client/Workspace');
 import Session = require('../client/Session');
 import core = require('../core');
@@ -100,27 +101,10 @@ function parse(g: Graph, into: any[]) {
   }
 }
 
-class TextEditorView extends core.View {
-  editor: AceAjax.Editor;
-
-  constructor(text: string) {
-    super('div');
-    this.el.className = "fill";
-    this.editor = ace.edit(this.el);
-    this.editor.setReadOnly(true);
-    this.editor.setValue(text);
-    this.editor.clearSelection();
-  }
-  resize() {
-    this.editor.resize();
-    super.resize();
-  }
-}
-
 class DiagnosticView extends core.View {
   constructor(diags: Workspace.Diagnostic[]) {
     super('div');
-
+    this.el.className = "container-fluid";
     diags.forEach((d) => {
       this.el.appendChild(this.createHTMLDiagnostic(d, false));
 
@@ -144,6 +128,7 @@ class DiagnosticView extends core.View {
 
 class WorkspaceTaskView extends core.View {
   info: HTMLElement;
+  tabs: core.TabLayout;
   layout: BoxLayout;
 
   constructor() {
@@ -152,14 +137,15 @@ class WorkspaceTaskView extends core.View {
 
     this.info = document.createElement('div');
     this.info.className = "container-fluid";
+    this.tabs = new core.TabLayout();
     this.layout = new BoxLayout({ orientation: BoxLayout.Orientation.VERTICAL, userCanResize: false });
     this.layout.appendView(new core.View(this.info), 1);
-    this.layout.appendView(new core.View(document.createElement('div')), 0.75);
+    this.layout.appendView(this.tabs, 0.75);
     this.layout.appendTo(this.el);
   }
 
   setTask(t: Workspace.TaskInfo, g: Graph) {
-    var pills = [];
+    this.tabs.clear(true);
     var html = '';
     html += '<div class="row">';
     html +=   '<div class="col-xs-6">Name: <span class="fa fa-fw ' + getFAClass(t.name.type) + '"></span>' + _.escape(t.name.name) + '</div>';
@@ -169,13 +155,13 @@ class WorkspaceTaskView extends core.View {
     var d = t.data;
     if (!d) d= <any>{};
     if (d.SHARED && d.SHARED.command && d.SHARED.command.args)
-      pills.push({ label: "Arguments", view: () => { return new TextEditorView(d.SHARED.command.args.join('\n')); }});
+      this.tabs.appendView(new core.ContentView.Simple("Arguments", new EditorView.SimpleEditorView({ content: d.SHARED.command.args.join('\n') })));
     if (d.SHARED && d.SHARED.headers)
-      pills.push({ label: "Headers", view: () => { return new TextEditorView(d.SHARED.headers.join('\n')); }});
+      this.tabs.appendView(new core.ContentView.Simple("Headers", new EditorView.SimpleEditorView({ content: d.SHARED.headers.join('\n') })));
     if (g.diagnostics.length)
-      pills.push({ label: "Diagnostics", view: () => { return new DiagnosticView(g.diagnostics); }});
+      this.tabs.appendView(new core.ContentView.Simple("Diagnostics", new DiagnosticView(g.diagnostics)));
 
-    function appendDetails(title: string, i: Workspace.ActionInfo) {
+    var appendDetails = (title: string, i: Workspace.ActionInfo) => {
       html += '<div class="row">';
       html +=   '<div class="col-xs-12">';
       if (i && i.lastRunStartTime > 0) {
@@ -183,7 +169,7 @@ class WorkspaceTaskView extends core.View {
         html += (i.errors === 0 ? '<span class="text-success">success</span>' : '<span class="text-danger">errors</span>');
         html += ' the ' + (new Date(i.lastRunEndTime)).toLocaleString();
         if (i.logs && i.logs.length > 0)
-          pills.push({ label: title + " logs", view: () => { return new TextEditorView(i.logs); }});
+          this.tabs.appendView(new core.ContentView.Simple(title + " logs", new EditorView.SimpleEditorView({ content: i.logs })));
       }
       else {
         html += title + ' hasn\'t been run yet';
@@ -191,29 +177,12 @@ class WorkspaceTaskView extends core.View {
       html +=   '</div>';
       html += '</div>';
     }
-    appendDetails('Configure', d.CONFIGURE);
-    appendDetails('Run', d.RUN);
-    if (pills.length > 0) {
-      html += '<div class="row">';
-      html +=   '<div class="col-xs-12">';
-      html +=     '<ul class="nav nav-pills"></ul>';
-      html +=   '</div>';
-      html += '</div>';
+    for (var k in d) {
+      if (k !== 'SHARED') {
+        appendDetails(k[0].toUpperCase() + k.substring(1), d[k]);
+      }
     }
     $(this.info).html(html);
-    if (pills.length > 0) {
-      var c = this.info.lastElementChild.firstElementChild.firstElementChild;
-      pills.forEach((pill) => {
-        var $li = $('<li role="presentation"><a href="#">'+ pill.label +'</a></li>');
-        $li.on('click', () => {
-          $li.parent().children().removeClass('active');
-          $li.addClass('active');
-          this.layout.replaceViewAt(1, pill.view()).destroy();
-        })
-        $li.appendTo(c);
-      });
-    }
-    this.layout.replaceViewAt(1, new core.View(document.createElement('div'))).destroy();
   }
 }
 

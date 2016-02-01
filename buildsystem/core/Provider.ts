@@ -1,43 +1,67 @@
 import path = require("path");
+import os = require("os");
 import fsex = require("fs-extra");
 import fs = require("fs-extra");
 import crypto = require("crypto");
 import Datastore = require("nedb");
+import Target = require("./Target");
 import File = require("./File");
+import Task = require("./Task");
 import Barrier = require("./Barrier");
 import RunProcess = require("./Process");
+import async = require("./async");
 
 var IoEngine= require('engine.io');
 var IoEngineClient= require('engine.io-client');
 var RpcServer = require('rpc-websocket').server;
 var RpcSocket = require('rpc-websocket');
 
-/**   */
+type ProviderOptions = {
+  args: string[],
+  env?: { [s: string]: string},
+  requires?: string[],
+};
+
+/*
+    var g = this.graph;
+    while (g && !(g instanceof Target))
+      g = g.graph;
+    */
+
 class Provider {
   private static idCounter= 0;
   id: number;
   type: string;
   conditions: Provider.Conditions;
 
+  static requireInput = "in&out";
+  static requireTargetDependencies = "target";
+
   constructor(conditions) {
     this.conditions = conditions;
     this.id= ++Provider.idCounter;
   }
 
-  isCompatible(conditions: {[s: string]: string}) : boolean {
+  isCompatible(conditions: {[s: string]: string|((v) => boolean)}) : boolean {
     for(var k in conditions) {
       if (conditions.hasOwnProperty(k)) {
-        if (this.conditions[k] !== conditions[k])
+        var cnd = conditions[k];
+        var v = this.conditions[k];
+        var ok = typeof cnd === "function" ? cnd(v) : cnd === v;
+        if (!ok)
           return false;
       }
     }
     return true;
   }
 
+  acquireResource(cb: () => void) { cb(); }
+  releaseResource() {}
+
   mapOptions(options: any, original:string, mapped:string) : any {
     return options;
   }
-  process(inputs: File[], outputs: File[], action: string, options: any, cb) {
+  process(step, inputs: File[], outputs: File[], action: string, options: ProviderOptions) {
     throw "Must be implemented by subclasses";
   }
 
@@ -62,7 +86,28 @@ class Provider {
 }
 
 module Provider {
-  export class Process extends Provider {
+
+  export var maxConcurrentTasks: number = os.cpus().length;
+  var nbTaskRunning: number = 0;
+  var waitingTasks: (() => void)[] = [];
+  export class LocalProvider extends Provider {
+    acquireResource(cb: () => void) {
+      if (nbTaskRunning < maxConcurrentTasks) {
+        ++nbTaskRunning;
+        cb;
+      }
+      else {
+        waitingTasks.push(cb);
+      }
+    }
+    releaseResource() {
+      --nbTaskRunning;
+      if (waitingTasks.length > 0)
+        waitingTasks.shift()();
+    }
+  }
+
+  export class Process extends LocalProvider {
     constructor(public bin: string, conditions, public options?: any) {
       super(conditions);
     }
@@ -75,18 +120,23 @@ module Provider {
       });
       return options;
     }
-    process(inputs: File[], outputs: File[], action: string, options: any, cb) {
+    process(step, inputs: File[], outputs: File[], action: string, options: ProviderOptions) {
       if (this.options && this.options.PATH) {
         options.env = options.env || {};
-        options.env.PATH = this.options.PATH.join(";") + ";" + process.env.PATH;
+        options.env['PATH'] = this.options.PATH.join(";") + ";" + process.env.PATH;
       }
       if (this.options && this.options.args) {
         options.args = options.args || [];
         options.args.unshift.apply(options.args, this.options.args);
       }
-      RunProcess.run(this.bin, options.args, options.env, cb);
+      RunProcess.run(this.bin, options.args, options.env, (err, output) => {
+        step.context.err = err;
+        step.context.output = output;
+        step.continue();
+      });
     }
   }
+
   export class Remote extends Provider {
     constructor(conditions, public io) {
       super(conditions);
@@ -100,7 +150,7 @@ module Provider {
        - => (err, args)
      - emit once:    process-end
      */
-    process(inputs: File[], outputs: File[], action: string, options: any, cb) {
+    process(step, inputs: File[], outputs: File[], action: string, options: any) {
       var inputsMapped= inputs.map((i) => { return i.path; });
       var outputsMapped= outputs.map((output) => { return output.path; });
       this.io.rpc("process-init", inputsMapped, (pid) => {
@@ -129,7 +179,9 @@ module Provider {
                 err= err.message || err;
               args[0]= err;
             }
-            cb.apply(null, args);
+            step.context.err = args[0];
+            step.context.output = args[1];
+            step.continue();
           };
           if (errors.length) return end(errors);
 
@@ -256,22 +308,27 @@ module Provider {
                 msg.options= provider.mapOptions(msg.options, ctx.input_paths[idx], path);
                 return File.getShared(path);
               });
-              provider.process(inputsMapped, outputsMapped, msg.action, msg.options, function (err) {
-                var args= Array.from(arguments);
-                console.info("process-run", "runned", msg.pid, err);
-                if(err) return reply({ err:null, output_errors:[], args:args });
-                var barrier = new Barrier.ErrBarrier("ServerProvider handle outputs", outputsMapped.length);
-                outputsMapped.forEach((output, idx) => {
-                  var stream= fs.createReadStream(output.path);
-                  stream.on("error", (err) => { barrier.dec(err); });
-                  stream.on("data", (data) => { ws.send("process-upload-" + msg.pid, {idx:idx, data: data}); });
-                  stream.on("end", () => { barrier.dec(); });
-                });
-                barrier.endWith((errors) => {
-                  console.info("process-run", "outputs sent", msg.pid, errors);
-                  reply({ err:null, output_errors: errors, args:args });
-                });
-              });
+              async.run(null, [
+                (step) => {
+                  provider.process(step, inputsMapped, outputsMapped, msg.action, msg.options);
+                },
+                (step) => {
+                  var err = step.context.err;
+                  console.info("process-run", "runned", msg.pid, err);
+                  if(err) return reply({ err:null, output_errors:[], args:[err, null]});
+                  var barrier = new Barrier.ErrBarrier("ServerProvider handle outputs", outputsMapped.length);
+                  outputsMapped.forEach((output, idx) => {
+                    var stream= fs.createReadStream(output.path);
+                    stream.on("error", (err) => { barrier.dec(err); });
+                    stream.on("data", (data) => { ws.send("process-upload-" + msg.pid, {idx:idx, data: data}); });
+                    stream.on("end", () => { barrier.dec(); });
+                  });
+                  barrier.endWith((errors) => {
+                    console.info("process-run", "outputs sent", msg.pid, errors);
+                    reply({ err:null, output_errors: errors, args: [null, step.context.output] });
+                  });
+                }
+              ]);
             }
             else {
               console.info("process-run", "Unable to find provider", msg.pid);

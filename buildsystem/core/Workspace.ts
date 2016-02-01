@@ -6,6 +6,8 @@ import Barrier = require('./Barrier');
 import path = require('path');
 import _ = require('underscore');
 import BuildSession= require('./BuildSession');
+import Runner = require('./Runner');
+
 var fs = require('fs-extra');
 
 interface FileInfo {
@@ -195,7 +197,7 @@ class Workspace {
      if(typeof targetInfo.type !== "string")
       throw "'type' must be a string";
     if(!Array.isArray(targetInfo.environments))
-      throw "'environments' must be a, array of strings";
+      throw "'environments' must be an array of strings";
   }
 
   /** Construct build graph */
@@ -229,11 +231,9 @@ class Workspace {
         });
       });
 
-      root.reset();
-      root.start(Task.Action.CONFIGURE, () =>  {
-        p.context.root = root;
-        p.continue();
-      });
+      var runner = new Runner(root, "configure");
+      p.context.root = root;
+      runner.run(p);
     } catch (e) {
       p.context.error = e;
       p.continue();

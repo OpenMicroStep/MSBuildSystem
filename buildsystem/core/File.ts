@@ -2,6 +2,7 @@ import fs = require('fs-extra');
 import path = require('path');
 import util = require('util');
 import Barrier = require('./Barrier');
+import Runner = require('./Runner');
 
 
 // Nodejs basename && extname are quite slow (use complex regexp)
@@ -21,7 +22,6 @@ class LocalFile {
   public path:string;
   public name:string;
   public extension:string;
-  private _stats = null;
 
   constructor(filePath:string) {
     this.path = filePath;
@@ -42,11 +42,6 @@ class LocalFile {
       LocalFile.files.set(filePath, file= new LocalFile(filePath));
     return file;
   }
-  static clearStats() {
-    LocalFile.files.forEach((f) => {
-      f._stats = null;
-    })
-  }
 
   /**
    * Ensure that outputs can be written
@@ -54,18 +49,21 @@ class LocalFile {
    *  - one of the inputs changed after what.time
    *  - one of the outputs changed after what.time
    */
-  static ensure(files: (string | LocalFile)[], time: number, options: {ensureDir?:boolean;}, callback: (err: Error, changed?:boolean) => any) {
+  static ensure(step: Runner.Step, files: (string | LocalFile)[], options: {ensureDir?:boolean;}, callback: (err: Error, changed?:boolean) => any) {
     var barrier = new LocalFile.EnsureBarrier("File ensure", files.length);
     files.forEach(function(file) {
       var sharedFile: LocalFile;
       sharedFile = (typeof file === "string") ? LocalFile.getShared(file) : file;
-      sharedFile.stat(function(err, stats) {
+      var cache = step.context.stats;
+      if (!cache)
+        cache = step.context.stats = new Map<LocalFile, any>();
+      sharedFile.stats(cache, function(err, stats) {
         if(err && options.ensureDir) {
             fs.ensureDir(path.dirname(sharedFile.path), function(err) {
               barrier.dec(err, true);
             });
         } else {
-          barrier.dec(err, !err && stats['mtime'].getTime() > time);
+          barrier.dec(err, !err && stats['mtime'].getTime() > step.lastSuccessTime);
         }
       });
     });
@@ -114,14 +112,14 @@ class LocalFile {
   writeUtf8File(content: string, cb: (err: Error) => any) {
     fs.writeFile(this.path, content, "utf8", cb);
   }
-  stat(cb : (err: Error, stats: fs.Stats) => any) {
-    if (this._stats)
-      cb(null, this._stats);
-    else
-      fs.stat(this.path, (err, stats) => {
-        this._stats = stats;
-        cb(err, stats);
-      });
+  stats(cache: Map<LocalFile, any>, cb) {
+    var c = cache.get(this);
+    if (c)
+      return cb(null, c);
+    fs.stat(this.path, (err, stats) => {
+      cache.set(this, stats);
+      cb(err, stats);
+    });
   }
   unlink(cb : (err: Error) => any) {
     fs.unlink(this.path, function(err) {

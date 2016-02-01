@@ -4,6 +4,7 @@ import Graph = require('../core/Graph');
 import Task = require('../core/Task');
 import Barrier = require('../core/Barrier');
 import File = require('../core/File');
+import Target = require('../core/Target');
 import crypto = require('crypto');
 
 class ProcessTask extends Task {
@@ -40,11 +41,11 @@ class ProcessTask extends Task {
     return this.args.join(" ");
   }
 
-  isRunRequired(callback: (err: Error, required?:boolean) => any) {
+  isRunRequired(step, callback: (err, required:boolean) => any) {
     if(this.inputFiles.length && this.outputFiles.length) {
       var barrier = new File.EnsureBarrier("Compile.isRunRequired", 2);
-      File.ensure(this.inputFiles, this.data.lastSuccessTime, {}, barrier.decCallback());
-      File.ensure(this.outputFiles, this.data.lastSuccessTime, {ensureDir: true}, barrier.decCallback());
+      File.ensure(step, this.inputFiles, {}, barrier.decCallback());
+      File.ensure(step, this.outputFiles, {ensureDir: true}, barrier.decCallback());
       barrier.endWith(callback);
     }
     else {
@@ -52,50 +53,60 @@ class ProcessTask extends Task {
     }
   }
 
-  runProcess(provider: Provider, callback : (err: string, output: string) => any) {
-    provider.process(this.inputFiles, this.outputFiles, "runTask", {
+  runProcess(step, provider: Provider) {
+    step.setFirstElements((step) => {
+      step.log(step.context.output);
+      step.error(step.context.err);
+      step.continue();
+    });
+    provider.process(step, this.inputFiles, this.outputFiles, "runTask", {
       args: this.args,
-      env: this.env
-    }, callback);
+      env: this.env,
+      requires: this.providerRequires()
+    });
   }
 
-  run() {
+  providerRequires() {
+    return ["inputs", "outputs"];
+  }
+
+  run(step) {
     var provider = Provider.find(this.provider);
     if(!provider) {
-      this.log("'provider' not found");
-      this.end(1);
+      step.error("'provider' not found");
+      step.continue();
     }
     else {
-      this.runProcess(provider, (err, output) => {
-        if (output) this.log(output);
-        if (output && err) this.log("\n");
-        if (err) this.log(err);
-        this.end(err ? 1 : 0);
-      });
+      this.runProcess(step, provider);
     }
   }
 
-  postprocess() {
-    this.sharedData.command = { provider: this.provider, args: this.args };
-    super.postprocess();
+  do(step) {
+    step.setFirstElements((p) => {
+      step.sharedData.command = { provider: this.provider, args: this.args };
+      p.continue();
+    })
+    super.do(step);
   }
 
-  clean() {
+  clean(step) {
     var errors = 0;
     var barrier = new Barrier("Clear process product", this.outputFiles.length);
     this.outputFiles.forEach((file) => {
       file.unlink((err) => {
-        this.log("unlink " + file.path);
-        if (err) {
-          this.log(err.toString());
-          ++errors;
-        }
+        step.log("unlink " + file.path);
+        if (err)
+          step.error(err.toString());
         barrier.dec();
       })
     });
     barrier.endWith(() => {
-      this.end(errors);
+      step.continue();
     });
+  }
+
+  listOutputFiles(set: Set<File>) {
+    this.outputFiles.forEach((out) => { set.add(out); });
   }
 }
 

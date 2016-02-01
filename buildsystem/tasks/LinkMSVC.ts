@@ -46,25 +46,22 @@ class LinkMSVCTask extends LinkTask {
     this.insertArgs(2, libs);
   }
 
-  runProcess(provider, callback : (err: string, output: string) => any) {
-    super.runProcess(provider, (err, output) => {
-      if (err) return callback(err, output);
-      if(false && this.type === CXXTarget.LinkType.DYNAMIC) {
+  runProcess(step, provider) {
+    step.setFirstElements((step) => {
+      if (!step.context.err && false && this.type === CXXTarget.LinkType.DYNAMIC) {
+        // TODO
         var args = ["/EXPORTS"];
         this.exports.forEach((file) => { args.push(file.path); });
         var dumpbin = Provider.find(this.dumpbinProvider);
-        dumpbin.process(this.exports, [], "runTask", {
+        dumpbin.process(step, this.exports, [], "runTask", {
           args: ["/EXPORTS", ],
-        }, (err, exports) => {
-          if (err) return callback(err, output);
-          console.info(exports);
-          callback(err, output);
         });
       }
       else {
-        callback(err, output);
+        step.continue();
       }
     });
+    super.runProcess(step, provider);
   }
 
   private _addLibFlags(libs: string[], isArchive: boolean) {

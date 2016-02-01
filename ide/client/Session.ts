@@ -43,6 +43,7 @@ class Session extends replication.DistantObject {
     this.sessionid = this.path;
     this.userdata = null;
     this.userdataschedule = util.schedule(this._setuserdata.bind(this));
+    this.onSet(['buildgraph'], this.clearGraph.bind(this));
     var m = this.sessionid.match(/^session:(\w+)=(.+)$/);
     if (m) {
       this.path = m[2];

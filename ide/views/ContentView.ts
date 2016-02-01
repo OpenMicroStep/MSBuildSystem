@@ -61,7 +61,7 @@ abstract class ContentView extends View {
   dragndrop() : { text?: string, data?: any, file?: string } {
     return { data: this.serialize() }
   }
-  abstract data(): any;
+  data(): any { return null; }
 
   extendsContextMenu(items, tabLayout, idx) {
     if (this.duplicate) {
@@ -77,6 +77,21 @@ abstract class ContentView extends View {
   // Optionals
   serialize:() => { type: string, data: any };
   duplicate: () => ContentView;
+}
+
+module ContentView {
+  export class Simple extends ContentView {
+    view: View;
+    constructor(title: string, view: View) {
+      super();
+      this.titleEl.textContent = title;
+      this.view = view;
+      this.el.appendChild(this.view.el);
+    }
+    getChildViews() : View[] {
+      return [this.view];
+    }
+  }
 }
 
 export = ContentView;

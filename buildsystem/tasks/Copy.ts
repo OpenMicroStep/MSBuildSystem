@@ -45,7 +45,7 @@ class CopyTask extends Task {
       cb(err);
     };
     fs.copy(src, dest, {replace: true}, (err) => {
-      this.log("copy " + src + " to " + dest);
+      //step.log("copy " + src + " to " + dest);
       if (err) return end(err);
       fs.stat(src, (err, stats) => {
         if (err) return end(err);
@@ -56,20 +56,18 @@ class CopyTask extends Task {
       });
     });
   }
-  run() {
+  run(fstep) {
     var barrier = new Barrier("Copy files", this.steps.length);
-    var errors = 0;
     var errCb = (err)=> {
       if (err) {
-        ++errors;
-        this.log(err.toString());}
+        fstep.error(err.toString());}
       barrier.dec();
     };
     this.steps.forEach((step) => {
       var i = step[0], o = step[1];
       var ioBarrier = new File.EnsureBarrier("Compile.isRunRequired", 2);
-      File.ensure([i], this.data.lastSuccessTime, {}, ioBarrier.decCallback());
-      File.ensure([o], this.data.lastSuccessTime, {ensureDir: true}, ioBarrier.decCallback());
+      File.ensure(fstep, [i], {}, ioBarrier.decCallback());
+      File.ensure(fstep, [o], {ensureDir: true}, ioBarrier.decCallback());
       ioBarrier.endWith((err, required) => {
         if (err) return errCb(err);
         if (required) {
@@ -81,24 +79,22 @@ class CopyTask extends Task {
       });
     });
     barrier.endWith(() => {
-      this.end(errors);
+      fstep.continue();
     });
   }
-  clean() {
+  clean(fstep) {
     var barrier = new Barrier("Clean copied files", this.steps.length);
-    var errors = 0;
     this.steps.forEach((step) => {
       step[1].unlink((err) => {
-        this.log("unlink " + step[1].path);
+        fstep.log("unlink " + step[1].path);
         if(err) {
-          ++errors;
-          this.log(err.toString());
+          fstep.error(err.toString());
         }
         barrier.dec();
       });
     });
     barrier.endWith(() => {
-      this.end(errors);
+      fstep.continue();
     });
   }
 }

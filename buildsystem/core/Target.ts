@@ -78,6 +78,17 @@ class Target extends Graph {
     super.addDependency(task);
   }
 
+  allDependencies() : Set<Target> {
+    var set = new Set<Target>();
+    var iterate = function(t: Target) {
+      if (set.has(t)) return;
+      set.add(t);
+      t.dependencies.forEach(iterate);
+    }
+    iterate(this);
+    return set;
+  }
+
   getDependency(targetName: string) {
     var entries = this.dependencies.values();
     var e: IteratorResult<Target>;
@@ -87,47 +98,36 @@ class Target extends Graph {
     }
     return null;
   }
-  protected runAction(action: Task.Action) {
-    if(action == Task.Action.CONFIGURE) {
+  do(step) {
+    if (step.runner.action === "configure") {
       try {
         this.configure((err) => {
           if(err) {
-            this.log("Configure failed: ");
-            this.log(err);
-            this.end(1);
+            step.error(err);
+            step.continue();
           }
           else {
             this.buildGraph((err) => {
               if(err) {
-                this.log("Build graph failed: ");
-                this.log(err);
-                this.end(1);
+                step.error(err);
+                step.continue();
               }
               else {
-                this.inputs.forEach((input) => {input.reset();});
-                super.runAction(action);
+                super.do(step);
               }
             });
           }
         });
       } catch(e) {
-        this.log(e);
-        this.end(1);
+        step.error(e);
+        step.continue();
       }
     }
     else {
-      super.runAction(action);
+      super.do(step);
     }
   }
 
-  log(err) {
-    if (err instanceof Error) {
-      super.log(err.message);
-      if (err.stack)
-        super.log(err.stack);
-    }
-    super.log(err);
-  }
   configure(callback: ErrCallback) {
     var barrier = new Barrier.FirstErrBarrier("Configure " + this.targetName, 1);
     var err = null;

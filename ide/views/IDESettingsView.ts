@@ -4,6 +4,21 @@ import settings = require('../views/settings');
 
 var themelist = ace.require("ace/ext/themelist");
 
+type Providers = {};
+class ProviderInput extends inputs.Input<Providers> {
+  constructor() {
+    super();
+    this.el.className = "form-control form-control-checkbox";
+  }
+
+  value() {
+    return null;
+  }
+  setValue(val) {
+
+  }
+}
+
 class IDESettingsView extends settings.SettingsView {
   static definition = new settings.SettingsDefinition(['settings'], [
     { label: "Theme", subs: [
@@ -45,6 +60,9 @@ class IDESettingsView extends settings.SettingsView {
           { label: "Wrap at 40 chars", value: "40"},
           { label: "Wrap at 80 chars", value: "80"},
           { label: "Wrap"}]},
+    ]},
+    { label: "Providers", subs: [
+      { type: inputs.CheckboxInput, default: {}, path: ['providers'] },
     ]},
   ])
   constructor() {

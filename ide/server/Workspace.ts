@@ -1,5 +1,6 @@
 import path = require('path');
 import BuildSystem = require('../../buildsystem/BuildSystem');
+import Runner = require('../../buildsystem/core/Runner');
 import WorkspaceFile = require('./WorkspaceFile');
 import replication = require('./replication');
 import fs = require('fs');
@@ -82,12 +83,12 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   constructor(directory: string) {
     super(new BuildSystem.Workspace(directory));
     this.isrunning = false;
-    this.$childtaskend = (task) => {
+    this.$childtaskend = (step: Runner.Step) => {
       this.broadcast("taskend", {
-        id: task.id(),
-        name: task.name,
-        action: BuildSystem.Task.Action[task.action],
-        data: task.data
+        id: step.task.id(),
+        name: step.task.name,
+        action: step.runner.action,
+        data: step.data
       });
     };
   }
@@ -130,17 +131,7 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
   }
 
   clearGraph() {
-    if (this.graph) {
-      Async.run(null, [
-        this.graph,
-        (p) => {
-          var g = p.context.root;
-          if (g) g.removeListener("childtaskend", this.$childtaskend);
-          p.continue();
-        }
-      ]);
-      this.graph = null;
-    }
+    this.graph = null;
   }
 
   buildGraph(p: Async, options: BuildSystem.Workspace.BuildGraphOptions) {
@@ -160,7 +151,6 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
         var g = p.context.root;
         if (g) {
           t0();
-          g.on("childtaskend", this.$childtaskend);
           BuildSystem.util.timeElapsed("graph export", () => { p.context.response = taskData(g); });
         }
         else {
@@ -234,9 +224,10 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
     p.setFirstElements([
       this.graph,
       (p) => {
+        if (this.isrunning) { p.context.error = "a build is already in progress"; p.continue(); return; }
         var g: BuildSystem.Graph = p.context.root;
         if (g) {
-          if (g.state === BuildSystem.Task.State.RUNNING) { p.context.error = "task is already running"; p.continue(); return; }
+          this.isrunning = true;
           var missing = false;
           var tasks = taskIds.map((id) => {
             var ret = g.findTask(true, (t) => { return t.id() === id });
@@ -245,16 +236,16 @@ class Workspace extends replication.ServedObject<BuildSystem.Workspace> {
           });
           if (missing) { p.context.error = "unable to find all tasks"; p.continue(); return; }
           var t0 = BuildSystem.util.timeElapsed("Build");
-          g.reset();
-          BuildSystem.core.File.clearStats();
-          this.isrunning = true;
-          tasks.forEach((t) => { t.enable(); });
-          g.start(type === "clean" ? BuildSystem.Task.Action.CLEAN : BuildSystem.Task.Action.RUN, () => {
+          var runner = new Runner(g, type);
+          runner.on("taskend", this.$childtaskend);
+          tasks.forEach((t) => { runner.enable(t); });
+          p.setFirstElements((p) => {
             this.isrunning = false;
             t0();
-            p.context.response = g.errors;
+            p.context.response = p.context.step.errors;
             p.continue();
           });
+          runner.run(p);
         }
         else { p.continue(); }
       }
