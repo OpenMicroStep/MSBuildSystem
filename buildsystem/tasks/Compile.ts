@@ -14,12 +14,10 @@ var rxfixit = /^fix-it:"([^"]+)":\{(\d+):(\d+)-(\d+):(\d+)\}:"([^"]+)"$/;
 class CompileTask extends ProcessTask {
   public language: string;
   hmapFile: File;
-  constructor(graph: Graph, srcFile : File, objFile : File, provider: Provider.Conditions ) {
+  constructor(graph: Graph, srcFile : File, objFile : File, provider: Provider.Conditions) {
     super({type: "compile", name: srcFile.name}, graph, [srcFile], [objFile], provider);
     this.language = CompileTask.extensions[srcFile.extension];
-    this.hmapFile = File.getShared(objFile.path + ".hmap");
-    this.outputFiles.push(this.hmapFile);
-    this.addHeaderMapArgs();
+    this.addHeaderMapArgs(objFile);
   }
 
   static extensions =  {
@@ -32,8 +30,20 @@ class CompileTask extends ProcessTask {
     '.S' : 'ASM',
     '.asm' : 'ASM'
   };
-  addHeaderMapArgs() {
+
+  addHeaderMapArgs(objFile: File) {
+    this.hmapFile = File.getShared(objFile.path + ".hmap");
+    this.outputFiles.push(this.hmapFile);
     this.appendArgs(["-MMD", "-MF", this.hmapFile.path]);
+  }
+
+  addOptions(options: any) {
+    if (options.includeSearchPath) {
+      options.includeSearchPath.forEach((dir) => {
+        this.inputFiles.push(File.getShared(dir));
+        this.addFlags(['-I' + dir]);
+      })
+    }
   }
 
   parseHeaderMap(step) {
@@ -68,7 +78,7 @@ class CompileTask extends ProcessTask {
   parseLogs(logs) {
     var diag;
     var diags = [];
-    var lines = logs.split("\n");
+    var lines = logs.split(/[\r\n]+/);
     for(var i = 0, len= lines.length; i < len; ++i) {
       var line = lines[i];
       var matches = line.match(rxdiag);
@@ -114,7 +124,7 @@ class CompileTask extends ProcessTask {
   }
 
   providerRequires() {
-    return ["inputs", "outputs", "files", "dependencies outputs"];
+    return ["inputs", "files", "dependencies outputs"];
   }
 
   isRunRequired(step, callback: (err: Error, required?:boolean) => any) {

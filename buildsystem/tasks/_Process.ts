@@ -59,10 +59,12 @@ class ProcessTask extends Task {
       step.error(step.context.err);
       step.continue();
     });
-    provider.process(step, this.inputFiles, this.outputFiles, "runTask", {
+    provider.process(step, this.inputFiles, this.outputFiles, "run", {
       args: this.args,
-      env: this.env,
-      requires: this.providerRequires()
+      env: this.env
+    }, {
+      requires: this.providerRequires(),
+      task: this
     });
   }
 

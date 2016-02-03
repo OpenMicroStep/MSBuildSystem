@@ -156,7 +156,7 @@ class CXXTarget extends Target {
           if (err) return barrier.dec(err);
 
           this.includeDirectories.forEach((dir) => {
-            (<CompileTask>task).addFlags(["-I" + dir]);
+            (<CompileTask>task).addOptions({ includeSearchPath: [dir] });
           });
           tasks.add(task);
           barrier.dec(this.applyTaskModifiers(task));

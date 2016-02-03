@@ -55,7 +55,7 @@ class LinkMSVCTask extends LinkTask {
         var dumpbin = Provider.find(this.dumpbinProvider);
         dumpbin.process(step, this.exports, [], "runTask", {
           args: ["/EXPORTS", ],
-        });
+        }, {});
       }
       else {
         step.continue();

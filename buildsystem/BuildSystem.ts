@@ -8,7 +8,7 @@ export import Target = require('./core/Target');
 export import Task = require('./core/Task');
 export import Graph = require('./core/Graph');
 export import Workspace = require('./core/Workspace');
-import Provider = require('./core/Provider');
+export import Provider = require('./core/Provider');
 import Sysroot = require('./core/Sysroot');
 import path = require('path');
 export import util = require('./core/util');
@@ -21,10 +21,14 @@ Sysroot.load(path.join(__dirname, '../sysroots'));
 
 var p, fs = require('fs');
 function ifexists(path, cb) {
-  fs.stat(path, function(err) {
-    if (!err) cb();
-  });
+  var stats = null;
+  try {
+    stats = fs.statSync(path);
+  } catch(e) {};
+  if (stats) cb();
 }
+
+console.info("Looking for providers");
 
 if (process.platform === "darwin") {
   // TODO: add better detection
@@ -37,8 +41,16 @@ else if (process.platform === "win32") {
   ifexists(p= "C:/Apple/Developer/Executables/gcc.exe", function() {
     Provider.register(new Provider.Process(p, { type:"compiler", compiler:"gcc", arch:"i386", version:"wo451" }, {}));
   });
+  ifexists(p= "C:/Apple/Library/Executables/sh.exe", function() {
+    Provider.register(new Provider.Process(p, { type:"linker", linker:"libtool", arch:"i386", version:"wo451" }, {
+      args: ["C:/Apple/Developer/Executables/libtool"]
+    }));
+  });
   ifexists(p= "C:/Apple/Developer/Executables/LINK.exe", function() {
     Provider.register(new Provider.Process(p, { type:"linker", linker:"msvc", arch:"i386", version:"wo451" }, {}));
+  });
+  ifexists(p= "C:/Apple/Developer/Executables/LIB.exe", function() {
+    Provider.register(new Provider.Process(p, { type:"archiver", archiver:"msvc", arch:"i386", version:"wo451" }, {}));
   });
 
   // MSVC 11 32bits

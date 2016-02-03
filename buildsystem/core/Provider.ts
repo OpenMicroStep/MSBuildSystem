@@ -1,45 +1,44 @@
 import path = require("path");
 import os = require("os");
-import fsex = require("fs-extra");
-import fs = require("fs-extra");
 import crypto = require("crypto");
-import Datastore = require("nedb");
 import Target = require("./Target");
 import File = require("./File");
 import Task = require("./Task");
 import Barrier = require("./Barrier");
 import RunProcess = require("./Process");
 import async = require("./async");
+var fs = require("fs-extra");
 
 var IoEngine= require('engine.io');
 var IoEngineClient= require('engine.io-client');
 var RpcServer = require('rpc-websocket').server;
 var RpcSocket = require('rpc-websocket');
 
-type ProviderOptions = {
+type ProviderArgs = {
   args: string[],
   env?: { [s: string]: string},
+};
+type ProviderOptions = {
   requires?: string[],
+  task?: Task
 };
 
-/*
-    var g = this.graph;
-    while (g && !(g instanceof Target))
-      g = g.graph;
-    */
+function escapeRegExp(str) {
+  return str.replace(/([.*+?^${}()|[\]\/\\])/g, '\\$1');
+}
 
 class Provider {
-  private static idCounter= 0;
-  id: number;
   type: string;
   conditions: Provider.Conditions;
 
-  static requireInput = "in&out";
-  static requireTargetDependencies = "target";
+  static require = {
+    inputs: "inputs",
+    files: "files",
+    dependenciesOutputs: "dependencies outputs",
+  }
 
   constructor(conditions) {
     this.conditions = conditions;
-    this.id= ++Provider.idCounter;
   }
 
   isCompatible(conditions: {[s: string]: string|((v) => boolean)}) : boolean {
@@ -58,10 +57,7 @@ class Provider {
   acquireResource(cb: () => void) { cb(); }
   releaseResource() {}
 
-  mapOptions(options: any, original:string, mapped:string) : any {
-    return options;
-  }
-  process(step, inputs: File[], outputs: File[], action: string, options: ProviderOptions) {
+  process(step, inputs: File[], outputs: File[], action: string, args: ProviderArgs, options: ProviderOptions) {
     throw "Must be implemented by subclasses";
   }
 
@@ -74,12 +70,12 @@ class Provider {
     return (idx !== -1) ? Provider.providers[idx] : null;
   }
   static register(provider: Provider) {
+    console.info("register provider", provider.conditions);
     Provider.providers.push(provider);
   }
-  static unregister(id: number) {
-    var idx = Provider.providers.findIndex((provider) => {
-      return provider.id == id;
-    });
+  static unregister(provider: Provider) {
+    console.info("unregister provider", provider.conditions);
+    var idx = Provider.providers.indexOf(provider);
     if (idx !== -1)
       Provider.providers.splice(idx, 1);
   }
@@ -94,7 +90,7 @@ module Provider {
     acquireResource(cb: () => void) {
       if (nbTaskRunning < maxConcurrentTasks) {
         ++nbTaskRunning;
-        cb;
+        cb();
       }
       else {
         waitingTasks.push(cb);
@@ -111,25 +107,16 @@ module Provider {
     constructor(public bin: string, conditions, public options?: any) {
       super(conditions);
     }
-    mapOptions(options: any, original:string, mapped:string) : any {
-      options.args = options.args.map((arg: string) => {
-        var idx = arg.indexOf(original);
-        if (idx !== -1 && idx + original.length === arg.length) {
-          return arg.substr(0, idx) + mapped;}
-        return arg;
-      });
-      return options;
-    }
-    process(step, inputs: File[], outputs: File[], action: string, options: ProviderOptions) {
+    process(step, inputs: File[], outputs: File[], action: string, args: ProviderArgs, options: ProviderOptions) {
       if (this.options && this.options.PATH) {
-        options.env = options.env || {};
-        options.env['PATH'] = this.options.PATH.join(";") + ";" + process.env.PATH;
+        args.env = args.env || {};
+        args.env['PATH'] = this.options.PATH.join(";") + ";" + process.env.PATH;
       }
       if (this.options && this.options.args) {
-        options.args = options.args || [];
-        options.args.unshift.apply(options.args, this.options.args);
+        args.args = args.args || [];
+        args.args.unshift.apply(args.args, this.options.args);
       }
-      RunProcess.run(this.bin, options.args, options.env, (err, output) => {
+      RunProcess.run(this.bin, args.args, args.env, (err, output) => {
         step.context.err = err;
         step.context.output = output;
         step.continue();
@@ -137,205 +124,404 @@ module Provider {
     }
   }
 
-  export class Remote extends Provider {
-    constructor(conditions, public io) {
+  export class Remote extends LocalProvider {
+    constructor(public client: ProviderClient, conditions, public id) {
       super(conditions);
     }
 
-    /*
-     - emit once:    process-init, input_paths => pid
-     - emit n times: process-upload, pid, input_idx, data
-     - emit once:    process-run, pid, provider_id, output_paths, action, options
-       - on n times: process-upload-pid, output_idx, data
-       - => (err, args)
-     - emit once:    process-end
-     */
-    process(step, inputs: File[], outputs: File[], action: string, options: any) {
-      var inputsMapped= inputs.map((i) => { return i.path; });
-      var outputsMapped= outputs.map((output) => { return output.path; });
-      this.io.rpc("process-init", inputsMapped, (pid) => {
-        var barrier = new Barrier.ErrBarrier("RemoteProvider handle inputs", inputs.length);
-        inputs.forEach((file, idx) => {
-          var reader = fs.createReadStream(file.path);
-          var chunkidx = 0;
-          reader.on('data', (data) => {
-            this.io.send("process-upload", { pid:pid, idx:idx, data: data });
-          });
-          reader.on('end', () => { barrier.dec(); });
-          reader.on('error', (err) => { barrier.dec(err); });
-        });
-        barrier.endWith((errors) => {
-          var outputsStream: fs.WriteStream[];
-          var self = this;
-          var end = function(err?) {
-            if (outputsStream)
-              outputsStream.forEach((stream) => { stream.end(); });
-            self.io.send("process-end", { pid: pid });
-            var args= Array.from(arguments);
-            if (err && typeof err !== "string") {
-              if (Array.isArray(err))
-                err= Array.from(err).map(function(err: any) { return err.message || err; }).join(', ');
-              else
-                err= err.message || err;
-              args[0]= err;
-            }
-            step.context.err = args[0];
-            step.context.output = args[1];
-            step.continue();
-          };
-          if (errors.length) return end(errors);
+    process(step, inputs: File[], outputs: File[], action: string, args: ProviderArgs, options: ProviderOptions) {
+      var tid = this.client.tid;
+      var conn = this.client.conn;
+      var data = this.client.data;
+      var upload = [];
+      var download = [];
+      var files = new Set<File>();
+      var map = new Map<string, string>();
+      var target:Target = <any>options.task;
+      while (target && !(target instanceof Target))
+        target = <any>target.graph;
 
-          outputsStream= outputs.map((output) => { return fs.createWriteStream(output.path); });
-          this.io.on("process-upload-" + pid, (msg: {idx: number, data: any}) => {
-            if (!msg.data || msg.data.type !== "Buffer") return console.warn("process-upload: Invalid data type: ", msg.idx);
-            outputsStream[msg.idx].write(new Buffer(msg.data.data));
-          });
-          this.io.rpc("process-run", {pid: pid, id: this.id, outputs:outputsMapped, action:action, options:options}, (r: {err: Error, output_errors?: Error[], args?:any[]}) => {
-            console.info("process-run-cb", pid, r.err, r.output_errors);
-            //this.io.off("process-upload-" + pid);
-            if (r.err || r.output_errors.length) return end(r.err || r.output_errors.join(", "));
-            end.apply(null, r.args);
+      if (options.requires) {
+        options.requires.forEach((t) => {
+          if (t === Provider.require.inputs) {
+            inputs.forEach((input) => { files.add(input); map.set(input.path, ""); });
+          }
+          if (t === Provider.require.files && target) {
+            target.workspace.resolveFiles([""]).forEach((file) => { files.add(File.getShared(file)); });
+          }
+          if (t === Provider.require.dependenciesOutputs) {
+            target.allDependencies().forEach((t) => {
+              if (t !== target)
+                t.listOutputFiles(files);
+            });
+          }
+        });
+      }
+
+      var mapped = function(p, file) {
+        if (map.get(file.path) === "") {
+          map.set(file.path, p.context.result.path);
+        }
+        p.continue();
+      }
+      var now = Date.now();
+      files.forEach((file) => {
+        upload.push((p) => {
+          var old = data[file.path] || 0;
+          File.ensure(step, [file], { time: old }, (err, changed) => {
+            p.setFirstElements((p) => {
+              data[file.path] = now;
+              if (map.get(file.path) === "") {
+                map.set(file.path, p.context.result.path);
+              }
+              p.continue();
+            });
+            p.setFirstElements((p) => { mapped(p, file); });
+            if (changed) {
+              var f = this.client.uploads.get(file.path);
+              if (!f) {
+                f = new async.Async(null, async.Async.once((p) => {
+                  conn.upload(p, { tid: tid, path: file.path });
+                }));
+                this.client.uploads.set(file.path, f);
+              }
+              p.setFirstElements([
+                f,
+                (p) => {
+                  data[file.path] = now;
+                  this.client.uploads.delete(file.path);
+                  p.context.result = f.context.result;
+                  p.continue();
+                }
+              ]);
+              p.continue();
+            }
+            else {
+              conn.map(p, { tid: tid, path: file.path });
+            }
           });
         });
       });
+      outputs.forEach((output) => {
+        upload.push((p) => {
+          p.setFirstElements((p) => {
+            map.set(output.path, p.context.result.path);
+            p.continue();
+          });
+          conn.map(p, { tid: tid, path: output.path, ensureDir: true });
+        })
+        download.push((p) => {
+          conn.download(p, { tid: tid, localpath: output.path, remotepath: map.get(output.path) });
+        });
+      });
+      async.run(null, [
+        upload, // upload
+        (p) => {
+          if (args.args) {
+            args.args = args.args.map((arg) => {
+              var m = map.get(arg);
+              if (m) return m;
+              map.forEach((v, k) => {
+                //console.info("value=%s, key=%s, arg=%s", v, k, arg);
+                if (!m && arg.endsWith(k))
+                  m = arg.substring(0, arg.length - k.length) + v;
+              })
+              return m || arg;
+            });
+          }
+          conn.process(p, { tid: tid, provider: this.id, action: action, args: args });
+        },
+        (p) => {
+          step.context.err = p.context.result.err;
+          var output = p.context.result.output;
+          output = output.replace(new RegExp(this.client.prefix.replace(/[\\/]/g, '[\\\\/]'), 'g') , '');
+          step.context.output = output;
+          p.continue();
+        },
+        download, // download
+        (p) => {
+          this.releaseResource();
+          step.continue();
+          p.continue();
+        }
+      ]);
     }
   }
-  export class RemoteClient {
-    socket: SocketIOClient.Socket;
 
+  export class ProviderClient {
+    static idCounter = 0;
+    conn: ProviderConnection;
+    providers: Remote[];
+    tid: string;
+    data: any;
+    prefix: string;
+    uploads: Map<string, async.Async>;
     constructor(url: string) {
       var ws = IoEngineClient(url);
       if (!ws) throw new Error("Unable to create ws to " + url);
-      this.socket= new RpcSocket(ws);
-      this.socket.on("register", (conditions, reply) => {
-        console.info("Remote provider registered", conditions);
-        var provider= new Remote(conditions, this.socket);
-        Provider.register(provider);
-        reply(provider.id);
+      this.conn = new ProviderConnection(new RpcSocket(ws), 0, null, null);
+      this.tid = (++ProviderClient.idCounter).toString();
+      this.uploads = new Map<any, any>();
+      this.providers = [];
+    }
+
+    init(p) {
+      p.setFirstElements([
+        (p) => { this.conn.data(p, { tid: this.tid }); },
+        (p) => {
+          this.data = p.context.result.data;
+          this.prefix = p.context.result.prefix;
+          p.continue();
+        },
+        (p) => { this.conn.providers(p); },
+        (p) => {
+          var providers = p.context.result.providers;
+          if (providers) {
+            providers.forEach((p) => {
+              var prov = new Remote(this, p.conditions, p.id);
+              this.providers.push(prov)
+              Provider.register(prov);
+            })
+          }
+          p.context.providers = this.providers;
+          p.continue();
+        }
+      ]);
+      p.continue();
+    }
+
+    setData(p) {
+      this.conn.setData(p, { tid: this.tid, data: this.data});
+    }
+
+    destroy() {
+      this.providers.forEach((p) => {
+        Provider.unregister(p);
       });
-      this.socket.on("unregister", (id: number) => {
-        Provider.unregister(id);
+      this.conn.io.destroy();
+      this.conn = null;
+      this.providers = null;
+    }
+  }
+
+  export class ProviderConnection {
+    static CanDownload = 1;
+    static CanUpload = 2;
+    static CanExecute = 4;
+    static CanProcess = 8;
+    static CanStore = 16;
+    static CanAll = 1 | 2 | 4 | 8 | 16;
+    flags: number;
+    io;
+    tmp: string;
+    tids: Map<string, { path: string, data: any }>;
+    _providers: Provider[];
+
+    constructor(io: SocketIO.Socket, flags: number, tmp: string, providers: Provider[]) {
+      this.io = io;
+      this.flags = flags;
+      this.tmp = tmp;
+      this._providers = providers;
+      this.tids = new Map<any, any>();
+      if (flags & ProviderConnection.CanStore) {
+        io.on("data", (desc: { tid: string }, cb) => {
+          this._gettid(desc.tid, (err, t) => {
+            cb({ err: err, data: t && t.data, prefix: t.path });
+          });
+        });
+        io.on("setdata", (desc: { tid: string, data: any }, cb) => {
+          this._gettid(desc.tid, (err, t) => {
+            if (!t) return cb({ err: err });
+            t.data = desc.data;
+            fs.writeFile(path.join(t.path, "data.json"), JSON.stringify(t.data), 'utf8', (err) => { cb({ err: err }); });
+          });
+        });
+        io.on("clear", (desc: { tid: string }, cb) => {
+          this._gettid(desc.tid, (err, t) => {
+            if (err) return cb({ err: err });
+            this.tids.delete(desc.tid);
+            fs.remove(t.path, (err) => { cb({ err: err }); });
+          });
+        });
+      }
+      if (flags & ProviderConnection.CanDownload) {
+        io.on("download", (desc: { tid: string, path: string }, cb) => {
+          this._gettid(desc.tid, (err, t) => {
+            if (err) return cb({ err: err });
+            if (!path.normalize(desc.path).startsWith(t.path)) return cb({ err: "path is outside tid directory" });
+            fs.readFile(desc.path, 'binary', (err, data) => { cb({ err: err, data: data }); });
+          });
+        });
+      }
+      if (flags & ProviderConnection.CanUpload) {
+        io.on("upload", (desc: { tid: string, path: string, data: string }, cb) => {
+          this._gettid(desc.tid, (err, t) => {
+            if (err) return cb({ err: err });
+            var p = path.join(t.path, desc.path).replace(/\\/g, '/');
+            fs.ensureFile(p, function (err) {
+              if (err) return cb({ err: err });
+              fs.writeFile(p, desc.data, 'binary', (err) => {
+                if (err) cb({ err: err });
+                else cb({ path: p });
+              });
+            })
+          });
+        });
+        io.on("map", (desc: { tid: string, path: string, ensureDir?: boolean }, cb) => {
+          this._gettid(desc.tid, (err, t) => {
+            if (err) return cb({ err: err });
+            var p = path.join(t.path, desc.path).replace(/\\/g, '/');
+            if (desc.ensureDir === true)
+              fs.ensureFile(p, (err) => { cb({ path: p, err: err }); });
+            else
+              cb({ path: p });
+          });
+        });
+      }
+      if (flags & ProviderConnection.CanProcess) {
+        io.on("providers", (ignored, cb) => {
+          cb({ providers: this._providers.map((p, id) => {
+            return { conditions: p.conditions, id: id };
+          })});
+        });
+        io.on("process", (desc: { tid: string, provider: number, action: string, args: any }, cb) => {
+          this._gettid(desc.tid, (err, t) => {
+            if (err) return cb({ err: err });
+            var provider = this._providers[desc.provider];
+            if (!provider) return cb({ err: "provider not found" });
+            async.run(null, [
+              (p) => { provider.process(p, [], [], desc.action, desc.args, {}); },
+              (p) => {
+                cb({err: p.context.err, output: p.context.output });
+                p.continue();
+              }
+            ]);
+          });
+        });
+      }
+      if (flags & ProviderConnection.CanExecute) {
+        io.on("start", (cb: (providers: { conditions: any, id: string }[]) => void) => {
+
+        });
+      }
+      if (flags & (ProviderConnection.CanExecute | ProviderConnection.CanProcess)) {
+        io.on("stdin", (desc: { pid: string, data: Buffer }, cb: (ok: boolean) => void) => {
+
+        });
+        io.on("exit", (desc: { pid: string }, cb: (ok: boolean) => void) => {
+
+        });
+      }
+    }
+
+    _gettid(tid, cb: (err, t?) => void) {
+      if (!(/^\w+$/.test(tid))) {
+        var hash = crypto.createHash('sha256');
+        hash.update(tid);
+        tid = hash.digest('hex');
+      }
+      var t = this.tids.get(tid);
+      if (t) return cb(null, t);
+      this.tids.set(tid, t= { path: path.join(this.tmp, tid), data: {} });
+      fs.ensureDir(t.path, (err) => {
+        if (err) return cb(err);
+        fs.readFile(path.join(t.path, "data.json"), 'utf8', (err, data) => {
+          if (err) return cb(null, t);
+          try { t.data = JSON.parse(data); } catch(e) {}
+          cb(null, t);
+        });
       });
     }
 
-  }
-  export class Server {
-    io;
-    providers: {[n: number]: Provider}= {};
-    tmp: string;
-    counter: number;
-    ctxs= {};
+    _result(p) {
+      return function(result) {
+        p.context.result = result;
+        p.continue();
+      };
+    }
 
-    constructor(port: number, tmpDirectory: string) {
-      this.io = new RpcServer(IoEngine.listen(port));
-      this.tmp = tmpDirectory;
-      this.counter= (new Date()).getTime();
-      this.io.on("connection", (ws) => {
-        console.info("Connected to ", ws.webSocket.remoteAddress);
-        var barrier = new Barrier("Provider.Server.register", Provider.providers.length);
-        Provider.providers.forEach((provider) => {
-          ws.rpc("register", provider.conditions, (id: number) => {
-            this.providers[id]= provider;
-            barrier.dec();
-          });
+    providers(p) {
+      this.io.rpc("providers", null, this._result(p));
+    }
+
+    data(p, desc: { tid: string }) {
+      this.io.rpc("data", desc, this._result(p));
+    }
+
+    setData(p, desc: { tid: string, data: any }) {
+      this.io.rpc("setdata", desc, this._result(p));
+    }
+
+    clear(p, desc: { tid: string }) {
+      this.io.rpc("clear", desc, this._result(p));
+    }
+
+    map(p, desc: { tid: string, path: string, ensureDir?: boolean }) {
+      this.io.rpc("map", desc, this._result(p));
+    }
+
+    upload(p, desc: { tid: string, path: string }) {
+      fs.readFile(desc.path, 'binary', (err, data) => {
+        if (err) return this._result(p)(err);
+        this.io.rpc("upload", { tid: desc.tid, path: desc.path, data: data }, this._result(p));
+      });
+    }
+
+    uploadData(p, desc: { tid: string, path: string, data: string }) {
+      this.io.rpc("upload", desc, this._result(p));
+    }
+
+    download(p, desc: { tid: string, remotepath: string, localpath: string }) {
+      this.io.rpc("download", { tid: desc.tid, path: desc.remotepath }, (r) => {
+        if (r.err) return this._result(p)(r);
+        if (!desc.localpath) return this._result(p)(r);
+        //console.info("downloaded", r);
+        fs.writeFile(desc.localpath, r.data, "binary", (err) => {
+          r.localpath = desc.localpath;
+          this._result(p)(r);
         });
-        barrier.endWith(() => {
-          ws.send("ready");
-        });
-        var ctxs = {};
-        ws.on("process-init", (input_paths: string[], reply: (pid) => any) => {
-          console.info("process-init", input_paths);
-          var ctx: any = {};
-          ctx.id = ++this.counter;
-          ctx.dir= path.join(this.tmp, ctx.id.toString());
-          fs.mkdir(ctx.dir, 0x1FF, (err) => {
-            if(err) ctx.err= err;
-            ctx.filePath = function (filepath:string) {
-              var basename = path.basename(filepath);
-              return path.join(this.dir, basename);
-            };
-            ctx.input_paths = Array.from(input_paths);
-            ctx.input_paths_mapped = ctx.input_paths.map((path) => {
-              return ctx.filePath(path);
-            });
-            ctx.inputs = ctx.input_paths_mapped.map((path) => {
-              var stream= fs.createWriteStream(path);
-              stream.on('error', (err) => { console.error(err); ctx.err= err; });
-              return stream;
-            });
-            ctxs[ctx.id] = ctx;
-            reply(ctx.id);
-          });
-        });
-        ws.on("process-end", (pid) => {
-          console.info("process-end", pid);
-          var ctx= ctxs[pid];
-          if (!ctx) return console.warn("process-end: Unable to find context: ", pid);
-          fsex.remove(ctx.dir, (err) => {
-            if (err) console.warn("process-end: Unable to remove directory " + ctx.dir + " :", err)
-          });
-          delete ctxs[pid];
-        });
-        ws.on("process-upload", (msg) => {
-          var ctx = ctxs[msg.pid];
-          if (!ctx) return console.warn("process-upload: Unable to find context: ", msg.pid);
-          if (!msg.data || msg.data.type !== "Buffer") return console.warn("process-upload: Invalid data type: ", msg.pid);
-          ctx.inputs[msg.idx].write(new Buffer(msg.data.data));
-        });
-        ws.on("process-run", (msg: {pid: any, id:number, outputs:string[], action: string, options: any}, reply:(msg: {err: Error, output_errors?: Error[], args?: any[]}) => any) => {
-          console.info("process-run", msg.pid, msg.id, msg.outputs);
-          var ctx= ctxs[msg.pid];
-          if (ctx.err) return reply({ err: ctx.err.message || ctx.err });
-          var barrier = new Barrier("ServerProvider flush inputs", ctx.inputs.length);
-          ctx.inputs.forEach((input) => {
-            input.on('finish', function() {
-              //console.info("process-upload-end", pid, barrier.counter);
-              barrier.dec();
-            });
-            input.end();
-            //console.info("process-upload-endasked", pid, barrier.counter);
-          });
-          barrier.endWith(() => {
-            console.info("process-run", "inputs flushed", msg.pid);
-            var provider = this.providers[msg.id];
-            if (provider) {
-              var outputsMapped= msg.outputs.map((output) => {
-                var filepath= ctx.filePath(output);
-                msg.options= provider.mapOptions(msg.options, output, filepath);
-                return File.getShared(filepath);
-              });
-              var inputsMapped= ctx.input_paths_mapped.map((path, idx) => {
-                msg.options= provider.mapOptions(msg.options, ctx.input_paths[idx], path);
-                return File.getShared(path);
-              });
-              async.run(null, [
-                (step) => {
-                  provider.process(step, inputsMapped, outputsMapped, msg.action, msg.options);
-                },
-                (step) => {
-                  var err = step.context.err;
-                  console.info("process-run", "runned", msg.pid, err);
-                  if(err) return reply({ err:null, output_errors:[], args:[err, null]});
-                  var barrier = new Barrier.ErrBarrier("ServerProvider handle outputs", outputsMapped.length);
-                  outputsMapped.forEach((output, idx) => {
-                    var stream= fs.createReadStream(output.path);
-                    stream.on("error", (err) => { barrier.dec(err); });
-                    stream.on("data", (data) => { ws.send("process-upload-" + msg.pid, {idx:idx, data: data}); });
-                    stream.on("end", () => { barrier.dec(); });
-                  });
-                  barrier.endWith((errors) => {
-                    console.info("process-run", "outputs sent", msg.pid, errors);
-                    reply({ err:null, output_errors: errors, args: [null, step.context.output] });
-                  });
-                }
-              ]);
-            }
-            else {
-              console.info("process-run", "Unable to find provider", msg.pid);
-              reply({ err:new Error("Unable to find provider") });
-            }
-          });
-        });
+      });
+    }
+
+    process(p, desc: { tid: string, provider: number, action: string, args: any }) {
+      this.io.rpc("process", desc, this._result(p));
+    }
+
+    start(p, desc: { path: string, args: string[], stdout: (data: Buffer) => void, stderr: (data: Buffer) => void, exit: (code: number, signal: number) => void }) {
+      this.io.rpc("start", { path: desc.path, args: desc.args }, (r : { pid: string }) => {
+        p.context.reply = r.pid;
+        p.continue();
+      });
+    }
+
+    stdin(p, desc: { pid: string, data: Buffer }) {
+      this.io.rpc("stdin", desc, (ok) => {
+        p.context.reply = ok;
+        p.continue();
+      });
+    }
+
+    exit(p, desc: { pid: string }) {
+      this.io.rpc("exit", desc, (ok) => {
+        p.context.reply = ok;
+        p.continue();
+      });
+    }
+  }
+
+  export class Server {
+    server;
+    tmp: string;
+
+    constructor(port: number, host: string, tmpDirectory: string) {
+      console.info("Provider server is listening to %s:%d", host, port);
+      this.server = new RpcServer(IoEngine.listen(port, host));
+      this.server.on("connection", (ws) => {
+        console.info("New provider connection", ws.webSocket.remoteAddress);
+        new ProviderConnection(ws, ProviderConnection.CanAll, tmpDirectory, Provider.providers);
+        ws.on("close", (reason) => {
+          console.info("End provider connection %s: %s", ws.webSocket.remoteAddress, reason);
+        })
       });
     }
   }

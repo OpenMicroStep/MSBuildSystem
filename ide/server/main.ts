@@ -1,10 +1,10 @@
-var BuildSystem = require('../../buildsystem/BuildSystem');
-var Session = require('./Session');
-var replication = require('./replication');
-var express = require('express');
+import BuildSystem = require('../../buildsystem/BuildSystem');
+import Session = require('./Session');
+import replication = require('./replication');
+import express = require('express');
 var app = express();
-var socketio = require('socket.io');
-var crypto = require('crypto');
+import socketio = require('socket.io');
+import crypto = require('crypto');
 app.use(express.static(__dirname + '/../'));
 
 var server = app.listen(3000, "127.0.0.1", function () {
@@ -33,3 +33,6 @@ app.get('/file/:path', function(req, res) {
   console.info("file requested", req.params.path);
   res.download(req.params.path);
 });
+
+var client = new BuildSystem.Provider.ProviderClient("ws://10.211.55.27:2346");
+BuildSystem.core.Async.run(null, (p) => { client.init(p); });

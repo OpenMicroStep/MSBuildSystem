@@ -49,7 +49,7 @@ class LocalFile {
    *  - one of the inputs changed after what.time
    *  - one of the outputs changed after what.time
    */
-  static ensure(step: Runner.Step, files: (string | LocalFile)[], options: {ensureDir?:boolean;}, callback: (err: Error, changed?:boolean) => any) {
+  static ensure(step: Runner.Step, files: (string | LocalFile)[], options: {ensureDir?:boolean; time?: number}, callback: (err: Error, changed?:boolean) => any) {
     var barrier = new LocalFile.EnsureBarrier("File ensure", files.length);
     files.forEach(function(file) {
       var sharedFile: LocalFile;
@@ -62,8 +62,10 @@ class LocalFile {
             fs.ensureDir(path.dirname(sharedFile.path), function(err) {
               barrier.dec(err, true);
             });
+        } else if (err || stats.isFile()) {
+          barrier.dec(err, !err && stats['mtime'].getTime() > (options.time === void 0 ? step.lastSuccessTime : options.time));
         } else {
-          barrier.dec(err, !err && stats['mtime'].getTime() > step.lastSuccessTime);
+          barrier.dec(err, false);
         }
       });
     });
