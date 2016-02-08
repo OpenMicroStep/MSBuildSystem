@@ -11,6 +11,7 @@ enum State {
 class TreeItemView extends View {
   static State = State;
 
+  id: string;
   nameContainer: HTMLElement;
   caret: HTMLElement;
   childsContainer: HTMLElement;
@@ -18,8 +19,9 @@ class TreeItemView extends View {
   $caretclick;
   state: State;
 
-  constructor() {
+  constructor(id = null) {
     super();
+    this.id = id;
     this.el.className = "tree-item";
     this.caret = document.createElement('span');
     this.nameContainer = document.createElement('div');
@@ -56,8 +58,12 @@ class TreeItemView extends View {
   }
 
   expand() {
+    async.run(null, this.expandAsync.bind(this));
+  }
+
+  expandAsync(p) {
     this.state = State.EXPANDING;
-    async.run(null, [
+    p.setFirstElements([
       this.createChildItems.bind(this),
       (p) => {
         this.state = State.EXPANDED;
@@ -65,9 +71,9 @@ class TreeItemView extends View {
         p.continue();
       }
     ]);
-    if (this.state === State.EXPANDING) { // Async loading
+    p.continue();
+    if (this.state === State.EXPANDING) // Async loading
       this.caret.className = "fa fa-fw fa-circle-o-notch fa-spin";
-    }
   }
 
   collapse() {
@@ -100,6 +106,33 @@ class TreeItemView extends View {
 
   getChildViews() {
     return this.childs;
+  }
+
+  setExpandData(data) {
+    if (data && data.expanded) {
+      async.run(null, [
+        this.expandAsync.bind(this),
+        (p) => {
+          var childs = data.childs || [];
+          for (var i = 0, j = 0, dlen = childs.length, clen = this.childs.length; i < dlen && j < clen;) {
+            var d = childs[i];
+            var c = this.childs[j];
+            if (c.id === d.id) {
+              c.setExpandData(d);
+              ++i;
+            }
+            else {
+              c.setExpandData(null);
+            }
+            ++j;
+          }
+        }
+      ]);
+    }
+  }
+
+  expandData() {
+    return { id: this.id, expanded: this.state === State.EXPANDED, childs: this.childs.map((c, idx) => { return c.expandData(); })};
   }
 }
 

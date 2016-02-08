@@ -188,9 +188,9 @@ class WorkspaceTaskView extends core.View {
 
 class WorkspaceDepsTreeItem extends core.TreeItemView {
   constructor(public workspace: Workspace, public graphview: SessionGraphView) {
-    super();
+    super(workspace.path);
     var icon = document.createElement('span');
-    icon.className = "glyphicon glyphicon-flash";
+    icon.className = "fa fa-fw fa-external-link";
     this.nameContainer.appendChild(icon);
     this.nameContainer.appendChild(document.createTextNode('dependencies'));
     this.setCanExpand(true);
@@ -206,7 +206,7 @@ class WorkspaceDepsTreeItem extends core.TreeItemView {
 
 class WorkspaceEnvTreeItem extends core.TreeItemView {
   constructor(env: string, public targets: Graph[], public root: WorkspaceTreeItem) {
-    super();
+    super(env);
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-globe";
     this.nameContainer.appendChild(icon);
@@ -233,7 +233,7 @@ class WorkspaceEnvTreeItem extends core.TreeItemView {
 
 class WorkspaceVariantTreeItem extends core.TreeItemView {
   constructor(variant: string, public envs: { [s:string]: Graph[] }, public root: WorkspaceTreeItem) {
-    super();
+    super(variant);
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-cog";
     this.nameContainer.appendChild(icon);
@@ -254,7 +254,7 @@ class WorkspaceTreeItem extends core.TreeItemView {
   $ondiagnostic; targets: { [s:string]: TaskTreeItem };
 
   constructor(public workspace: Workspace, public graphview: SessionGraphView) {
-    super();
+    super(workspace.path);
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-briefcase";
     this.targets = {};
@@ -303,9 +303,9 @@ class SessionGraphView extends core.ContentView {
   workspaces: { [s: string]: { [s: string]: { [s: string]: Graph[] }}}
   layout: BoxLayout;
   taskview: WorkspaceTaskView;
-  tree: TaskTreeItem;
+  tree: WorkspaceTreeItem;
 
-  constructor() {
+  constructor(data) {
     super();
     this.session = core.globals.ide.session;
     this.titleEl.textContent = "Build graph";
@@ -315,7 +315,7 @@ class SessionGraphView extends core.ContentView {
     this.layout.appendTo(this.el);
     this.layout.appendView(this.taskview, 1.0);
     this.session.on('reload', this.$onreload = this.reload.bind(this));
-    this.reload();
+    this.reload(data);
   }
 
   destroy() {
@@ -323,15 +323,22 @@ class SessionGraphView extends core.ContentView {
     super.destroy();
   }
 
-  reload() {
-    (new core.async.Async(null, [
+  reload(data?) {
+    core.async.run(null, [
+      (p) => {
+        data = data || this.data();
+        p.continue();
+      },
       this.session.graph.bind(this.session),
-      (p) => { this.setGraph(p.context.result); p.continue(); }
-    ])).continue();
+      (p) => {
+        this.setGraph(p.context.result, data);
+        p.continue();
+      }
+    ]);
   }
 
-  setGraph(g: Graph) {
-    var n;
+  setGraph(g: Graph, data) {
+    var n: WorkspaceTreeItem;
     var old = this.workspaces;
     var workspaces: any = {};
     if (g.tasks && g.tasks.length) {
@@ -354,7 +361,8 @@ class SessionGraphView extends core.ContentView {
       this.layout.replaceViewAt(0, n= new WorkspaceTreeItem(this.session.workspace, this)).destroy();
     else
       this.layout.removePart(0, true);
-    if (n) n.expand();
+    this.tree = n;
+    if (n) n.setExpandData(data && data.tree);
   }
 
   setTask(t: Graph) {
@@ -369,7 +377,7 @@ class SessionGraphView extends core.ContentView {
   }
 
   data() {
-    return null;
+    return { tree: this.tree && this.tree.expandData() };
   }
 }
 

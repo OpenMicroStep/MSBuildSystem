@@ -7,9 +7,9 @@ import DiagnosticsView = require('./DiagnosticsView');
 
 class WorkspaceDepsTreeItem extends TreeItemView {
   constructor(public workspace: Workspace) {
-    super();
+    super('dependencies');
     var icon = document.createElement('span');
-    icon.className = "glyphicon glyphicon-flash";
+    icon.className = "fa fa-fw fa-external-link";
     this.nameContainer.appendChild(icon);
     this.nameContainer.appendChild(document.createTextNode('dependencies'));
     this.setCanExpand(true);
@@ -27,7 +27,7 @@ class WorkspaceTreeItem extends TreeItemView {
   $ondiagnostic; $reload; name: Text;
 
   constructor(public workspace: Workspace) {
-    super();
+    super(workspace.path);
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-briefcase";
     this.nameContainer.appendChild(icon);
@@ -85,7 +85,7 @@ class WorkspaceTreeItem extends TreeItemView {
 class FileTreeItem extends TreeItemView {
   diags: HTMLElement;
   constructor(public d, public root: WorkspaceTreeItem) {
-    super();
+    super(d.file || d.group);
     this.diags = null;
     var icon = document.createElement('span');
     var text, tooltip;
@@ -160,19 +160,19 @@ class FileTreeItem extends TreeItemView {
 
 class WorkspaceTreeView extends ContentView {
   root: WorkspaceTreeItem;
-  constructor() {
+  constructor(data) {
     super();
     this.root = new WorkspaceTreeItem(globals.ide.session.workspace);
-    this.root.expand();
     this.root.appendTo(this.el);
-    this.titleEl.appendChild(document.createTextNode("Workspace"));
+    this.root.setExpandData(data || { expanded: true });
+    this.titleEl.appendChild(document.createTextNode("Files"));
   }
 
   getChildViews() {
     return [this.root];
   }
   data() {
-    return null;
+    return this.root.expandData();
   }
 }
 ContentView.register(WorkspaceTreeView, "treeview");
