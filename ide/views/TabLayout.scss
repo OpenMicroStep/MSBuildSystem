@@ -24,6 +24,9 @@ $tablayout-tabsborder: 1px;
   overflow: auto;
 }
 
+.tablayout-tabmargin {
+  display: inline-block;
+}
 .tablayout-tab {
   position: relative;
   cursor: default;

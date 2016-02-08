@@ -26,6 +26,7 @@ class TabLayout extends View {
   _position:Position;
   _elTabsContainer:HTMLElement;
   _elTabs:HTMLElement;
+  _elTabMargin:HTMLElement;
   _elContent:HTMLElement;
   _leftOffset: number;
   _pendingDelta: (delta) => void;
@@ -41,6 +42,10 @@ class TabLayout extends View {
     this._elTabsContainer = tabs;
     this._elTabs = document.createElement('div');
     tabs.appendChild(this._elTabs);
+    this._elTabMargin = document.createElement('div');
+    this._elTabs.appendChild(this._elTabMargin);
+    this._elTabMargin.className = "tablayout-tabmargin";
+
     var pendingdelta = 0;
     var deltaframe = util.throttle(() => {
       var delta = pendingdelta * 0.25;
@@ -104,7 +109,7 @@ class TabLayout extends View {
       else if (isgreater(crect.left + pending, trect.left))
         this._leftOffset += crect.left - trect.left - pending;
     }
-    tab0.style.marginLeft = this._leftOffset + "px";
+    this._elTabMargin.style.marginLeft = this._leftOffset + "px";
   }
 
   getChildViews():View[] {
