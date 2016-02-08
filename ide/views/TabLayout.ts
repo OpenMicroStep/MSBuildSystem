@@ -140,8 +140,10 @@ class TabLayout extends View {
   }
   setCurrentIdx(current:number, force?: boolean) {
     if (this._current && current === this._current.idx && !force) return;
-    if (this._current)
+    if (this._current) {
       $(this._current.tab).removeClass('active');
+      this._current.view.hide();
+    }
     this._current = current >= 0 && current < this._tabs.length ? this._tabs[current] : null;
     this._elContent.innerHTML = "";
     if (this._current) {
@@ -149,7 +151,7 @@ class TabLayout extends View {
       this._offset(this._current.tab);
       var view = this._current.view;
       this._elContent.appendChild(view.el);
-      view.resize();
+      view.show();
       view.focus();
     }
   }
@@ -202,14 +204,14 @@ class TabLayout extends View {
   removeTab(at:number, destroy: boolean = false) {
     if (at < 0 || at >= this._tabs.length) throw  "'at' is out of bounds [0, " + this._tabs.length + "[";
     var item = this._tabs[at];
-    if (destroy)
-      item.view.destroy();
     for (var i = at + 1, len = this._tabs.length; i < len; ++i)
       this._tabs[i].idx--;
     this._tabs.splice(at, 1);
     this._elTabs.removeChild(item.tab);
     if (this._current === item)
       this.setCurrentIdx(at < this._tabs.length ? at : this._tabs.length - 1, true);
+    if (destroy)
+      item.view.destroy();
   }
 
   moveTab(from:number, to:number) {

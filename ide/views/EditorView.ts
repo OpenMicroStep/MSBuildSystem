@@ -1,6 +1,7 @@
 import {View, ContentView, async, menu, globals, util} from '../core';
 import WorkspaceFile = require('../client/WorkspaceFile');
 import Workspace = require('../client/Workspace');
+import Dialog = require('./Dialog');
 
 var Editor = ace.require("ace/editor").Editor;
 var EditSession = ace.require("ace/edit_session").EditSession;
@@ -55,18 +56,20 @@ function offEditorOptionChange(cb: (options) => void) {
 
 class EditorView extends ContentView {
   path: string;
-  _file: WorkspaceFile; fileEvt;
+  _file: WorkspaceFile; fileChgEvt; fileUsrEvt;
   _once;
   editor: AceAjax.Editor;
   editorEl: HTMLElement;
   statusEl: HTMLElement;
-  $onChangeOptions; $onEdChangeOptions
+  fileOptChgEvt; $onEdChangeOptions;
+  _onceVisible;
 
   constructor(opts: { path: string, row?: number, col?: number }) {
     super(undefined, undefined, true);
 
     this.path = opts.path;
     this._file = null;
+    this._onceVisible = null;
     this.editorEl = document.createElement('div');
     this.statusEl = document.createElement('div');
     this.el.appendChild(this.editorEl);
@@ -91,7 +94,7 @@ class EditorView extends ContentView {
     });
 
     /// Status bar
-    this.$onChangeOptions = () => {
+    this.fileOptChgEvt = () => {
       var session = this.editor.session;
       var txt = session.getUseSoftTabs() ? "Spaces: " : "Tabs: ";
       tabEl.textContent = txt += session.getTabSize();
@@ -180,14 +183,32 @@ class EditorView extends ContentView {
 
     this._file.ref();
     this.titleEl.className = file.saved ? "editorview-title-saved" : "editorview-title-modified";
-    file.on("change", this.fileEvt = (e) => {
+    this._file.on("change", this.fileChgEvt = (e) => {
       this.titleEl.className = !this._file.hasUnsavedChanges() ? "editorview-title-saved" : "editorview-title-modified";
     });
-    this._file.on('changeOptions', this.$onChangeOptions);
-    this.$onChangeOptions();
+    this._file.on("useraction", this.fileUsrEvt = (e) => {
+      this.onceVisible(this.onUserActionRequested.bind(this, e));
+    });
+    this._file.on("changeOptions", this.fileOptChgEvt);
+    this.fileOptChgEvt();
     Workspace.diagnostics.on("diagnostic", this.ondiagnostics.bind(this));
     this.loadDiagnostics();
+    this.fileChgEvt(null);
     this._signal("ready");
+  }
+
+  onceVisible(cb: ()=> void) {
+    if (this.isVisible())
+      cb();
+    else
+      this._onceVisible = cb;
+  }
+
+  show() {
+    if (this._onceVisible) {
+      this._onceVisible();
+    }
+    super.show();
   }
 
   ready(p) {
@@ -219,6 +240,38 @@ class EditorView extends ContentView {
       this.loadDiagnostics();
   }
 
+  onUserActionRequested(e) {
+    if (e.fixed) return;
+    e.fixed = true;
+    var opt;
+    if (e.reason === "outofsync") {
+      opt = {
+        title: "Content differ with server after reconnection",
+        primary: "Keep current working version",
+        secondary: "Use the server version"
+      }
+    }
+    else {
+      opt = {
+        title: "File has changed and you have local changes",
+        primary: "Keep current working version",
+        secondary: "Use the changed version"
+      }
+    }
+    var dlg = new Dialog(opt);
+    dlg.appendTo(this.el);
+    dlg.modal((r) => {
+      if (r.action === "secondary")
+        e.solution(e.proposition);
+      else
+        e.solution(null);
+    });
+
+
+      this._onceVisible = null;
+    console.info("UserActionRequested", e);
+  }
+
   loadDiagnostics() {
     var info = Workspace.diagnostics.get(this._file.path);
     var session = this.editor.session;
@@ -243,7 +296,9 @@ class EditorView extends ContentView {
     this.editor = null;
     if (this._file) {
       this._file.unref();
-      this._file.off("change", this.fileEvt);
+      this._file.off("change", this.fileChgEvt);
+      this._file.off("useraction", this.fileUsrEvt);
+      this._file.off("changeOptions", this.fileOptChgEvt);
     }
   }
 

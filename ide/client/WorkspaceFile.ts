@@ -2,7 +2,7 @@ import {globals, events, replication, async} from '../core';
 import Workspace = require('./Workspace');
 import Async = async.Async;
 
-var Document    = ace.require('ace/document').Document;
+var Document = ace.require('ace/document').Document;
 var EditSession = ace.require("ace/edit_session").EditSession;
 var UndoManager = ace.require("ace/undomanager").UndoManager;
 var whitespace = ace.require("ace/ext/whitespace");
@@ -97,6 +97,17 @@ class WorkspaceFile extends replication.DistantObject {
       this.ignoreChanges = false;
       this.$informChange.schedule();
     });
+    this.on("external-change", (e) => {
+      if (!this.hasUnsavedChanges())
+        this.setValue(e.content, { markClean: true });
+      else {
+        var solution = (content) => {
+          if (content)
+            this.setValue(content, { markClean: true });
+        }
+        this._emit('useraction', { reason: 'external', solution: solution, proposition: e.content, fixed: false });
+      }
+    });
     this.on('extsaved', (e) => { this.saved(e); });
     this.$informChange = lang.delayedCall(() => { setTimeout(() => { this._signal("change"); }, 0); });
   }
@@ -110,6 +121,8 @@ class WorkspaceFile extends replication.DistantObject {
     this.session.setValue(data.content);
     this.document.applyDeltas(data.deltas);
     this.ignoreChanges = false;
+    if (data.version === -1)
+      this.undomanager.dirtyCounter++; // New file
   }
 
   reconnect(data) {
@@ -129,13 +142,32 @@ class WorkspaceFile extends replication.DistantObject {
     });
   }
 
+  setValue(value, options: { markClean?: boolean, ignoreChanges?: boolean }) {
+    if (options.ignoreChanges)
+      this.ignoreChanges = true;
+    this.document.setValue(value);
+    if (options.ignoreChanges)
+      this.ignoreChanges = false;
+    if (options.markClean) {
+      this.session.$informUndoManager.call();
+      this.undomanager.markClean();
+    }
+  }
+
   outofsync(p: async.Async) {
     p.setFirstElements((p) => {
-      var file = p.context.file;
+      var file: WorkspaceFile = p.context.file;
       if (file !== this) {
         this.changeId(file.id);
-        console.warn("The server has a different version, propose to the user to save his version");
-        file.destroy();
+        var solution = (content) => {
+          if (content)
+            this.setValue(content, { markClean: true });
+          file.destroy();
+        }
+        var proposition = file.document.getValue();
+        if (proposition !== this.document.getValue()) {
+          this._emit('useraction', { reason: 'outofsync', solution: solution, proposition: proposition, fixed: false });
+        }
       }
       else p.continue();
     });

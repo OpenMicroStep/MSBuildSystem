@@ -1,14 +1,28 @@
 import path = require('path');
+import fs = require('fs');
 import replication = require('./replication');
 import File = require('../../buildsystem/core/File');
+import util = require('../core/util');
+
+function load(path, cb: (err, stats?: fs.Stats, content?: string) => void) {
+  fs.stat(path, (err, stats) => {
+    if (err) return cb(err);
+    fs.readFile(path, 'utf8', (err, content) => {
+      cb(err, stats, content);
+    });
+  })
+}
 
 class WorkspaceFile extends replication.ServedObject<File> {
   constructor(path: string) {
     super(File.getShared(path));
+    this.initWatcher();
   }
   lines: string[];
   version: number;
   deltas: any[];
+  watcher: fs.FSWatcher;
+  mtime: number;
 
   data() : any {
     return {
@@ -19,6 +33,35 @@ class WorkspaceFile extends replication.ServedObject<File> {
       deltas: this.deltas,
       version:this.version,
     };
+  }
+
+  initWatcher() {
+    if (this.watcher) return;
+    try {
+      this.watcher = fs.watch(this.obj.path, <any>{ persistent: false, recursive: false });
+      var lmtime = 0;
+      this.watcher.on('change', util.schedule((e)  => {
+        fs.stat(this.obj.path, (err, stats) => {
+          if (err) return;
+          var time = stats.mtime.getTime();
+          if (lmtime === time || time < this.mtime) return;
+          lmtime = time;
+          fs.readFile(this.obj.path, 'utf8', (err, content) => {
+            if (!err)
+              this.broadcast('external-change', { content: content });
+          });
+        });
+      }));
+    } catch(e) {
+      console.error("no watcher", this.obj.path);
+    }
+  }
+
+  unregister() {
+    if (this.watcher)
+      this.watcher.close();
+    WorkspaceFile.files.delete(this.obj.path);
+    super.unregister();
   }
 
   getLastVersion() {
@@ -72,13 +115,16 @@ class WorkspaceFile extends replication.ServedObject<File> {
         console.warn("Unsupported delta action", delta);
         break;
     }
-}
+  }
 
   save(p, content: string) {
     var version = ++this.version;
     this.lines = content.split(/\r\n|\r|\n/);
     this.deltas = [];
+    this.mtime = Date.now() + 60 * 1000;
     this.obj.writeUtf8File(content, (err) => {
+      this.mtime = Date.now();
+      this.initWatcher();
       if (!err) {
         this.broadcastToOthers(p.context.socket, "extsaved", { version: version, content: content });
         p.context.response = { version: version };
@@ -100,11 +146,12 @@ class WorkspaceFile extends replication.ServedObject<File> {
     var file = WorkspaceFile.files.get(filePath);
     if(!file) {
       WorkspaceFile.files.set(filePath, file = new WorkspaceFile(filePath));
-      file.obj.readUtf8File(function (err, content) {
-        if (err) pool.context.error = err;
+      load(file.obj.path, (err, stats, content) => {
+        if (err && err.code !== 'ENOENT') pool.context.error = err;
         else {
-          file.lines = content.split(/\r\n|\r|\n/);
-          file.version = 0;
+          file.mtime = stats ? stats.mtime.getTime() : 0;
+          file.lines = (content || "").split(/\r\n|\r|\n/);
+          file.version = content ? 0 : -1;
           file.deltas = [];
           pool.context.response = file;
         }

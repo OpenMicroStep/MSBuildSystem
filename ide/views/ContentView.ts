@@ -3,6 +3,7 @@ import globals = require('../core/globals');
 
 abstract class ContentView extends View {
   titleEl : HTMLElement;
+  _visible: boolean;
 
   static registered = new Map<string, (data)=> ContentView>();
   static register(cls, type: string, deserialize?: (data: any) => ContentView) {
@@ -21,12 +22,27 @@ abstract class ContentView extends View {
   constructor(tagName: string = "div", titleTagName: string = "div", canBeIDECurrentView = false) {
     super(tagName);
     this.titleEl = document.createElement(titleTagName);
+    this._visible = false;
     if (canBeIDECurrentView)
       this.el.addEventListener('click', globals.ide.setCurrentView.bind(globals.ide, this));
   }
 
   isViewFor(...args: any[]) {
     return false;
+  }
+
+  isVisible() {
+    return this._visible;
+  }
+
+  show() {
+    this._visible = true;
+    this.resize();
+  }
+
+  hide() {
+    this._visible = false;
+    this.detach();
   }
 
   destroy() {
