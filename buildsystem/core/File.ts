@@ -22,15 +22,17 @@ class LocalFile {
   public path:string;
   public name:string;
   public extension:string;
+  public isDirectory:boolean;
 
-  constructor(filePath:string) {
+  constructor(filePath:string, isDirectory = false) {
     this.path = filePath;
     this.name = path.basename(filePath);
     this.extension = path.extname(filePath);
+    this.isDirectory = isDirectory;
   }
 
   private static files: Map<string, LocalFile> = new Map<any, any>();
-  static getShared(filePath: string): LocalFile {
+  static getShared(filePath: string, isDirectory = false): LocalFile {
     var file = LocalFile.files.get(filePath);
     if (file) return file;
     filePath = path.normalize(filePath);
@@ -39,7 +41,7 @@ class LocalFile {
 
     file = LocalFile.files.get(filePath);
     if(!file)
-      LocalFile.files.set(filePath, file= new LocalFile(filePath));
+      LocalFile.files.set(filePath, file= new LocalFile(filePath, isDirectory));
     return file;
   }
 
@@ -54,22 +56,28 @@ class LocalFile {
     files.forEach(function(file) {
       var sharedFile: LocalFile;
       sharedFile = (typeof file === "string") ? LocalFile.getShared(file) : file;
-      var cache = step.context.stats;
-      if (!cache)
-        cache = step.context.stats = new Map<LocalFile, any>();
-      sharedFile.stats(cache, function(err, stats) {
-        if(err && options.ensureDir) {
-            fs.ensureDir(path.dirname(sharedFile.path), function(err) {
-              barrier.dec(err, true);
-            });
-        } else if (err || stats.isFile()) {
-          barrier.dec(err, !err && stats['mtime'].getTime() > (options.time === void 0 ? step.lastSuccessTime : options.time));
-        } else {
-          barrier.dec(err, false);
-        }
-      });
+      LocalFile.ensureOne(step, sharedFile, options.ensureDir, (options.time === void 0 ? step.lastSuccessTime : options.time), barrier.decCallback());
     });
     barrier.endWith(callback);
+  }
+
+  static ensureOne(step: Runner.Step, sharedFile: LocalFile, ensureDir:boolean, time: number, callback: (err: Error, changed?:boolean) => any) {
+    if (sharedFile.isDirectory)
+      return callback(null, false);
+    var cache = step.context.stats;
+    if (!cache)
+      cache = step.context.stats = new Map<LocalFile, any>();
+    sharedFile.stats(cache, function(err, stats) {
+      if(err && ensureDir) {
+          fs.ensureDir(path.dirname(sharedFile.path), function(err) {
+            callback(err, true);
+          });
+      } else if (err || stats.isFile()) {
+        callback(err, !err && stats['mtime'].getTime() > time);
+      } else {
+        callback(err, false);
+      }
+    });
   }
 
   static buildList(root: string, ...args: Array<string | string[]>) {
