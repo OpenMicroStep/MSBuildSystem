@@ -90,25 +90,35 @@ class TabLayout extends View {
     var crect = this._elTabs.getBoundingClientRect();
     var tab0 = this._tabs[0].tab;
     var trect = tab.getBoundingClientRect();
-    var pending = this._leftOffset - tab0.offsetLeft;
+    var offset = this._leftOffset;
+    var pending = offset - tab0.offsetLeft;
     if (delta !== void 0) {
       if (delta > 0 && isgreater(trect.right + pending, crect.right))
-        this._leftOffset -= Math.min(delta, trect.right + pending - crect.right);
+        offset -= Math.min(delta, trect.right + pending - crect.right);
       else if (delta < 0 && isgreater(crect.left + pending, trect.left))
-        this._leftOffset += Math.min(-delta, crect.left - trect.left - pending);
+        offset += Math.min(-delta, crect.left - trect.left - pending);
     }
     else if (limit !== void 0) {
-      if (this._leftOffset < 0 && isgreater(crect.right + pending, trect.right))
-        this._leftOffset -= trect.right + pending - crect.right;
+      if (offset < 0 && isgreater(crect.right + pending, trect.right))
+        offset -= trect.right + pending - crect.right;
+      else if (offset > 0 && isgreater(tab0.getBoundingClientRect().left + pending, crect.left))
+        offset = 0
       else if (this._current)
-        this._offset(this._current.tab);
+        offset = this._offset(this._current.tab);
     }
     else {
-      if (isgreater(trect.right + pending, crect.right))
-        this._leftOffset -= trect.right + pending - crect.right;
-      else if (isgreater(crect.left + pending, trect.left))
-        this._leftOffset += crect.left - trect.left - pending;
+      if (isgreater(crect.left + pending, trect.left) || trect.width > crect.width)
+        offset += crect.left - trect.left - pending;
+      else if (isgreater(trect.right + pending, crect.right))
+        offset -= trect.right + pending - crect.right;
     }
+    this._setOffset(offset);
+    return offset;
+  }
+
+  _setOffset(offset) {
+    if (offset === this._leftOffset) return;
+    this._leftOffset = offset;
     this._elTabMargin.style.marginLeft = this._leftOffset + "px";
   }
 
@@ -210,6 +220,10 @@ class TabLayout extends View {
     this._elTabs.removeChild(item.tab);
     if (this._current === item)
       this.setCurrentIdx(at < this._tabs.length ? at : this._tabs.length - 1, true);
+    if (this._tabs.length)
+      this._offset(this._tabs[this._tabs.length - 1].tab, undefined, true);
+    else
+      this._setOffset(0);
     if (destroy)
       item.view.destroy();
   }
