@@ -69,18 +69,23 @@ class Process {
         exithandler(-1, null);
       }
 
-      process.stdout.addListener('data', function(chunk) {
-        out += chunk;
-      });
+      if (process) {
+        process.stdout.addListener('data', function(chunk) {
+          out += chunk;
+        });
 
-      process.stderr.addListener('data', function(chunk) {
-        out += chunk;
-      });
+        process.stderr.addListener('data', function(chunk) {
+          out += chunk;
+        });
 
-      process.stderr.setEncoding('utf8');
-      process.stdout.setEncoding('utf8');
-      process.addListener('close', exithandler);
-      process.addListener('error', errorhandler);
+        process.stderr.setEncoding('utf8');
+        process.stdout.setEncoding('utf8');
+        process.addListener('close', exithandler);
+        process.addListener('error', errorhandler);
+      }
+      else {
+        exithandler(-1, null);
+      }
 
     }]);
   }
