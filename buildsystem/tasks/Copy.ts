@@ -97,6 +97,10 @@ class CopyTask extends Task {
       fstep.continue();
     });
   }
+
+  listOutputFiles(set: Set<File>) {
+    this.steps.forEach((step) => { set.add(step[1]); });
+  }
 }
 Task.registerClass(CopyTask, "Copy");
 

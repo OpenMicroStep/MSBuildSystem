@@ -1,11 +1,77 @@
 import Workspace = require('../core/Workspace');
 import Library = require('./Library');
 import Target = require('../core/Target');
+import Task = require('../core/Task');
+import File = require('../core/File');
+import Barrier = require('../core/Barrier');
+import Graph = require('../core/Graph');
 import CXXTarget = require('./_CXXTarget');
 import PListInfoTask = require('../tasks/PlistInfo');
 import CopyTask = require('../tasks/Copy');
 import util = require('util');
 import path = require('path');
+import fs = require('fs');
+
+class HeaderAliasTask extends Task {
+  public steps : [File, File][] = [];
+  aliaspath: string;
+
+  constructor(graph: Graph, aliaspath: string) {
+    super({ type: "headeralias", name: "generate header aliases" }, graph);
+    this.aliaspath = aliaspath;
+  }
+
+  /** Make this task copy file 'inFile' to 'outFile' */
+  willAliasHeader(inFile: string, outFile: string) {
+    this.steps.push([File.getShared(inFile), File.getShared(outFile)]);
+  }
+
+  run(fstep) {
+    var i = 0;
+    var step = () => {
+      if (i < this.steps.length) {
+        var s = this.steps[i++];
+        File.ensure(fstep, [s[1]], {ensureDir: true}, (err, changed) => {
+          if (err) { fstep.error(err); return fstep.continue(); }
+          if (changed) {
+            fs.writeFile(s[1].path, "#import \"" + path.relative(this.aliaspath, s[0].path) + "\"\n", 'utf8', (err) => {
+              if (err) { fstep.error(err); return fstep.continue(); }
+              step();
+            });
+          }
+          else {
+            step();
+          }
+        });
+      }
+      else {
+        fstep.continue();
+      }
+    }
+    step();
+  }
+  clean(fstep) {
+    var i = 0;
+    var step = () => {
+      if (i < this.steps.length) {
+        var s = this.steps[i++];
+        fs.unlink(s[0].path, (err) => {
+          if (err) { fstep.error(err); return fstep.continue(); }
+          step();
+        });
+      }
+      else {
+        fstep.continue();
+      }
+    }
+    step();
+  }
+
+  listOutputFiles(set: Set<File>) {
+    this.steps.forEach((step) => { set.add(step[1]); });
+  }
+}
+Task.registerClass(HeaderAliasTask, "HeaderAlias");
 
 class Framework extends Library {
   info: Framework.TargetInfo;
@@ -15,6 +81,7 @@ class Framework extends Library {
   configure(callback: ErrCallback) {
     if(this.info.bundleInfo)
       this.setBundleInfo(this.info.bundleInfo);
+    this.addCompileOptions({ frameworkPath: [path.join(this.intermediates, "alias")] });
     super.configure((err) => {
       this.publicHeadersPrefix = null;
       callback(err);
@@ -42,7 +109,7 @@ class Framework extends Library {
 
   exports(targetToConfigure: Target, callback: ErrCallback) {
     if(targetToConfigure instanceof CXXTarget) {
-      targetToConfigure.addCompileFlags(['-F' + this.output]);
+      targetToConfigure.addCompileOptions({ frameworkPath: [this.output] });
       targetToConfigure.addLibraries([this.sysroot.linkFinalPath(this)]);
       CXXTarget.prototype.exports.call(this, targetToConfigure, callback);
     }
@@ -60,6 +127,9 @@ class Framework extends Library {
   buildPublicHeaderPath() {
     return path.join(this.buildBundleContentsPath(), "Headers");
   }
+  buildPublicHeaderAliasPath() {
+    return path.join(this.intermediates, "alias", this.outputName + ".framework", "Headers");
+  }
   buildResourcesPath() {
     return path.join(this.buildBundleContentsPath(), "Resources");
   }
@@ -70,6 +140,23 @@ class Framework extends Library {
   buildGraph(callback: ErrCallback) {
     super.buildGraph((err) => {
       if(err) return callback(err);
+
+      if(this.publicHeaders.length) {
+        var aliaspath = this.buildPublicHeaderAliasPath();
+        var h = new HeaderAliasTask(this, aliaspath);
+        this.publicHeaders.forEach((inFilename) => {
+          var outFilename = path.basename(inFilename);
+          if(this.publicHeadersPrefix)
+            outFilename = path.join(this.publicHeadersPrefix, outFilename);
+          this.publicHeaderMappers.forEach((mapper) => { outFilename = mapper(this, outFilename); });
+          outFilename = path.join(aliaspath, outFilename);
+          h.willAliasHeader(inFilename, outFilename);
+        });
+        this.applyTaskModifiers(h);
+        this.inputs.forEach((task) => {
+          if(task !== h) task.addDependency(h);
+        });
+      }
 
       if(this.bundleInfo) {
         var plist = new PListInfoTask(this, this.bundleInfo, this.buildInfoPath());

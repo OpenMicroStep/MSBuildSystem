@@ -40,8 +40,14 @@ class CompileTask extends ProcessTask {
   addOptions(options: any) {
     if (options.includeSearchPath) {
       options.includeSearchPath.forEach((dir) => {
-        this.inputFiles.push(File.getShared(dir));
+        this.inputFiles.push(File.getShared(dir, true));
         this.addFlags(['-I' + dir]);
+      })
+    }
+    if (options.frameworkPath) {
+      options.frameworkPath.forEach((dir) => {
+        this.inputFiles.push(File.getShared(dir, true));
+        this.addFlags(['-F' + dir]);
       })
     }
   }

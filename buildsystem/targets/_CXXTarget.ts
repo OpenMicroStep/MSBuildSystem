@@ -104,6 +104,12 @@ class CXXTarget extends Target {
     });
   }
 
+  addCompileOptions(options: { [s:string] : string[] }) {
+    this.addTaskModifier('Compile', function (target: Target, task: CompileTask) {
+      task.addOptions(options);
+    });
+  }
+
   addCompileFlags(flags: string[]) {
     this.addTaskModifier('Compile', function (target: Target, task: CompileTask) {
       task.addFlags(flags);
