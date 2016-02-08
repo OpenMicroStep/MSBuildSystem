@@ -51,6 +51,13 @@ li.dropdown-item {
   color: $error-background-color;
 }
 
+.modal, .modal-backdrop {
+  position: absolute;
+}
+.modal-backdrop {
+  z-index: 0;
+}
+
 .ide-status {
   overflow: hidden;
   color: $input-color;
