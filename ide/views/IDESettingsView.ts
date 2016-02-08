@@ -59,7 +59,7 @@ class IDESettingsView extends settings.SettingsView {
           { label: "No wrap", value: "off"},
           { label: "Wrap at 40 chars", value: "40"},
           { label: "Wrap at 80 chars", value: "80"},
-          { label: "Wrap"}]},
+          { label: "Wrap", value: "free"}]},
     ]},
     { label: "Providers", subs: [
       { type: inputs.CheckboxInput, default: {}, path: ['providers'] },
