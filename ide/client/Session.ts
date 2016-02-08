@@ -106,6 +106,7 @@ class Session extends replication.DistantObject {
             file.on('saved', () => { async.run(null, [
               workspace.reload.bind(workspace),
               workspace.loadDependencies.bind(workspace),
+              (p) => { this._signal('reload-workspace'); p.continue(); }
             ]); });
           }
           file.on('destroy', () => {

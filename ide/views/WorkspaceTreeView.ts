@@ -39,15 +39,6 @@ class WorkspaceTreeItem extends TreeItemView {
     this.setCanExpand(true);
     this.removeChildItems();
     Workspace.diagnostics.on("diagnostic", this.$ondiagnostic = this.ondiagnostic.bind(this));
-    this.workspace.on('reload', this.$reload = this.reload.bind(this));
-  }
-
-  reload() {
-    this.name.data = this.workspace.name;
-    if (this.state === TreeItemView.State.EXPANDED) {
-      this.collapse();
-      this.expand();
-    }
   }
 
   destroy() {
@@ -159,13 +150,29 @@ class FileTreeItem extends TreeItemView {
 }
 
 class WorkspaceTreeView extends ContentView {
-  root: WorkspaceTreeItem;
+  root: WorkspaceTreeItem; $reload;
   constructor(data) {
     super();
+    this.root = null;
+    this.titleEl.appendChild(document.createTextNode("Files"));
+    globals.ide.session.on('reload-workspace', this.$reload = this.reload.bind(this));
+    this.reload(data || { expanded: true })
+
+  }
+
+  destroy() {
+    globals.ide.session.off('reload-workspace', this.$reload);
+    this.root.destroy();
+    super.destroy();
+  }
+
+  reload(data) {
+    var data = data || this.root.expandData();
+    if (this.root)
+      this.root.destroy();
     this.root = new WorkspaceTreeItem(globals.ide.session.workspace);
     this.root.appendTo(this.el);
-    this.root.setExpandData(data || { expanded: true });
-    this.titleEl.appendChild(document.createTextNode("Files"));
+    this.root.setExpandData(data);
   }
 
   getChildViews() {
