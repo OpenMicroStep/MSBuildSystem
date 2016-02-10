@@ -152,7 +152,8 @@ class TabLayout extends View {
     if (this._current && current === this._current.idx && !force) return;
     if (this._current) {
       $(this._current.tab).removeClass('active');
-      this._current.view.hide();
+      if (this._current.view.el.parentElement === this._elContent)
+        this._current.view.hide();
     }
     this._current = current >= 0 && current < this._tabs.length ? this._tabs[current] : null;
     this._elContent.innerHTML = "";
