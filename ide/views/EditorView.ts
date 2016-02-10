@@ -261,15 +261,9 @@ class EditorView extends ContentView {
     var dlg = new Dialog(opt);
     dlg.appendTo(this.el);
     dlg.modal((r) => {
-      if (r.action === "secondary")
-        e.solution(e.proposition);
-      else
-        e.solution(null);
+      e.solution(r.action === "secondary" ? e.proposition : null);
     });
-
-
     this._onceVisible = null;
-    console.info("UserActionRequested", e);
   }
 
   loadDiagnostics() {

@@ -163,11 +163,13 @@ class WorkspaceFile extends replication.DistantObject {
           if (content)
             this.setValue(content, { markClean: true });
           file.destroy();
+          p.continue();
         }
         var proposition = file.document.getValue();
-        if (proposition !== this.document.getValue()) {
+        if (proposition !== this.document.getValue())
           this._emit('useraction', { reason: 'outofsync', solution: solution, proposition: proposition, fixed: false });
-        }
+        else
+          solution(null);
       }
       else p.continue();
     });
