@@ -191,7 +191,7 @@ class EditorView extends ContentView {
     });
     this._file.on("changeOptions", this.fileOptChgEvt);
     this.fileOptChgEvt();
-    Workspace.diagnostics.on("diagnostic", this.ondiagnostics.bind(this));
+    globals.ide.session.diagnostics.on("diagnostic", this.ondiagnostics.bind(this));
     this.loadDiagnostics();
     this.fileChgEvt(null);
     this._signal("ready");
@@ -268,16 +268,16 @@ class EditorView extends ContentView {
     });
 
 
-      this._onceVisible = null;
+    this._onceVisible = null;
     console.info("UserActionRequested", e);
   }
 
   loadDiagnostics() {
-    var info = Workspace.diagnostics.get(this._file.path);
+    var diagnostics = globals.ide.session.diagnostics.byPath.get(this._file.path);
     var session = this.editor.session;
     var annotations = [];
-    if (info && info.diagnostics && info.diagnostics.set) {
-      info.diagnostics.set.forEach((d) => {
+    if (diagnostics) {
+      diagnostics.forEach((d) => {
         annotations.push({
           row: d.row - 1,
           column: d.col - 1,

@@ -22,7 +22,6 @@ class Workspace extends replication.DistantObject {
   variants: string[];
   error: string;
 
-  static diagnostics: diagnostics.DiagnosticsByPath = new diagnostics.DiagnosticsByPath();
   static workspaces = new Set<Workspace>();
   constructor() {
     super();
@@ -40,7 +39,6 @@ class Workspace extends replication.DistantObject {
     this.name = e.name;
     this.path = e.path;
     this.directory = e.directory;
-    Workspace.diagnostics.setFiles(this, e.files, this.files);
     this.files = e.files;
     this.environments = e.environments;
     this.targets = e.targets;
@@ -57,6 +55,8 @@ class Workspace extends replication.DistantObject {
   outofsync(p: Async) {
     p.setFirstElements((p) => {
       this.changeId(p.context.result.id);
+      p.context.result.destroy();
+
       p.continue();
     });
     globals.ide.session.openWorkspace(p, this.directory);
@@ -138,8 +138,9 @@ module Workspace {
     }
 
     _setdiagnostics(source: () => diagnostics.Diagnostic[]) {
+      var manager = globals.ide.session.diagnostics;
       this.diagnostics.forEach((d) => {
-        Workspace.diagnostics.remove(d, this);
+        manager.remove(d, this);
       });
       var diffWarnings = this.selfWarnings;
       var diffErrors = this.selfErrors;
@@ -168,7 +169,10 @@ module Workspace {
       this._setdiagnostics(() => {
         this.selfWarnings = old.selfWarnings;
         this.selfErrors = old.selfErrors;
-        return old.diagnostics;
+        var manager = globals.ide.session.diagnostics;
+        return old.diagnostics.map((diag) => {
+          return manager.add(diag, this);
+        });
       });
     }
 
@@ -178,14 +182,14 @@ module Workspace {
         this.selfWarnings = 0;
         this.selfErrors = 0;
         var diagsAfterMerge = [];
-        var diagnostics = Workspace.diagnostics;
+        var manager = globals.ide.session.diagnostics;
         for (var i=0,len= diags.length; i < len; ++i) {
           var diag = diags[i];
           if (diag.type === "warning")
             this.selfWarnings++;
           else if (diag.type === "error")
             this.selfErrors++;
-          diagsAfterMerge.push(diagnostics.add(diag, this));
+          diagsAfterMerge.push(manager.add(diag, this));
         }
         if (this.selfErrors === 0 && e.data.errors > 0)
           this.selfErrors += e.data.errors;

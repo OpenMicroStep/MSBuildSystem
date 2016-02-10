@@ -263,11 +263,11 @@ class WorkspaceTreeItem extends core.TreeItemView {
     this.nameContainer.setAttribute('title', this.workspace.path);
     this.removeChildItems();
     this.setCanExpand(true);
-    Workspace.diagnostics.on("diagnostic", this.$ondiagnostic = this.ondiagnostic.bind(this));
+    core.globals.ide.session.diagnostics.on("diagnostic", this.$ondiagnostic = this.ondiagnostic.bind(this));
   }
 
   destroy() {
-    Workspace.diagnostics.off("diagnostic", this.$ondiagnostic);
+    core.globals.ide.session.diagnostics.off("diagnostic", this.$ondiagnostic);
     super.destroy();
   }
 

@@ -40,7 +40,9 @@ class TreeItemView extends View {
     if (this.$caretclick && !canexpand) {
       this.state = State.LEAF;
       this.removeChildItems(true);
+      this.caret.className = "fa fa-fw";
       this.caret.removeEventListener('click', this.$caretclick, false);
+      this.$caretclick = null;
     }
     else if (!this.$caretclick && canexpand) {
       this.state = State.COLLAPSED;
@@ -77,6 +79,7 @@ class TreeItemView extends View {
   }
 
   collapse() {
+    if (this.state !== State.EXPANDED) return;
     this.removeChildItems(true);
     this.caret.className = "fa fa-fw fa-caret-right";
     this.state = State.COLLAPSED;

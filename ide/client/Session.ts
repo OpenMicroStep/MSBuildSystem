@@ -1,6 +1,7 @@
 import { async, replication, util } from '../core';
 import SearchInFiles = require('../views/SearchInFiles');
 import WorkspaceFile = require('./WorkspaceFile');
+import diagnostics = require('./diagnostics');
 import Workspace = require('./Workspace');
 import Async = async.Async;
 
@@ -31,11 +32,13 @@ class Session extends replication.DistantObject {
   _graph: (p: Async) => void;
   _build: { pendings: (()=> void)[], progress: number, nb: number, warnings: number, errors: number, type: string };
   _onsets: { path: string[], cb: (value: any) => void, defaultValue:any }[];
+  diagnostics: diagnostics.DiagnosticsManager;
 
   constructor() {
     super();
     this._openFiles = new Map<any, any>();
     this._tasks = new Map<any, any>();
+    this.diagnostics = new diagnostics.DiagnosticsManager();
     this._graph = null;
     this._build = null;
     this._onsets = [];
@@ -60,6 +63,7 @@ class Session extends replication.DistantObject {
           document.title = this.workspace.name;
           p.setFirstElements([
             this.workspace.loadDependencies.bind(this.workspace),
+            this.workspaceReady.bind(this),
             (p) => { this._signal("ready"); p.continue();}
           ]);
         }
@@ -93,6 +97,11 @@ class Session extends replication.DistantObject {
     this.remoteCall(p, "openWorkspace", path);
   }
 
+  workspaceReady(p) {
+    this.diagnostics.setWorkspace(this.workspace);
+    p.continue();
+  }
+
   openFile(p: Async, path, nocache?) {
     var once = !nocache ? this._openFiles.get(path) : null;
     if (!once) {
@@ -106,6 +115,7 @@ class Session extends replication.DistantObject {
             file.on('saved', () => { async.run(null, [
               workspace.reload.bind(workspace),
               workspace.loadDependencies.bind(workspace),
+              this.workspaceReady.bind(this),
               (p) => { this._signal('reload-workspace'); p.continue(); }
             ]); });
           }
@@ -283,7 +293,7 @@ class Session extends replication.DistantObject {
         this._build = { pendings: [], progress: 0, nb: nb, warnings: 0, errors: 0, type: type };
         p.setFirstElements((p) => {
           if (p.context.error && p.context.error.code === "buildGraphMissing") {
-            this._graph = null;
+            this.clearGraph();
             p.setFirstElements([
               this.graph.bind(this),
               (p) => { start(p, taskIds, type); }
@@ -318,6 +328,8 @@ class Session extends replication.DistantObject {
       return out;
     }
     var ret = iterate(graph, null);
+    var set = function() { return [] };
+    this._tasks.forEach((task) => { task._setdiagnostics(set); })
     this._tasks = tasks;
     this._signal('graph', ret);
     return ret;

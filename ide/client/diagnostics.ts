@@ -16,113 +16,148 @@ export interface Diagnostic {
   fixits?: Fixit[],
   tasks?: Set<Workspace.Graph>,
 }
-
 export type FileInfo = {
   file?: string,
   group?: string,
   files?: FileInfo[],
-  diagnostics?: { set: Set<Diagnostic>, warnings: number, errors: number, parent: FileInfo }
 };
-export class DiagnosticsByPath extends events.EventEmitter {
-  files: Map<string, FileInfo>;
+
+export type FileTree = {
+  warnings: number,
+  errors: number,
+  infos: any,
+  parents: FileTree[],
+  childs: FileTree[],
+};
+
+export class DiagnosticsManager extends events.EventEmitter {
+  byPath: Map<string, Diagnostic[]>;
+  byType: Map<string, Diagnostic[]>;
+  byTreeLeaf: Map<string, FileTree[]>;
+  tree: FileTree;
 
   constructor() {
     super();
-    this.files = new Map<any, any>();
+    this.byPath = new Map<any, any>();
+    this.byType = new Map<any, any>();
+    this.byTreeLeaf = new Map<any, any>();
+    this.tree = null;
   }
 
-  setFiles(workspace: Workspace, news: FileInfo[], olds: FileInfo[]) {
-    var directory = workspace.directory + '/';
-    if (olds) {
-      var rem = (files: FileInfo[]) => {
-        for(var i= 0, len= files.length; i < len; ++i) {
-          var file = files[i];
-          if (file.file && file.diagnostics) {
-            var path = directory + file.file;
-            this.files.delete(path);
-          }
-          else if (file.files) {
-            rem(file.files);
-          }
-        }
-      }
-      rem(olds);
-    }
-    if (news) {
-      var add = (files: FileInfo[], parent: FileInfo) => {
-        for(var i= 0, len= files.length; i < len; ++i) {
-          var file = files[i];
-          file.diagnostics = { set: null, warnings: 0, errors: 0, parent: parent };
-          if (file.file) {
-            var path = directory + file.file;
-            this.files.set(path, file);
-          }
-          else if (file.files) {
-            add(file.files, file);
-          }
-        }
-      }
-      add(news, null);
-    }
+  setWorkspace(workspace: Workspace) {
+    this.byTreeLeaf = new Map<any, any>();
+    var workspaces = new Map<any, any>();
+    this.tree = this._buildTree(workspace, workspaces, null);
+    console.log(this.tree);
+    this.byPath.forEach((diags) => {
+      diags.forEach((d) => {
+        this._applyToTree(d, +1);
+      });
+    });
   }
 
-  _incWarning(file: FileInfo, diff) {
-    while (file) {
-      file.diagnostics.warnings += diff;
-      file = file.diagnostics.parent;
+  _buildTree(workspace, workspaces, parent) {
+    var root = workspaces.get(workspace);
+    if (root) {
+      if (parent)
+        root.parents.push(parent);
     }
+    else {
+      root= { warnings: 0,errors: 0, parents: [], infos: workspace, childs: [] };
+      workspaces.set(workspace, root);
+      if (parent)
+        root.parents.push(parent);
+      if (workspace.dependencies.length) {
+        var deps = { warnings: 0,errors: 0, parents: [root], infos: "dependencies", childs: [] }
+        root.childs.push(deps);
+        workspace.dependencies.forEach((w) => {
+          deps.childs.push(this._buildTree(w.workspace, workspaces, deps));
+        });
+      }
+      this._buildFileTree(workspace, workspace.files, root);
+    }
+    return root;
   }
-  _incError(file: FileInfo, diff) {
-    while (file) {
-      file.diagnostics.errors += diff;
-      file = file.diagnostics.parent;
+
+  _buildFileTree(workspace, files, parent) {
+    files.forEach((f) => {
+      var node = { warnings: 0,errors: 0, parents: [parent], childs: [], infos: f };
+      parent.childs.push(node);
+      if (f.file) {
+        var path = workspace.directory + "/" + f.file;
+        var nodes = this.byTreeLeaf.get(path);
+        if (!nodes)
+          this.byTreeLeaf.set(path, nodes= [node]);
+        else
+          nodes.push(node);
+      }
+      else if (f.files) {
+        this._buildFileTree(workspace, f.files, node);
+      }
+    });
+  }
+
+  _applyToTree(d: Diagnostic, delta) {
+    var nodes = this.byTreeLeaf.get(d.path);
+    var w = d.type === "warning" ? delta : 0;
+    var e = d.type === "error" ? delta : 0;
+    function apply(leaf) {
+      leaf.warnings += w;
+      leaf.errors += e;
+      leaf.parents.forEach(apply);
     }
+    if (nodes)
+      nodes.forEach(apply);
+  }
+
+  _add(d: Diagnostic) {
+    this._applyToTree(d, +1);
+    this._signal('diagnostic', { diag: d, action: 'add' });
+  }
+
+  _del(d: Diagnostic) {
+    this._applyToTree(d, -1);
+    this._signal('diagnostic', { diag: d, action: 'del' });
   }
 
   add(d: Diagnostic, task: Workspace.Graph) : Diagnostic {
-    var item = this.files.get(d.path);
-    if (!item)
-      this.files.set(d.path, item= { file: d.path, diagnostics: { set: null, warnings: 0, errors: 0, parent: null } });
-    if (item.diagnostics.set === null)
-      item.diagnostics.set = new Set<any>();
-
-    var merged = null;
-    item.diagnostics.set.forEach((diag) => {
-      if (merged) return;
-      if (diag.row === d.row && diag.col === d.col && diag.msg === d.msg) {
-        diag.tasks.add(task);
-        merged = diag;
-      }
-    });
-    if (!merged) {
-      merged = d;
-      item.diagnostics.set.add(d);
+    var diagnostics = this.byPath.get(d.path);
+    var merged = false;
+    if (!diagnostics) {
+      this.byPath.set(d.path, [d]);
       d.tasks = new Set<any>();
-      if (d.type === "warning")
-        this._incWarning(item, +1);
-      else if (d.type === "error")
-        this._incError(item, +1);
     }
-    this._signal('diagnostic', { diag: d, item: item, action: 'add' });
-    return merged;
+    else {
+      diagnostics.forEach((diag) => {
+        if (merged) return;
+        if (diag.row === d.row && diag.col === d.col && diag.msg === d.msg) {
+          diag.tasks.add(task);
+          merged = true;
+          d = diag;
+        }
+      });
+      if (!merged) {
+        diagnostics.push(d);
+        d.tasks = new Set<any>();
+      }
+    }
+    if (!merged) {
+      d.tasks.add(task);
+      this._add(d);
+    }
+    return d;
   }
 
   remove(d: Diagnostic, task: Workspace.Graph) {
     d.tasks.delete(task);
     if (d.tasks.size === 0) {
-      var item = this.files.get(d.path);
-      if (item && item.diagnostics.set) {
-        item.diagnostics.set.delete(d);
-        if (d.type === "warning")
-          this._incWarning(item, -1);
-        else if (d.type === "error")
-          this._incError(item, -1);
+      var diagnostics = this.byPath.get(d.path);
+      var idx = diagnostics.indexOf(d);
+      diagnostics.splice(idx, 1);
+      if (diagnostics.length === 0) {
+        this.byPath.delete(d.path);
+        this._del(d);
       }
     }
-    this._signal('diagnostic', { diag: d, item: item, action: 'del' });
-  }
-
-  get(p: string) : FileInfo {
-    return this.files.get(p);
   }
 }

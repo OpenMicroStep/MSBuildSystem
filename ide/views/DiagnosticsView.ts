@@ -78,7 +78,7 @@ class DiagTreeItem extends TreeItemView {
 }
 
 class DiagnosticsInFileTreeItem extends TreeItemView {
-  constructor(public path: string, public diagnostics: Set<diagnostics.Diagnostic>) {
+  constructor(public path: string, public diagnostics: diagnostics.Diagnostic[]) {
     super();
     this.nameContainer.appendChild(document.createTextNode(util.pathBasename(path)));
     this.setCanExpand(true);
@@ -100,9 +100,8 @@ class DiagnosticsByPathTreeItem extends TreeItemView {
   }
 
   createChildItems(p) {
-    Workspace.diagnostics.files.forEach((file, path) => {
-      if (file.diagnostics && file.diagnostics.set && file.diagnostics.set.size > 0)
-      this.addChildItem(new DiagnosticsInFileTreeItem(path, file.diagnostics.set));
+    globals.ide.session.diagnostics.byPath.forEach((diagnostics, path) => {
+      this.addChildItem(new DiagnosticsInFileTreeItem(path, diagnostics));
     });
     p.continue();
   }
@@ -132,16 +131,14 @@ class DiagnosticsByTypeTreeItem extends TreeItemView {
 
   createChildItems(p) {
     var types = new Map<string, diagnostics.Diagnostic[]>();
-    Workspace.diagnostics.files.forEach((file, path) => {
-      if (file.diagnostics && file.diagnostics.set) {
-        file.diagnostics.set.forEach((d) => {
-          var cat = d.category || "Undefined";
-          var type = types.get(cat);
-          if (!type)
-            types.set(cat, type= []);
-          type.push(d);
-        });
-      }
+    globals.ide.session.diagnostics.byPath.forEach((diagnostics, path) => {
+      diagnostics.forEach((d) => {
+        var cat = d.category || "Undefined";
+        var type = types.get(cat);
+        if (!type)
+          types.set(cat, type= []);
+        type.push(d);
+      });
     });
     types.forEach((list, name) => {
       this.addChildItem(new DiagnosticsInTypeTreeItem(name, list));
