@@ -55,7 +55,7 @@ class HeaderAliasTask extends Task {
     var step = () => {
       if (i < this.steps.length) {
         var s = this.steps[i++];
-        fs.unlink(s[0].path, (err) => {
+        fs.unlink(s[1].path, (err) => {
           if (err) { fstep.error(err); return fstep.continue(); }
           step();
         });
