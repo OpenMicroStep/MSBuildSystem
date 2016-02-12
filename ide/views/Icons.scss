@@ -1,8 +1,8 @@
 .fa-file-ico {
-    position: relative;
+  position: relative;
 }
 .fa-file-ico::before {
-  content: "\f016";
+  content: if($theme == "dark", "\f15b", "\f016");
 }
 .fa-file-ico::after {
   position: absolute;
