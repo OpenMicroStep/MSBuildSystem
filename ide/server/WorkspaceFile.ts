@@ -7,9 +7,16 @@ import util = require('../core/util');
 function load(path, cb: (err, stats?: fs.Stats, content?: string) => void) {
   fs.stat(path, (err, stats) => {
     if (err) return cb(err);
-    fs.readFile(path, 'utf8', (err, content) => {
-      cb(err, stats, content);
-    });
+    var tries = 0;
+    var tryStep = () => {
+      fs.readFile(path, 'utf8', (err, content) => {
+        if (err && err.code === "EMFILE" && tries < 3)
+          setTimeout(tryStep, 100 * (++tries));
+        else
+          cb(err, stats, content);
+      });
+    }
+    tryStep();
   })
 }
 
