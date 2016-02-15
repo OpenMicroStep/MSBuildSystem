@@ -166,10 +166,10 @@ module Workspace {
 
     fromold(old: Graph) {
       if (!old) return;
+      var manager = globals.ide.session.diagnostics;
       this._setdiagnostics(() => {
         this.selfWarnings = old.selfWarnings;
         this.selfErrors = old.selfErrors;
-        var manager = globals.ide.session.diagnostics;
         return old.diagnostics.map((diag) => {
           return manager.add(diag, this);
         });

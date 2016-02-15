@@ -14,7 +14,7 @@ export interface Diagnostic {
   ranges: Range[],
   notes: Diagnostic[],
   fixits?: Fixit[],
-  tasks?: Set<Workspace.Graph>,
+  tasks?: Workspace.Graph[],
 }
 export type FileInfo = {
   file?: string,
@@ -123,41 +123,37 @@ export class DiagnosticsManager extends events.EventEmitter {
   add(d: Diagnostic, task: Workspace.Graph) : Diagnostic {
     var diagnostics = this.byPath.get(d.path);
     var merged = false;
-    if (!diagnostics) {
-      this.byPath.set(d.path, [d]);
-      d.tasks = new Set<any>();
-    }
-    else {
-      diagnostics.forEach((diag) => {
-        if (merged) return;
-        if (diag.row === d.row && diag.col === d.col && diag.msg === d.msg) {
-          diag.tasks.add(task);
-          merged = true;
-          d = diag;
-        }
-      });
-      if (!merged) {
-        diagnostics.push(d);
-        d.tasks = new Set<any>();
+    if (!diagnostics)
+      this.byPath.set(d.path, diagnostics = []);
+    for(var i = 0, len = diagnostics.length; !merged && i < len; ++i) {
+      var diag = diagnostics[i];
+      if (diag.row === d.row && diag.col === d.col && diag.msg === d.msg) {
+        d = diag;
+        d.tasks.push(task);
+        merged = true;
       }
     }
     if (!merged) {
-      d.tasks.add(task);
+      diagnostics.push(d);
+      d.tasks = [task];
       this._add(d);
     }
     return d;
   }
 
   remove(d: Diagnostic, task: Workspace.Graph) {
-    d.tasks.delete(task);
-    if (d.tasks.size === 0) {
+    var idx = d.tasks.indexOf(task);
+    if (idx === -1) throw new Error("task not found");
+    d.tasks.splice(idx, 1);
+    if (d.tasks.length === 0) {
       var diagnostics = this.byPath.get(d.path);
       var idx = diagnostics.indexOf(d);
+      if (idx === -1) throw new Error("diagnostic not found");
       diagnostics.splice(idx, 1);
       if (diagnostics.length === 0) {
         this.byPath.delete(d.path);
-        this._del(d);
       }
+      this._del(d);
     }
   }
 }
