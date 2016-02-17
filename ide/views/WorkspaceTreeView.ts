@@ -170,6 +170,7 @@ class WorkspaceTreeView extends ContentView {
   ondiagnostic(e) {
     var d = e.diag;
     var nodes = globals.ide.session.diagnostics.byTreeLeaf.get(d.path);
+    if (!nodes) return;
     var root = this.root.node;
     var recurse = (node: diagnostics.FileTree) => {
       var result: DiagTreeItemView = null;
