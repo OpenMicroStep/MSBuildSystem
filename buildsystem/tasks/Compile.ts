@@ -6,8 +6,8 @@ import Provider = require('../core/Provider');
 import Barrier = require('../core/Barrier');
 import Process = require('../core/Process');
 
-//              1:path  2:row 3:col    4:ranges                      5:type                       6:msg     7:option     8:category
-var rxdiag  = /^([^:]+):(\d+):(\d+):(?:((?:\{\d+:\d+-\d+:\d+\})+):)? (warning|error|note|remark): (.+?)(?:\[([^,\]]+)(?:,([^\]]+))?\])?$/;
+//              1:path  2:row 3:col    4:ranges                      5:type                                  6:msg     7:option     8:category
+var rxdiag  = /^([^:]+):(\d+):(\d+):(?:((?:\{\d+:\d+-\d+:\d+\})+):)? (warning|(?:fatal )?error|note|remark): (.+?)(?:\[([^,\]]+)(?:,([^\]]+))?\])?$/;
 //                     1:path       2-5:range                   6:replacement
 var rxfixit = /^fix-it:"([^"]+)":\{(\d+):(\d+)-(\d+):(\d+)\}:"([^"]+)"$/;
 
