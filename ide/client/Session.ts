@@ -99,6 +99,7 @@ class Session extends replication.DistantObject {
 
   workspaceReady(p) {
     this.diagnostics.setWorkspace(this.workspace);
+    this.clearGraph();
     p.continue();
   }
 

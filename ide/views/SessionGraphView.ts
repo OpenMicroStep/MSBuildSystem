@@ -314,12 +314,12 @@ class SessionGraphView extends core.ContentView {
     this.layout = new BoxLayout({userCanResize:true, orientation: BoxLayout.Orientation.HORIZONTAL});
     this.layout.appendTo(this.el);
     this.layout.appendView(this.taskview, 1.0);
-    this.session.on('reload', this.$onreload = this.reload.bind(this));
+    this.session.on('reload-workspace', this.$onreload = this.reload.bind(this));
     this.reload(data);
   }
 
   destroy() {
-    this.session.off('reload', this.$onreload);
+    this.session.off('reload-workspace', this.$onreload);
     super.destroy();
   }
 
