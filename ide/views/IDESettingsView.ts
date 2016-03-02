@@ -52,6 +52,9 @@ class IDESettingsView extends settings.SettingsView {
       { label: 'Tab size', type: inputs.SelectInput, default: 4, path: ['ace-editor', 'tabSize'],
         options: [2,4,6,8].map((n) => { return { label: "" + n, value: n }}) },
       { label: 'Indent using spaces', type: inputs.CheckboxInput, default: true, path: ['ace-editor', 'useSoftTabs']},
+      { label: 'Detect tab stops', type: inputs.CheckboxInput, default: true, path: ['ace-editor', 'noTabStop'],
+        mapFromInput: (c) => { return !c }, mapToInput: (c) => { return !c }
+      },
       { label: 'Font size', type: inputs.SelectInput, default: 12, path: ['ace-editor', 'fontSize'],
         options: [10,11,12,13,14,16,18,20,24].map((n) => { return { label: n + "px", value: n }}) },
       { label: 'Soft wrap', type: inputs.SelectInput, default: "off", path: ['ace-editor', 'wrap'],
@@ -60,6 +63,8 @@ class IDESettingsView extends settings.SettingsView {
           { label: "Wrap at 40 chars", value: "40"},
           { label: "Wrap at 80 chars", value: "80"},
           { label: "Wrap", value: "free"}]},
+      { label: 'Autocompletion', type: inputs.CheckboxInput, default: true, path: ['ace-editor', 'enableBasicAutocompletion'] },
+      { label: 'Live Autocompletion', type: inputs.CheckboxInput, default: false, path: ['ace-editor', 'enableLiveAutocompletion'] },
     ]},
     { label: "Providers", subs: [
       { type: inputs.CheckboxInput, default: {}, path: ['providers'] },

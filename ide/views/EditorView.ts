@@ -9,6 +9,18 @@ var Renderer = ace.require("ace/virtual_renderer").VirtualRenderer;
 var StatusBar = ace.require("ace/ext/statusbar").StatusBar;
 var whitespace = ace.require("ace/ext/whitespace");
 var modelist = ace.require("ace/ext/modelist");
+var config = ace.require("ace/config");
+
+var previousIsTabStop = EditSession.prototype.isTabStop;
+EditSession.prototype.isTabStop = function() {
+  return !this.$noTabStop && previousIsTabStop.apply(this, arguments);
+}
+config.defineOptions(Editor.prototype, "editor", {
+  noTabStop: "session",
+});
+config.defineOptions(EditSession.prototype, "session", {
+  noTabStop: {initialValue: true},
+});
 
 function mktabsize(self, tabwidth, newtabwidth) {
   return {
@@ -84,10 +96,7 @@ class EditorView extends ContentView {
     this.editor.commands.addCommands(whitespace.commands);
     this.editor.$blockScrolling = Infinity;
     this.editor.setOptions({
-      scrollPastEnd: true,
-      enableBasicAutocompletion: true,
       enableSnippets: true,
-      enableLiveAutocompletion: true
     });
     onEditorOptionChange(this.$onEdChangeOptions = (options) => {
       this.editor.setOptions(options);
