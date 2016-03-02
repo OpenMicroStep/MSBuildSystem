@@ -13,7 +13,7 @@ class Process {
   static maxConcurrentProcess : number = os.cpus().length;
 
   static run(command : string, args : string[], env: {[s:string]: string}, callback : (err: string, out: string) => any) {
-    var options: any = {};
+    var options: any = { encoding: 'utf8' };
     if(env) {
       var base = process.env;
       var pathKey = "PATH";
@@ -63,23 +63,21 @@ class Process {
       }
 
       function errorhandler(e) {
+        console.error(ex);
         ex = e;
-        process.stdout.destroy();
-        process.stderr.destroy();
+        if (process.stdout)
+          process.stdout.destroy();
+        if (process.stderr)
+          process.stderr.destroy();
         exithandler(-1, null);
       }
 
       if (process) {
-        process.stdout.addListener('data', function(chunk) {
-          out += chunk;
-        });
-
-        process.stderr.addListener('data', function(chunk) {
-          out += chunk;
-        });
-
-        process.stderr.setEncoding('utf8');
-        process.stdout.setEncoding('utf8');
+        var append = function(chunk) { out += chunk; };
+        if (process.stdout)
+          process.stdout.addListener('data', append);
+        if (process.stderr)
+          process.stderr.addListener('data', append);
         process.addListener('close', exithandler);
         process.addListener('error', errorhandler);
       }
@@ -110,17 +108,21 @@ var nbProcessRunning = 0;
 function _run(fct, args, startCallback) {
   nbProcessRunning++;
   console.debug("Run process", args[0], args[1].join(" "));
-  var ret = fct.apply(child_process, args);
-  startCallback(ret);
-  var exited = false;
-  var cb = function() {
-    if(!exited) {
-      exited = true;
-      _freeOne();
-    }
-  };
-  ret.once('error', cb);
-  ret.once('exit', cb);
+  try {
+    var ret = fct.apply(child_process, args);
+    startCallback(ret);
+    var exited = false;
+    var cb = function() {
+      if(!exited) {
+        exited = true;
+        _freeOne();
+      }
+    };
+    ret.once('error', cb);
+    ret.once('exit', cb);
+  } catch(e) {
+    startCallback(null);
+  }
 }
 
 
