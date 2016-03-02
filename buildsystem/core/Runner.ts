@@ -95,6 +95,8 @@ module Runner {
       if (!msg) return;
       this.errors += 1;
       this.log("error: " + msg);
+      if (msg instanceof Error)
+        msg = msg.stack || msg.message;
       console.error(this.task.toString(), msg);
     }
 
