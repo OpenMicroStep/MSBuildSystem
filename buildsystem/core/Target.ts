@@ -3,6 +3,7 @@ import Workspace = require('./Workspace');
 import Task = require('./Task');
 import Graph = require('./Graph');
 import BuildSession = require('./BuildSession');
+import File = require('./File');
 import Barrier = require('./Barrier');
 import path = require('path');
 var fs = require('fs-extra');
@@ -174,6 +175,9 @@ class Target extends Graph {
   buildGraph(callback: ErrCallback) {
     callback();
   }
+
+
+  listInputFiles(set: Set<File>) { }
 }
 
 export = Target;
