@@ -9,17 +9,17 @@ class LinkBinUtilsTask extends LinkTask {
     super(graph, compileTasks, finalFile, type, provider);
     switch(this.type) {
       case CXXTarget.LinkType.STATIC:
-        this.appendArgs(["rcs", finalFile.path]);
+        this.appendArgs(["rcs", [finalFile]]);
         break;
       case CXXTarget.LinkType.DYNAMIC:
-        this.appendArgs(["-shared", "-o", finalFile.path]);
+        this.appendArgs(["-shared", "-o", [finalFile]]);
         break;
       case CXXTarget.LinkType.EXECUTABLE:
-        this.appendArgs(["-o", finalFile.path]);
+        this.appendArgs(["-o", [finalFile]]);
         break;
     }
     this.appendArgs(this.inputFiles.map(function (file) {
-      return file.path;
+      return [file];
     }));
   }
   addFlags(flags:string[]) {

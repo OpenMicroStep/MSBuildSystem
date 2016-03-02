@@ -9,8 +9,8 @@ class CompileMasmTask extends ProcessTask {
     super({ type: "compile", name: srcFile.name }, graph, [srcFile], [objFile], provider);
 
     this.appendArgs([
-      "/Fo", objFile.path,
-      "/c", srcFile.path
+      "/Fo", [objFile],
+      "/c", [srcFile]
     ]);
   }
 }

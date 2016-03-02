@@ -17,10 +17,12 @@ providers[CXXTarget.LinkType.EXECUTABLE] = { compiler: "gcc", version: "wo451" }
 
 class LinkWO451Task extends LinkTask {
   index: number;
+  extFiles: File[]
   constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType) {
     super(graph, compileTasks, finalFile, type, providers[type]);
+    this.extFiles = [];
     if(this.type === CXXTarget.LinkType.STATIC) {
-      this.appendArgs(["/out:" + finalFile.path]);
+      this.appendArgs([["/out:", finalFile]]);
     }
     else if(this.type === CXXTarget.LinkType.DYNAMIC) {
       var def = File.getShared(finalFile.path.substring(0, finalFile.path.length - 3) + "def");
@@ -41,7 +43,7 @@ class LinkWO451Task extends LinkTask {
     }));
   }
 
-  addFlags(libs: string[]) {
+  addFlags(libs) {
     this.insertArgs(this.index, libs);
   }
 
@@ -50,8 +52,10 @@ class LinkWO451Task extends LinkTask {
       return super.runProcess(step, provider);
     step.setFirstElements([
       (step) => {
+        var args = ["-dump", "-symbols"];
+        this.inputFiles.forEach((file) => { args.push(file.path); });
         provider.process(step, this.inputFiles, [], "run", {
-          args: ["-dump", "-symbols"].concat(this.inputFiles.map((file) => { return file.path; })),
+          args: args,
           env: this.env
         }, {
           requires: [Provider.require.inputs],
@@ -75,6 +79,7 @@ class LinkWO451Task extends LinkTask {
             }
           }
         });
+        fs.writeFile(this.outputFiles[1].path + ".symbols", output, 'utf8');
         fs.writeFile(this.outputFiles[1].path, def, 'utf8', (err) => {
           step.error(err);
           step.continue();
@@ -85,8 +90,8 @@ class LinkWO451Task extends LinkTask {
         if(!provider) step.error("'provider' not found");
         if (step.errors > 0) return step.continue();
 
-        provider.process(step, this.inputFiles, this.outputFiles, "run", {
-          args: this.args,
+        provider.process(step, [].concat(this.extFiles, this.inputFiles, [this.outputFiles[1]]), [this.outputFiles[0], this.outputFiles[2]], "run", {
+          args: this.flattenArgs(),
           env: this.env
         }, {
           requires: this.providerRequires(),
@@ -112,7 +117,7 @@ class LinkWO451Task extends LinkTask {
           lib = lib.substring(0, lib.length - 3) + "lib";}
         if (path.isAbsolute(lib)) {
           var f = File.getShared(lib);
-          this.inputFiles.push(f);
+          this.extFiles.push(f);
         }
         return lib;
       }));
@@ -128,8 +133,8 @@ class LinkWO451Task extends LinkTask {
     if(this.type === CXXTarget.LinkType.STATIC)
       return;
     var f = File.getShared(def);
-    this.inputFiles.push(f);
-    this.addFlags(["/def:"+def]);
+    this.extFiles.push(f);
+    this.addFlags([["/def:", def]]);
   }
   addDefs(defs: string[]) {
     defs.forEach((def) => {

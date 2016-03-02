@@ -34,20 +34,22 @@ class CompileTask extends ProcessTask {
   addHeaderMapArgs(objFile: File) {
     this.hmapFile = File.getShared(objFile.path + ".hmap");
     this.outputFiles.push(this.hmapFile);
-    this.appendArgs(["-MMD", "-MF", this.hmapFile.path]);
+    this.appendArgs(["-MMD", "-MF", [this.hmapFile]]);
   }
 
   addOptions(options: any) {
     if (options.includeSearchPath) {
       options.includeSearchPath.forEach((dir) => {
-        this.inputFiles.push(File.getShared(dir, true));
-        this.addFlags(['-I' + dir]);
+        var d = File.getShared(dir, true);
+        this.inputFiles.push(d);
+        this.addFlags([['-I', d]]);
       })
     }
     if (options.frameworkPath) {
       options.frameworkPath.forEach((dir) => {
-        this.inputFiles.push(File.getShared(dir, true));
-        this.addFlags(['-F' + dir]);
+        var d = File.getShared(dir, true);
+        this.inputFiles.push(d);
+        this.addFlags([['-F', d]]);
       })
     }
   }

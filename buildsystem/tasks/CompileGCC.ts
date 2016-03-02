@@ -14,8 +14,8 @@ class CompileGCCTask extends CompileTask {
       this.appendArgs("-g");
     */
     this.appendArgs([
-      "-o", objFile.path,
-      "-c", srcFile.path
+      "-o", [objFile],
+      "-c", [srcFile]
     ]);
   }
 }

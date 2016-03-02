@@ -1,4 +1,5 @@
 import Graph = require('./Graph');
+import Target = require('./Target');
 import events = require('events');
 import Runner = require('./Runner');
 import BuildSession = require('./BuildSession');
@@ -57,6 +58,14 @@ class Task extends events.EventEmitter {
     task.requiredBy.add(this);
   }
 
+  target() : Target {
+    var task = this.graph;
+    var cls = require('./Target');
+    while (task && !(task instanceof cls))
+      task = task.graph;
+    return <any>task;
+  }
+
   uniqueKey(): string { return "__" + (++__id_counter).toString(); }
 
   id() {
@@ -86,6 +95,13 @@ class Task extends events.EventEmitter {
 
   storagePath(task: Task) {
     return this.graph.storagePath(task);
+  }
+
+  listDependenciesOutputFiles(set: Set<File>) {
+    this.dependencies.forEach((t) => {
+      t.listOutputFiles(set);
+      t.listDependenciesOutputFiles(set);
+    });
   }
 
   listOutputFiles(set: Set<File>) { }

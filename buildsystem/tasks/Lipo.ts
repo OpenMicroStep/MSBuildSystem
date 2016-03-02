@@ -14,9 +14,9 @@ class LipoTask extends ProcessTask {
     this.addDependencies(linkTasks);
     this.appendArgs(["-create"]);
     linkTasks.forEach((task) => {
-      this.appendArgs([task.outputFiles[0].path]);
+      this.appendArgs([[task.outputFiles[0]]]);
     });
-    this.appendArgs(["-output", finalFile.path]);
+    this.appendArgs(["-output", [finalFile.path]]);
   }
 }
 Task.registerClass(LipoTask, "Lipo");

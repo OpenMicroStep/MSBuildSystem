@@ -9,8 +9,8 @@ class CompileClangTask extends CompileTask {
   constructor(graph: Graph, srcFile:File, objFile:File, provider: Provider.Conditions = { compiler: "clang" }) {
     super(graph, srcFile, objFile, provider);
     this.appendArgs([
-      "-o", objFile.path,
-      "-c", srcFile.path,
+      "-o", [objFile],
+      "-c", [srcFile],
       "-Wall",
       "-fdiagnostics-show-note-include-stack",
       "-fmessage-length=0",

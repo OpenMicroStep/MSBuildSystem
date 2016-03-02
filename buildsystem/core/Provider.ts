@@ -57,6 +57,9 @@ class Provider {
   acquireResource(cb: () => void) { cb(); }
   releaseResource() {}
 
+  map(path) {
+    throw "Must be implemented by subclasses";
+  }
   process(step, inputs: File[], outputs: File[], action: string, args: ProviderArgs, options: ProviderOptions) {
     throw "Must be implemented by subclasses";
   }
@@ -107,6 +110,9 @@ module Provider {
     constructor(public bin: string, conditions, public options?: any) {
       super(conditions);
     }
+    map(path) {
+      return path;
+    }
     process(step, inputs: File[], outputs: File[], action: string, args: ProviderArgs, options: ProviderOptions) {
       if (this.options && this.options.PATH) {
         args.env = args.env || {};
@@ -116,17 +122,24 @@ module Provider {
         args.args = args.args || [];
         args.args.unshift.apply(args.args, this.options.args);
       }
-      RunProcess.run(this.bin, args.args, args.env, (err, output) => {
+      this.run(this.bin, args.args, args.env, (err, output) => {
         step.context.err = err;
         step.context.output = output;
         step.continue();
       });
+    }
+    run(bin, args, env, cb) {
+      RunProcess.run(this.bin, args, env, cb);
     }
   }
 
   export class Remote extends LocalProvider {
     constructor(public client: ProviderClient, conditions, public id) {
       super(conditions);
+    }
+
+    map(p) {
+      return path.join(this.client.prefix, p);
     }
 
     process(step, inputs: File[], outputs: File[], action: string, args: ProviderArgs, options: ProviderOptions) {
@@ -148,12 +161,14 @@ module Provider {
           }
           if (t === Provider.require.files && target) {
             target.workspace.resolveFiles([""]).forEach((file) => { files.add(File.getShared(file)); });
+            target.listInputFiles(files);
           }
-          if (t === Provider.require.dependenciesOutputs) {
+          if (t === Provider.require.dependenciesOutputs && target) {
             target.allDependencies().forEach((t) => {
               if (t !== target)
                 t.listOutputFiles(files);
             });
+            options.task.listDependenciesOutputFiles(files);
           }
         });
       }
@@ -165,10 +180,29 @@ module Provider {
         p.continue();
       }
       var now = Date.now();
+      var abort = false;
+      var checkfile = (file) => {
+        var ret = !!file.path;
+        if (!ret) {
+          var err = new Error("file.path must be a string, got:" + file);
+          step.error(err);
+          console.error(err, file);
+          abort = true;
+        }
+        return ret;
+      }
+
       files.forEach((file) => {
+        checkfile(file);
         upload.push((p) => {
-          var old = data[file.path] || 0;
-          File.ensure(step, [file], { time: old }, (err, changed) => {
+          File.ensureOne(step, file, false, this.client.lastUploadTime(file.path), (err, changed) => {
+            if (changed) {
+              this.client.upload(p, file.path);
+            }
+            else {
+              this.client.map(p, file.path);
+            }
+
             p.setFirstElements((p) => {
               data[file.path] = now;
               if (map.get(file.path) === "") {
@@ -180,9 +214,9 @@ module Provider {
             if (changed) {
               var f = this.client.uploads.get(file.path);
               if (!f) {
-                f = new async.Async(null, async.Async.once((p) => {
+                f = new async.Async(null, async.Async.once([(p) => {
                   conn.upload(p, { tid: tid, path: file.path });
-                }));
+                }]));
                 this.client.uploads.set(file.path, f);
               }
               p.setFirstElements([
@@ -203,6 +237,7 @@ module Provider {
         });
       });
       outputs.forEach((output) => {
+        checkfile(output);
         upload.push((p) => {
           p.setFirstElements((p) => {
             map.set(output.path, p.context.result.path);
@@ -214,21 +249,12 @@ module Provider {
           conn.download(p, { tid: tid, localpath: output.path, remotepath: map.get(output.path) });
         });
       });
+      if (abort)
+        return step.continue();
+
       async.run(null, [
         upload, // upload
         (p) => {
-          if (args.args) {
-            args.args = args.args.map((arg) => {
-              var m = map.get(arg);
-              if (m) return m;
-              map.forEach((v, k) => {
-                //console.info("value=%s, key=%s, arg=%s", v, k, arg);
-                if (!m && arg.endsWith(k))
-                  m = arg.substring(0, arg.length - k.length) + v;
-              })
-              return m || arg;
-            });
-          }
           conn.process(p, { tid: tid, provider: this.id, action: action, args: args });
         },
         (p) => {
@@ -256,13 +282,42 @@ module Provider {
     data: any;
     prefix: string;
     uploads: Map<string, async.Async>;
-    constructor(url: string) {
-      var ws = IoEngineClient(url);
-      if (!ws) throw new Error("Unable to create ws to " + url);
-      this.conn = new ProviderConnection(new RpcSocket(ws), 0, null, null);
+    _mapCache: Map<string, async.Async>;
+    constructor(public url: string) {
       this.tid = (++ProviderClient.idCounter).toString();
       this.uploads = new Map<any, any>();
+      this._mapCache = new Map<any, any>();
       this.providers = [];
+      this.reset();
+    }
+
+    reset() {
+      if (!this.url) return;
+      var ws = IoEngineClient(this.url);
+      if (!ws) this._retry("Unable to create ws to " + this.url);
+      else {
+        var rpc = new RpcSocket(ws);
+        this.conn = new ProviderConnection(rpc, 0, null, null);
+        rpc.on('open', () => {
+          console.info("Connected to", this.url);
+        });
+        rpc.on('close', () => {
+          this.providers.forEach((p) => {
+            Provider.unregister(p);
+          });
+          this.conn = null;
+          this.providers = [];
+          this._retry("connection lost to " + this.url);
+        });
+      }
+    }
+
+    _retry(msg) {
+      if (msg)
+        console.warn(msg);
+      setTimeout(() => {
+        this.reset();
+      }, 1000);
     }
 
     init(p) {
@@ -294,6 +349,18 @@ module Provider {
       this.conn.setData(p, { tid: this.tid, data: this.data});
     }
 
+    lastUploadTime(path) {
+      return this.data[path] || 0;
+    }
+
+    upload(p, path) {
+
+    }
+
+    map(p, path) {
+
+    }
+
     destroy() {
       this.providers.forEach((p) => {
         Provider.unregister(p);
@@ -301,6 +368,7 @@ module Provider {
       this.conn.io.destroy();
       this.conn = null;
       this.providers = null;
+      this.url = null;
     }
   }
 
@@ -372,7 +440,7 @@ module Provider {
             if (err) return cb({ err: err });
             var p = path.join(t.path, desc.path).replace(/\\/g, '/');
             if (desc.ensureDir === true)
-              fs.ensureFile(p, (err) => { cb({ path: p, err: err }); });
+              fs.ensureDir(path.dirname(p), (err) => { cb({ path: p, err: err }); });
             else
               cb({ path: p });
           });

@@ -10,12 +10,12 @@ class LinkLibToolTask extends LinkTask {
     provider = provider || (type === CXXTarget.LinkType.STATIC ? {linker:"libtool"} : { compiler: "clang"});
     super(graph, compileTasks, finalFile, type, provider);
     if(this.type === CXXTarget.LinkType.STATIC) {
-      this.appendArgs(["-static", "-o", finalFile.path]);
+      this.appendArgs(["-static", "-o", [finalFile]]);
     }
     else {
       if(this.type === CXXTarget.LinkType.DYNAMIC)
         this.appendArgs(["-shared"]);
-      this.appendArgs(["-o", finalFile.path]);
+      this.appendArgs(["-o", [finalFile]]);
     }
     this.appendArgs(this.inputFiles.map(function (file) {
       return file.path;

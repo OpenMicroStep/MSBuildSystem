@@ -7,38 +7,43 @@ import File = require('../core/File');
 import Target = require('../core/Target');
 import crypto = require('crypto');
 
+type Arg = string | (string|File)[];
+
 class ProcessTask extends Task {
-  public args: string[] = [];
+  public args: Arg[] = [];
   public env: {[s:string]: string} = null;
 
   constructor(name: Task.Name, graph: Graph, public inputFiles: File[], public outputFiles: File[], public provider: Provider.Conditions) {
     super(name, graph);
   }
 
-  addFlags(flags: string[]) {
+  addOptions(options: any) {
+  }
+
+  addFlags(flags: Arg[]) {
     this.appendArgs(flags);
   }
-  addFlagsAtEnd(flags: string[]) {
+  addFlagsAtEnd(flags: Arg[]) {
     this.appendArgs(flags);
   }
   setEnv(env:{[s:string]: string}) {
     this.env = env;
   }
 
-  protected insertArgs(pos:number, args: string[]) {
+  protected insertArgs(pos:number, args: Arg[]) {
     this.args.splice(pos, 0, ...args);
   }
 
-  protected appendArgs(args: string[]) {
+  protected appendArgs(args: Arg[]) {
     this.args.push(...args);
   }
 
-  protected prependArgs(args: string[]) {
+  protected prependArgs(args: Arg[]) {
     this.args.unshift(...args);
   }
 
   uniqueKey(): string {
-    return this.args.join(" ");
+    return this.flattenArgs().join(" ");
   }
 
   isRunRequired(step, callback: (err, required:boolean) => any) {
@@ -53,6 +58,22 @@ class ProcessTask extends Task {
     }
   }
 
+  flattenArgs(provider?: Provider, args?: Arg[]) : string[] {
+    return (args || this.args).map((arg) => {
+      if (typeof arg === "string")
+        return arg;
+      var out = "";
+      for (var i = 0, l = arg.length; i < l; i++) {
+        var a = arg[i];
+        if (typeof a === "string")
+          out += a;
+        else
+          out += provider ? provider.map((<File><any>a).path) : (<File><any>a).path;
+      }
+      return out;
+    })
+  }
+
   runProcess(step, provider: Provider) {
     step.setFirstElements((step) => {
       step.log(step.context.output);
@@ -60,7 +81,7 @@ class ProcessTask extends Task {
       step.continue();
     });
     provider.process(step, this.inputFiles, this.outputFiles, "run", {
-      args: this.args,
+      args: this.flattenArgs(provider),
       env: this.env
     }, {
       requires: this.providerRequires(),
@@ -85,7 +106,7 @@ class ProcessTask extends Task {
 
   do(step) {
     step.setFirstElements((p) => {
-      step.sharedData.command = { provider: this.provider, args: this.args };
+      step.sharedData.command = { provider: this.provider, args: this.flattenArgs() };
       p.continue();
     })
     super.do(step);
