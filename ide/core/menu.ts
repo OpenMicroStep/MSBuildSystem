@@ -302,7 +302,7 @@ export class TitleMenu extends Menu {
     if (this.nativeMenu) {
       this.nativeMenu.append(new nativeMenuItem({ label: 'Dev', submenu: [ {
         label: 'Reload',
-        accelerator: 'CmdOrCtrl+R',
+        accelerator: 'CmdOrCtrl+Alt+R',
         click: function() { remote.getCurrentWindow().reload(); }
       },{
         label: 'Dev Tools',
@@ -311,8 +311,12 @@ export class TitleMenu extends Menu {
       }]}));
       var w = remote.getCurrentWindow();
       if (remote.process.platform === "darwin") {
-        w.on("focus", () => {
+        var onFocus= () => {
           nativeMenu.setApplicationMenu(this.nativeMenu);
+        };
+        w.on("focus", onFocus);
+        window.addEventListener("beforeunload", (ev) => {
+          w.removeListener("focus", onFocus);
         });
         if (w.isFocused())
           nativeMenu.setApplicationMenu(this.nativeMenu);

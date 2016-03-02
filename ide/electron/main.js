@@ -26,6 +26,7 @@ if (shouldQuit) {
   return;
 }
 
+var darwinMenu = null;
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function() {
@@ -33,6 +34,9 @@ app.on('window-all-closed', function() {
   // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform != 'darwin') {
     app.quit();
+  }
+  else if (darwinMenu) {
+    Menu.setApplicationMenu(darwinMenu);
   }
 });
 
@@ -48,6 +52,9 @@ async.run(null, [
   [
     function(p) {
       app.on('ready', function() {
+        if (process.platform == 'darwin') {
+          darwinMenu = Menu.getApplicationMenu();
+        }
         p.continue();
       });
     },
