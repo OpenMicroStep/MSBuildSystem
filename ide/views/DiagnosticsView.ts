@@ -11,7 +11,8 @@ class FixitTreeItem extends TreeItemView {
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-wrench";
     this.nameContainer.appendChild(icon);
-    this.nameContainer.appendChild(document.createTextNode("fixit: replace with " + fixit.replacement));
+    var isAppend = fixit.range.ecol === fixit.range.scol && fixit.range.erow === fixit.range.srow;
+    this.nameContainer.appendChild(document.createTextNode("fixit: " + (isAppend ? "append" : "replace with") + " " + fixit.replacement));
     this.nameContainer.addEventListener("click", this.open.bind(this, false));
     menu.bindContextMenuTo(this.nameContainer, () => {
       return this.applied ? null : [{
@@ -51,11 +52,11 @@ class DiagTreeItem extends TreeItemView {
     this.nameContainer.appendChild(document.createTextNode(diag.msg));
     this.nameContainer.addEventListener("click", this.open.bind(this));
     if (diag.tasks) {
-      var tooltip = "";
+      var tooltip = diag.msg;
       diag.tasks.forEach((task) => {
         var target = task.target();
         if (!target) return;
-        tooltip += target.name.variant + " " + target.name.environment + " " + target.name.name + "\n";
+        tooltip += "\n" + target.name.variant + " " + target.name.environment + " " + target.name.name;
       });
       this.nameContainer.setAttribute('title', tooltip);
     }
