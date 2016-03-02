@@ -34,4 +34,3 @@ app.get('/file/:path', function(req, res) {
   res.download(req.params.path);
 });
 
-BuildSystem.core.Async.run(null, (p) => { client.init(p); });
