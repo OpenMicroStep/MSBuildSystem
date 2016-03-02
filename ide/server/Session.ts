@@ -172,8 +172,16 @@ class Session extends replication.ServedObject<any> {
     this._searchOrReplace(p, true, options);
   }
 
-  terminal(p: Async) {
-    p.context.response = new Terminal("bash", ["-l"]);
+  terminal(p: Async, id) {
+    var tty = null;
+    if (id === undefined)
+      tty = new Terminal("bash", ["-l"]);
+    else {
+      tty = replication.objectWithId(id);
+      if (!(tty instanceof Terminal))
+        tty = null;
+    }
+    p.context.response = tty;
     p.continue();
   }
 

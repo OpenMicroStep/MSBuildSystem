@@ -5,8 +5,12 @@ var Terminal:any = term;
 
 class TerminalView extends core.ContentView {
   term;
-  constructor(public tty: TTY) {
+  tty: TTY;
+  key;
+  constructor(data: { tty?: TTY, ttyid?, key? }) {
     super();
+    this.tty = null;
+    this.key = data.key;
     this.el.className = "fill terminalview";
     this.titleEl.textContent = "Run";
     this.term = new Terminal({
@@ -21,22 +25,50 @@ class TerminalView extends core.ContentView {
     this.term.on('title', (title) => {
       this.titleEl.textContent = title;
     });
-    this.tty.on('data', (e) => {
-      this.term.write(e.chunk);
-    });
-    this.tty.once('exit', (e) => {
-      if (this.tty)
-        this.tty.destroy();
-      this.tty = null;
-    });
+
+    if (data.tty) {
+      this.setTTY(data.tty);
+    }
+    else if (data.ttyid) {
+      core.async.run(null, [
+        (p) => { core.globals.ide.session.remoteCall(p, "terminal", data.ttyid); },
+        (p) => { this.setTTY(p.context.result); p.continue(); }
+      ]);
+    }
+  }
+
+  setTTY(tty: TTY) {
+    if (this.tty) {
+      this.tty.destroy();
+    }
+
+    this.tty = tty;
+
+    if (this.tty) {
+      this.tty.on('data', (e) => {
+        this.term.write(e.chunk);
+      });
+      this.tty.once('exit', (e) => {
+        if (this.tty)
+          this.tty.destroy();
+        this.tty = null;
+      });
+    }
   }
 
   destroy() {
     this.term.destroy();
-    if (this.tty)
-      this.tty.destroy();
     this.tty = null;
+    this.setTTY(null);
     super.destroy();
+  }
+
+  isViewFor(opts) {
+    return opts && (
+      (this.tty === opts.tty) ||
+      (this.tty && this.tty.id === opts.ttyid) ||
+      (this.key && this.key === opts.key)
+    );
   }
 
   resize() {
@@ -58,10 +90,10 @@ class TerminalView extends core.ContentView {
   }
 
   data() {
-    return {  };
+    return { ttyid: this.tty.id, key: this.key };
   }
 }
 
-//core.ContentView.register(TerminalView, "terminal");
+core.ContentView.register(TerminalView, "terminal");
 
 export = TerminalView;

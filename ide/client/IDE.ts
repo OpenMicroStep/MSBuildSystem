@@ -348,7 +348,7 @@ class IDE extends views.View {
               this._status.setStatus({ error: p.context.error });
             else {
               var run = p.context.result;
-              this.content.createViewIfNecessary(views.TerminalView, [run]);
+              this.content.createViewIfNecessary(views.TerminalView, [{tty: run}]);
               run.spawn(p);
             }
             p.continue();
@@ -395,7 +395,7 @@ class IDE extends views.View {
           (p) => { this.session.remoteCall(p, "terminal"); },
           (p) => {
             var tty = p.context.result;
-            this.content.createViewIfNecessary(views.TerminalView, [tty]);
+            this.content.createViewIfNecessary(views.TerminalView, [{tty: tty}]);
             tty.spawn(p);
           }
         ]);
