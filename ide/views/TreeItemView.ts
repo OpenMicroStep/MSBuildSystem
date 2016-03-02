@@ -64,6 +64,7 @@ class TreeItemView extends View {
   }
 
   expandAsync(p) {
+    if (this.state !== State.COLLAPSED) return p.continue();
     this.state = State.EXPANDING;
     p.setFirstElements([
       this.createChildItems.bind(this),
