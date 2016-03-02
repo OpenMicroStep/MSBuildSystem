@@ -34,9 +34,68 @@ class DiagTreeItemView extends TreeItemView {
         c.appendChild(this._createBadge("warning", d.warnings));
       if (d.errors > 0)
         c.appendChild(this._createBadge("error", d.errors));
-      this.nameContainer.appendChild(c);
+      this.nameContainer.insertBefore(c, this.nameContainer.firstElementChild);
       this.diags = c;
     }
+  }
+}
+
+class FileTreeItem extends DiagTreeItemView {
+  root: WorkspaceTreeItem;
+  constructor(node, root: WorkspaceTreeItem) {
+    var d = node.infos;
+    super(node, d.file || d.group);
+    this.root = root;
+    var icon = document.createElement('span');
+    var text, tooltip;
+    if (d.file) {
+      tooltip = d.file;
+      var p = util.splitPath(d.file);
+      text = p.name + "." + p.extension;
+      icon.className = "fa fa-fw fa-file-ico fa-file-ico-" + p.extension;
+      this.nameContainer.addEventListener("click", this.open.bind(this));
+    }
+    else {
+      icon.className = "fa fa-fw fa-folder";
+      text = d.group;
+      this.setCanExpand(true);
+    }
+    this.nameContainer.appendChild(icon);
+    this.nameContainer.appendChild(document.createTextNode(" " + text));
+    if (tooltip) {
+      this.nameContainer.setAttribute("title", tooltip);
+    }
+  }
+
+  loadDiagnostics() {
+    super.loadDiagnostics();
+    var data = this.expandData();
+    this.collapse();
+    var diags = this.node.warnings > 0 || this.node.errors > 0;
+    this.setCanExpand(diags);
+    if (diags)
+      this.setExpandData(data);
+  }
+
+  open() : async.Async {
+    return async.run(null, (p) => { globals.ide.openFile(p, { path: this.root.node.infos.filePath(this.node.infos.file) }); });
+  }
+
+  createChildItems(p) {
+    if (this.node.infos.file) {
+      var diags = globals.ide.session.diagnostics.byPath.get(this.root.node.infos.directory + "/" + this.node.infos.file);
+      if (diags) {
+        diags.forEach((diag) => {
+          this.addChildItem(new DiagnosticsView.DiagTreeItem(diag));
+        });
+      }
+    }
+    else {
+      for(var f of this.node.childs) {
+        this.addChildItem(new FileTreeItem(f, this.root));
+      }
+    }
+    p.continue();
   }
 }
 
@@ -86,64 +145,6 @@ class WorkspaceTreeItem extends DiagTreeItemView {
     }
     var file = null;
     this.addChildItem(new FileTreeItem({ warnings: 0, errors: 0, parents: [], infos: {file:"make.js"}, childs: [] }, this));
-    p.continue();
-  }
-}
-
-class FileTreeItem extends DiagTreeItemView {
-  root: WorkspaceTreeItem;
-  constructor(node, root: WorkspaceTreeItem) {
-    var d = node.infos;
-    super(node, d.file || d.group);
-    this.root = root;
-    var icon = document.createElement('span');
-    var text, tooltip;
-    if (d.file) {
-      tooltip = d.file;
-      var p = util.splitPath(d.file);
-      text = p.name + "." + p.extension;
-      icon.className = "fa fa-fw fa-file-ico fa-file-ico-" + p.extension;
-      this.nameContainer.addEventListener("click", this.open.bind(this));
-    }
-    else {
-      icon.className = "fa fa-fw fa-folder";
-      text = d.group;
-      this.setCanExpand(true);
-    }
-    this.nameContainer.appendChild(icon);
-    this.nameContainer.appendChild(document.createTextNode(" " + text));
-    if (tooltip)
-      this.nameContainer.setAttribute("title", tooltip);
-  }
-
-  loadDiagnostics() {
-    super.loadDiagnostics();
-    var data = this.expandData();
-    this.collapse();
-    var diags = this.node.warnings > 0 || this.node.errors > 0;
-    this.setCanExpand(diags);
-    if (diags)
-      this.setExpandData(data);
-  }
-
-  open() : async.Async {
-    return async.run(null, (p) => { globals.ide.openFile(p, { path: this.root.node.infos.filePath(this.node.infos.file) }); });
-  }
-
-  createChildItems(p) {
-    if (this.node.infos.file) {
-      var diags = globals.ide.session.diagnostics.byPath.get(this.root.node.infos.directory + "/" + this.node.infos.file);
-      if (diags) {
-        diags.forEach((diag) => {
-          this.addChildItem(new DiagnosticsView.DiagTreeItem(diag));
-        });
-      }
-    }
-    else {
-      for(var f of this.node.childs) {
-        this.addChildItem(new FileTreeItem(f, this.root));
-      }
-    }
     p.continue();
   }
 }

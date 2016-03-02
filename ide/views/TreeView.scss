@@ -25,3 +25,16 @@
 
 }
 
+.tree-item > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.tree-item > :first-child:hover {
+  background:#252525;
+  border-radius: 2px;
+}
+.tree-item > :first-child:focus {
+  background:#red;
+}
+

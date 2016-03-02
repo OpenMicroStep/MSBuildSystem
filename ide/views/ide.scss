@@ -295,17 +295,15 @@ ul.nav.menu-title {
   color: $error-color;
 }
 .badge-note::before {
-    content: "\f075";
-    color: $note-color;
+  content: "\f075";
+  color: $note-color;
 }
 
 .badge-right {
+  float: right;
   font-size: 0.9em;
-  position: absolute;
-  right: 0;
-  background: $active-color;
   padding: 0 2px;
-  border-radius: 6px 0 0 6px;
+  border-radius: 2px;
 }
 
 .tree-item-task-name {
