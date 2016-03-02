@@ -110,6 +110,7 @@ class Session extends replication.DistantObject {
         (p) => { this.remoteCall(p, "openFile", path); },
         (p) => {
           var file: WorkspaceFile = p.context.result;
+          if (!file) return p.continue();
           var workspace = null;
           Workspace.workspaces.forEach((w) => { if (w.path === file.path) workspace = w; });
           if (workspace) {
