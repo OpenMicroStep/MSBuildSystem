@@ -34,5 +34,4 @@ app.get('/file/:path', function(req, res) {
   res.download(req.params.path);
 });
 
-var client = new BuildSystem.Provider.ProviderClient("ws://10.211.55.27:2346");
 BuildSystem.core.Async.run(null, (p) => { client.init(p); });
