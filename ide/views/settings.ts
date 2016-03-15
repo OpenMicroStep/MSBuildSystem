@@ -1,6 +1,5 @@
 import core = require('../core');
 import inputs = require('./inputs');
-import CheckboxView = require('./CheckboxView');
 
 interface IInput {
   new (opts: any): inputs.Input<any>;
