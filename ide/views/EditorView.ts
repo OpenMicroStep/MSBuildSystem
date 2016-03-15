@@ -73,7 +73,7 @@ class EditorView extends ContentView {
   editor: AceAjax.Editor;
   editorEl: HTMLElement;
   statusEl: HTMLElement;
-  fileOptChgEvt; $onEdChangeOptions;
+  fileOptChgEvt; $onEdChangeOptions; $ondiagnostics;
   _onceVisible;
 
   constructor(opts: { path: string, row?: number, col?: number }) {
@@ -200,7 +200,7 @@ class EditorView extends ContentView {
     });
     this._file.on("changeOptions", this.fileOptChgEvt);
     this.fileOptChgEvt();
-    globals.ide.session.diagnostics.on("diagnostic", this.ondiagnostics.bind(this));
+    globals.ide.session.diagnostics.on("diagnostic", this.$ondiagnostics= this.ondiagnostics.bind(this));
     this.loadDiagnostics();
     this.fileChgEvt(null);
     this._signal("ready");
@@ -294,6 +294,7 @@ class EditorView extends ContentView {
 
   destroy() {
     super.destroy();
+    globals.ide.session.diagnostics.off("diagnostic", this.$ondiagnostics);
     this.editor.destroy();
     offEditorOptionChange(this.$onEdChangeOptions);
     this.editor = null;
