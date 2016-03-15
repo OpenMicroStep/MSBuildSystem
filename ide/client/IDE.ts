@@ -11,6 +11,7 @@ var defaultCommands= [
   { name:"ide.showsettings"         },
   { name:"file.new"                , bindKey: { win: "Ctrl-N", mac: "Command-N" } },
   { name:"file.save"               , bindKey: { win: "Ctrl-S", mac: "Command-S" } },
+  { name:"file.open"               , bindKey: { win: "Ctrl-O", mac: "Command-O" } },
   { name:"file.saveall"            , bindKey: { win: "Ctrl-Alt-S", mac: "Command-Alt-S" } },
   { name:"file.close"              , bindKey: { win: "Ctrl-W", mac: "Command-W" } },
   { name:"file.gotofile"           , bindKey: { win: "Ctrl-P", mac: "Command-P" } },
@@ -39,7 +40,7 @@ var defaultCommands= [
 var menus = [
   {id: "file", label: "File", submenu: [
     { label: "New File (TODO)"    , command: "file.new" },
-    { label: "Open (TODO)"        , command: "file.open"},
+    { label: "Open"               , command: "file.open"},
     { label: "Open Recent (TODO)" , submenu: [{label: "TODO"}]},
     { label: "Save"               , command: "file.save"   },
     { label: "Save As (TODO)"     , command: "file.saveas" },
@@ -294,9 +295,9 @@ class IDE extends views.View {
       this.resize();
     }));
     this.content= new views.DockLayout();
-    this.content.on("layoutChange", () => {
+    setInterval(() => {
       this.session.set(['layout'], this.content.serialize());
-    });
+    }, 5000);
     this.content.appendTo(this.el);
     this.render();
     this.session = new Session();
@@ -377,8 +378,18 @@ class IDE extends views.View {
           this.openFile(p, args);
         }
         else {
-          //TODO Ask the user the file to open
-          p.continue();
+          views.Dialog.showOpenDialog({
+            properties: ["openFile", "multiSelections", "createDirectory"]
+          }, (filenames) => {
+            var els = [];
+            filenames.forEach((path) => {
+              els.push((p) => {
+                this.openFile(p, { path: path });
+              });
+            });
+            p.setFirstElements(els);
+            p.continue();
+          });
         }
       },
       'view.counterparts.srcorheader': _commandCreateView(views.CounterpartsView, [{ type: "srcorheader"}]).bind(this),

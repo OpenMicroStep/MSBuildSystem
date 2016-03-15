@@ -2,6 +2,7 @@ export import View         = require('./views/View');
 export import ContentView  = require('./views/ContentView');
 export import TreeItemView = require('./views/TreeItemView');
 export import GoToView     = require('./views/GoToView');
+export import Dialog       = require('./views/Dialog');
 export import settings     = require('./views/settings');
 export import inputs       = require('./views/inputs');
 

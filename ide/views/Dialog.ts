@@ -1,4 +1,7 @@
 import View = require('./View');
+import globals = require('../core/globals');
+
+var remote = globals.electron && globals.electron.remote;
 /*
 <div class="modal fade in" style="
     display: block;
@@ -73,6 +76,31 @@ class Dialog extends View {
       this.destroy();
     }, 1000);
   }
+}
+
+module Dialog {
+  type OpenDialogOptions = {
+    title?: string,
+    defaultPath?: string,
+    filters?: { name: string, extensions: string[] }[],
+    properties?: ("openFile" | "openDirectory" | "multiSelections" | "createDirectory")[]
+  };
+  export function showOpenDialog(options: OpenDialogOptions, callback: (filenames: string[]) => void) {
+    if (remote)
+      remote.dialog.showOpenDialog(options, function(filenames) { callback(filenames || []); });
+  }
+
+  type SaveDialogOptions = {
+    title?: string,
+    defaultPath?: string,
+    filters?: { name: string, extensions: string[] }[]
+  };
+  export function showSaveDialog(options: SaveDialogOptions, callback: (filename: string) => void) {
+    if (remote)
+      remote.dialog.showSaveDialog(options, callback);
+  }
+
+
 }
 
 export = Dialog;
