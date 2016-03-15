@@ -118,18 +118,16 @@ class TreeItemView extends View {
         this.expandAsync.bind(this),
         (p) => {
           var childs = data.childs || [];
-          for (var i = 0, j = 0, dlen = childs.length, clen = this.childs.length; i < dlen && j < clen;) {
-            var d = childs[i];
-            var c = this.childs[j];
-            if (c.id === d.id) {
-              c.setExpandData(d);
-              ++i;
-            }
-            else {
-              c.setExpandData(null);
-            }
-            ++j;
-          }
+          var i, len = this.childs.length;
+          var did = new Array(len);
+          for(var didx = 0, dlen = childs.length; didx < dlen; ++didx) {
+            var d = childs[didx];
+            var id = d.id;
+            for (i = 0; i < len; ++i) {
+              if (!did[i] && this.childs[i].id === id) {
+                this.childs[i].setExpandData(d);
+                did[i] = true;
+                i = len;}}}
         }
       ]);
     }
