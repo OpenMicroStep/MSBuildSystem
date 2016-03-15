@@ -90,7 +90,7 @@ class TerminalView extends core.ContentView {
   }
 
   data() {
-    return { ttyid: this.tty.id, key: this.key };
+    return { ttyid: this.tty && this.tty.id, key: this.key };
   }
 }
 
