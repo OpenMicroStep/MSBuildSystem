@@ -25,12 +25,12 @@ function sortSearchResult(a, b) {
 }
 
 var counterpartwithexts = function(srcpath, exts) {
-  var s = splitPath(srcpath);
-  s.name = s.name.toLowerCase();
+  var i, s = splitPath(srcpath);
+  s.name = s.name.toLowerCase().replace(/\.[^.]+$/, '');
   s.directory = s.directory.toLowerCase();
   return function(counterpartpath) {
     var c = splitPath(counterpartpath);
-    if (exts.indexOf(c.extension) !== -1 && c.name.toLowerCase() === s.name)
+    if (exts.indexOf(c.extension) !== -1 && c.name.toLowerCase().replace(/\.[^.]+$/, '') === s.name)
       return s.directory === c.directory.toLowerCase() ? 0 : 1;
     return Number.MAX_SAFE_INTEGER;
   }

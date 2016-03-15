@@ -65,6 +65,22 @@ export function stringDistance(searchStr: string, str: string)
   return searchPos == searchLen ? distance : Number.MAX_SAFE_INTEGER;
 }
 
+export function searchInFiles(text: string, w, files: any[], results: any[]) {
+  for (var i = 0, len = files.length; i < len; ++i) {
+    var file = files[i];
+    if (file.file) {
+      var path = file.file;
+      var dist1 = stringDistance(text, pathBasename(path));
+      var dist2 = stringDistance(text, path);
+      if (dist1 < Number.MAX_SAFE_INTEGER || dist2 < Number.MAX_SAFE_INTEGER)
+        results.push({ dist1: dist1, dist2: dist2, path: path, workspace: w });
+    }
+    if (file.files) {
+      searchInFiles(text, w, file.files, results);
+    }
+  }
+}
+
 function createHighlightedElement(str: string) : HTMLElement {
   var el = document.createElement('i');
   el.textContent = str;
