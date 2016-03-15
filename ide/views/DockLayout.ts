@@ -117,8 +117,19 @@ function dropPlace(parent: HTMLElement, border: ClientRect, border1: ClientRect,
 }
 
 function ondrop(ev, cb: (view: ContentView) => any) {
+  var files: FileList = ev.files;
   var view = ev.data && ev.data.view;
-  if (view) {
+  if (files) {
+    for (var i = files.length; i > 0;) {
+      var file: any = files[--i];
+      if (file.path) {
+        view = ContentView.deserialize({ type: "editor", data: { path: file.path } });
+        if (view)
+          cb(view);
+      }
+    }
+  }
+  else if (view) {
     if (ev.dropEffect === dragndrop.DropAction.Copy)
       view = view.duplicate();
     cb(view);
@@ -188,7 +199,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
 
     var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
     dragndrop.droppable(this.el, {
-      type: "tab",
+      types: ["tab", "file"],
       ondragstart: () => {
         this._delayLayoutChanges();
         $(this.el).toggleClass("docklayout-drop", true);
@@ -438,7 +449,7 @@ module DockLayout {
       var tabplaceholder: HTMLElement;
       var tabidx: number;
       dragndrop.droppable(this._elTabsContainer, {
-        type: "tab",
+        types: ["tab", "file"],
         ondragover: (ev, data) => {
           if (!tabplaceholder) tabplaceholder = this.createPlaceholderTab();
           tabidx= this.dropTabUpdatePlaceholder(ev, tabplaceholder);
@@ -456,7 +467,7 @@ module DockLayout {
       });
       var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
       dragndrop.droppable(this._elContent, {
-        type: "tab",
+        types: ["tab", "file"],
         ondragover: (ev, data) => {
         if (!lyplace.placeholder) lyplace.placeholder = createPlaceholder();
           this.dropPlace(ev, lyplace);

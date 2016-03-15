@@ -12,13 +12,13 @@ type DragOptions = {
 };
 
 type DropOptions = {
-  type: string;
+  types: string[];
   ondragstart?:(data: any) => void;
   ondragend?:(type: string, data: any) => void;
   ondragover:(ev: MouseEvent, data: any) => string;
   ondragexit?:(ev: MouseEvent, data: any) => void;
   ondrag?:(ev: MouseEvent, data: any) => void;
-  ondrop:(ev: { data?:any, dropEffect: string, externaldata?: any }) => void;
+  ondrop:(ev: { data?:any, dropEffect: string, externaldata?: any, files?: FileList }) => void;
 };
 
 var dragging: { options: DragOptions, over: HTMLElement, dropEffect: string } = null;
@@ -33,7 +33,7 @@ function dragstart(options) {
     setTimeout(() => {
       if (options.ondragstart)
         options.ondragstart(options.data);
-      ondragstart.forEach((m) => { if (m.type === options.type) m.fn(options.data); });
+      ondragstart.forEach((m) => { if (m.types.indexOf(options.type) !== -1) m.fn(options.data); });
     }, 0);
   }
 }
@@ -50,7 +50,7 @@ function dragend(options, ev, dropEffect, data) {
   dragging = null;
   if (options.ondragend)
     options.ondragend(ev.dataTransfer.dropEffect, options.data);
-  ondragend.forEach((m) => { if (m.type === options.type) m.fn(dropEffect, data); });
+  ondragend.forEach((m) => { if (m.types.indexOf(options.type) !== -1) m.fn(dropEffect, data); });
 }
 
 function externaldata(ev: DragEvent) {
@@ -78,6 +78,8 @@ document.addEventListener('dragover', (ev) => {
     var types = ev.dataTransfer.types;
     for (var i = 0, len = types.length; i < len; ++i) {
       var type = types[i];
+      if (type === "Files")
+        type = prefix + "file";
       if (type.startsWith(prefix)) {
         var options = { type: type.substring(prefix.length), external: true };
         dragging = { options: options, over: null, dropEffect: "none" };
@@ -96,7 +98,7 @@ document.addEventListener('dragover', (ev) => {
       dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
       dragging.over= null;
     }
-    ondrag.forEach((m) => { if (m.type === dragging.options.type) m.fn(ev, dragging.options.data); });
+    ondrag.forEach((m) => { if (m.types.indexOf(dragging.options.type) !== -1) m.fn(ev, dragging.options.data); });
   }
 }, false);
 
@@ -139,8 +141,8 @@ export function droppable(item: HTMLElement, options: DropOptions) {
     if (dragging && dragging.over == item) {
       dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
       dragging.over = null;
-
-      options.ondrop({ data: dragging.options.data, dropEffect: dragging.dropEffect, externaldata: externaldata(ev) });
+      var files = ev.dataTransfer.files;
+      options.ondrop({ data: dragging.options.data, dropEffect: dragging.dropEffect, externaldata: externaldata(ev), files: files.length ? files : null });
       ev.dataTransfer.dropEffect = dragging.dropEffect;
       ev.preventDefault();
       ev.stopPropagation();
@@ -149,7 +151,7 @@ export function droppable(item: HTMLElement, options: DropOptions) {
     }
   }, true);
   item.addEventListener('dragover', (ev) => {
-    if (dragging && dragging.options.type === options.type) {
+    if (dragging && options.types.indexOf(dragging.options.type) !== -1) {
       if (dragging.over !== item && dragging.over)
         dragging.over.dispatchEvent(new CustomEvent('_dragexit', { detail: ev }));
       dragging.over = item;
@@ -160,15 +162,15 @@ export function droppable(item: HTMLElement, options: DropOptions) {
   }, false);
   if (options.ondragexit) {
     item.addEventListener('_dragexit',  (ev: CustomEvent) => {
-      if (dragging && dragging.options.type === options.type && ev.target == item) {
+      if (dragging && options.types.indexOf(dragging.options.type) !== -1 && ev.target == item) {
         options.ondragexit(ev.detail, dragging.options.data);
       }
     }, false);
   }
   if (options.ondragstart)
-    ondragstart.push({type: options.type, fn: options.ondragstart });
+    ondragstart.push({types: options.types, fn: options.ondragstart });
   if (options.ondragend)
-    ondragend.push({type: options.type, fn: options.ondragend });
+    ondragend.push({types: options.types, fn: options.ondragend });
   if (options.ondrag)
-    ondrag.push({type: options.type, fn: options.ondrag });
+    ondrag.push({types: options.types, fn: options.ondrag });
 }
