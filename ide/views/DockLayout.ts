@@ -167,15 +167,13 @@ function createPlaceholder() {
 class DockLayout extends View implements DockLayout.DockParentView {
   _items: DockLayout.DockItem[];
   _root: DockLayout.DockTabLayout | DockLayout.DockBoxLayout;
-  _main: DockLayout.DockTabLayout;
+  _current: DockLayout.DockTabLayout;
   _delayLayoutChange: number;
   _scheduleLayoutChange;
 
   _init() {
-    this._main = new DockLayout.DockTabLayout(this);
-    this._main.canMinimize = false;
-    this._main.canRemove = false;
-    this._root = this._main;
+    this._current = new DockLayout.DockTabLayout(this);
+    this._root = this._current;
   }
   constructor() {
     super();
@@ -186,7 +184,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
       this._signal("layoutChange");
     });
     this._init();
-    this._main.appendTo(this.el);
+    this._root.appendTo(this.el);
 
     var lyplace = { placeholder: <HTMLElement>null, place: DockLayout.Position.MIDDLE};
     dragndrop.droppable(this.el, {
@@ -228,11 +226,27 @@ class DockLayout extends View implements DockLayout.DockParentView {
     });
     if (!ret) {
       ret = create ? create() : new (Function.prototype.bind.apply(cstor, [cstor].concat(args)));
-      this.main.appendViewTo(ret, DockLayout.Position.MIDDLE);
+      this._current.appendViewTo(ret, DockLayout.Position.MIDDLE);
       this._layoutChange();
     }
     ret.focus();
     return ret;
+  }
+
+  currentTabs() {
+    return this._current;
+  }
+
+  setCurrentView(current: ContentView) {
+    var tabs = current.getParentView();
+    if (tabs instanceof DockLayout.DockTabLayout)
+      this.setCurrentTabs(tabs);
+  }
+
+  setCurrentTabs(tabs: DockLayout.DockTabLayout) {
+    this._current.$el.removeClass("docklayout-current");
+    this._current = tabs;
+    this._current.$el.addClass("docklayout-current");
   }
 
   dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {
@@ -265,10 +279,6 @@ class DockLayout extends View implements DockLayout.DockParentView {
       }
     }
     traverse(this._root);
-  }
-
-  get main() : DockLayout.DockTabLayout {
-    return this._main;
   }
 
   _layoutChange() {
@@ -305,8 +315,8 @@ class DockLayout extends View implements DockLayout.DockParentView {
         }));
         return box;
       }
-      else if (type === "main" || type === "tabs") {
-        var tabs = type === "main" ? this._main : new DockLayout.DockTabLayout(parent);
+      else if (type === "tabs" || type === "main") {
+        var tabs = new DockLayout.DockTabLayout(parent);
         tabs.parent = parent;
         data.tabs.forEach((item) => {
           var view = ContentView.deserialize(item);
@@ -316,7 +326,6 @@ class DockLayout extends View implements DockLayout.DockParentView {
           tabs.setCurrentIdx(data.tabindex);
         return tabs;
       }
-      throw new Error("invalid layout data, type '"+type+"' unknown");
     }
     this._root = traverse(data, this);
     this._root.appendTo(this.el);
@@ -324,7 +333,6 @@ class DockLayout extends View implements DockLayout.DockParentView {
   }
 
   serialize() {
-    var main = this._main;
     function traverse(view, r) {
       if (view instanceof DockLayout.DockBoxLayout)
         traversebox(view, r);
@@ -340,7 +348,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
       });
     }
     function traversetabs(view: DockLayout.DockTabLayout, ret) {
-      ret.type = view !== main ? "tabs" : "main";
+      ret.type = "tabs";
       ret.tabs = view._tabs.map(function(item) {
         return item.view.serialize();
       });

@@ -411,6 +411,7 @@ class IDE extends views.View {
   setCurrentView(view: views.ContentView) {
     if (this._focus !== view) {
       this._focus = view;
+      this.content.setCurrentView(view);
       this._signal("currentViewChange", { view: view });
     }
   }
