@@ -14,8 +14,8 @@ class LinkMSVCTask extends LinkTask {
 
   constructor(graph: Graph, compileTasks: CompileTask[], finalFile: File, type: CXXTarget.LinkType, provider?: Provider.Conditions, dumpbinProvider?: Provider.Conditions) {
     provider = provider || (type === CXXTarget.LinkType.STATIC ? {archiver:"msvc"} : { linker: "msvc"});
-    this.dumpbinProvider = dumpbinProvider || { custom:"dumpbin" };
     super(graph, compileTasks, finalFile, type, provider);
+    this.dumpbinProvider = dumpbinProvider || { custom:"dumpbin" };
     this.exports = [];
     this.dumpbinProvider = null;
     if(this.type === CXXTarget.LinkType.STATIC) {

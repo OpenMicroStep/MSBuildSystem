@@ -35,6 +35,19 @@ module.exports = function (grunt) {
     },
 
     /////
+    // Compilation speedup
+    concurrent: {
+      ide: [
+        'jade:ide', // HTML
+        'sass:ide', // CSS
+        'ts:ide', // JS
+        'ts:nodejs', // JS
+      ]
+    },
+    //
+    /////
+
+    /////
     // HTML Compilation
     jade: {
       ide: {
@@ -69,26 +82,25 @@ module.exports = function (grunt) {
 
     /////
     // Typescript Compilation
-    typescript: {
+    ts: {
       options: {
         noLib: true,
         target: 'es5',
         sourceMap: true,
+        compiler: './node_modules/typescript/bin/tsc'
       },
       ide: {
-        src: ['../ide/client/**/*.ts', '../ide/core/**/*.ts', '../ide/views/**/*.ts'],
+        src: ["typings/browser.d.ts", '../ide/client/**/*.ts', '../ide/core/**/*.ts', '../ide/views/**/*.ts'],
         dest: '<%= config.ide.client.out %>/js',
         options: {
           module: 'amd',
-          references: ["typings/browser.d.ts"]
         }
       },
       nodejs: {
-        src: ['../buildsystem/**/*.ts', '../ide/server/**/*.ts'],
+        src: ["typings/node.d.ts", '../buildsystem/**/*.ts', '../ide/server/**/*.ts'],
         dest: '<%= config.out %>',
         options: {
           module: 'commonjs',
-          references: ["typings/node.d.ts"]
         }
       }
     },
@@ -262,11 +274,11 @@ module.exports = function (grunt) {
         command: 'cd out && npm install --production && npm prune --production'
       },
       'ide': {
-        command: 'node --expose-gc out/ide/server/main.js /Users/vincentrouille/Dev/MicroStep/MSFoundation',
+        command: 'node --debug out/ide/server/main.js /Users/vincentrouille/Dev/MicroStep/MSFoundation',
         options: { async: true }
       },
       'electron': {
-        command: 'electron --expose-gc main.js',
+        command: 'electron --expose-gc out/ide/electron/main.js',
         options: { async: true }
       },
     }
@@ -292,12 +304,13 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-cssmin');
   grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-typescript');
+  grunt.loadNpmTasks('grunt-ts');
   grunt.loadNpmTasks('grunt-shell-spawn');
   grunt.loadNpmTasks('grunt-surround');
   grunt.loadNpmTasks('grunt-electron');
+  grunt.loadNpmTasks('grunt-concurrent');
 
-  grunt.registerTask('default', ['ide', 'buildsystem']);
+  grunt.registerTask('default', ['ide']);
 
   grunt.registerTask('package', [
     'ide-release',
@@ -311,16 +324,13 @@ module.exports = function (grunt) {
     'electron:osx',
   ]);
   grunt.registerTask('buildsystem', [
-    'typescript:nodejs', // JS
+    'ts:nodejs', // JS
   ]);
   grunt.registerTask('ide', [
     'surround:bootstrap',
     'surround:term',
-    'copy:ide', // Dependencies & Setup
-    'jade:ide', // HTML
-    'sass:ide', // CSS
-    'typescript:ide', // JS
-    'typescript:nodejs', // JS
+    'copy:ide',
+    'concurrent:ide',
   ]);
 
   grunt.registerTask('run-ide-debug', [

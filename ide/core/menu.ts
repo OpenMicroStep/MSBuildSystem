@@ -117,7 +117,7 @@ class Menu {
   domMenu: HTMLElement;
   lastSide: string;
 
-  constructor(menu: MenuItemOptions[], allowBindings: boolean, allowNative = true) {
+  init(menu: MenuItemOptions[], allowBindings: boolean, allowNative = true) {
     if (isNative() && allowNative) {
       this.nativeMenu = new nativeMenu();
       menu.forEach((opts) => {
@@ -264,6 +264,7 @@ export class TitleMenu extends Menu {
   open: boolean;
 
   constructor(defaultCommands, menu: MenuItemOptions[], ide, nonNativeCb: (menu: HTMLElement) => void) {
+    super();
     applicationMenu = this;
     if (isNative()) {
       var settings = menu.findIndex((opts) => {
@@ -298,7 +299,7 @@ export class TitleMenu extends Menu {
     };
     this.commands.on("exec", (e) => { return ide.startOperation(e); });
     this.open = false;
-    super(menu, true);
+    this.init(menu, true);
     if (this.nativeMenu) {
       this.nativeMenu.append(new nativeMenuItem({ label: 'Dev', submenu: [ {
         label: 'Reload',
@@ -391,7 +392,8 @@ export class ContextMenu extends Menu {
   _visible: boolean;
 
   constructor(menu: MenuItemOptions[]) {
-    super(menu, false);
+    super();
+    this.init(menu, false);
     if (this.domMenu) {
       this.domMenu.className += "dropdown-menu menu-contextmenu";
     }
@@ -410,7 +412,8 @@ export class ContextMenu extends Menu {
 
 export class Dropdown extends Menu {
   constructor(menu: MenuItemOptions[]) {
-    super(menu, false, false);
+    super();
+    this.init(menu, false, false);
     this.domMenu.className += "dropdown-menu menu-contextmenu";
   }
 

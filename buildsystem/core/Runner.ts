@@ -53,7 +53,8 @@ module Runner {
     _once: ((p) => void)[];
 
     constructor(runner: Runner, task: Task) {
-      super([this._end.bind(this), this._start.bind(this)], {}, null);
+      super([], {}, null);
+      this.setFirstElements([this._start.bind(this), this._end.bind(this)]);
       this.task = task;
       this.runner = runner;
       this.logs = "";
