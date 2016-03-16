@@ -59,7 +59,7 @@ class Session extends replication.DistantObject {
       (p) => {
         this.workspace = p.context.result;
         this.workspace.on("taskend", this.ontaskend.bind(this));
-        if (this.workspace && !this.workspace.error) {
+        if (this.workspace) {
           document.title = this.workspace.name;
           p.setFirstElements([
             this.workspace.loadDependencies.bind(this.workspace),

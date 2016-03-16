@@ -302,7 +302,7 @@ class IDE extends views.View {
     this.render();
     this.session = new Session();
     this.session.on("ready", () => {
-      this._status.setStatus({ label: "Idle" });
+      this._status.setStatus({ label: this.session.workspace.error ? "make.js invalid" : "Idle" });
       views.IDESettingsView.definition.fillWithDefaults();
       this.content.deserialize(this.session.get(['layout'], defaultLayout));
       //this.treeView = new views.WorkspaceTreeView(this.session.workspace);
@@ -312,6 +312,10 @@ class IDE extends views.View {
     });
     this.session.on("error", () => {
       this._status.setStatus({ label: "Error while loading workspace" });
+    });
+    this.session.on("reload-workspace", () => {
+      this._status.setStatus({ label: this.session.workspace.error ? "make.js invalid" : "Idle" });
+      this._status.loadRunners(this.session.workspace);
     });
     this.session.onSet(["settings", "ide", "theme"], (value) => {
       this._theme.href = "css/theme-" + value + ".css";

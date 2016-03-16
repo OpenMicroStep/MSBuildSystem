@@ -62,6 +62,12 @@ class Workspace {
 
   reload() {
     this.error = null;
+    this.name = "Unnamed";
+    this.environments = [];
+    this.targets = [];
+    this.files = [];
+    this.dependencies = [];
+    this.runs = [];
     try {
       var Module = require('module');
       var m = new Module(this.path, null);
