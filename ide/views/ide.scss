@@ -349,13 +349,19 @@ ul.nav.menu-title {
 }
 
 .diagnostic-warning {
-  border-left-color: $warning-color;
+  border-color: $warning-color;
+  background-color: lighten($warning-color, 25%);
+  color: darken($warning-color, 25%);
 }
 .diagnostic-error {
-  border-left-color: $error-color;
+  border-color: $error-color;
+  background-color: lighten($error-color, 25%);
+  color: darken($error-color, 25%);
 }
 .diagnostic-note {
-  border-left-color: $note-color;
+  border-color: $note-color;
+  background-color: lighten($note-color, 25%);
+  color: darken($note-color, 25%);
 }
 
 .progress-line {

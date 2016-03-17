@@ -2,10 +2,25 @@ import BoxLayout = require('./BoxLayout');
 import EditorView = require('./EditorView');
 import Workspace = require('../client/Workspace');
 import Session = require('../client/Session');
+import diagnostics = require('../client/diagnostics');
 import core = require('../core');
 import _ = require('underscore');
 
 type Graph = Workspace.Graph;
+
+interface GraphNode {
+  warnings: number;
+  errors: number;
+}
+interface EnvNode extends GraphNode {
+  targets: Graph[];
+}
+interface VariantNode extends GraphNode {
+  environments: Map<string, EnvNode>;
+}
+interface WorkspaceNode extends GraphNode {
+  variants: Map<string, VariantNode>;
+}
 
 var classes = {
   "compile": "fa-cube", //fa-puzzle-piece",
@@ -26,14 +41,15 @@ function createIcon(type: string) : HTMLElement {
   icon.className = "fa fa-fw " + cls;
   return icon;
 }
-class TaskTreeItem extends core.TreeItemView {
+
+class TaskTreeItem extends diagnostics.DiagCounterTreeItem {
   $ondeepcountchange;
   graph: Graph;
   graphview: SessionGraphView;
   last: Node;
 
   constructor(graph: Graph, graphview: SessionGraphView) {
-    super();
+    super(JSON.stringify(graph.name));
     this.graph = graph;
     this.graphview = graphview;
     this.nameContainer.className = "tree-item-task-name";
@@ -63,27 +79,12 @@ class TaskTreeItem extends core.TreeItemView {
     p.continue();
   }
 
-  loadDiagnostics() {
-    while (this.nameContainer.lastChild !== this.last)
-      this.nameContainer.removeChild(this.nameContainer.lastChild);
-    var c: HTMLElement, el: HTMLElement;
-    if (this.graph.deepWarnings + this.graph.deepErrors > 0) {
-      c = document.createElement('span');
-      c.className = "badge-right";
-      if (this.graph.deepWarnings > 0) {
-        el = document.createElement('span');
-        el.className = "badge-warning";
-        el.textContent = this.graph.deepWarnings.toString();
-        c.appendChild(el);
-      }
-      if (this.graph.deepErrors > 0) {
-        var el = document.createElement('span');
-        el.className = "badge-error";
-        el.textContent = this.graph.deepErrors.toString();
-        c.appendChild(el);
-      }
-      this.nameContainer.appendChild(c);
-    }
+  ondiagnostic(target, ev) {
+    this.loadDiagnostics();
+  }
+
+  getDiagnosticsCount() {
+    return { warnings: this.graph.deepWarnings, errors: this.graph.deepErrors };
   }
 }
 
@@ -186,9 +187,24 @@ class WorkspaceTaskView extends core.View {
   }
 }
 
-class WorkspaceDepsTreeItem extends core.TreeItemView {
+class GraphNodeTreeItem extends diagnostics.DiagCounterTreeItem {
+
+  constructor(id: string, public node: GraphNode) {
+    super(id);
+    this.loadDiagnostics();
+  }
+
+  getDiagnosticsCount() { return this.node; }
+
+  ondiagnostic(target, ev) {
+    this.loadDiagnostics();
+    return null;
+  }
+}
+
+class WorkspaceDepsTreeItem extends GraphNodeTreeItem {
   constructor(public workspace: Workspace, public graphview: SessionGraphView) {
-    super(workspace.path);
+    super(workspace.path, { warnings: 0, errors: 0 });
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-external-link";
     this.nameContainer.appendChild(icon);
@@ -196,17 +212,38 @@ class WorkspaceDepsTreeItem extends core.TreeItemView {
     this.setCanExpand(true);
   }
 
+  ondiagnostic(target: Graph, ev) {
+    var w = <WorkspaceTreeItem>this.childs.find((w : WorkspaceTreeItem) => { return w.workspace.path === target.name.workspace; });
+    var r = w && w.ondiagnostic(target, ev);
+    this.loadDiagnostics();
+    return r;
+  }
+
+  loadDiagnostics() {
+    var warnings= 0, errors= 0;
+    this.childs.forEach((w : WorkspaceTreeItem) => {
+      warnings += w.node.warnings;
+      errors += w.node.errors;
+    });
+    this.node.warnings = warnings;
+    this.node.errors = errors;
+    super.loadDiagnostics();
+  }
+
   createChildItems(p) {
     this.workspace.dependencies.forEach((w) => {
-      this.addChildItem(new WorkspaceTreeItem(w.workspace, this.graphview));
+      if (this.graphview.workspaces.has(w.workspace.path))
+        this.addChildItem(new WorkspaceTreeItem(w.workspace, this.graphview));
     });
     p.continue();
   }
 }
 
-class WorkspaceEnvTreeItem extends core.TreeItemView {
-  constructor(env: string, public targets: Graph[], public root: WorkspaceTreeItem) {
-    super(env);
+class WorkspaceEnvTreeItem extends GraphNodeTreeItem {
+  node: EnvNode;
+
+  constructor(public env: string, node: EnvNode, public root: WorkspaceTreeItem) {
+    super(env, node);
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-globe";
     this.nameContainer.appendChild(icon);
@@ -215,25 +252,29 @@ class WorkspaceEnvTreeItem extends core.TreeItemView {
   }
 
   createChildItems(p) {
-    this.targets.forEach((target) => {
+    this.node.targets.forEach((target) => {
       var item = new TaskTreeItem(target, this.root.graphview);
-      this.root.targets[target.id] = item
       this.addChildItem(item);
     });
     p.continue();
   }
 
+  ondiagnostic(target: Graph, ev) {
+    super.ondiagnostic(target, ev);
+    return this.childs.find((t) => { return (<any>t).graph === target; });
+  }
+
   collapse() {
-    this.targets.forEach((target) => {
-      delete this.root.targets[target.id];
-    });
     super.collapse();
   }
 }
 
-class WorkspaceVariantTreeItem extends core.TreeItemView {
-  constructor(variant: string, public envs: { [s:string]: Graph[] }, public root: WorkspaceTreeItem) {
-    super(variant);
+
+class WorkspaceVariantTreeItem extends GraphNodeTreeItem {
+  node: VariantNode;
+
+  constructor(public variant: string, node: VariantNode, public root: WorkspaceTreeItem) {
+    super(variant, node);
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-cog";
     this.nameContainer.appendChild(icon);
@@ -241,66 +282,64 @@ class WorkspaceVariantTreeItem extends core.TreeItemView {
     this.setCanExpand(true);
   }
 
+  ondiagnostic(target: Graph, ev) {
+    super.ondiagnostic(target, ev);
+    var e: any = this.childs.find((e: WorkspaceEnvTreeItem) => { return e.env === target.name.environment; });
+    return e && e.ondiagnostic(target, ev);
+  }
+
   createChildItems(p) {
-    for(var env in this.envs) {
-      this.addChildItem(new WorkspaceEnvTreeItem(env, this.envs[env], this.root));
-    }
+    this.node.environments.forEach((node, name) => {
+      this.addChildItem(new WorkspaceEnvTreeItem(name, node, this.root));
+
+    });
     p.continue();
   }
 }
 
 
-class WorkspaceTreeItem extends core.TreeItemView {
-  $ondiagnostic; targets: { [s:string]: TaskTreeItem };
+class WorkspaceTreeItem extends GraphNodeTreeItem {
+  node: WorkspaceNode;
 
   constructor(public workspace: Workspace, public graphview: SessionGraphView) {
-    super(workspace.path);
+    super(workspace.path, graphview.workspaces.get(workspace.path));
     var icon = document.createElement('span');
     icon.className = "fa fa-fw fa-briefcase";
-    this.targets = {};
     this.nameContainer.appendChild(icon);
     this.nameContainer.appendChild(document.createTextNode(this.workspace.name));
     this.nameContainer.setAttribute('title', this.workspace.path);
     this.removeChildItems();
     this.setCanExpand(true);
-    core.globals.ide.session.diagnostics.on("diagnostic", this.$ondiagnostic = this.ondiagnostic.bind(this));
   }
 
-  destroy() {
-    core.globals.ide.session.diagnostics.off("diagnostic", this.$ondiagnostic);
-    super.destroy();
-  }
-
-  ondiagnostic(e) {
-    var task = e.diag.task;
-    if (!task) return;
-    var recurse = (task) => {
-      var parent: any = task.name !== "target" ? recurse(task.parent) : this.targets[task.id];
-      var found = parent ? parent.childs.find((c) => { return c.graph === task }) : null;
-      if (found)
-        found.loadDiagnostics();
-      return found;
-    };
-    recurse(task);
+  ondiagnostic(target: Graph, ev) {
+    super.ondiagnostic(target, ev);
+    if (target.name.workspace === this.workspace.path) {
+      var v: any = this.childs.find((v: WorkspaceVariantTreeItem) => { return v.variant === target.name.variant; });
+      return v && v.ondiagnostic(target, ev);
+    }
+    else if (this.childs[0] instanceof WorkspaceDepsTreeItem)
+      return (<any>this.childs[0]).ondiagnostic(target, ev);
+    return null;
   }
 
   createChildItems(p) {
-    if (this.workspace.dependencies.length) {
+    if (this.workspace.dependencies.length && this.graphview.workspaces.size > 1) {
       this.addChildItem(new WorkspaceDepsTreeItem(this.workspace, this.graphview));
     }
-    var variants = this.graphview.workspaces[this.workspace.path];
-    for(var variant in variants) {
-      this.addChildItem(new WorkspaceVariantTreeItem(variant, variants[variant], this));
+    if (this.node) {
+      this.node.variants.forEach((node, name) => {
+        this.addChildItem(new WorkspaceVariantTreeItem(name, node, this));
+      });
     }
     p.continue();
   }
 }
 
-
 class SessionGraphView extends core.ContentView {
-  $onreload;
+  $onreload; $ondiagnostic;
   session: Session;
-  workspaces: { [s: string]: { [s: string]: { [s: string]: Graph[] }}}
+  workspaces: Map<string, WorkspaceNode>;
   layout: BoxLayout;
   taskview: WorkspaceTaskView;
   tree: WorkspaceTreeItem;
@@ -315,12 +354,42 @@ class SessionGraphView extends core.ContentView {
     this.layout.appendTo(this.el);
     this.layout.appendView(this.taskview, 1.0);
     this.session.on('reload-workspace', this.$onreload = this.reload.bind(this));
+    core.globals.ide.session.diagnostics.on("diagnostic-task", this.$ondiagnostic = this.ondiagnostic.bind(this));
     this.reload(data);
   }
 
   destroy() {
     this.session.off('reload-workspace', this.$onreload);
+    core.globals.ide.session.diagnostics.off("diagnostic-task", this.$ondiagnostic);
     super.destroy();
+  }
+
+  ondiagnostic(ev) {
+    var recurse = (task) => {
+      if (!task) return null;
+      var isTarget = task.name.type === "target";
+      if (isTarget) {
+        var diff = ev.action === "add" ? +1 : -1;
+        var warnings = 0;
+        var errors = 0;
+        if (ev.diag.type === "warning")
+          warnings += diff;
+        else if (ev.diag.type === "error")
+          errors += diff;
+        var n = task.name;
+        var w = this.workspaces.get(n.workspace);
+        var v = w && w.variants.get(n.variant);
+        var e = v && v.environments.get(n.environment);
+        [w, v, e].forEach((n) => {
+          if (!n) return;
+          n.warnings += warnings;
+          n.errors += errors;
+        });
+      }
+      var parent = isTarget ? this.tree.ondiagnostic(task, ev) : recurse(task.parent);
+      return isTarget ? parent : parent && parent.ondiagnostic(task, ev);
+    };
+    recurse(ev.task);
   }
 
   reload(data?) {
@@ -340,28 +409,35 @@ class SessionGraphView extends core.ContentView {
   setGraph(g: Graph, data) {
     var n: WorkspaceTreeItem;
     var old = this.workspaces;
-    var workspaces: any = {};
+    var targets = [];
+    var workspaces = new Map<string, WorkspaceNode>();
     if (g.tasks && g.tasks.length) {
       g.tasks.forEach((target) => {
         var n: any = target.name;
         if (n.type !== "target" || !n.environment || !n.workspace || !n.variant) return;
-        var w = workspaces[n.workspace];
-        if (!w) w= workspaces[n.workspace]= {};
-        var v = w[n.variant];
-        if (!v) v= w[n.variant]= {};
-        var e = v[n.environment];
-        if (!e) e= v[n.environment] = [];
-        e.push(target);
-      })
+        var w = workspaces.get(n.workspace);
+        if (!w) workspaces.set(n.workspace, w= { warnings: 0, errors: 0, variants: new Map<string, VariantNode>() });
+        var v = w.variants.get(n.variant);
+        if (!v) w.variants.set(n.variant, v= { warnings: 0, errors: 0, environments: new Map<string, EnvNode>() });
+        var e = v.environments.get(n.environment);
+        if (!e) v.environments.set(n.environment, e= { warnings: 0, errors: 0, targets: [] });
+        e.targets.push(target);
+        [w, v, e].forEach((n) => {
+          if (!n) return;
+          n.warnings += target.deepWarnings;
+          n.errors += target.deepErrors;
+        });
+      });
     }
     this.workspaces = workspaces;
     if (!old)
       this.layout.insertView(n= new WorkspaceTreeItem(this.session.workspace, this), 0.25, 0);
-    else if (this.workspaces)
-      this.layout.replaceViewAt(0, n= new WorkspaceTreeItem(this.session.workspace, this)).destroy();
     else
-      this.layout.removePart(0, true);
+      this.layout.replaceViewAt(0, n= new WorkspaceTreeItem(this.session.workspace, this)).destroy();
     this.tree = n;
+    targets.forEach((t) => {
+      t.diagnostics.forEach((d) => { this.ondiagnostic({ diag: d, task: t, action: "add" }); });
+    });
     if (n) n.setExpandData(data && data.tree);
   }
 

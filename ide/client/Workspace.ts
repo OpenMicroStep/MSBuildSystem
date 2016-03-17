@@ -116,7 +116,7 @@ module Workspace {
 
   export class Graph {
     id: string;
-    name: { name: string, type: string, environment?: string, variant?: string };
+    name: { name: string, type: string, environment?: string, variant?: string, workspace?: string };
     selfWarnings: number;
     selfErrors: number;
     deepWarnings: number;

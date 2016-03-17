@@ -5,39 +5,13 @@ import WorkspaceSettingsView = require('./WorkspaceSettingsView');
 import EditorView = require('./EditorView');
 import DiagnosticsView = require('./DiagnosticsView');
 
-class DiagTreeItemView extends TreeItemView {
-  diags: HTMLElement;
+class DiagTreeItemView extends diagnostics.DiagCounterTreeItem {
   constructor(public node: diagnostics.FileTree, id) {
     super(id);
-    this.diags = null;
     this.loadDiagnostics();
   }
 
-  _createBadge(type: string, nb: number) {
-    var el = document.createElement('span');
-    el.className = "badge-" + type;
-    el.textContent = nb.toString();
-    return el;
-  }
-
-  loadDiagnostics() {
-    var c: HTMLElement, el: HTMLElement;
-    if (this.diags) {
-      this.nameContainer.removeChild(this.diags);
-      this.diags = null;
-    }
-    var d = this.node;
-    if (d.warnings > 0 || d.errors > 0) {
-      c = document.createElement('span');
-      c.className = "badge-right";
-      if (d.warnings > 0)
-        c.appendChild(this._createBadge("warning", d.warnings));
-      if (d.errors > 0)
-        c.appendChild(this._createBadge("error", d.errors));
-      this.nameContainer.insertBefore(c, this.nameContainer.firstElementChild);
-      this.diags = c;
-    }
-  }
+  getDiagnosticsCount() { return this.node; }
 }
 
 class FileTreeItem extends DiagTreeItemView {
@@ -70,12 +44,12 @@ class FileTreeItem extends DiagTreeItemView {
   loadDiagnostics() {
     super.loadDiagnostics();
     if (this.node.infos.file) {
-    var data = this.expandData();
-    this.collapse();
-    var diags = this.node.warnings > 0 || this.node.errors > 0;
-    this.setCanExpand(diags);
+      var data = this.expandData();
+      this.collapse();
+      var diags = this.node.warnings > 0 || this.node.errors > 0;
+      this.setCanExpand(diags);
       this.setExpandData(data);
-  }
+    }
   }
 
   open() : async.Async {

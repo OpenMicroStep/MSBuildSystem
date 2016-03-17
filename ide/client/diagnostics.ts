@@ -1,4 +1,4 @@
-import {replication, events, async, util} from '../core';
+import {replication, events, async, util, TreeItemView} from '../core';
 import Workspace = require('./Workspace');
 
 export type Range = {srow:number, scol:number, erow:number, ecol:number};
@@ -29,6 +29,49 @@ export type FileTree = {
   parents: FileTree[],
   childs: FileTree[],
 };
+export function createBadge(type: string, nb: number) : HTMLElement {
+    var el = document.createElement('span');
+    el.className = "badge-" + type;
+    el.textContent = nb.toString();
+    return el;
+}
+
+export function createBadges(warnings: number, errors: number) : HTMLElement {
+  var c: HTMLElement = null, el: HTMLElement;
+  if (warnings > 0 || errors > 0) {
+    c = document.createElement('span');
+    c.className = "badge-right";
+    if (warnings > 0)
+      c.appendChild(createBadge("warning", warnings));
+    if (errors > 0)
+      c.appendChild(createBadge("error", errors));
+  }
+  return c;
+}
+
+export abstract class DiagCounterTreeItem extends TreeItemView {
+  diags: HTMLElement;
+
+  constructor(id: string) {
+    super(id);
+    this.diags = null;
+  }
+
+  abstract getDiagnosticsCount() : { warnings: number, errors: number };
+
+  loadDiagnostics() {
+    if (this.diags) {
+      this.nameContainer.removeChild(this.diags);
+      this.diags = null;
+    }
+    var d = this.getDiagnosticsCount();
+    var c: HTMLElement = createBadges(d.warnings, d.errors);
+    if (c) {
+      this.nameContainer.insertBefore(c, this.nameContainer.firstElementChild);
+      this.diags = c;
+    }
+  }
+}
 
 export class DiagnosticsManager extends events.EventEmitter {
   byPath: Map<string, Diagnostic[]>;
@@ -138,6 +181,7 @@ export class DiagnosticsManager extends events.EventEmitter {
       d.tasks = [task];
       this._add(d);
     }
+    this._signal('diagnostic-task', { diag: d, task: task, action: 'add' });
     return d;
   }
 
@@ -155,5 +199,6 @@ export class DiagnosticsManager extends events.EventEmitter {
       }
       this._del(d);
     }
+    this._signal('diagnostic-task', { diag: d, task: task, action: 'del' });
   }
 }
