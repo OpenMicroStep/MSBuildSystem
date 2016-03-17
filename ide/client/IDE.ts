@@ -215,8 +215,8 @@ class IDEStatus extends views.View {
           var envs = null;
           var resolve = (envname) => {
             var e = w.environments.find((e) => { return e.name === envname; });
-            if (e && e.contains)
-              e.contains.forEach(resolve);
+            if (e && e.splitInto)
+              e.splitInto.forEach(resolve);
             else if (e)
               envs.add(e.name);
           }

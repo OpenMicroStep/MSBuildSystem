@@ -84,9 +84,9 @@ class Sysroot implements Sysroot.Interface {
         return false;
       if (env.platform && ++tested && env.platform !== sysroot.platform)
         return false;
-      if (env["sysroot-api"] && ++tested && env["sysroot-api"] !== sysroot.api)
+      if (env.sysroot && ++tested && env.sysroot !== sysroot.api)
         return false;
-      if (env["sysroot-api-version"] && ++tested && env["sysroot-api-version"] !== sysroot["api-version"])
+      if (env.sysrootVersion && ++tested && env.sysrootVersion !== sysroot["api-version"])
         return false;
       if (env["sysroot-name"] && ++tested && env["sysroot-name"] !== sysroot.name)
         return false;

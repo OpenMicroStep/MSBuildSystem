@@ -8,7 +8,7 @@ class WorkspaceSettingsView extends settings.SettingsView {
 
   constructor() {
     var workspace = core.globals.ide.session.workspace;
-    var envs = workspace.environments.filter(n => !!n.env).map(n => n.name);
+    var envs = workspace.environments.filter(n => !n.splitInto).map(n => n.name);
     var targets = workspace.targets.map(n => n.name);
     super(new settings.SettingsDefinition(['buildgraph'], [
       {

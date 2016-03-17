@@ -162,21 +162,18 @@ class Workspace {
     var envs = new Map();
     var done = new Set();
     this.environments.forEach((env) => {
-      if (env.contains) return;
-      if (!env.name && env.env)
-        env.name = env.env;
+      if (env.splitInto) return;
       envs.set(env.name, env);
     });
 
     var loadenv = (env) => {
       if (done.has(env)) return;
-      if (env.parent) {
-        var parent = envs.get(env.parent);
-        if (parent) {
+      (env.import || []).forEach((parent) => {
+        if ((parent = envs.get(parent))) {
           loadenv(parent);
           _.defaults(env, parent);
         }
-      }
+      });
       _.defaults(env, {
         directories: {
           publicHeaders: "include",
@@ -192,7 +189,7 @@ class Workspace {
     };
 
     this.environments.forEach((env) => {
-      if (env.contains) return;
+      if (env.splitInto) return;
       loadenv(env);
     });
   }
@@ -232,6 +229,7 @@ class Workspace {
           this._targetEnvironments(targetInfo).forEach((env) => {
             if (environments.length && environments.indexOf(env.name) === -1)
               return;
+            console.info("Doing", env.name, targetInfo.name)
             this._buildTargetTask(targetInfo, env, context);
           });
         });
@@ -251,8 +249,8 @@ class Workspace {
     if (targetInfo.environments) { // the target support a limited list of environments
       var findByName = (name) => {
         var e = this.environments.find((e) => { return e.name === name; });
-        if (e && e.contains)
-            e.contains.forEach(findByName);
+        if (e && e.splitInto)
+            e.splitInto.forEach(findByName);
         else if (e)
             environments.add(e);
       }
@@ -260,7 +258,7 @@ class Workspace {
     }
     else { // Target supports all environments
       this.environments.forEach((e) => {
-        if (e && !e.contains)
+        if (e && !e.splitInto)
           environments.add(e);
       });
     }
@@ -315,7 +313,7 @@ class Workspace {
           else
             depWorkspace = Workspace.getShared(path.join(this.directory, depPath));
           var depEnvName = (depInfo.environments && depInfo.environments[env.name]) || env.name;
-          depEnv = depWorkspace.environments.find((e) => { return e.name === depEnvName && !e.contains; });
+          depEnv = depWorkspace.environments.find((e) => { return e.name === depEnvName && !e.splitInto; });
           if (!depEnv)
             throw new Error(`Dependency environment '${depEnvName}' not found for '${dep.workspace}'`);
         }
@@ -385,12 +383,11 @@ module Workspace {
   }
 
   export interface Environment {
-    name?: string;
-    env: string;
+    name: string;
     arch: string;
     platform: string;
-    api: string;
-    "api-version": string;
+    sysroot: string;
+    sysrootVersion: string;
     compiler: string;
     linker: string;
     directories: {
@@ -400,7 +397,8 @@ module Workspace {
       target: { [s: string]: string }
     };
 
-    contains: string[];
+    import: string[];
+    splitInto: string[];
   }
 
   export interface Dependency {
