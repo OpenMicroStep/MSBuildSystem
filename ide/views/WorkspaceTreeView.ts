@@ -69,12 +69,13 @@ class FileTreeItem extends DiagTreeItemView {
 
   loadDiagnostics() {
     super.loadDiagnostics();
+    if (this.node.infos.file) {
     var data = this.expandData();
     this.collapse();
     var diags = this.node.warnings > 0 || this.node.errors > 0;
     this.setCanExpand(diags);
-    if (diags)
       this.setExpandData(data);
+  }
   }
 
   open() : async.Async {
