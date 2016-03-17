@@ -33,7 +33,7 @@ Le module exporté est un objet composé de 5 parties:
 C'est la liste des environnement utilisable pour la construction des targets du projet.
 Un environnement est au minimum définit par son nom (clé `name`).
 Il existe 2 clés particulières en plus de `name`:
- - `import`, qui définit la liste des environnements dont les attributs sont automatiquement récupérer, en cas de conflit, c'est le dernier qui définit les attributs qui gagne (à savoir que le dernier est toujours l'environnement en cours de définition).
+ - `components`, qui définit la liste des environnements dont les attributs sont automatiquement récupérer, en cas de conflit, c'est le dernier qui définit les attributs qui gagne (à savoir que le dernier est toujours l'environnement en cours de définition).
  - `splitInto`, si défini, cette environnement est considéré comme représentant une liste d'environnement et toute référence à celui-ci est systématiquement remplacé par la liste d'environnement définit dans cet attribut.
 Tous les autres attributs sont libres et leur signification dépend du type de target.
 
@@ -82,8 +82,8 @@ Une target est définie par 3 choses:
 module.exports = {
   "environments": [
     {name: "c", compiler: "clang" },
-    {name: "darwin-x86_64", sysroot: "darwin", arch: "x86_64", import: ["c"] },
-    {name: "darwin-i386"  , sysroot: "darwin", arch: "i386"  , import: ["c"] },
+    {name: "darwin-x86_64", sysroot: "darwin", arch: "x86_64", components: ["c"] },
+    {name: "darwin-i386"  , sysroot: "darwin", arch: "i386"  , components: ["c"] },
     {name: "darwin", splitInto: ["darwin-x86_64", "darwin-i386" }
   ],
   files: [

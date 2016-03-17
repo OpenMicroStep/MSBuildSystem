@@ -168,7 +168,7 @@ class Workspace {
 
     var loadenv = (env) => {
       if (done.has(env)) return;
-      (env.import || []).forEach((parent) => {
+      (env.components || []).forEach((parent) => {
         if ((parent = envs.get(parent))) {
           loadenv(parent);
           _.defaults(env, parent);
