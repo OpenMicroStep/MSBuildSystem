@@ -229,7 +229,6 @@ class Workspace {
           this._targetEnvironments(targetInfo).forEach((env) => {
             if (environments.length && environments.indexOf(env.name) === -1)
               return;
-            console.info("Doing", env.name, targetInfo.name)
             this._buildTargetTask(targetInfo, env, context);
           });
         });
