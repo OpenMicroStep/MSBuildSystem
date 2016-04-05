@@ -237,7 +237,7 @@ class DockLayout extends View implements DockLayout.DockParentView {
     });
     if (!ret) {
       ret = create ? create() : new (Function.prototype.bind.apply(cstor, [cstor].concat(args)));
-      this._current.appendViewTo(ret, DockLayout.Position.MIDDLE);
+      this.currentTabs().appendViewTo(ret, DockLayout.Position.MIDDLE);
       this._layoutChange();
     }
     ret.focus();
@@ -245,19 +245,32 @@ class DockLayout extends View implements DockLayout.DockParentView {
   }
 
   currentTabs() {
-    return this._current;
+    var c = this._current;
+    if (!c)
+      c= traverse(this._root);
+    return c;
+
+    function traverse(view: View) {
+      for(var child of view.getChildViews()) {
+        if (child instanceof DockLayout.DockBoxLayout) {
+          var ret = traverse(child);
+          if (ret) { return ret; }}
+        else if (child instanceof DockLayout.DockTabLayout || child instanceof DockLayout.DockBoxLayout) {
+          return child;}}}
   }
 
   setCurrentView(current: ContentView) {
-    var tabs = current.getParentView();
-    if (tabs instanceof DockLayout.DockTabLayout)
-      this.setCurrentTabs(tabs);
+    var tabs = current && current.getParentView();
+    tabs = tabs instanceof DockLayout.DockTabLayout ? tabs : null;
+    this.setCurrentTabs(<DockLayout.DockTabLayout>tabs);
   }
 
   setCurrentTabs(tabs: DockLayout.DockTabLayout) {
-    this._current.$el.removeClass("docklayout-current");
+    if (this._current)
+      this._current.$el.removeClass("docklayout-current");
     this._current = tabs;
-    this._current.$el.addClass("docklayout-current");
+    if (this._current)
+      this._current.$el.addClass("docklayout-current");
   }
 
   dropPlace(ev: MouseEvent, lyplace: { place: DockLayout.Position, placeholder: HTMLElement }) {

@@ -23,8 +23,12 @@ abstract class ContentView extends View {
     super(tagName);
     this.titleEl = document.createElement(titleTagName);
     this._visible = false;
-    if (canBeIDECurrentView)
-      this.el.addEventListener('click', globals.ide.setCurrentView.bind(globals.ide, this));
+    if (canBeIDECurrentView) {
+      this.el.addEventListener('click', (event) => {
+        globals.ide.setCurrentView(this);
+        return false;
+      }, false);
+    }
   }
 
   isViewFor(...args: any[]) {
