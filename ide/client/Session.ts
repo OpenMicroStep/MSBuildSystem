@@ -1,4 +1,4 @@
-import { async, replication, util } from '../core';
+import { async, replication, util, events } from '../core';
 import SearchInFiles = require('../views/SearchInFiles');
 import WorkspaceFile = require('./WorkspaceFile');
 import diagnostics = require('./diagnostics');
@@ -387,6 +387,13 @@ class Session extends replication.DistantObject {
     var idx = this._onsets.findIndex((i) => { return i.cb === cb && samepath(i.path, path); });
     if (idx !== -1)
       this._onsets.splice(idx, 1);
+  }
+
+  listenSet(listener: events.EventEmitter, path: string[], cb: (value: any) => void, defaultValue?) {
+    this.onSet(path, cb);
+    listener.on("destroy", () => {
+      this.offSet(path, cb);
+    });
   }
 
   _setuserdata() {

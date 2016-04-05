@@ -13,6 +13,12 @@ export class EventEmitter {
   once: (eventName: string, callback: (e, emitter) => any) => void;
   on: (eventName: string, callback: (e, emitter) => any) => void;
   off: (eventName: string, callback: (e, emitter) => any) => void;
+  listen(listener: EventEmitter, eventName: string, callback: (e, emitter) => any) {
+    this.on(eventName, callback);
+    listener.on("destroy", () => {
+      this.off(eventName, callback);
+    });
+  }
 }
 applyMixins(EventEmitter, [{ prototype: aceEventEmitter }]);
 

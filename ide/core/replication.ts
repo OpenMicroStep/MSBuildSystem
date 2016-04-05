@@ -80,6 +80,7 @@ export class DistantObject implements events.EventEmitter {
   once: (eventName: string, callback: (e, emitter) => any) => void;
   on: (eventName: string, callback: (e, emitter) => any) => void;
   off: (eventName: string, callback: (e, emitter) => any) => void;
+  listen: (listener: events.EventEmitter, eventName: string, callback: (e, emitter) => any) => void;
 
   id: string;
   private _outofsync: (p: Async) => void;
