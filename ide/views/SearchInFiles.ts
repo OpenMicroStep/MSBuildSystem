@@ -105,6 +105,7 @@ class SearchInFiles extends core.ContentView {
 
   focus() {
     this.$search.focus();
+    this.$search.setSelectionRange(0, this.$search.value.length);
     super.focus();
   }
 
