@@ -31,7 +31,7 @@
   cursor: default;
 }
 .tree-item > :first-child:hover {
-  background:#252525;
+  background:$active-color;
   border-radius: 2px;
 }
 .tree-item > :first-child:focus {
