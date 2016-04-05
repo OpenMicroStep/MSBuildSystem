@@ -55,6 +55,7 @@ class WorkspaceFile extends replication.DistantObject {
   mode: { mode: string, name: string, caption: string };
   extension:string;
   document: AceAjax.Document;
+  options: any;
   private undomanager;
   private session;
   ignoreChanges: boolean;
@@ -68,7 +69,12 @@ class WorkspaceFile extends replication.DistantObject {
     this.document = new Document("");
     this.undomanager = new UndoManager();
     this.session = new EditSession(this.document, null);
+    globals.ide.session.listenSet(this, ['settings', 'ace-editor'], (options) => {
+      this.setSessionOptions(options);
+    }, {});
+    this.setSessionOptions(globals.ide.session.get(['settings', 'ace-editor'], {}));
     this.session.setUndoManager(this.undomanager);
+    this.options = null;
     this.mode = null;
     this.ignoreChanges = true;
 
@@ -115,9 +121,12 @@ class WorkspaceFile extends replication.DistantObject {
   initWithData(data) {
     this.ignoreChanges = true;
     this.path = data.path;
+    this.options = globals.ide.session.get(['file-settings', data.path], this.options);
     this.name = data.name;
     this.extension = data.extension;
-    this.setMode(modelist.getModeForPath(data.name) || modelist.modesByName["text"]);
+    var mode = this.options && this.options["mode"];
+    mode = mode && modelist.modes.find(m => m.mode === mode);
+    this.setMode(mode || modelist.getModeForPath(data.name) || modelist.modesByName["text"]);
     this.session.setValue(data.content);
     this.document.applyDeltas(data.deltas);
     this.ignoreChanges = false;
@@ -217,17 +226,49 @@ class WorkspaceFile extends replication.DistantObject {
 
   setMode(mode) {
     this.mode = mode;
-    this.setOptions({ 'mode': mode.mode });
+    this.setUserOptions({ 'mode': mode.mode });
   }
-  getOption(key) {
-    return this.session.getOption(key);
-  }
+
   getOptions() {
-    return this.session.getOptions();
+    var s = globals.ide.session.get(['settings', 'ace-editor'], {});
+    var o = {};
+    for (var k in this.options) {
+        o[k] = this.options[k];}
+    for (var k in s)
+      if (o[k] === undefined)
+        o[k] = s[k];
+    return { options: o, local: this.options };
   }
-  setOptions(options) {
-    this.session.setOptions(options);
-    this._signal('changeOptions', { options: options });
+
+  setUserOptions(options) {
+    if (!this.options)
+      this.options = {};
+    for (var k in options)
+      this.options[k] = options[k];
+
+    globals.ide.session.set(['file-settings', this.path], this.options);
+    this._setSessionOptions(options);
+    this._signal('changeOptions', { options: options, local: this.options });
+  }
+
+  setSessionOptions(options) {
+    if (this.options) {
+      var bak = options;
+      options= {};
+      for (var k in bak) {
+        var v = this.options[k];
+        options[k] = v === void 0 ? bak[k] : v;}}
+    this._setSessionOptions(options);
+    this._signal('changeOptions', { options: options, local: this.options });
+  }
+
+  _setSessionOptions(options) {
+    var o = {};
+    var c = this.session.getOptions();
+    for (var k in options)
+      if (c[k] !== undefined)
+      o[k] = options[k];
+    this.session.setOptions(o);
   }
 
   ref() {

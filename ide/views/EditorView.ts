@@ -22,19 +22,19 @@ config.defineOptions(EditSession.prototype, "session", {
   noTabStop: {initialValue: true},
 });
 
-function mktabsize(self, tabwidth, newtabwidth) {
+function mktabsize(self: EditorView, tabwidth, newtabwidth) {
   return {
     label: "Tab size: " + newtabwidth,
     type: "radio",
     checked: tabwidth == newtabwidth,
-    click: () => { if (self._file) self._file.setOptions({ 'tabSize': newtabwidth }); }
+    click: () => { if (self._file) self._file.setUserOptions({ 'tabSize': newtabwidth }); }
   };
 }
 
-function convertIndentation(self, useSoftTabs, tabSize) {
+function convertIndentation(self: EditorView, useSoftTabs, tabSize) {
   if (!self._file) return;
   self.editor.execCommand("convertIndentation", { ch: useSoftTabs ? " " : "\t", length: tabSize });
-  self._file.setOptions({
+  self._file.setUserOptions({
     useSoftTabs: useSoftTabs,
     tabSize: tabSize
   });
@@ -43,27 +43,10 @@ function convertIndentation(self, useSoftTabs, tabSize) {
 function detectIndentation(self) {
   if (!self._file) return;
   self.editor.execCommand("detectIndentation");
-  self._file.setOptions({
+  self._file.setUserOptions({
     useSoftTabs: self.editor.session.getOption('useSoftTabs'),
     tabSize: self.editor.session.getOption('tabSize')
   });
-}
-
-var _onEditorOptionChangeList: any[] = null;
-function onEditorOptionChange(cb: (options) => void) {
-  if (!_onEditorOptionChangeList) {
-    globals.ide.session.onSet(['settings', 'ace-editor'], function(options) {
-      _onEditorOptionChangeList.forEach(function(cb) { cb(options); });
-    }, {});
-    _onEditorOptionChangeList = [];
-  }
-  _onEditorOptionChangeList.push(cb);
-  cb(globals.ide.session.get(['settings', 'ace-editor'], {}));
-}
-function offEditorOptionChange(cb: (options) => void) {
-  var idx = _onEditorOptionChangeList.indexOf(cb);
-  if (idx !== -1)
-    _onEditorOptionChangeList.splice(idx, 1);
 }
 
 class EditorView extends ContentView {
@@ -98,12 +81,11 @@ class EditorView extends ContentView {
     this.editor.setOptions({
       enableSnippets: true,
     });
-    onEditorOptionChange(this.$onEdChangeOptions = (options) => {
-      this.editor.setOptions(options);
-    });
+    this.editor.setOptions(globals.ide.session.get(['settings', 'ace-editor'], {}));
 
     /// Status bar
-    this.fileOptChgEvt = () => {
+    this.fileOptChgEvt = (ev: { options: any, local: any }) => {
+      this.editor.setOptions(ev.options);
       var session = this.editor.session;
       var txt = session.getUseSoftTabs() ? "Spaces: " : "Tabs: ";
       tabEl.textContent = txt += session.getTabSize();
@@ -124,7 +106,7 @@ class EditorView extends ContentView {
         label: "Indent using spaces",
         type: "checkbox",
         checked: softtabs,
-        click: () => { if (this._file) this._file.setOptions({ "useSoftTabs": !softtabs }); }
+        click: () => { if (this._file) this._file.setUserOptions({ "useSoftTabs": !softtabs }); }
       },
       { type: "separator" },
       mktabsize(this, tabwidth, 2),
@@ -199,7 +181,7 @@ class EditorView extends ContentView {
       this.onceVisible(this.onUserActionRequested.bind(this, e));
     });
     this._file.on("changeOptions", this.fileOptChgEvt);
-    this.fileOptChgEvt();
+    this.fileOptChgEvt(this._file.getOptions());
     globals.ide.session.diagnostics.on("diagnostic", this.$ondiagnostics= this.ondiagnostics.bind(this));
     this.loadDiagnostics();
     this.fileChgEvt(null);
@@ -296,7 +278,6 @@ class EditorView extends ContentView {
     super.destroy();
     globals.ide.session.diagnostics.off("diagnostic", this.$ondiagnostics);
     this.editor.destroy();
-    offEditorOptionChange(this.$onEdChangeOptions);
     this.editor = null;
     if (this._file) {
       this._file.unref();
@@ -365,16 +346,16 @@ ContentView.register(EditorView, "editor");
 module EditorView {
   export var Range: typeof AceAjax.Range = ace.require("ace/range").Range;
   export class SimpleEditorView extends View {
-    editor: AceAjax.Editor; $onEdChangeOptions;
+    editor: AceAjax.Editor;
 
     constructor(options?: { content?: string }) {
       super();
       this.el.className += "fill";
       this.editor = ace.edit(this.el);
       this.editor.$blockScrolling = Infinity;
-      onEditorOptionChange(this.$onEdChangeOptions = (options) => {
+      globals.ide.session.listenSet(this, ['settings', 'ace-editor'], (options) => {
         this.editor.setOptions(options);
-      });
+      }, {});
       if (options && options.content) {
         this.editor.setValue(options.content);
         this.editor.clearSelection();
@@ -387,7 +368,6 @@ module EditorView {
 
     destroy() {
       super.destroy();
-      offEditorOptionChange(this.$onEdChangeOptions);
       this.editor.destroy();
     }
   }
