@@ -84,6 +84,9 @@ function ready() {
       else {
         var graph: Graph = p.context.root;
         var runner = new Runner(graph, action);
+        runner.on("taskend", (step: Runner.Step) => {
+          process.stderr.write(step.data.logs);
+        });
         runner.enable(graph);
         console.info("Building...");
         runner.run(p);
