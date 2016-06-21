@@ -1,11 +1,11 @@
-Définition d'un espace de travail (`workspace`)
+Définition d'un espace de projet (`project`)
 ===============================================
 
-Ce document présente les concepts essentiels à la définition d'un espace de travail.
+Ce document présente les concepts essentiels à la définition d'un projet.
 
-Un espace de travail est défini dans un fichier `make.js`.  
+Un projet est défini dans un fichier `make.js`.  
 Ce fichier est écrit en JavaScript (ECMAScript 6 supporté).  
-Il définit les aspects suivants d'un espace de travail:
+Il définit les aspects suivants :
 
  - les environnements supportés (ex: windows, darwin, nodejs, ...);
  - les fichiers de l'espace de travail;
@@ -20,13 +20,14 @@ Les propriétés spécifiques aux différents types d'objectifs et de tâches so
 **Les bases**
 
 - [Vocabulaire](#Vocabulaire)
+- [Espace de travail](#Workspace)
 - [Elément](#Elément)
 - [Espace de noms](#Espace-de-noms)
 - [Groupe](#Groupe)
 - [Utilisation des étiquettes](#Tags)
 - [Composant](#Composant)
 
-**Définition de l'espace de travail**
+**Définition du projet**
 
 - [Fichier](#Fichier)
 - [Environnement](#Environnement)
@@ -54,12 +55,28 @@ Un **objectif** (`target`) est un élément que le make a pour mission de constr
 
 Une **tâche** (`run`) est la définition d'une commande exécutant le résultat d'un ou plusieurs objectifs.
 
+Un **projet** (`project`) définit un ensemble d'élément le décrivant.
+
+Un **espace de travail** (`workspace`) est le regroupement d'un ensemble de projets cohérents entre eux. En général ces projets partages les mêmes environements.
+
+<a name="Workspace"></a>Espace de travail [☝︎](#☝︎)
+-------------------------------------
+
+Un projet est toujours utiliser dans le contexte d'un espace de travail. 
+
+Les projets d'un espace de travail ont en commun:
+
+ - le répertoire de destination des objectifs (toujours en fonction des environements)
+ - la possibilité de partager des composants entre eux (voir [Import/Export](#Import/Export))
+
+Pour éviter tout conflit au sein de l'espace de travail 2 projets ne peuvent avoir le même nom pour un objectif.
+
 <a name="Elément"></a>Elément (`element`) [☝︎](#☝︎)
 -----------------------------------------
 
-L'espace de travail est défini en termes d'éléments.
+Le projet est défini en termes d'éléments.
 
-Un élément contient toujours une propriété `is` qui désigne le type de l'élément (par exemple `workspace`, `component`, `target`, etc.). Selon le type de l'élément, certaines propriétés auront des significations particulières.  
+Un élément contient toujours une propriété `is` qui désigne le type de l'élément (par exemple `project`, `component`, `target`, etc.). Selon le type de l'élément, certaines propriétés auront des significations particulières.  
 Les propriétés spécifiques de chaque élément sont décrites de manière exhaustive dans le document xxxx.
 
 Un élément a généralement un nom. Celui-ci est indispensable lorsqu'il s'agit par exemple d'un nom de fichier ou d'un objectif. Il permet aussi de faire référence à cet élément dans un autre élément.  
@@ -69,7 +86,7 @@ Le nom peut être indiqué via la propriété `name` comme dans:
 
 ```js
 {
-is: "workspace",
+is: "project",
 name: "My project",
 }
 ```
@@ -99,18 +116,18 @@ La case des lettres est signifiante.
 <a name="Espace-de-noms"></a>Espace de noms [☝︎](#☝︎)
 -------------------------------------------
 
-Certains éléments (tous ?) sont des espaces de noms (au moins les éléments `workspace`, `group` et `target`). Un espace de nom permet de déclarer des propriétés qui sont des éléments dont le nom suivi du signe `=` est celui de la propriété. Par exemple:
+Certains éléments (tous ?) sont des espaces de noms (au moins les éléments `project`, `group` et `target`). Un espace de nom permet de déclarer des propriétés qui sont des éléments dont le nom suivi du signe `=` est celui de la propriété. Par exemple:
 
 ```js
 {
-is: "workspace",
+is: "project",
 name: "MicroStep",
 'base=':          {is: "component", compiler: "clang", compilerOptions: {"std":"c11"}},
 'darwin-i386-c=': {is: "component", "arch": "i386", "sysroot": "darwin", components: ["base"]},
 }
 ```
 
-Dans cet exemple, `Microstep` est un `workspace` qui déclare deux éléments `base` et `darwin-i386-c`. Ce dernier élément contient une référence à l'élément `base`. Celui-ci est alors recherché dans `darwin-i386-c` puis dans `MicroStep`.
+Dans cet exemple, `Microstep` est un `project` qui déclare deux éléments `base` et `darwin-i386-c`. Ce dernier élément contient une référence à l'élément `base`. Celui-ci est alors recherché dans `darwin-i386-c` puis dans `MicroStep`.
 
 De manière générale, si un élément père P fait référence à un élément E, celui-ci est recherché dans P, puis dans le père de P, et ainsi de suite en remontant jusqu'à l'espace de travail.
 
@@ -303,7 +320,7 @@ La fusion amène les contraintes suivantes:
 
 Comme tout élément, un composant peut avoir des étiquettes et peut être placé dans un groupe.
 
-Définition de l'espace de travail
+Définition du projet
 =================================
 
 <a name="Fichier"></a>Fichier (`file`) [☝︎](#☝︎)
@@ -311,7 +328,7 @@ Définition de l'espace de travail
 
 Tous les fichiers utilisés dans des objectifs ou dans des tâches doivent être déclarés dans des groupes.
 
-La propriété `path` du groupe indique alors le chemin relatif des fichiers du groupe par rapport au groupe supérieur ou à l'espace de travail (ie le dossier contenant le `make.js`). Donc les fichiers d'un groupe sont toujours dans un même dossier. Mais il est possible de constituer plusieurs groupes à partir d'un même dossier.
+La propriété `path` du groupe indique alors le chemin relatif des fichiers du groupe par rapport au groupe supérieur ou au projet (ie le dossier contenant le `make.js`). Donc les fichiers d'un groupe sont toujours dans un même dossier. Mais il est possible de constituer plusieurs groupes à partir d'un même dossier.
 
 Toutefois le `path` d'un groupe est absolu s'il commence par `/`.
 
@@ -346,7 +363,7 @@ Exemple:
   path: "src",
   elements: [
     {is: "file", name: "*.h"    ,           tags: ["header"]},
-    {is: "file", name: "/.gif$/", depth: 4, tags: ["image"] },
+    {is: "file", name: /.gif$/  , depth: 4, tags: ["image"] },
     {is: "file", name: (n)=>{return n==="aFile.txt";}       },
     ]},
 ~~~
@@ -358,6 +375,10 @@ Un environnement est un composant particulier qui ne peut pas contenir d'autres 
 En tant que composant, il peut définir des propriétés et des sous-composants (qui ne sont pas des environnements).  
 Un environnement correspond à un paramétrage possible pour un objectif.  
 Avec les composants, on peut définir de façon simple des environnements proches sans avoir à répéter toutes les propriétés.
+
+Afin de faciliter les dépendances entre 2 environments proches, il est possible de déclarer l'attribut `compatibleEnvironments`.
+Ainsi lorsqu'un objectif cherchera à résoudre une dépendance qui se trouve dans un autre environement, il aura la possibilité de chercher cette dépendance dans les environnements compatibles.
+Cela vaut aussi bien pour les dépendances au sein d'un projet que via le système l'import/export.
 
 Le nom de l'environnement correspond aussi au nom du dossier dans lequel les objectifs seront placés après construction (cf Organisation du dossier `microstep` - à écrire !). 
 
@@ -395,7 +416,7 @@ Le nom de l'environnement correspond aussi au nom du dossier dans lequel les obj
 
 Un objectif est quelque chose dont on demande la construction, comme une librairie, un exécutable, ...
 
-Un objectif peut être déclaré directement au niveau de l'espace de travail. Cependant, on nomme souvent un groupe de fichier de la même manière qu'un objectif (ex: un dossier `MSCore` regroupant tous les fichiers permettant la construction d'une librairie `MSCore`). Dans ce cas on peut rassembler les objectifs dans un groupe `Targets` ce qui évite la confusion des noms (cf [Espace de noms](#Espace-de-noms)).
+Un objectif peut être déclaré directement au niveau du projet. Cependant, on nomme souvent un groupe de fichier de la même manière qu'un objectif (ex: un dossier `MSCore` regroupant tous les fichiers permettant la construction d'une librairie `MSCore`). Dans ce cas on peut rassembler les objectifs dans un groupe `Targets` ce qui évite la confusion des noms (cf [Espace de noms](#Espace-de-noms)).
 
 Un objectif peut dépendre d'autres objectifs (`targets`), définis dans le même espace de travail, qui seront alors construits préalablement.
 
@@ -530,13 +551,23 @@ Une tâche est un élément (composant ?) qui définit:
 <a name="Import/Export"></a>Import/Export [☝︎](#☝︎)
 -----------------------------------------
 
-Tout composant d'un environnement (incluant l'environnement lui-même) utilisé pour paramétrer un objectif peut être exporté pour partager des paramètres de construction entre espaces de travail.
+Tout composant définit dans le projet peut être exporté par un objectif pour partager des paramètres de construction entre projets au sein de l'espace de travail.
 
 L'export se déclare au niveau de chaque objectif comme pour les fichiers et les composants avec les propriétés `exports` et `exportsByEnvironment`.
 
-Dans l'exemple ci-dessous, on exporte juste le composant `posix component` pour la target `ATarget` dans l'environnement `darwin-i386`.
+Dès lors, pour accéder à ces paramètres depuis un autre projet (toujours au sein du même espace de travail), il suffit d'utiliser la syntaxe `::env:target::nom-du-composant`, où:
 
-On ne peut exporter que des composants qui sont contenus dans l'environnement ou l'environnement lui-même.
+- `target` est le nom de l'objectif contenant les composants exportés (dans notre exemple: `ATarget`) et
+- `env` est le nom de l'environnement dans lequel il faut rechercher l'objectif contenant les composants exportés. 
+  Si cet environnement est le même que celui qu'on est en train de construire, on peut remplacer `env` par `*`.
+
+Lors de la construction du objectif, on créera un fichier `Nom de mon objectif.make.js` contenant le ou les composants à exporter. 
+Ce fichier sera déposé dans le dossier `.shared` de l'environement.
+
+Le composant à importer est recherché dans l'espace de travail courant et dans le répertoire `.shared` de l'environment en cours de construction.
+Il est nécéssaire que le composant demandé existe et qu'il soit unique au sein de l'espace de travail.
+
+Dans l'exemple ci-dessous, on exporte juste le composant `posix component` pour la target `ATarget` dans l'environnement `darwin-i386`.
 
 ~~~js
 'posix component=': {
@@ -560,51 +591,43 @@ On ne peut exporter que des composants qui sont contenus dans l'environnement ou
   },
 ~~~
 
-Dans l'exemple ci-dessus, lors de la construction de l'objectif dans l'environnement cible `darwin-i386`, on créera un fichier `ATarget.make.js` contenant le `posix component`. Ce fichier sera déposé au même endroit que l'objectif ou à l'intérieur de ce dernier s'il est un dossier bundle.
+Dans l'exemple ci-dessus, lors de la construction de l'objectif dans l'environnement cible `darwin-i386`, on créera un fichier `ATarget.make.js` contenant le `posix component`. 
+Ce fichier sera déposé dans le dossier `.shared` de l'environement.
 
 Le fichier d'export de l'exemple précédent donnera:
 
 ~~~js
 {
-'posix component=': {
-  is: "component",
-  ...
+  is: "export",
+  'posix component=': {
+    is: "component",
+    ...
   },
 }
 ~~~
 
-Il sera déposé dans (en supposant que ATarget soit une librairie) `/microstep/darwin-i386/lib/ATaget.make.js`.
-
-Dès lors, pour accéder à ces paramètres depuis un autre espace de travail, il suffit d'utiliser la syntaxe `::env:target::nom-du-composant`, où:
-
-- `target` est le nom de l'objectif contenant les composants exportés (dans notre exemple: `ATarget`) et
-- `env` est le nom de l'environnement dans lequel il faut rechercher l'objectif contenant les composants exportés. Si cet environnement est le même que celui qu'on est en train de construire, on peut remplacer `env` par `*`.
-
-Si le composant à importer n'est pas trouvé, il est possible qu'il ne soit pas encore construit. Le système regarde alors dans le dossier `microstep/workspace`. Ce dossier regroupe tous les espaces de travail qui ont été exportés avec la propriété `export` de l'espace de travail positionné à `true`. Si l'objectif est trouvé dans un des espaces de travail avec le bon environnement, il est préalablement construit. Si plusieurs sont trouvés, c'est une erreur.
-
-Si le composant à importer n'est toujours pas trouvé, il est considéré comme vide.
 
 <a name="Méthodes"></a>Méthodes sur les éléments [☝︎](#☝︎)
 ------------------------------------------------
 
-Certains make demandent des opérations vraiment spécifiques. Pour y remédier, il est possible de rajouter à tous les éléments des méthodes particulières. Pour appeler une telle méthode, il suffit de désigner un élément particulier en utilisant la syntaxe des groupes en intension auquel on rajoute le nom de la méthode après les symboles `??`.
+Certains make demandent des opérations vraiment spécifiques. 
+Pour y remédier, il est possible d'obtenir une référence vers le ou les éléments via la fonction `$(query)`.
+Elle renvoi un proxy qui va se charger d'enregistrer la liste des opérations demandés afin de les exécuter lors de l'évaluation.
+De ce fait, la valeur retourné n'est utilisable que par le système.
 
 Par exemple, le chemin absolu d'un élément de type `file` s'obtient ainsi:
 
-	'myGroup:myElement??absolutePath'
+	$('myGroup ? myFile').absolutePath()
 
-La liste des méthodes spécifiques est décrite élément par élément dans le document xxx.
+La liste des méthodes spécifiques est décrite élément par élément dans le document [API](api.md).
 
 <a name="MSFoundation"></a>Exemple MSFoundation [☝︎](#☝︎)
 -----------------------------------------------
 
 ~~~js
-{
-var path= require('path'); // LIGNE A SUPPRIMER
-
 module.exports= {          // LIGNE A SUPPRIMER
-  is: "workspace",
-  name: "MicroStep", // Name of the workspace
+  is: "project",
+  name: "MicroStep", // Name of the project
   'base=': {
     is: "component",
     compiler: "clang",
