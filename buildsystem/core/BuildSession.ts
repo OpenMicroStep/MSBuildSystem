@@ -1,10 +1,7 @@
-import fs = require("fs");
-import path = require("path");
-import _ = require('underscore');
-var zlib = require('zlib');
+import * as fs from 'fs';
 
 /** Store information about the current build sessions (task informations) */
-interface BuildSession {
+export interface BuildSession {
   load(cb: ()=> void);
   save(cb: ()=> void);
   all() : { [s: string] : any };
@@ -12,69 +9,65 @@ interface BuildSession {
   set(key: string, info: any);
 }
 
-module BuildSession {
-  var caches = {};
+var caches = {};
 
-  export class FastJSONDatabase implements BuildSession {
-    protected path: string;
-    protected data: any;
-    constructor(path: string) {
-      this.path = path;
-      this.data = null;
-    }
-
-    load(cb: ()=> void) {
-      this.data = caches[this.path];
-      if (this.data) {
-        cb();
-        return;
-      }
-
-      fs.readFile(this.path, 'utf8', (err, data) => {
-        try { this.data = JSON.parse(data); }
-        catch(e) { this.data = {}; }
-        caches[this.path] = this.data;
-        cb();
-      });
-    }
-    save(cb: ()=> void) {
-      fs.writeFile(this.path, JSON.stringify(this.data), 'utf8', cb);
-    }
-    all() : any {
-      return this.data;
-    }
-    get(key: string) {
-      return this.data[key];
-    }
-    set(key: string, info: any) {
-      this.data[key] = info;
-    }
+export class FastJSONDatabase implements BuildSession {
+  protected path: string;
+  protected data: any;
+  constructor(path: string) {
+    this.path = path;
+    this.data = null;
   }
-  export class InMemory implements BuildSession {
-    protected data = {};
 
-    load(cb: ()=> void) { cb(); }
-    save(cb: ()=> void) { cb(); }
-    all() : any {
-      return this.data;
+  load(cb: ()=> void) {
+    this.data = caches[this.path];
+    if (this.data) {
+      cb();
+      return;
     }
-    get(key: string) {
-      return this.data[key];
-    }
-    set(key: string, info: any) {
-      this.data[key] = info;
-    }
+
+    fs.readFile(this.path, 'utf8', (err, data) => {
+      try { this.data = JSON.parse(data); }
+      catch(e) { this.data = {}; }
+      caches[this.path] = this.data;
+      cb();
+    });
   }
-  export class Noop implements BuildSession {
-    load(cb: ()=> void) { cb(); }
-    save(cb: ()=> void) { cb(); }
-    all() : any { return {}; }
-    get(key: string) {
-      return undefined;
-    }
-    set(key: string, info: any) {}
+  save(cb: ()=> void) {
+    fs.writeFile(this.path, JSON.stringify(this.data), 'utf8', cb);
   }
-  export var noop: BuildSession = new Noop();
+  all() : any {
+    return this.data;
+  }
+  get(key: string) {
+    return this.data[key];
+  }
+  set(key: string, info: any) {
+    this.data[key] = info;
+  }
 }
+export class InMemory implements BuildSession {
+  protected data = {};
 
-export = BuildSession;
+  load(cb: ()=> void) { cb(); }
+  save(cb: ()=> void) { cb(); }
+  all() : any {
+    return this.data;
+  }
+  get(key: string) {
+    return this.data[key];
+  }
+  set(key: string, info: any) {
+    this.data[key] = info;
+  }
+}
+export class Noop implements BuildSession {
+  load(cb: ()=> void) { cb(); }
+  save(cb: ()=> void) { cb(); }
+  all() : any { return {}; }
+  get(key: string) {
+    return undefined;
+  }
+  set(key: string, info: any) {}
+}
+export var noop: BuildSession = new Noop();

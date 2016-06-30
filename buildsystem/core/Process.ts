@@ -1,5 +1,6 @@
-import child_process = require('child_process');
-var os = require('os');
+import * as child_process from 'child_process';
+import * as os from 'os';
+import * as stream from 'stream';
 
 /**
  * Build a whole program could overload the processor everything is run in parallels as nodejs would try to do.
@@ -9,98 +10,87 @@ var os = require('os');
  *
  * Process are created with child_process.spawn
  */
-class Process {
-  static maxConcurrentProcess : number = os.cpus().length;
+export var maxConcurrentProcess : number = os.cpus().length;
 
-  static run(command : string, args : string[], env: {[s:string]: string}, callback : (err: string, out: string) => any) {
-    var options: any = { encoding: 'utf8' };
-    if(env) {
-      var base = process.env;
-      var pathKey = "PATH";
-      options.env = {};
-      for (var i in base) {
-        if (base.hasOwnProperty(i)) {
-          if (i.toLowerCase() == "path")
-            pathKey= i;
-          options.env[i] = base[i];
-        }
-      }
-      if (env["PATH"] && pathKey !== "PATH") {
-        env[pathKey] = env["PATH"];
-        delete env["PATH"];
-      }
-      for (var i in env) {
-        if (env.hasOwnProperty(i)) {
-          options.env[i] = env[i];
-        }
+export function run(command : string, args : string[], env: {[s:string]: string}, callback : (err: Error, code: number, signal: string, out: string) => any) {
+  var options: any = { 
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  };
+  if(env) {
+    var base = process.env;
+    var pathKey = "PATH";
+    options.env = {};
+    for (var i in base) {
+      if (base.hasOwnProperty(i)) {
+        if (i.toLowerCase() == "path")
+          pathKey= i;
+        options.env[i] = base[i];
       }
     }
-    return _runOnceReady(child_process.spawn, [command, args, options, function(process) {
-      var out = "";
-      var exited = false;
-      var timeoutId;
-
-      var ex = null;
-
-      function exithandler(code, signal) {
-        if (exited) return;
-        exited = true;
-
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-
-        if (!callback) return;
-
-        if (ex) {
-          // Will be handled later
-        } else if (code === 0 && signal === null) {
-          callback(null, out);
-          return;
-        }
-        callback("Command failed: " + command + " " + args.join(" "), out);
+    if (env["PATH"] && pathKey !== "PATH") {
+      env[pathKey] = env["PATH"];
+      delete env["PATH"];
+    }
+    for (var i in env) {
+      if (env.hasOwnProperty(i)) {
+        options.env[i] = env[i];
       }
-
-      function errorhandler(e) {
-        console.error(ex);
-        ex = e;
-        if (process.stdout)
-          process.stdout.destroy();
-        if (process.stderr)
-          process.stderr.destroy();
-        exithandler(-1, null);
-      }
-
-      if (process) {
-        var append = function(chunk) { out += chunk; };
-        if (process.stdout)
-          process.stdout.addListener('data', append);
-        if (process.stderr)
-          process.stderr.addListener('data', append);
-        process.addListener('close', exithandler);
-        process.addListener('error', errorhandler);
-      }
-      else {
-        exithandler(-1, null);
-      }
-
-    }]);
+    }
   }
-  /** Thin wrapper around child_process.spawn */
-  static spawn(command : string, args: string[], options: {}, startCallback : (process : child_process.ChildProcess) => any) {
-    _runOnceReady(child_process.spawn, arguments);
-  }
+  return _runOnceReady(child_process.spawn, [command, args, options, function(process) {
+    var out = "";
+    var exited = false;
 
-  /** Thin wrapper around child_process.fork */
-  static fork(modulePath: string, args: string[], options: {}, startCallback: (process: child_process.ChildProcess) => any) {
-    _runOnceReady(child_process.fork, arguments);
-  }
+    var err: Error = null;
 
-  /** Thin wrapper around child_process.exec */
-  static exec(command: string, options: {}, callback: (error: Error, stdout: Buffer, stderr: Buffer) =>void, startCallback: (process: child_process.ChildProcess) => any) {
-    _runOnceReady(child_process.exec, arguments);
-  }
+    function exithandler(code, signal) {
+      if (exited) return;
+      exited = true;
+
+      if (!callback) return;
+      callback(err, code, signal, out);
+    }
+
+    function errorhandler(e: Error) {
+      err = e;
+      if (process.stdout)
+        process.stdout.destroy();
+      if (process.stderr)
+        process.stderr.destroy();
+      exithandler(-1, null);
+    }
+
+    if (process) {
+      var append = function(chunk) { out += chunk; };
+      if (process.stdout)
+        process.stdout.addListener('data', append);
+      if (process.stderr)
+        process.stderr.addListener('data', append);
+      process.addListener('close', exithandler);
+      process.addListener('error', errorhandler);
+    }
+    else {
+      err = new Error("could not create child_process object");
+      exithandler(-1, null);
+    }
+
+  }]);
+}
+
+/** Thin wrapper around child_process.spawn */
+export function spawn(command : string, args: string[], options: {}, startCallback : (process : child_process.ChildProcess) => any) {
+  _runOnceReady(child_process.spawn, arguments);
+}
+
+/** Thin wrapper around child_process.fork */
+export function fork(modulePath: string, args: string[], options: {}, startCallback: (process: child_process.ChildProcess) => any) {
+  _runOnceReady(child_process.fork, arguments);
+}
+
+/** Thin wrapper around child_process.exec */
+export function exec(command: string, options: {}, callback: (error: Error, stdout: Buffer, stderr: Buffer) =>void, startCallback: (process: child_process.ChildProcess) => any) {
+  _runOnceReady(child_process.exec, arguments);
 }
 
 var waitingProcesses = [];
@@ -130,7 +120,7 @@ function _runOnceReady(fct, args) {
   args= Array.from(args);
   var cb = args.pop();
 
-  if(nbProcessRunning < Process.maxConcurrentProcess) {
+  if(nbProcessRunning < maxConcurrentProcess) {
     _run(fct, args, cb);
   }
   else {
@@ -145,5 +135,3 @@ function _freeOne() {
     _run(o.fct, o.args, o.cb);
   }
 }
-
-export = Process;

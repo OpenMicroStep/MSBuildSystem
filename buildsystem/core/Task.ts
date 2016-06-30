@@ -1,49 +1,82 @@
-import Graph = require('./Graph');
-import Target = require('./Target');
-import events = require('events');
-import Runner = require('./Runner');
-import BuildSession = require('./BuildSession');
-import util = require('util');
-import crypto = require('crypto');
-import File = require('./File');
+import {Graph} from './graph';
+import {Target} from './target';
+import {Runner, Step} from './runner';
+import * as BuildSession from './buildSession';
+import {File} from './file';
+import {createHash, Hash} from 'crypto';
 
-var __id_counter: number = 0;
 
-var classes = {};
+export type TaskName = { type: string, name: string, [s: string]: string };
 
-class Task extends events.EventEmitter {
+export var taskClasses = new Map<string, typeof Task>();
+export function declareTask(options: { type: string }) {
+  return function (constructor: typeof Task) {
+    taskClasses.set(options.type, constructor);
+  }
+}
+
+export function getTask(type: string) : typeof Task {
+  return taskClasses.get(type);
+}
+
+export class Task {
   dependencies : Set<Task> = new Set<Task>();
   requiredBy : Set<Task> = new Set<Task>();
-  name: Task.Name;
+  name: TaskName;
   graph: Graph;
   sessionKey: string;
 
+
   classname: string; // on the prototype, see registerClass
-  constructor(name: Task.Name, graph: Graph) {
-    super();
+  constructor(name: TaskName, graph: Graph) {
     this.name = name;
     this.graph = graph;
-    if(this.graph) {
+    if (graph)
       this.graph.inputs.add(this);
-    }
-    if (!this.classname)
-      Task.registerClass(this.constructor, this.constructor.name);
   }
-  static registerClass(cls, taskTypeName: string) {
-    if(taskTypeName) {
-      console.debug("Task '%s' registed (raw name='%s')", taskTypeName, cls.name);
-      classes[taskTypeName] = cls;
-      cls.prototype.classname = taskTypeName;
-    }
-  }
-  static findTask(taskTypeName: string) {
-    return classes[taskTypeName];
-  }
-  isInstanceOf(classname: string) {
-    return (classname in classes && this instanceof classes[classname]);
+  
+  /** fill the hash with data that can identify the task and its settings accross sessions
+   * returns false if the task can't reuse previous run informations  */
+  uniqueKey(hash: Hash) : boolean {
+    return false;
   }
 
-  addDependencies(tasks : Array<Task>) {
+  /** returns the unique identifier of the task, this identifier is valid accross sessions */
+  id() {
+    if(this.sessionKey === undefined) {
+      this.sessionKey = null;
+      var shasum = createHash('sha1');
+      if (this.uniqueKey(shasum))
+        this.sessionKey = this.classname + "-" + shasum.digest('hex');
+    }
+    return this.sessionKey;
+  }
+
+  /** returns the unique and reusable accross session data storage of this task */
+  getStorage() : BuildSession.BuildSession {
+    var p = this.storagePath(this);
+    return p ? new BuildSession.FastJSONDatabase(p) : BuildSession.noop;
+  }
+  
+  /** returns the target that contains this task */
+  target() : Target {
+    var task = this.graph;
+    var cls = require('./Target');
+    while (task && !(task instanceof cls))
+      task = task.graph;
+    return <any>task;
+  }
+
+  /** returns the absolute data storage path of the given task */
+  storagePath(task: Task) {
+    return this.graph && this.graph.storagePath(task);
+  }
+  
+  isInstanceOf(classname: string) {
+    return (classname in taskClasses && this instanceof taskClasses[classname]);
+  }
+
+  addDependencies(tasks : Task[]) {
     tasks.forEach((task) => { this.addDependency(task)});
   }
   addDependency(task: Task) {
@@ -58,27 +91,22 @@ class Task extends events.EventEmitter {
     task.requiredBy.add(this);
   }
 
-  target() : Target {
-    var task = this.graph;
-    var cls = require('./Target');
-    while (task && !(task instanceof cls))
-      task = task.graph;
-    return <any>task;
-  }
-
-  uniqueKey(): string { return "__" + (++__id_counter).toString(); }
-
-  id() {
-    if(this.sessionKey === undefined) {
-      this.sessionKey = null;
-      var key = this.uniqueKey();
-      if (key) {
-        var shasum = crypto.createHash('sha1');
-        shasum.update(key);
-        this.sessionKey = this.classname + "-" + shasum.digest('hex');
-      }
-    }
-    return this.sessionKey;
+  iterateDependencies(deep: boolean = false, shouldIContinue?: (task: Task, lvl: number) => boolean) {
+    var end = false;
+    var iterated = new Set<Task>();
+    var iterate = (t: Task, lvl: number) => {
+      t.dependencies.forEach((dep) => {
+        if (!end && !iterated.has(dep)) {
+          iterated.add(dep);
+          if (shouldIContinue && shouldIContinue(dep, lvl) === false)
+            end = true;
+          else if (deep)
+            iterate(dep, lvl + 1);
+        }
+      });
+    };
+    iterate(this, 0);
+    return iterated;
   }
 
   root() : Graph {
@@ -86,15 +114,6 @@ class Task extends events.EventEmitter {
     while(graph && graph.graph)
       graph = graph.graph;
     return graph;
-  }
-
-  getStorage() : BuildSession {
-    var p = this.storagePath(this);
-    return p ? new BuildSession.FastJSONDatabase(p) : BuildSession.noop;;
-  }
-
-  storagePath(task: Task) {
-    return this.graph.storagePath(task);
   }
 
   listDependenciesOutputFiles(set: Set<File>) {
@@ -106,22 +125,22 @@ class Task extends events.EventEmitter {
 
   listOutputFiles(set: Set<File>) { }
 
-  do(step: Runner.Step) {
+  do(step: Step) {
     switch(step.runner.action) {
       case "build":
-        this.isRunRequired(step, (err, required) => {
-          if (err) {
-            step.error(err);
-            step.continue();
-          }
-          else if (required) {
-            this.run(step);
-          }
-          else {
-            step.log(step.data.logs);
-            step.continue();
-          }
-        });
+        step.setFirstElements([
+           (step) => { this.isRunRequired(step); },
+           (step) => {
+             if (step.failed)
+               step.continue(); 
+             else if (step.context.runRequired)
+              this.run(step);
+             else {
+               step.reuseLastRunData();
+               step.continue();}
+           }
+        ]);
+        step.continue();
         break;
 
       case "clean":
@@ -129,20 +148,29 @@ class Task extends events.EventEmitter {
         break;
 
       default:
+        step.diagnostic({
+          type: "warning",
+          msg: `task doesn't support "${step.runner.action}" action`
+        });
         step.continue();
         break;
     }
   }
 
-  isRunRequired(step: Runner.Step, callback: (err, required:boolean) => any) {
-    callback(null, true);
-  }
-
-  run(step: Runner.Step) {
-    step.error("'run' must be reimplemented by subclasses");
+  isRunRequired(step: Step) {
+    step.context.runRequired = true;
     step.continue();
   }
-  clean(step: Runner.Step) {
+
+  run(step: Step) {
+    step.diagnostic({
+      type: "fatal error",
+      msg: "'run' must be reimplemented by subclasses"
+    });
+    step.continue();
+  }
+  
+  clean(step: Step) {
     step.continue();
   }
 
@@ -154,7 +182,3 @@ class Task extends events.EventEmitter {
   }
 }
 
-module Task {
-  export type Name = { type: string, name: string, [s: string]: string };
-}
-export = Task;

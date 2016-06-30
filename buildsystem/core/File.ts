@@ -1,48 +1,45 @@
-import fs = require('fs-extra');
-import path = require('path');
-import util = require('util');
-import Barrier = require('./Barrier');
-import Runner = require('./Runner');
+import * as path from 'path';
+import * as fs from 'fs-extra';
+import * as util from 'util';
+import {Runner, Step} from './runner';
+import {once} from './util';
+import * as os from 'os';
 
-
-// Nodejs basename && extname are quite slow (use complex regexp)
-// Theses replacements returns the same values but are about 100 times faster
-path.basename = function(path: string) : string {
-  var idx = path.length, c;
-  while (idx > 0 && (c= path[--idx]) !== '/' && c !== '\\');
-  return (c === '/' || c === '\\') ? path.substring(idx + 1) : path;
-}
-path.extname = function(path: string) : string {
-  var idx = path.length, c;
-  while (idx > 1 && (c= path[--idx]) !== '.' && c !== '/' && c !== '\\');
-  return idx > 0 && c === '.' ? path.substring(idx) : '';
-}
-
-class LocalFile {
+export class File {
   public path:string;
   public name:string;
   public extension:string;
   public isDirectory:boolean;
+  private _stats: (cb: (...args) => void) => void;
 
   constructor(filePath:string, isDirectory = false) {
     this.path = filePath;
     this.name = path.basename(filePath);
     this.extension = path.extname(filePath);
     this.isDirectory = isDirectory;
+    this._stats = null;
   }
 
-  private static files: Map<string, LocalFile> = new Map<any, any>();
-  static getShared(filePath: string, isDirectory = false): LocalFile {
-    var file = LocalFile.files.get(filePath);
+  private static files: Map<string, File> = new Map<any, any>();
+  static getShared(filePath: string, isDirectory = false): File {
+    var file = File.files.get(filePath);
     if (file) return file;
     filePath = path.normalize(filePath);
     if(!path.isAbsolute(filePath))
-      throw "'filePath' must be absolute (filePath=" + filePath + ")";
+      throw new Error("'filePath' must be absolute (filePath=" + filePath + ")");
 
-    file = LocalFile.files.get(filePath);
+    file = File.files.get(filePath);
     if(!file)
-      LocalFile.files.set(filePath, file= new LocalFile(filePath, isDirectory));
+      File.files.set(filePath, file= new File(filePath, isDirectory));
     return file;
+  }
+  
+  static ensureDirs = new Map<string, (cb: (...args) => void) => void>();
+  static clearCache() {
+    File.files.forEach(function(file) {
+      file._stats = null;
+    });
+    File.ensureDirs.clear();
   }
 
   /**
@@ -51,25 +48,43 @@ class LocalFile {
    *  - one of the inputs changed after what.time
    *  - one of the outputs changed after what.time
    */
-  static ensure(step: Runner.Step, files: (string | LocalFile)[], options: {ensureDir?:boolean; time?: number}, callback: (err: Error, changed?:boolean) => any) {
-    var barrier = new LocalFile.EnsureBarrier("File ensure", files.length);
-    files.forEach(function(file) {
-      var sharedFile: LocalFile;
-      sharedFile = (typeof file === "string") ? LocalFile.getShared(file) : file;
-      LocalFile.ensureOne(step, sharedFile, options.ensureDir, (options.time === void 0 ? step.lastSuccessTime : options.time), barrier.decCallback());
-    });
-    barrier.endWith(callback);
+  static ensure(files: File[], time: number, options: {ensureDir?:boolean; time?: number; parallel?: boolean}, callback: (err: Error, changed?:boolean) => any) {
+    var i = 0, len = files.length;
+    var ensureDir = options.ensureDir || false;
+    var parallel = options.parallel || ensureDir;
+    var barrier = files.length + 1;
+    if (parallel) {
+      while (i < len)
+        files[i++].ensure(ensureDir, time, dec);
+      dec();
+    }
+    else {
+      function next() {
+        if (i < len)
+          files[i].ensure(ensureDir, time, dec);
+        else
+          dec();
+      }
+    }
+    
+    function dec(err?, required?) {
+      if(err || required) {
+        barrier = 0;
+        callback(err, required);
+      }
+      if (--barrier === 0)
+        callback(null, false);
+      else if (parallel && barrier > 0)
+        next();
+    };
   }
-
-  static ensureOne(step: Runner.Step, sharedFile: LocalFile, ensureDir:boolean, time: number, callback: (err: Error, changed?:boolean) => any) {
-    if (sharedFile.isDirectory)
+  
+  ensure(ensureDir:boolean, time: number, callback: (err: Error, changed?:boolean) => any) {
+    if (this.isDirectory)
       return callback(null, false);
-    var cache = step.context.stats;
-    if (!cache)
-      cache = step.context.stats = new Map<LocalFile, any>();
-    sharedFile.stats(cache, function(err, stats) {
+    this.stats(function(err, stats) {
       if(err && ensureDir) {
-          fs.ensureDir(path.dirname(sharedFile.path), function(err) {
+          this.ensureDir(function(err) {
             callback(err, true);
           });
       } else if (err || stats.isFile()) {
@@ -112,6 +127,24 @@ class LocalFile {
 
     return files;
   }
+  
+  static commonDirectory(files: File[]) : string {
+    var k, klen, i, len, file: File;
+    var commonPart = "";
+    for (i = 0, len = files.length; i < len; i++) {
+      file = files[i];
+      var dirPath = file.isDirectory ? file.path : path.dirname(file.path);
+      if (!commonPart) {
+        commonPart = dirPath;
+      }
+      else if (dirPath !== commonPart) {
+        for (k = 0, klen = Math.min(dirPath.length, commonPart.length); k < klen && dirPath[k] === commonPart[k]; k++)
+          ;
+        commonPart = commonPart.substring(0, k);
+      }
+    }
+    return commonPart;
+  }
 
   readFile(cb: (err: Error, output: Buffer) => any) {
     fs.readFile(this.path, cb);
@@ -122,15 +155,37 @@ class LocalFile {
   writeUtf8File(content: string, cb: (err: Error) => any) {
     fs.writeFile(this.path, content, "utf8", cb);
   }
-  stats(cache: Map<LocalFile, any>, cb) {
-    var c = cache.get(this);
-    if (c)
-      return cb(null, c);
-    fs.stat(this.path, (err, stats) => {
-      cache.set(this, stats);
-      cb(err, stats);
-    });
+  ensureDir(cb: (err: Error) => void) {
+    var dir = path.dirname(this.path);
+    var ensure = File.ensureDirs.get(dir);
+    if (!ensure)
+      File.ensureDirs.set(dir, ensure = once((cb) => { fs.ensureDir(dir, cb); }));
+    ensure(cb);
   }
+  stats(cb: (err: Error, stats: fs.Stats) => void) {
+    if (!this._stats)
+      this._stats = once((cb) => { fs.stat(this.path, cb); });
+    this._stats(cb);
+  }
+  
+  copyTo(to: File, lastSuccessTime: number, cb : (err: Error) => void) {
+    this.stats((err, stats) => {
+      if (err) return cb(err);
+      else if (stats.mtime.getTime() < lastSuccessTime) return cb(null);
+      to.stats((err, toStats) => {
+        if (!err && toStats.mtime.getTime() < lastSuccessTime) return cb(null);
+        
+        to.ensureDir((err) => {
+          if (err) return cb(err);
+          fs.copy(this.path, to.path, (err) => {
+            if (err) return cb(err);
+            fs.utimes(to.path, stats.atime.getTime(), stats.mtime.getTime(), cb);
+          })
+        });
+      });
+    });  
+  }
+  
   unlink(cb : (err: Error) => any) {
     fs.unlink(this.path, function(err) {
       if(err && (<NodeJS.ErrnoException>err).code === "ENOENT")
@@ -139,30 +194,3 @@ class LocalFile {
     });
   }
 }
-
-module LocalFile {
-
-  export class EnsureBarrier extends Barrier {
-    protected err = null;
-    protected required = false;
-    dec(err?: any, required?: boolean) {
-      if((err || required) && this.counter > 0) {
-        this.err = err;
-        this.required = required;
-      }
-      super.dec();
-    }
-    decCallback() {
-      return (err?: any, required?: boolean) => { this.dec(err, required); }
-    }
-    protected signal(action) {
-      action(this.err, this.required);
-    }
-    endWith(action: (err?, required?: boolean) => any) {
-      super.endWith(action);
-    }
-  }
-
-}
-
-export = LocalFile;

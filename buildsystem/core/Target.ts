@@ -1,78 +1,168 @@
-//import Workspace = require('./Workspace');
-import Workspace = require('./Workspace');
-import Task = require('./Task');
-import Graph = require('./Graph');
-import BuildSession = require('./BuildSession');
-import File = require('./File');
-import Barrier = require('./Barrier');
-import path = require('path');
-var fs = require('fs-extra');
+import {Project, RootGraph} from './project';
+import {Attributes, AttributeTypes, AttributeResolvers} from './attributes';
+import {Task} from './task';
+import {Graph} from './graph';
+import {BuildTargetElement, targetElementValidator} from './elements/target.element';
+import {BuildSession} from './buildSession';
+import {File} from './file';
+import {Barrier} from './barrier';
+import {Step, Reporter} from './runner';
+import {Hash} from 'crypto';
+import * as path from 'path';
+import * as fs from 'fs-extra';
 
-var targetClasses = [];
-class Target extends Graph {
+var TargetAttributeResolver = AttributeResolvers.TargetAttributeResolver;
+export var targetClasses = new Map<string, typeof Target>();
+export function declareTarget(options: { type: string }) {
+  return function (constructor: typeof Target) {
+    targetClasses.set(options.type, constructor);
+  }
+}
+
+export function declareResolvers(resolvers: AttributeResolvers.TargetAttributeResolver<any>[]) {
+  return function (constructor: { prototype: { resolvers: {[s: string] : AttributeResolvers.Resolver<any>}} }) {
+    var prev = constructor.prototype.resolvers;  
+    var r = constructor.prototype.resolvers;
+    if (!prev || r === prev)
+      r = constructor.prototype.resolvers = prev ? Object.assign(resolvers, prev) : {};
+    for(var i = 0, len = resolvers.length; i < len; ++i) {
+      var resolver = resolvers[i];
+      r[resolver.path] = resolver;
+    }
+  }
+}
+
+export function getTargetClass(type: string) : typeof Target {
+  return targetClasses.get(type);
+}
+
+@declareResolvers([
+  new TargetAttributeResolver("targets", new AttributeResolvers.ListResolver(targetElementValidator)),
+  new TargetAttributeResolver("configure", new AttributeResolvers.FunctionResolver("(target: Target) => void")),
+  new TargetAttributeResolver("exports", new AttributeResolvers.FunctionResolver("(other_target: Target, this_target: Target, lvl: number) => void"))
+])
+export class Target extends Graph {
+  resolvers: {[s: string] : AttributeResolvers.TargetAttributeResolver<any>};
+  exportable: {[s: string] : AttributeResolvers.TargetAttributeResolver<any>};
+  
+  graph: RootGraph;
   dependencies : Set<Target>;
   requiredBy : Set<Target>;
-  info: Workspace.TargetInfo;
-  workspace: Workspace;
-  taskspath: string;
-  intermediates: string;
-  outputBasePath: string;
-  output: string;
-  modifiers: any[];
-  env : Workspace.Environment;
+  files: Set<File>;
+
+  project: Project;
+  attributes: BuildTargetElement;
+  attributesCache: Attributes;
+  exportedAttributes: Attributes;
+  paths: {
+    output: string,
+    build: string,
+    intermediates: string,
+    tasks: string,
+  };
+  modifiers: ((reporter: Reporter, task: Task) => void)[];
+
   variant : string;
+  environment: string;
   targetName: string;
-  constructor(graph: Graph, info: Workspace.TargetInfo, env: Workspace.Environment, workspace: Workspace, options) {
-    super({ type: "target", name: info.name, environment: env.name, variant: options.variant, workspace: workspace.path }, graph);
-    this.info = info;
-    this.workspace = workspace;
-    this.taskspath = path.join(options.buildpath, "tasks");
-    this.intermediates = path.join(options.buildpath, "intermediates", info.name);
-    this.outputBasePath = options.outputBasePath;
-    this.output = path.join(this.outputBasePath, env.directories.target[this.classname]);
+
+  constructor(graph: RootGraph, project: Project, attributes: BuildTargetElement, options: {
+    outputBasePath: string,
+    buildPath: string
+  }) {
+    super({ type: "target", name: attributes.name, environment: attributes.environment.name, variant: attributes.variant, project: project.path }, graph);
+
+    this.files = new Set<any>();
+    this.project = project;
+    this.variant = attributes.variant;
+    this.targetName = attributes.name;
+    this.environment = attributes.environment.name;
+    this.attributes = attributes;
+    this.attributesCache = {};
+    this.exportedAttributes = this.resolvers;
+    
     this.modifiers = [];
-    this.env = env;
-    this.variant = options.variant;
-    this.targetName = this.info.name;
-    fs.ensureDirSync(this.taskspath);
+    this.paths = {
+      output       : options.outputBasePath,
+      build        : options.buildPath,
+      intermediates: path.join(options.buildPath, "intermediates", this.targetName),
+      tasks        : path.join(options.buildPath, "tasks")
+    };
+    fs.ensureDirSync(this.paths.tasks);
   }
-
+      
+  uniqueKey(hash: Hash) : boolean {
+    hash.update(this.variant + "\t" + this.environment + "\t" + this.targetName);
+    return true;
+  }
+  
   storagePath(task: Task) {
-    return this.taskspath + '/' + task.id();
+    var id = task.id();
+    return id ? this.paths.tasks + '/' + id : null;
   }
-
-  static registerClass(cls, targetTypeName) {
-    if(targetTypeName) {
-      console.debug("Target '%s' registed (raw name='%s')", targetTypeName, cls.name);
-      targetClasses[targetTypeName] = cls;
-      cls.prototype.classname = targetTypeName;
+  
+  do(step: Step) {
+    if (step.runner.action === "configure") {
+      this.configure(step);
+      if (!step.failed) 
+        this.buildGraph(step);
+      step.continue();
     }
+    else
+      super.do(step);
   }
-
-  uniqueKey(): string {
-    return this.variant + "\t" + this.env.name + "\t" + this.name.name;
+  
+  resolveDependencies(reporter: Reporter) : string[] {
+    return this.resolvers['targets'].resolve(reporter, this);
   }
-
-  isInstanceOf(classname: string) {
-    return (classname in targetClasses && this instanceof targetClasses[classname]);
+  
+  configure(reporter: Reporter) {
+    //let files = this.project.resolveElementValueAndByEnv(reporter, this.attributes, this.attributes.environment, 'files', 'file');
+    //for (let file of files)
+    //  this.files.add((<any>file).file);
   }
-  static createTarget(graph: Graph, info: Workspace.TargetInfo, env: Workspace.Environment, workspace: Workspace, options) {
-    var cls: typeof Target= targetClasses[info.type];
-    return cls ? new cls(graph, info, env, workspace, options) : null;
+  
+  buildGraph(reporter: Reporter) {
   }
-
-  addTaskModifier(taskTypeName: string, modifier:(target:Target, task: Task) => any) {
-    this.modifiers.push(taskTypeName, modifier);
+  
+  configureTask(reporter: Reporter, task: Task) {
+    this.modifiers.forEach(function(fn) {
+      fn(reporter, task);
+    });
   }
-  applyTaskModifiers(task: Task) {
-    var err= null;
-    for(var i = 0, len = this.modifiers.length - 1; i < len; i += 2) {
-      if(task.isInstanceOf(this.modifiers[i])) {
-        if ((err= this.modifiers[i + 1].call(this.info, this, task)))
-          err= err instanceof Error ? err : new Error(err);
+    
+  private _configureCheckCallMethod(reporter: Reporter, fn: any, method: string, prototype: string) : boolean {
+    var ret = false;
+    if (!reporter.failed && fn) {
+      ret = typeof fn === "function";
+      if (!ret) {
+        reporter.diagnostic({
+          type: "warning",
+          msg: `"${method}"" attribute is not defined as a function: ${prototype}`
+        });
       }
     }
-    return err;
+    return ret;
+  }
+
+  configureCallMethod(reporter: Reporter, fn: any, method: string, prototype: string, ...args: any[]) {
+    if (!reporter.failed && fn) {
+      if (this._configureCheckCallMethod(reporter, fn, method, prototype)) {
+        try {
+          fn(...args);
+        }
+        catch (e) {
+          reporter.diagnostic({
+            type: "error",
+            msg: `"${method}" raised an exception`,
+            notes: [{
+              type: "note",
+              msg: e.stack || e
+            }]
+          });
+        }
+      }
+    }
   }
 
   addDependency(task: Target) {
@@ -99,85 +189,6 @@ class Target extends Graph {
     }
     return null;
   }
-  do(step) {
-    if (step.runner.action === "configure") {
-      try {
-        this.configure((err) => {
-          if(err) {
-            step.error(err);
-            step.continue();
-          }
-          else {
-            this.buildGraph((err) => {
-              if(err) {
-                step.error(err);
-                step.continue();
-              }
-              else {
-                super.do(step);
-              }
-            });
-          }
-        });
-      } catch(e) {
-        step.error(e);
-        step.continue();
-      }
-    }
-    else {
-      super.do(step);
-    }
-  }
-
-  configure(callback: ErrCallback) {
-    var barrier = new Barrier.FirstErrBarrier("Configure " + this.targetName, 1);
-    var err = null;
-    if(this.info.configure) {
-      if(typeof this.info.configure !== "function")
-        return callback(new Error("'configure' must be a function with 'env' and 'target' arguments"));
-      err = this.info.configure(this);
-    }
-    barrier.dec(err);
-    var exported = new Set<Target>();
-    var deepExports = (parent: Target) => {
-      parent.dependencies.forEach((dep) => {
-        if (!exported.has(dep)) {
-          exported.add(dep);
-          dep.deepExports(this, barrier.decCallback());
-          deepExports(dep);
-        }
-      });
-    };
-    this.dependencies.forEach((dep) => {
-      dep.exports(this, barrier.decCallback());
-    });
-    deepExports(this);
-    barrier.endWith(callback);
-  }
-  exports(targetToConfigure: Target, callback: ErrCallback) {
-    if(this.info.exports)
-      this._export(this.info.exports, targetToConfigure, callback);
-    else
-      callback();
-  }
-  deepExports(targetToConfigure: Target, callback: ErrCallback) {
-    if(this.info.deepExports)
-      this._export(this.info.deepExports, targetToConfigure, callback);
-    else
-      callback();
-  }
-  protected _export(exports: Workspace.TargetExportInfo, targetToConfigure: Target, callback: ErrCallback) {
-    var err = null;
-    if(exports.configure)
-      err = exports.configure.call(this.info, targetToConfigure, this);
-    callback(err);
-  }
-  buildGraph(callback: ErrCallback) {
-    callback();
-  }
-
-
+  
   listInputFiles(set: Set<File>) { }
 }
-
-export = Target;
