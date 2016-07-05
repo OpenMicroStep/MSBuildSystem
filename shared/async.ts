@@ -21,7 +21,7 @@ export class Async {
     this.context= ctx || {};
     if (!this.context.locale) this.context.locale= {};
     this._actions=      [];
-    this.setFirstElements(actionsOrPools);
+    if (actionsOrPools) this.setFirstElements(actionsOrPools);
   }
 
   state() {return Async.State.defining;}
@@ -165,9 +165,7 @@ export class Flux extends Async {
   _stackprotection: number; // 0 = no exec, 1 = action is executing, 2 = continue is pending
 
   constructor(actions: ActionFct[], ctx, atEndCallback) {
-    if(0) super(); // this is trick to remove typescript warning
-    this.context = ctx || {};
-    if (!this.context.locale) this.context.locale= {};
+    super(); // this is trick to remove typescript warning
     this._actions = actions;
     this._state = Async.State.started;
     this._lastInterval = this.context.locale.lastActionInterval;
