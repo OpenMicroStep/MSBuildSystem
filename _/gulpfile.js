@@ -20,4 +20,7 @@ gulp.task('buildsystem:tests', ['buildsystem:tsc', 'buildsystem:copy-test-data']
 gulp.task('buildsystem:debug', ['buildsystem:tsc', 'buildsystem:copy-test-data'], function(cb) {
     exec('./node_modules/.bin/mocha  --inline-diffs --nolazy --debug-brk --colors out/buildsystem/tests.js', cb);
 });
+gulp.task('buildsystem:perf', ['buildsystem:tsc', 'buildsystem:copy-test-data'], function(cb) {
+    exec('./node_modules/.bin/mocha --slow 10 --prof --inline-diffs --colors out/buildsystem/tests.js', cb);
+});
 gulp.task('buildsystem', ['buildsystem:tests']);
