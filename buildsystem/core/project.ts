@@ -14,6 +14,7 @@ import {escapeRegExp} from './util';
 import {Element} from './element';
 import {ProjectElement} from './elements/project.element';
 import {BuildTargetElement, TargetElement} from './elements/target.element';
+import {Async} from '../../shared/async';
 
 // force require
 import {GroupElement} from './elements/group.element';GroupElement;
@@ -75,7 +76,6 @@ export class RootGraph extends Graph {
           task.addDependency(t);
         }
       });
-      task.configure(reporter);
     }
     return task;
   }
@@ -157,7 +157,10 @@ export class Project {
         });
       });
     });
-    
+
+    let runner = new Runner(root, 'configure');
+    runner.enable(root);
+    Async.run(null, (p) => { runner.run(p); }); //< this is synchronous
     return root;
   }
   

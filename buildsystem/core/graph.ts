@@ -30,7 +30,7 @@ export class Graph extends Task {
     
     function cb(step: Step) {
       var task = step.task;
-      console.trace("End task %s %s (action=%s)", task.name.type, task.name.name, step.failed, task.requiredBy.size);
+      //console.trace("End task %s %s (action=%s)", task.name.type, task.name.name, step.failed, task.requiredBy.size);
       if (!step.failed) {
         task.requiredBy.forEach(function (next) {
           var n = getstep(next);

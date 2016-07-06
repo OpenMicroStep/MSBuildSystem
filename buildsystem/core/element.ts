@@ -16,6 +16,16 @@ export const elementValidator = (reporter: Reporter, path: AttributePath, value:
     return value;
   return undefined;
 };
+export function createElementValidator<T extends Element>(is: string, cls: { new(...args): T }) {
+  return function (reporter: Reporter, path: AttributePath, value: any) {
+    if ((value = elementValidator(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
+      return <T>value;
+    if (value !== undefined)
+      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a '${is}' element, got a ${value.is}`});
+    return undefined;
+  };
+}
+
 
 export var elementFactories = new Map<string, ElementFactory>();
 export function declareElementFactory(type: string, factory: ElementFactory) {

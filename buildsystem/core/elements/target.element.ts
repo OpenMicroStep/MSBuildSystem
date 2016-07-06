@@ -1,4 +1,4 @@
-import {Element, DelayedElement, declareElementFactory, elementValidator} from '../element';
+import {Element, DelayedElement, declareElementFactory, createElementValidator} from '../element';
 import {ComponentElement} from './component.element';
 import {Reporter} from '../runner';
 import * as MakeJS from '../make';
@@ -16,15 +16,6 @@ const componentValidator = (reporter: Reporter, path: AttributePath, value: any)
 };
 const componentListResolver = new AttributeResolvers.ListResolver(componentValidator);
 const componentByEnvResolver = new AttributeResolvers.ByEnvListResolver(componentValidator);
-
-export const targetElementValidator = (reporter: Reporter, path: AttributePath, value: any) => {
-  if ((value = elementValidator(reporter, path, value)) !== undefined && value instanceof TargetElement)
-    return <TargetElement>value;
-  if (value !== undefined)
-    reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a 'target' element, got a ${value.is}`});
-  return undefined;
-};
-const targetListResolver = new AttributeResolvers.ListResolver(targetElementValidator);
 
 declareElementFactory('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: Element) => {
   let target = new TargetElement(name, parent);
@@ -104,6 +95,9 @@ export class TargetElement extends ComponentElement {
     return null;
   }
 }
+
+export const targetElementValidator = createElementValidator('target', TargetElement);
+const targetListResolver = new AttributeResolvers.ListResolver(targetElementValidator);
 
 export class TargetExportElement extends TargetElement
 {

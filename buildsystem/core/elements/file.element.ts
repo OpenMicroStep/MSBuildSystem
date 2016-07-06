@@ -1,4 +1,4 @@
-import {Element, declareElementFactory} from '../element';
+import {Element, createElementValidator, declareElementFactory} from '../element';
 import {Reporter} from '../runner';
 import * as MakeJS from '../make';
 import {AttributeTypes, AttributeResolvers, Attributes, AttributePath} from '../attributes';
@@ -78,6 +78,8 @@ export class FileElement extends Element
       super.__loadReservedValue(reporter, key, value, attrPath);
   }
 }
+
+export const fileElementValidator = createElementValidator('file', FileElement);
 
 function loadElementFile(reporter: Reporter, attrPath: AttributePath, filepath: string, files: File[]) {
   try {

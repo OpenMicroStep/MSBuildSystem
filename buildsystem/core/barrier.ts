@@ -9,7 +9,6 @@ export class Barrier {
   reset(counter: number) {
     this.actions = [];
     this.counter = counter;
-    console.trace("Barrier.reset   name=%s, counter=%s", this.name, this.counter);
   }
 
   inc() {
@@ -18,7 +17,6 @@ export class Barrier {
 
   dec() {
     if(--this.counter === 0 && this.actions.length > 0) {
-      console.trace("Barrier.signal  name=%s, counter=%s", this.name, this.counter);
       this.actions.forEach((action) => {
        this.signal(action);
       });
@@ -40,7 +38,6 @@ export class Barrier {
   }
 
   endWith(action: () => any) {
-    console.trace("Barrier.endWith name=%s, counter=%s", this.name, this.counter);
     if(this.counter <= 0)
       this.signal(action);
     else

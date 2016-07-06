@@ -1,4 +1,4 @@
-import {Workspace, Project, Reporter, Target, declareResolvers, declareTarget, AttributeTypes} from '../core';
+import {Workspace, Project, Reporter, Target, declareTarget, AttributeTypes} from '../core';
 import {assert} from 'chai';
 import * as path from 'path';
 

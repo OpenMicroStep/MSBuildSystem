@@ -9,28 +9,8 @@ export interface Attributes {
 }
 
 export module AttributeTypes {
-  export type DirectValue = string | string[] | { [s:string]: any}[] | { [s:string]: any};
-  export type TaskCondition = {
-    ifTask?: (task: Task, target: Target) => boolean;
-  }
-  export type FileCondition = {
-    ifFile?: string | string[];
-  }
-  export type ExportCondition = {
-    export?: boolean | ((other_target: Target, this_target: Target) => boolean);
-  }
-  export type ComplexValue<T> = {
-    $?: T | T[],
-    ifTarget?: (target: Target) => boolean;
-  }
-  export type Value<T, E> = ((E & ComplexValue<T>) | T)[];
-  export type TaskValue<T, E> = ((E & ComplexValue<T> & TaskCondition) | T)[];
-  export type FileValue<T, E> = ((E & ComplexValue<T> & FileCondition) | T)[];
-  export type ExportableValue<T, E> = ((E & ComplexValue<T> & ExportCondition) | T)[];
-  export type TaskFileValue<T, E> = ((E & ComplexValue<T> & TaskCondition & FileCondition) | T)[];
-  export type ExportableTaskValue<T, E> = ((E & ComplexValue<T> & ExportCondition & TaskCondition) | T)[];
-  export type ExportableFileValue<T, E> = ((E & ComplexValue<T> & ExportCondition & FileCondition) | T)[];
-  export type ExportableTaskFileValue<T, E> = ((E & ComplexValue<T> & ExportCondition & TaskCondition & FileCondition) | T)[];
+  export type Value<T> = T[];
+  export type ComplexValue<T, E> = (({$?: T[] } & E) | T)[];
   
   export type Validator<T> = (reporter: Reporter, path: AttributePath, value: any, ...args) => T;
   export type MapValue<T> = (reporter: Reporter, path: AttributePath, value: any, values: T[], ...args) => void;
@@ -99,20 +79,6 @@ export module AttributeUtil {
 export module AttributeResolvers {
   export interface Resolver<T> {
     resolve(reporter: Reporter, value, at: AttributePath, ...args) : T;
-  }
-
-  export class TargetAttributeResolver<T> {
-    resolver: Resolver<T>;
-    path: string;
-
-    constructor(path: string, resolver: Resolver<T>) {
-      this.resolver = resolver;
-      this.path = path;
-    }
-
-    resolve(reporter: Reporter, target: Target, ...args) {
-      return this.resolver.resolve(reporter, target.attributes[this.path], new AttributePath(this.path), ...args);
-    }
   }
 
   export class FunctionResolver implements Resolver<void> {

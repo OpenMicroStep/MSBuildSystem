@@ -1,8 +1,9 @@
 import {Project, RootGraph} from './project';
-import {Attributes, AttributeTypes, AttributeResolvers} from './attributes';
+import {Attributes, AttributeTypes, AttributeResolvers, AttributePath} from './attributes';
 import {Task} from './task';
 import {Graph} from './graph';
 import {BuildTargetElement, targetElementValidator} from './elements/target.element';
+import {FileElement, fileElementValidator} from './elements/file.element';
 import {BuildSession} from './buildSession';
 import {File} from './file';
 import {Barrier} from './barrier';
@@ -11,7 +12,6 @@ import {Hash} from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
-var TargetAttributeResolver = AttributeResolvers.TargetAttributeResolver;
 export var targetClasses = new Map<string, typeof Target>();
 export function declareTarget(options: { type: string }) {
   return function (constructor: typeof Target) {
@@ -19,41 +19,21 @@ export function declareTarget(options: { type: string }) {
   }
 }
 
-export function declareResolvers(resolvers: AttributeResolvers.TargetAttributeResolver<any>[]) {
-  return function (constructor: { prototype: { resolvers: {[s: string] : AttributeResolvers.Resolver<any>}} }) {
-    var prev = constructor.prototype.resolvers;  
-    var r = constructor.prototype.resolvers;
-    if (!prev || r === prev)
-      r = constructor.prototype.resolvers = prev ? Object.assign(resolvers, prev) : {};
-    for(var i = 0, len = resolvers.length; i < len; ++i) {
-      var resolver = resolvers[i];
-      r[resolver.path] = resolver;
-    }
-  }
-}
-
 export function getTargetClass(type: string) : typeof Target {
   return targetClasses.get(type);
 }
 
-@declareResolvers([
-  new TargetAttributeResolver("targets", new AttributeResolvers.ListResolver(targetElementValidator)),
-  new TargetAttributeResolver("configure", new AttributeResolvers.FunctionResolver("(target: Target) => void")),
-  new TargetAttributeResolver("exports", new AttributeResolvers.FunctionResolver("(other_target: Target, this_target: Target, lvl: number) => void"))
-])
+const configureResolver = new AttributeResolvers.FunctionResolver("(target: Target) => void");
+const filesResolver = new AttributeResolvers.ListResolver(fileElementValidator)
+
 export class Target extends Graph {
-  resolvers: {[s: string] : AttributeResolvers.TargetAttributeResolver<any>};
-  exportable: {[s: string] : AttributeResolvers.TargetAttributeResolver<any>};
-  
   graph: RootGraph;
   dependencies : Set<Target>;
   requiredBy : Set<Target>;
-  files: Set<File>;
+  files: FileElement[];
 
   project: Project;
   attributes: BuildTargetElement;
-  attributesCache: Attributes;
-  exportedAttributes: Attributes;
   paths: {
     output: string,
     build: string,
@@ -72,14 +52,12 @@ export class Target extends Graph {
   }) {
     super({ type: "target", name: attributes.name, environment: attributes.environment.name, variant: attributes.variant, project: project.path }, graph);
 
-    this.files = new Set<any>();
+    this.files = [];
     this.project = project;
     this.variant = attributes.variant;
     this.targetName = attributes.name;
     this.environment = attributes.environment.name;
     this.attributes = attributes;
-    this.attributesCache = {};
-    this.exportedAttributes = this.resolvers;
     
     this.modifiers = [];
     this.paths = {
@@ -111,15 +89,16 @@ export class Target extends Graph {
     else
       super.do(step);
   }
-  
-  resolveDependencies(reporter: Reporter) : string[] {
-    return this.resolvers['targets'].resolve(reporter, this);
+    
+  configure(reporter: Reporter) 
+  {
+    this.resolveAttr(reporter, 'configure', configureResolver, this);
+    this.files = this.resolveAttr(reporter, 'files', filesResolver);
   }
-  
-  configure(reporter: Reporter) {
-    //let files = this.project.resolveElementValueAndByEnv(reporter, this.attributes, this.attributes.environment, 'files', 'file');
-    //for (let file of files)
-    //  this.files.add((<any>file).file);
+
+  resolveAttr<T>(reporter: Reporter, path: string, resolver: AttributeResolvers.Resolver<T>, ...args) : T
+  {
+    return resolver.resolve(reporter, this.attributes[path], new AttributePath(path), ...args);
   }
   
   buildGraph(reporter: Reporter) {
