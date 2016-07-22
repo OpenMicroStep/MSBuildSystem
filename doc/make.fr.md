@@ -1,6 +1,10 @@
 Définition d'un espace de projet (`project`)
 ===============================================
 
+> TODO: project.workspace: string // nom du workspace par défaut auxquel le projet appartient
+
+> Long terme: définir les prérequis pour le buildsystem (ie. cxx, clang, gcc, typescript, ...) + npm extensions ?
+
 Ce document présente les concepts essentiels à la définition d'un projet.
 
 Un projet est défini dans un fichier `make.js`.  
@@ -86,9 +90,9 @@ Le nom peut être indiqué via la propriété `name` comme dans:
 
 ```js
 {
-is: "project",
-name: "My project",
-}
+  is: "project",
+  name: "My project",
+  }
 ```
 
 Dans un espace de nom (cf. § suivant), le nom de l'objet suivi du signe `=` peut aussi être une propriété comme dans l'exemple suivant que l'on peut lire ainsi: soit `myElement` un élément défini avec la couleur bleue:
@@ -99,6 +103,8 @@ Dans un espace de nom (cf. § suivant), le nom de l'objet suivi du signe `=` peu
   color: "blue",
   }
 ```
+
+Si l'usage du signe `=` est signifiant pour nommer un espace de nom, il est nécéssaire de préfixer le signe `=` avec le signe `\`. Cela est aussi valable au moment de référencer l'espace de nom ainsi définit.
 
 A tout élément peut être associé un ensemble d'étiquettes (`tags`) qui permettront de regrouper certains éléments. Par exemple:
 
@@ -120,11 +126,11 @@ Certains éléments (tous ?) sont des espaces de noms (au moins les éléments `
 
 ```js
 {
-is: "project",
-name: "MicroStep",
-'base=':          {is: "component", compiler: "clang", compilerOptions: {"std":"c11"}},
-'darwin-i386-c=': {is: "component", "arch": "i386", "sysroot": "darwin", components: ["base"]},
-}
+  is: "project",
+  name: "MicroStep",
+  'base=':          {is: "component", compiler: "clang", compilerOptions: {"std":"c11"}},
+  'darwin-i386-c=': {is: "component", "arch": "i386", "sysroot": "darwin", components: ["=base"]},
+  }
 ```
 
 Dans cet exemple, `Microstep` est un `project` qui déclare deux éléments `base` et `darwin-i386-c`. Ce dernier élément contient une référence à l'élément `base`. Celui-ci est alors recherché dans `darwin-i386-c` puis dans `MicroStep`.
@@ -151,7 +157,7 @@ Les sous-éléments peuvent être définis directement dans le groupe comme suit
 ```js
 'myGroup=': {
   is: "group",
-  elements: [ "e1", "e2" ],
+  elements: [ "=e1", "=e2" ],
   'e1=': { is: "xxx", ... },
   'e2=': { is: "xxx", ... },
   }
@@ -181,11 +187,11 @@ Par exemple si on a défini un groupe `commonPublicHeaders` de headers publiques
 'header3=': { is: "file", ... },
 'commonPublicHeaders=': {
   is: "group",
-  elements: [ "header1", "header2" ],
+  elements: [ "=header1", "=header2" ],
   }
 'myTarget=': {
   is: "target",
-  publicHeaders: ["commonPublicHeaders", "header3"],
+  publicHeaders: ["=commonPublicHeaders", "=header3"],
   }
 ```
 
@@ -203,7 +209,7 @@ Contrairement aux autres éléments, un groupe ne définit jamais d'étiquettes 
 
 Les étiquettes permettent de récupérer facilement des ensembles variés d'éléments.
 
-La syntaxe est la suivante : `GROUPS[?TAGS]`.
+La syntaxe est la suivante : `=GROUPS[?TAGS]`.
 
 Qui s'interprète comme l'ensemble des éléments terminaux du ou des groupes désignés par `GROUPS` et de leurs sous-groupes, disposant du ou des étiquettes `TAGS`. On parle alors de groupe en intension (les groupes vus au § précédent étant des groupes en extension).
 
@@ -214,15 +220,17 @@ Cet ensemble forme lui-même un groupe dont le nom est `GROUPS?TAGS` et qui peut
 - un sous-groupe désigné sous la forme `group:subGroup`;
 - plusieurs groupes et/ou sous-groupes séparés par des `+` comme par exemple: `group1 + group2:sous-group`. Les blancs autour du `+` ne sont pas considérés comme signifiants. Evidemment, les éléments de chacun des groupes doivent être de même type.
 
+La présence du préfix `=` est la pour signifier que la chaîne représente un groupe d'élements. Ainsi toutes les chaînes de caractères préfixé par `=` dans les propriétés multivaluées des éléments seront interpreté comme faisant référence à un groupe d'élements. Comme lors de la définition des espaces de noms, si le signe `=` fait partie du nom (ce qui est fortement déconseillé), il est nécéssaire de le préfixer d'un caractère d'échappement: `\`. 
+
 Remarque: Il n'est pas possible de désigner les seuls éléments terminaux d'un groupe séparément des éléments terminaux de ses sous-groupes. Pour ce faire, il faudra rassembler les éléments terminaux du groupe dans un sous-groupe spécifique comme dans l'exemple suivant:
 
 ```js
 'g1=': {
   is: "group",
-  elements: [ "e1", "e2" , "sg1" ],
+  elements: [ "=e1", "=e2" , "=sg1" ],
   'sg1=': {
     is: "group",
-    elements: [ "e3" ],
+    elements: [ "=e3" ],
     }
   }
 
@@ -232,14 +240,14 @@ Remarque: Il n'est pas possible de désigner les seuls éléments terminaux d'un
 
 'g1=': {
   is: "group",
-  elements: [ "sg0" , "sg1" ],
+  elements: [ "=sg0" , "=sg1" ],
   'sg0=': {
     is: "group",
-    elements: [ "e1", "e2" ],
+    elements: [ "=e1", "=e2" ],
     }
   'sg1=': {
     is: "group",
-    elements: [ "e3" ],
+    elements: [ "=e3" ],
     }
   }
 ```
@@ -268,11 +276,11 @@ Quelques exemples:
 'header3=': { is: "file", ... },
 'commonPublicHeaders=': {
   is: "group",
-  elements: [ "header1", "header2" ],
+  elements: [ "=header1", "=header2" ],
   }
 'myTarget=': {
   is: "target",
-  publicHeaders: ["commonPublicHeaders?POSIX", "header3"],
+  publicHeaders: ["=commonPublicHeaders?POSIX", "=header3"],
   }
 ```
 
@@ -298,7 +306,7 @@ Exemple:
 },
 'clang=': {
   is: "component",
-  components: ["clang compiler", "basic flags", "more flags"]
+  components: ["=clang compiler", "=basic flags", "=more flags"]
 },
 ~~~
 
@@ -399,15 +407,15 @@ Le nom de l'environnement correspond aussi au nom du dossier dans lequel les obj
   },
 'darwin-i386-open=': {
   is: "environment",
-  components: ["base", "darwin-i386"]
+  components: ["=base", "=darwin-i386"]
   },
 'darwin-i386-cocoa=': {
   is: "environment",
-  components: ["base", "darwin-i386", "cocoa"]
+  components: ["=base", "=darwin-i386", "=cocoa"]
   },
 'darwin-i386-cocoa-INTERDIT=': { // INTERDIT car darwin-i386-open est un environnement
   is: "environment",
-  components: ["darwin-i386-open", "cocoa"]
+  components: ["=darwin-i386-open", "=cocoa"]
   },
 ~~~
 
@@ -449,7 +457,7 @@ Les environnements qui seront traités seront tous ceux déclarés dans `environ
   },
 'win environnements=': {
   is: "group",
-  elements: ["win32-i386", "win32-ppc"],
+  elements: ["=win32-i386", "=win32-ppc"],
   },
 'darwin-i386=': {
   is: "environment",
@@ -457,7 +465,7 @@ Les environnements qui seront traités seront tous ceux déclarés dans `environ
   },
 'all environnements=': {
   is: "group",
-  elements: ["win environnements", "darwin-i386"],
+  elements: ["=win environnements", "=darwin-i386"],
   },
 'Core=': {
   is: "group",
@@ -478,9 +486,9 @@ Les environnements qui seront traités seront tous ceux déclarés dans `environ
 'MyTarget=': {
   is: "target",
   type: "Library",
-  files: ["Core", "Sources?!POSIX"],
+  files: ["Core", "=Sources?!POSIX"],
   filesByEnvironment: {
-    "darwin-i386":        ["Sources?POSIX"],
+    "darwin-i386":        ["=Sources?POSIX"],
     },
   components: ["paramètres généraux pour les librairies"],
   },
@@ -491,8 +499,8 @@ Ecriture 2
 ~~~js
   files: ["Core"],
   filesByEnvironment: {
-    "win environnements":     ["Sources?!POSIX"],
-    "darwin-i386":            ["Sources"],
+    "win environnements":     ["=Sources?!POSIX"],
+    "darwin-i386":            ["=Sources"],
     },
 ~~~
 
@@ -500,9 +508,9 @@ Ecriture 3
 
 ~~~js
   filesByEnvironment: {
-    "all environnements":     ["Core"],
-    "win environnements":     ["Sources?!POSIX"],
-    "darwin-i386":            ["Sources"],
+    "all environnements":     ["=Core"],
+    "win environnements":     ["=Sources?!POSIX"],
+    "darwin-i386":            ["=Sources"],
     },
 ~~~
 
@@ -510,9 +518,9 @@ Ecriture 4 avec un groupe d'environnements en intension `all environnements?win`
 
 ~~~js
   filesByEnvironment: {
-    "all environnements":     ["Core"],
-    "all environnements?win": ["Sources?!POSIX"],
-    "darwin-i386":            ["Sources"],
+    "all environnements":     ["=Core"],
+    "all environnements?win": ["=Sources?!POSIX"],
+    "darwin-i386":            ["=Sources"],
     },
 ~~~
 
@@ -520,8 +528,8 @@ Ecriture 4
 
 ~~~js
   filesByEnvironment: {
-    "darwin-i386":        ["Core", "Sources"],
-    "win environnements": ["Core", "Sources?!POSIX"],
+    "darwin-i386":        ["=Core", "=Sources"],
+    "win environnements": ["=Core", "=Sources?!POSIX"],
     },
 ~~~
 
@@ -553,13 +561,15 @@ Une tâche est un élément (composant ?) qui définit:
 
 Tout composant définit dans le projet peut être exporté par un objectif pour partager des paramètres de construction entre projets au sein de l'espace de travail.
 
+Un objectif est par définition toujours exporté par un projet.
+
 L'export se déclare au niveau de chaque objectif comme pour les fichiers et les composants avec les propriétés `exports` et `exportsByEnvironment`.
 
-Dès lors, pour accéder à ces paramètres depuis un autre projet (toujours au sein du même espace de travail), il suffit d'utiliser la syntaxe `::env:target::nom-du-composant`, où:
+Dès lors, pour accéder à ces éléments depuis un autre projet (toujours au sein du même espace de travail), il suffit d'utiliser la syntaxe `::[env:]target::[component]`, où:
 
-- `target` est le nom de l'objectif contenant les composants exportés (dans notre exemple: `ATarget`) et
-- `env` est le nom de l'environnement dans lequel il faut rechercher l'objectif contenant les composants exportés. 
-  Si cet environnement est le même que celui qu'on est en train de construire, on peut remplacer `env` par `*`.
+- `env` si fourni, c'est le nom de l'environnement dans lequel il faut rechercher l'objectif contenant les composants exportés.
+- `target` est le nom de l'objectif contenant les composants exportés (dans notre exemple: `ATarget`)
+- `component` si fourni est le nom du composant exporté à accéder
 
 Lors de la construction du objectif, on créera un fichier `Nom de mon objectif.make.js` contenant le ou les composants à exporter. 
 Ce fichier sera déposé dans le dossier `.shared` de l'environement.
@@ -576,17 +586,17 @@ Dans l'exemple ci-dessous, on exporte juste le composant `posix component` pour 
   },
 'darwin-i386=': {
   is: "environment",
-  components: ["posix component", ...]
+  components: ["=posix component", ...]
   },
 'ATarget=': {
   is: "target",
   ...
   filesByEnvironment: {
-    "darwin-i386":        ["Core", "Sources"],
-    "win environnements": ["Core", "Sources?!POSIX"],
+    "darwin-i386":        ["=Core", "=Sources"],
+    "win environnements": ["=Core", "=Sources?!POSIX"],
     },
   exportsByEnvironment: {
-    "darwin-i386":        ["posix component"],
+    "darwin-i386":        ["=posix component"],
     },
   },
 ~~~
@@ -610,19 +620,19 @@ Le fichier d'export de l'exemple précédent donnera:
 <a name="Méthodes"></a>Méthodes sur les éléments [☝︎](#☝︎)
 ------------------------------------------------
 
-Certains make demandent des opérations vraiment spécifiques. 
-Pour y remédier, il est possible d'obtenir une référence vers le ou les éléments via la fonction `$(query)`.
-Elle renvoi un proxy qui va se charger d'enregistrer la liste des opérations demandés afin de les exécuter lors de l'évaluation.
-De ce fait, la valeur retourné n'est utilisable que par le système.
+Certains make demandent des opérations vraiment spécifiques.   
+Pour résoudre se problème, il est possible d'exécuter une fonction sur le ou les éléments du groupe résolue. Pour ce faire, la syntaxe de résolution accepte d'être suffixé par la syntaxe: `?? nom_de_la_méthode()`.
 
-Par exemple, le chemin absolu d'un élément de type `file` s'obtient ainsi:
+Le contenu retourné par la méthode sera alors ajouter à la liste des valeurs.
 
-	$('myGroup ? myFile').absolutePath()
+ > TODO: Fusionner ceci avec la définition de la syntaxe de résolution + exemple
 
 La liste des méthodes spécifiques est décrite élément par élément dans le document [API](api.md).
 
 <a name="MSFoundation"></a>Exemple MSFoundation [☝︎](#☝︎)
 -----------------------------------------------
+
+> TODO: A mettre à jour une fois le make.js valide selon la nouvelle définition 
 
 ~~~js
 module.exports= {          // LIGNE A SUPPRIMER
