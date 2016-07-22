@@ -1,4 +1,4 @@
-import {Element, DelayedElement, declareElementFactory, createElementValidator} from '../element';
+import {Element, DelayedElement, declareElementFactory, createElementValidator, elementValidator} from '../element';
 import {ComponentElement} from './component.element';
 import {Reporter} from '../runner';
 import * as MakeJS from '../make';
@@ -16,6 +16,19 @@ const componentValidator = (reporter: Reporter, path: AttributePath, value: any)
 };
 const componentListResolver = new AttributeResolvers.ListResolver(componentValidator);
 const componentByEnvResolver = new AttributeResolvers.ByEnvListResolver(componentValidator);
+
+
+function __resolveValuesByEnvForEnv(reporter: Reporter, element: Element, environment: EnvironmentElement, valuesByEnv: {[s:string] : any[]}, values: any[])
+{
+  for (var env in valuesByEnv) {
+    var envs = element.resolveElements(reporter, env);
+    if (envs.indexOf(environment) !== -1) {
+      var v = valuesByEnv[env];
+      if (Array.isArray(values) && Array.isArray(v))
+        values.push(...valuesByEnv[env]);
+    }
+  }
+}
 
 declareElementFactory('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: Element) => {
   let target = new TargetElement(name, parent);
@@ -43,23 +56,11 @@ export class TargetElement extends ComponentElement {
     }
   }
 
-  __resolveValuesByEnvForEnv(reporter: Reporter, environment: EnvironmentElement, valuesByEnv: {[s:string] : any[]}, values: any[])
-  {
-    for (var env in valuesByEnv) {
-      var envs = this.resolveElements(reporter, env);
-      if (envs.indexOf(environment) !== -1) {
-        var v = valuesByEnv[env];
-        if (Array.isArray(values) && Array.isArray(v))
-          values.push(...valuesByEnv[env]);
-      }
-    }
-  }
-
   __resolveExports(reporter: Reporter, environment: EnvironmentElement)
   {
     let exports = <(ComponentElement | GroupElement)[]>[];
     exports.push(...this.exports);
-    this.__resolveValuesByEnvForEnv(reporter, environment, this.exportsByEnvironment, exports);
+    __resolveValuesByEnvForEnv(reporter, this, environment, this.exportsByEnvironment, exports);
     return new TargetExportElement(this, exports);  
   }
 
@@ -80,7 +81,7 @@ export class TargetElement extends ComponentElement {
     at.pop();
   }
 
-  __compatibleEnvironment(reporter: Reporter, environment: EnvironmentElement) : EnvironmentElement {
+  __compatibleEnvironment(reporter: Reporter, environment: {name: string, compatibleEnvironments: string[]}) : EnvironmentElement {
     let compatibleEnvs = this.environments.filter(e => 
       e.name === environment.name || 
       environment.compatibleEnvironments.indexOf(e.name) !== -1
@@ -97,7 +98,14 @@ export class TargetElement extends ComponentElement {
 }
 
 export const targetElementValidator = createElementValidator('target', TargetElement);
-const targetListResolver = new AttributeResolvers.ListResolver(targetElementValidator);
+const targetListResolver = new AttributeResolvers.ListResolver(function (reporter: Reporter, path: AttributePath, value: any) {
+  value = elementValidator(reporter, path, value);
+  if (value !== undefined && value instanceof TargetElement)
+    return <TargetElement>value;
+  if (value !== undefined)
+    reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a 'target' element, got a ${value.is}`});
+  return undefined;
+});
 
 export class TargetExportElement extends TargetElement
 {
@@ -115,35 +123,63 @@ export class BuildTargetElement extends TargetElement {
   environment: EnvironmentElement;
   targets: BuildTargetElement[];
   __target: TargetElement;
+  root: RootGraph;
   constructor(reporter: Reporter, root: RootGraph, target: TargetElement, environment: EnvironmentElement, variant: string) {
     super(target.name, target.__parent);
-    for (var k in target) {
+    this.root = root; // this is a required to use delayed resolve target creation
+    for (let k in target) {
       this[k] = target[k];
     }
     this.is = 'build-target';
     this.variant = variant;
     this.environment = environment;
     this.__target = target;
-    this.__injectElements(reporter, [environment]);
-    this.__resolve(reporter); // resolve delayed elements
-    for (var k in this) {
-      if (k.endsWith("ByEnvironment") && typeof k === 'object') {
-        var valuesByEnv = this[k];
-        var attr = k.substring(0, k.length - "ByEnvironment".length);
-        var arr = attr in this ? this[attr] : (this[attr] = []);
-        this.__resolveValuesByEnvForEnv(reporter, this.environment, valuesByEnv, arr);
-      }
-    }
+
+    // resolve delayed/environment related elements
+    // 1. inject environment attributes
+    this.__injectElements(reporter, [environment]); 
+    // 2. resolve delayed elements
+    this.__resolve(reporter);
+    // 3. resolve environment related attributes
+    this.__resolveByEnvironment(reporter, this, this.environment);
+
     let at = new AttributePath(this.__path());
     at.push('');
     let targets = targetListResolver.resolve(reporter, this.targets|| [], at.set('targets'));
     this.targets = [];
     targets.forEach(t => {
-      let compatibleEnv = t.__compatibleEnvironment(reporter, this.environment);
-      if (compatibleEnv)
-        this.targets.push(root.buildTargetElement(reporter, t, compatibleEnv, variant));
+      if (t instanceof BuildTargetElement)
+        this.targets.push(t);
+      else {
+        let compatibleEnv = t.__compatibleEnvironment(reporter, this.environment);
+        if (compatibleEnv)
+          this.targets.push(this.buildTargetElement(reporter, t, compatibleEnv));
+      }
     });
     at.pop();
+  }
+
+  __resolveByEnvironment(reporter: Reporter, element: Element, environment: EnvironmentElement)
+  {
+    for (let k in element) {
+      if (k.endsWith("ByEnvironment") && typeof k === 'object') {
+        let valuesByEnv = element[k];
+        let attr = k.substring(0, k.length - "ByEnvironment".length);
+        let arr = attr in element ? element[attr] : (element[attr] = []);
+        __resolveValuesByEnvForEnv(reporter, element, environment, valuesByEnv, arr);
+        delete element[k];
+      }
+    }
+  }
+
+  resolveElementsForEnvironment(reporter: Reporter, elements: Element[], environment: EnvironmentElement)
+  {
+    elements.forEach(el => this.__resolveByEnvironment(reporter, el, environment));
+  }
+
+  buildTargetElement(reporter: Reporter, target: TargetElement, environment: EnvironmentElement) : BuildTargetElement
+  {
+    return this.root.buildTargetElement(reporter, target, environment, this.variant);
   }
 
   __resolveValue(reporter: Reporter, el, ret: any[])

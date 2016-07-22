@@ -268,14 +268,16 @@ export class Element {
       let steps = group.split(':');
       for (let i = 0, len = steps.length; el && i < len; ++i) {
         let step = steps[i].trim();
-        if (step.length == 0) {
-          if (i == 0 
-          && steps.length >= 6 
-          && steps[1].length === 0 
-          && steps[2].length > 0 
-          && steps[3].length > 0 
-          && steps[4].length === 0 
-          && steps[5].length === 0) {
+        if (step.length == 0) { 
+          if (i == 0                
+          && steps.length >= 5      
+          && steps[1].length === 0
+          && steps[2].length > 0
+          && (
+            (steps[3].length === 0 && steps[4].length === 0 )
+            ||
+            (steps.length >= 6 && steps[4].length === 0 && steps[5].length === 0)
+          )) { // ::[env:]target::
             ret.push(new DelayedQuery(steps, tags, this));
             delayed = true;
             el = null;
@@ -340,11 +342,13 @@ export class DelayedQuery extends DelayedElement
   }
   __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement) : Element[]
   {
-    let env = this.steps[2];
-    let target = this.steps[3];
+    let env = this.steps[3].length > 0 ? this.steps[2] : null;
+    let target = this.steps[env ? 3 : 2];
+    const size = env ? 6 : 5;
     let project = this.__parent.__project();
     let workspace = project.workspace;
     let targets = [];
+    let elements = [];
     workspace.projects.forEach((p) => {
       targets.push(...p.targets.filter(t => t.name === target));
     });
@@ -357,18 +361,19 @@ export class DelayedQuery extends DelayedElement
     }
     else {
       let targetElement: TargetElement = targets[0];
-      let envElement = targetElement.__compatibleEnvironment(reporter, buildTarget.environment);
+      let envElement = targetElement.__compatibleEnvironment(reporter, env ? { name: env, compatibleEnvironments:[] } : buildTarget.environment);
       if (envElement) {
-        if (this.steps.length > 6 || this.tags.length > 0) {
+        if (this.steps.length > size || this.tags.length > 0) {
           // we must now resolve exported components
-          return targetElement.__resolveExports(reporter, envElement).resolveElements(reporter, `${this.steps.slice(6).join(':')}?${this.tags.join('+')}`);
+          elements = targetElement.__resolveExports(reporter, envElement).resolveElements(reporter, `${this.steps.slice(size).join(':')}?${this.tags.join('+')}`);
+          buildTarget.resolveElementsForEnvironment(reporter, elements, envElement);
         }
         else {
-          return [targetElement];
+          elements = [buildTarget.buildTargetElement(reporter, targetElement, envElement)];
         }
       }
     }
-    return [];
+    return elements;
   }
 }
 
