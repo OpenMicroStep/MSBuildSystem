@@ -1,7 +1,7 @@
-Définition d'un espace de projet (`project`)
-===============================================
+Définition d'un projet (`project`)
+==================================
 
-> TODO: project.workspace: string // nom du workspace par défaut auxquel le projet appartient
+> TODO: project.workspace: string // nom du workspace par défaut auquel le projet appartient
 
 > Long terme: définir les prérequis pour le buildsystem (ie. cxx, clang, gcc, typescript, ...) + npm extensions ?
 
@@ -12,7 +12,7 @@ Ce fichier est écrit en JavaScript (ECMAScript 6 supporté).
 Il définit les aspects suivants :
 
  - les environnements supportés (ex: windows, darwin, nodejs, ...);
- - les fichiers de l'espace de travail;
+ - les fichiers du projet;
  - les objectifs (librairie, exécutable, ...);
  - les tâches permettant d'exécuter le résultat d'un ou plusieurs objectifs (ex: lancer les tests, démarrer un serveur, ...).
 
@@ -24,8 +24,8 @@ Les propriétés spécifiques aux différents types d'objectifs et de tâches so
 **Les bases**
 
 - [Vocabulaire](#Vocabulaire)
-- [Espace de travail](#Workspace)
 - [Elément](#Elément)
+- [Espace de travail](#Workspace)
 - [Espace de noms](#Espace-de-noms)
 - [Groupe](#Groupe)
 - [Utilisation des étiquettes](#Tags)
@@ -47,11 +47,11 @@ Les bases
 <a name="Vocabulaire"></a>Vocabulaire [☝︎](#☝︎)
 -------------------------------------
 
-Un **élément** (`element`) est un objet javascript ayant un nom, une propriété `is` précisant la nature de l'élément et éventuellement des étiquettes (`tags`) permettant de le colorer. Tous les objets de l'espace de travail sont des éléments.
+Un **élément** (`element`) est un objet javascript ayant un nom, une propriété `is` précisant la nature de l'élément et éventuellement des étiquettes (`tags`) permettant de le colorer. Tous les objets d'un projet sont des éléments.
 
 Un **groupe** (`group`) est un élément pouvant contenir d'autres éléments de même type et définissant un espace de noms.
 
-Un **composant** (`component`) est un élément qui représente la fusion de ses propriétés et de celles de tous ses composants.
+Un **composant** (`component`) est un élément qui représente la fusion de ses propriétés et de celles de tous ses composants internes.
 
 Un **environnement** (`environment`) est un ensemble cohérent de paramètres permettant la construction d'un objectif. Par exemple, un environnement pour un langage compilé, décrira le compilateur et l'architecture ciblée.
 
@@ -59,21 +59,9 @@ Un **objectif** (`target`) est un élément que le make a pour mission de constr
 
 Une **tâche** (`run`) est la définition d'une commande exécutant le résultat d'un ou plusieurs objectifs.
 
-Un **projet** (`project`) définit un ensemble d'élément le décrivant.
+Un **projet** (`project`) définit un ensemble d'objectifs et de tâches.
 
-Un **espace de travail** (`workspace`) est le regroupement d'un ensemble de projets cohérents entre eux. En général ces projets partages les mêmes environements.
-
-<a name="Workspace"></a>Espace de travail [☝︎](#☝︎)
--------------------------------------
-
-Un projet est toujours utiliser dans le contexte d'un espace de travail. 
-
-Les projets d'un espace de travail ont en commun:
-
- - le répertoire de destination des objectifs (toujours en fonction des environements)
- - la possibilité de partager des composants entre eux (voir [Import/Export](#Import/Export))
-
-Pour éviter tout conflit au sein de l'espace de travail 2 projets ne peuvent avoir le même nom pour un objectif.
+Un **espace de travail** (`workspace`) est le regroupement d'un ensemble de projets cohérents entre eux. En général ces projets partagent les mêmes environements.
 
 <a name="Elément"></a>Elément (`element`) [☝︎](#☝︎)
 -----------------------------------------
@@ -104,8 +92,6 @@ Dans un espace de nom (cf. § suivant), le nom de l'objet suivi du signe `=` peu
   }
 ```
 
-Si l'usage du signe `=` est signifiant pour nommer un espace de nom, il est nécéssaire de préfixer le signe `=` avec le signe `\`. Cela est aussi valable au moment de référencer l'espace de nom ainsi définit.
-
 A tout élément peut être associé un ensemble d'étiquettes (`tags`) qui permettront de regrouper certains éléments. Par exemple:
 
 ```js
@@ -116,13 +102,47 @@ A tout élément peut être associé un ensemble d'étiquettes (`tags`) qui perm
   }
 ```
 
-Les six lettres `: * ? + ! \` sont réservées et ne doivent pas être utilisées dans les noms des éléments car les cinq premières sont utilisées pour la désignation des groupes en intension (cf. [Utilisation des étiquettes](#Tags)). Si elles apparaissent, elles doivent être escapées par `\`.  
+Les sept lettres `= : * ? + ! \` sont réservées et ne doivent pas être utilisées dans les noms des éléments car la première sert à la définition ou à l'utilisation d'un élément et les cinq suivantes sont utilisées pour la désignation des groupes en intension (cf. [Utilisation des étiquettes](#Tags)). Si elles apparaissent, elles doivent être escapées par `\`.  
 La case des lettres est signifiante.
+
+<a name="Workspace"></a>Espace de travail [☝︎](#☝︎)
+-----------------------------------------
+
+Un projet est toujours utiliser dans le contexte d'un espace de travail. La propriété `workspace` définit l'espace de travail du projet.
+
+```js
+{
+  is: "project",
+  name: "My project",
+  workspace: "=microstep",
+  }
+```
+
+Un espace de travail définit tout d'abord un emplacement pour le répertoire de destination des objectifs. Ce répertoire contiendra un certain nombre d'environnements dans lesquels seront rangés les objectifs correspondants. 
+
+Cet espace de travail est un élément défini par ailleurs et qui ressemble à
+
+```js
+{
+  is: "workspace",
+  name: "microstep",
+  unix-path: "/opt/microstep",
+  windows-path: "c:\opt\microstep",
+  }
+```
+
+Il est possible dans la ligne de commande du builder de modifier l'espace de travail du projet pour qu'il se construise dans un autre espace (par exemple `microstep2`) en ajoutant l'option: `workspace=microstep2`.
+
+Un ou plusieurs espaces de travail pourront être définis dans un fichier dont le chemin sera fourni au builder.
+
+D'autre part, un espace de travail offre la possibilité de partager des composants (voir [Import/Export](#Import/Export)).
+
+Pour éviter tout conflit, deux projets d'un même espace de travail ne peuvent utiliser le même nom pour un objectif.
 
 <a name="Espace-de-noms"></a>Espace de noms [☝︎](#☝︎)
 -------------------------------------------
 
-Certains éléments (tous ?) sont des espaces de noms (au moins les éléments `project`, `group` et `target`). Un espace de nom permet de déclarer des propriétés qui sont des éléments dont le nom suivi du signe `=` est celui de la propriété. Par exemple:
+Certains éléments sont des espaces de noms (au moins les éléments `project`, `group` et `target`). Un espace de nom permet de déclarer des propriétés qui sont des éléments dont le nom suivi du signe `=` est celui de la propriété. Par exemple:
 
 ```js
 {
@@ -133,9 +153,11 @@ Certains éléments (tous ?) sont des espaces de noms (au moins les éléments `
   }
 ```
 
-Dans cet exemple, `Microstep` est un `project` qui déclare deux éléments `base` et `darwin-i386-c`. Ce dernier élément contient une référence à l'élément `base`. Celui-ci est alors recherché dans `darwin-i386-c` puis dans `MicroStep`.
+Dans cet exemple, `Microstep` est un `project` qui déclare deux éléments `base` et `darwin-i386-c`. Ce dernier élément contient une référence à l'élément `base`, en préfixant le nom de l'élément du signe `=`. Celui-ci est alors recherché dans `darwin-i386-c` puis dans `MicroStep`.
 
-De manière générale, si un élément père P fait référence à un élément E, celui-ci est recherché dans P, puis dans le père de P, et ainsi de suite en remontant jusqu'à l'espace de travail.
+De manière générale, si un élément père P fait référence à un élément E, celui-ci est recherché dans P, puis dans le père de P, et ainsi de suite en remontant jusqu'au projet, et même jusqu'à l'espace de travail si l'élément est importé.
+
+> TODO: puisqu'on a le `=`, même les éléments externes doivent commencer par `=`. Donc revoir la syntaxe pour l'import.
 
 <a name="Groupe"></a>Groupe (`group`) [☝︎](#☝︎)
 -------------------------------------
@@ -426,7 +448,7 @@ Un objectif est quelque chose dont on demande la construction, comme une librair
 
 Un objectif peut être déclaré directement au niveau du projet. Cependant, on nomme souvent un groupe de fichier de la même manière qu'un objectif (ex: un dossier `MSCore` regroupant tous les fichiers permettant la construction d'une librairie `MSCore`). Dans ce cas on peut rassembler les objectifs dans un groupe `Targets` ce qui évite la confusion des noms (cf [Espace de noms](#Espace-de-noms)).
 
-Un objectif peut dépendre d'autres objectifs (`targets`), définis dans le même espace de travail, qui seront alors construits préalablement.
+Un objectif peut dépendre d'autres objectifs (`targets`), définis dans le même projet ou dans le même espace de travail, qui seront alors construits préalablement.
 
 Un objectif a toujours un `type` (ex : une application node, un executable, une librairie, ...).
 
