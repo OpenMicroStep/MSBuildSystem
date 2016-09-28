@@ -2,12 +2,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch",
+            "name": "Launch Buildsystem tests",
             "type": "node",
             "request": "launch",
             "program": "${workspaceRoot}/_/node_modules/mocha/bin/_mocha",
             "stopOnEntry": false,
-            "args": ["--inline-diffs", "--no-timeouts", "--colors", "out/buildsystem/tests.js"],
+            "args": ["--inline-diffs", "--no-timeouts", "--colors", "test-buildsystem.js"],
             "cwd": "${workspaceRoot}/_",
             "preLaunchTask": null,
             "runtimeExecutable": null,
@@ -19,7 +19,7 @@
             },
             "externalConsole": false,
             "sourceMaps": true,
-            "outDir": "${workspaceRoot}/_/out",
+            "outDir": "${workspaceRoot}/_/out-buildsystem/node_modules/@msbuildsystem",
             "smartStep": true
         },
         {

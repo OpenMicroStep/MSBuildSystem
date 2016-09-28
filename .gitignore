@@ -1,4 +1,4 @@
-_/node_modules
+node_modules/
 _/typings
 _/.*
 _/out

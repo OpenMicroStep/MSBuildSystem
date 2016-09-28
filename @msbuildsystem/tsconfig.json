@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es6",
+    "declaration": true,
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "outDir": "../_/out-buildsystem/node_modules/@msbuildsystem",
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "lib": [
+      "es6"
+    ],
+    "types": [
+      "node", "mocha", "chai"
+    ],
+    "baseUrl": ".",
+    "rootDir": ".",
+    "paths": {
+      "@msbuildsystem/*": ["./*/src"],
+      "@msbuildsystem/core/*": ["./core/*"],
+      "@msbuildsystem/shared/*": ["./shared/*"]
+    }
+  },
+  "files" : [
+    "shared/src/index.ts",
+    "shared/tst/index.ts",
+    "core/src/index.ts",
+    "core/tst/index.ts",
+    "foundation/src/index.ts",
+    "cxx/src/index.ts",
+    "cxx/tst/index.ts"
+  ]
+}

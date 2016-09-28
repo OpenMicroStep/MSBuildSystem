@@ -7,11 +7,17 @@
     "source-map-support": "^0.4.0"
   },
   "devDependencies": {
+    "@types/chai": "^3.4.29",
+    "@types/fs-extra": "0.0.28",
+    "@types/mocha": "^2.2.28",
+    "@types/node": "^4.0.30",
+    "browserify": "^13.1.0",
     "chai": "^3.5.0",
     "gulp": "^3.9.1",
     "gulp-cli": "^1.2.1",
     "gulp-sass": "^2.3.2",
     "mocha": "^2.5.3",
+    "tsify": "^1.0.3",
     "typescript": "^2.0.3"
   }
 }
