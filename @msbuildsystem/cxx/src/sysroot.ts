@@ -3,10 +3,12 @@ import {CXXTarget, CXXFramework, CompileTask, LinkTask, CompileFileParams} from 
 import * as path from 'path';
 
 export interface CXXSysrootDefaults {
-  compilers: { [s: string]: typeof CompileTask };
-  linkers: { [s: string]: typeof LinkTask };
-  defaultCompiler: string;
-  defaultLinker: string;
+  compilers?: { [s: string]: typeof CompileTask };
+  linkers?: { [s: string]: typeof LinkTask };
+  exeLinkers?: { [s: string]: typeof CompileTask };
+  defaultCompiler?: string;
+  defaultLinker?: string;
+  defaultExeLinker?: string;
 }
 export type Conditions = {
   /** platform (ie. darwin, linux, win32, mingw-w64, mingw, bsd, ios, ...) */
@@ -22,10 +24,7 @@ export var sysrootClasses = <CXXSysrootConstructor[]>[];
 export function declareSysroot(defaults: CXXSysrootDefaults) {
   return function (constructor: CXXSysrootConstructor) {
     sysrootClasses.push(constructor);
-    constructor.prototype.compilers = defaults.compilers;
-    constructor.prototype.linkers = defaults.linkers;
-    constructor.prototype.defaultCompiler = defaults.defaultCompiler;
-    constructor.prototype.defaultLinker = defaults.defaultLinker;
+    Object.assign(constructor.prototype, defaults);
   };
 }
 
@@ -61,6 +60,18 @@ export abstract class CXXSysroot implements CXXSysrootDefaults {
     return { compileTasks: compileTasks, linkTasks: [linkTask] };
   }
 
+  createCompileTasks(reporter: Reporter) : CompileTask[] {
+    let compileTasks = <CompileTask[]>[];
+    let target = this.target;
+    target.files.forEach((params, srcFile) => {
+      let relativePath = path.relative(target.project.directory, srcFile.path + ".o");
+      let objFile = File.getShared(path.join(target.paths.intermediates, relativePath));
+      let task = this.createCompileTask(reporter, srcFile, objFile, params);
+      compileTasks.push(task);
+    });
+    return compileTasks;
+  }
+
   createCompileTask(reporter: Reporter, srcFile: File, objFile: File, params: CompileFileParams) : CompileTask {
     params.compiler = params.compiler || this.target.compiler || this.defaultCompiler;
     let compilerCstor = this.compilers[params.compiler];
@@ -87,18 +98,6 @@ export abstract class CXXSysroot implements CXXSysrootDefaults {
 
   linkTaskProvider(linkerName: string) : ProviderConditions {
     return {linker: linkerName};
-  }
-
-  createCompileTasks(reporter: Reporter) : CompileTask[] {
-    let compileTasks = <CompileTask[]>[];
-    let target = this.target;
-    target.files.forEach((params, srcFile) => {
-      let relativePath = path.relative(target.project.directory, srcFile.path + ".o");
-      let objFile = File.getShared(path.join(target.paths.intermediates, relativePath));
-      let task = this.createCompileTask(reporter, srcFile, objFile, params);
-      compileTasks.push(task);
-    });
-    return compileTasks;
   }
 
   linkFinalPath() : string {

@@ -30,6 +30,7 @@
     "core/tst/index.ts",
     "foundation/src/index.ts",
     "cxx/src/index.ts",
-    "cxx/tst/index.ts"
+    "cxx/tst/index.ts",
+    "cxx.sysroot.darwin/src/index.ts"
   ]
 }

@@ -25,7 +25,7 @@ export abstract class LocalProvider extends Provider {
       });
     }
   }
-  
+
   abstract localprocess(step: Step, options: ProviderOptions);
 }
 
@@ -58,7 +58,7 @@ export class ProcessProvider extends Provider {
       step.continue();
     });
   }
-  run(bin: string, args: string[], env: {[s:string]: string}, cb: (err: Error, code: number, signal: string, out: string) => void) {
+  run(bin: string, args: string[], env: {[s: string]: string}, cb: (err: Error, code: number, signal: string, out: string) => void) {
     child_process.run(this.bin, args, env, cb);
   }
 }

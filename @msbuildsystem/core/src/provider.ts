@@ -35,7 +35,7 @@ export abstract class Provider {
     return true;
   }
 
-  /** map the given virtaul path to the provider real path */
+  /** map the given virtual path to the provider real path */
   abstract map(path: string) : string;
 
   /** process the given action */

@@ -60,9 +60,19 @@ export function tests() {
   it('build', (done) => {
     let runner = new Runner(graph, 'build');
     runner.enable(graph);
+    runner.on('taskend', (step) => {
+      if (step.failed && step.logs)
+        console.warn(step.logs);
+      assert.deepEqual(step.diagnostics, []);
+      assert.equal(step.failed, false);
+    });
     Async.run(null, [
       runner.run.bind(runner),
-      done
+      (p) => {
+        assert.equal(runner, p.context.runner);
+        assert.equal(runner.failed, false);
+        done();
+      }
     ]);
   });
 

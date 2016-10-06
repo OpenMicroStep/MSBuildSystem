@@ -12,24 +12,14 @@ Les valeurs courantes sont: `i386`, `x86_64`, `armv7`.
 
 #### `sysroot`
 
-Le sysroot cible de la compilation.  
-Les valeurs courantes sont: `darwin`, `linux`, `msvc`, `mingw-w64`.
-Il est possible de définir une condition sur le numéro de version: 
- - pour une version en particulier, ex: `{value: "darwin", version: "10.10"}`,
- - pour une version minimal, ex: `{value: "darwin", minVersion: "10.10"}`,
- - pour une version maximal, ex: `{value: "darwin", maxVersion: "10.10"}`,
- - pour un ensemble de versions, ex: `{value: "darwin", versions: ["10.9", "10.10"]}`
- - pour un range de versions, ex: `{value: "darwin", minVersion: "10.10", maxVersion: "10.11"}`
-
-#### `platform`
-
-La plateforme cible de la compilation.  
-Les valeurs courantes sont: `darwin`, `linux`, `win32`.
+Le sysroot cible de la compilation.
+Le format est le suivant: `platform:arch@version`.
+Les valeurs courantes sont: `darwin:i386`, `darwin:x86_64`, `linux:armv7`, `msvc`, `mingw-w64`.
 
 #### `compiler`
 
 Le compilateur à utiliser pour la compilation.  
-Les valeurs courantes sont: `clang`, `gcc`.
+Les valeurs courantes sont: `clang`, `gcc`, `msvc`.
 Il est possible de définir une condition sur le numéro de version: 
  - pour une version en particulier, ex: `{value: "clang", version: "3.8"}`,
  - pour une version minimal, ex: `{value: "clang", minVersion: "3.8"}`,
@@ -40,12 +30,6 @@ Il est possible de définir une condition sur le numéro de version:
 ### Autres attributs
 
 #### `files`
-
-@ListAttribute({
-  type: "file",
-  scope: "task",
-  
-})
 
 La liste des fichiers à compiler.  
 Si des en-têtes sont fournis, les répertoires qui les contiennents sont ajoutés aux répertoires de recherches des en-têtes.  
@@ -70,27 +54,6 @@ Cet attributs est à utiliser si les répertoires ne font pas partie des fichier
 Il est possible de définir une condition relative à l'objectif.  
 Il est possible de définir une condition relative à la tâche.  
 Il est possible d'exporter les valeurs.
-
-#### `publicHeaders`
-
-La liste des fichiers formant les en-têtes publiques.
-Les valeurs ont le format définit pour trouver les fichiers a partir des groupes et des tags.  
-Il est possible de définir une condition relative à l'objectif.  
-Il est possible de définir un répertoire de destination via la clé `dest`.  
-Il est possible de définir le fait que le placement des en-têtes reprenent la partie du chemin qui diffère entre eux en définissant la clé `expand` à `true`. Par example les fichiers `dir1/dir2/header1.h` et `dir1/dir3/header2.h` seront copiés dans `dir2/header1.h` et `dir3/header2.h`.
-
-```js
-[
-  "AllHeadersInThisGroup",
-  "AllHeadersInThisGroup.AndThatAreInThisSubGroup",
-  "?AllHeadersWithThisTag",
-  "?AllHeadersWithThisTag?AndThisTag",
-  "AllHeadersInThisGroup?AndThisTag?AndThisOtherTag",
-  {add: ["AllHeadersInThisGroup?Win32"], ifTarget: target => target.platform === "win32"},
-  {add: ["AllHeadersInThisGroup?Win32"], dest: "PutThemInThisDirectory"},
-  {add: ["AllHeadersInThisGroup?Win32"], expand: true}, // keep the filesystem structure
-]
-```
 
 #### `defines`
 
@@ -177,7 +140,27 @@ Cet objectif de compilation n'ajoute aucun attribut supplémentaire.
 
 C'est une extension de l'objectif **CXXTarget**.  
 Le résultat de la compilation sera une librarie.  
-Cet objectif de compilation n'ajoute aucun attribut supplémentaire.
+
+#### `publicHeaders`
+
+La liste des fichiers formant les en-têtes publiques.
+Les valeurs ont le format définit pour trouver les fichiers a partir des groupes et des tags.  
+Il est possible de définir une condition relative à l'objectif.  
+Il est possible de définir un répertoire de destination via la clé `dest`.  
+Il est possible de définir le fait que le placement des en-têtes reprenent la partie du chemin qui diffère entre eux en définissant la clé `expand` à `true`. Par example les fichiers `dir1/dir2/header1.h` et `dir1/dir3/header2.h` seront copiés dans `dir2/header1.h` et `dir3/header2.h`.
+
+```js
+[
+  "AllHeadersInThisGroup",
+  "AllHeadersInThisGroup.AndThatAreInThisSubGroup",
+  "?AllHeadersWithThisTag",
+  "?AllHeadersWithThisTag?AndThisTag",
+  "AllHeadersInThisGroup?AndThisTag?AndThisOtherTag",
+  {add: ["AllHeadersInThisGroup?Win32"], ifTarget: target => target.platform === "win32"},
+  {add: ["AllHeadersInThisGroup?Win32"], dest: "PutThemInThisDirectory"},
+  {add: ["AllHeadersInThisGroup?Win32"], expand: true}, // keep the filesystem structure
+]
+```
 
 
 ## Framework

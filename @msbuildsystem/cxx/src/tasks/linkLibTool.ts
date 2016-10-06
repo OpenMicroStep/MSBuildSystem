@@ -1,4 +1,5 @@
 import {declareTask, Graph, File} from '@msbuildsystem/core';
+import {Arg} from '@msbuildsystem/foundation';
 import {CXXLinkType, LinkTask} from '../index.priv';
 
 @declareTask({ type: "link-libtool" })
@@ -18,16 +19,21 @@ export class LinkLibToolTask extends LinkTask {
       return file.path;
     }));
   }
-  addFlags(libs: string[]) {
+  addFlags(libs: Arg[]) {
     this.insertArgs(3, libs);
   }
 
-  addLibraryFlags(libs: string[]) {
+  addObjFiles(files: File[]) {
+    this.addFlags(files.map(f => [f]));
+    super.addObjFiles(files);
+  }
+
+  addLibraryFlags(libs: Arg[]) {
     if (this.type !== CXXLinkType.STATIC)
       this.appendArgs(libs);
   }
 
-  addArchiveFlags(libs: string[]) {
+  addArchiveFlags(libs: Arg[]) {
     if (this.type !== CXXLinkType.STATIC) {
       libs.forEach((lib) => {
         this.appendArgs(["-force_load", lib]);

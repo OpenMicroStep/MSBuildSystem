@@ -1,14 +1,14 @@
 import {EventEmitter} from 'events';
 import {format} from 'util';
-import {Async, Flux} from '@msbuildsystem/shared/src/async';
-import {Diagnostic, diagnosticFromError} from '@msbuildsystem/shared/src/diagnostic';
-import {Task, util} from './index.priv';
+import {Task, util, BuildSession} from './index.priv';
+import {Async, Flux, Diagnostic, diagnosticFromError} from '@msbuildsystem/shared';
 
 export class Runner extends EventEmitter {
   context: any;
   root: Task;
   action: string;
   enabled: Set<Task>;
+  failed: boolean;
 
   constructor(root: Task, action: string) {
     super();
@@ -32,8 +32,14 @@ export class Runner extends EventEmitter {
     p.context.runner = this;
     p.context.step = step;
     step.once(() => {
+      this.failed = step.failed;
       p.continue();
     });
+  }
+
+  on(event: "taskend", listener: (step: Step) => void) : this;
+  on(event: string, listener: Function) : this {
+    return super.on(event, listener);
   }
 }
 
@@ -67,12 +73,14 @@ export class Reporter {
   }
 
   diagnostic(d: Diagnostic) {
+    if (!d) return;
     this.diagnostics.push(d);
     if (d.type === "error" || d.type === "fatal error")
       this.failed = true;
   }
 
   error(err: Error, base?: Diagnostic) {
+    if (!err) return;
     this.diagnostic(diagnosticFromError(err, base));
   }
 
@@ -96,7 +104,7 @@ export class Step extends Flux implements Reporter {
   lastRunStartTime: number;
   lastRunEndTime: number;
   lastSuccessTime: number;
-  storage;
+  storage: BuildSession.BuildSession | null;
   _once: (((p) => void)[]) | null;
 
   constructor(runner: Runner, task: Task) {
@@ -149,8 +157,8 @@ export class Step extends Flux implements Reporter {
   _start(p) {
     this.storage = this.task.getStorage();
     this.storage.load(() => {
-      this.data = this.storage.get(this.runner.action) || {};
-      this.sharedData = this.storage.get("SHARED") || {};
+      this.data = this.storage!.get(this.runner.action) || {};
+      this.sharedData = this.storage!.get("SHARED") || {};
       this.lastRunStartTime = Date.now();
       this.lastRunEndTime = this.data.lastRunEndTime || 0;
       this.lastSuccessTime = this.data.lastSuccessTime || 0;
@@ -164,9 +172,9 @@ export class Step extends Flux implements Reporter {
     this.data.lastRunEndTime = Date.now();
     this.data.lastRunStartTime = this.lastRunStartTime;
     this.data.lastSuccessTime = this.diagnostics.length > 0 ? 0 : this.data.lastRunEndTime;
-    this.storage.set(this.runner.action, this.data);
-    this.storage.set("SHARED", this.sharedData);
-    this.storage.save(() => {
+    this.storage!.set(this.runner.action, this.data);
+    this.storage!.set("SHARED", this.sharedData);
+    this.storage!.save(() => {
       this.runner.emit("taskend", this);
       this.continue();
       this._once!.forEach((cb) => { cb(this); });

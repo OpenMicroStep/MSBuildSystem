@@ -1,6 +1,6 @@
 import * as priv from './index.priv';priv;
 export {CXXTarget, CXXLinkType, CXXSourceExtensions} from './target';
-export {CXXSysroot} from './sysroot';
+export {CXXSysroot, declareSysroot} from './sysroot';
 
 export {CXXBundle} from './targets/bundle';
 export {CXXExecutable} from './targets/executable';

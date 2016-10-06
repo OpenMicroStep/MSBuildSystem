@@ -103,7 +103,7 @@ export class ProcessTask extends Task {
     }
   }
 
-  runProcess(step, provider: Provider) {
+  runProcess(step: Step, provider: Provider) {
     step.setFirstElements((step) => {
       step.log(step.context.output);
       step.error(step.context.err);
