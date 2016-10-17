@@ -165,7 +165,7 @@ De manière générale, si un élément père P fait référence à un élément
 Un groupe est un élément contenant d'autres éléments de même type et/ou des sous-groupes. De plus, un groupe est un espace de noms.
 
 Les sous-éléments peuvent être désignés par leurs noms sous la propriété `elements`. Tous les sous-éléments doivent être de même type (ou des sous-groupes de  type `group`).  
-Voici l'exemple un groupe nommé `myGroup` composé des deux éléments `e1` et `e2`.
+Voici l'exemple d'un groupe nommé `myGroup` composé des deux éléments `e1` et `e2`.
 
 ```js
 'myGroup=': {
