@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${workspaceRoot}/_/node_modules/mocha/bin/_mocha",
             "stopOnEntry": false,
-            "args": ["--inline-diffs", "--no-timeouts", "--colors", "test-buildsystem.js"],
+            "args": ["--inline-diffs", "--colors", "test-buildsystem.js"],
             "cwd": "${workspaceRoot}/_",
             "preLaunchTask": null,
             "runtimeExecutable": null,
