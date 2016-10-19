@@ -10,8 +10,8 @@ const componentValidator = (reporter: Reporter, path: AttributePath, value: any)
     : undefined
   );
 };
-const componentListResolver = new AttributeResolvers.ListResolver(componentValidator);
-const componentByEnvResolver = new AttributeResolvers.ByEnvListResolver(componentValidator);
+const componentListResolver = new AttributeResolvers.ListResolver<ComponentElement | GroupElement, any>(componentValidator);
+const componentByEnvResolver = new AttributeResolvers.ByEnvListResolver<ComponentElement | GroupElement, any>(componentValidator);
 
 
 function __resolveValuesByEnvForEnv(
@@ -68,12 +68,12 @@ export class TargetElement extends ComponentElement {
     super.__resolve(reporter);
     this.environments = this.__resolveElements<EnvironmentElement>(reporter, this.environments, 'environments', 'environment');
     if (this.environments.length === 0)
-      reporter.diagnostic({ type: "warning", msg: `target ${this.name} attribute "environments" is empty, target can't be build`});
+      reporter.diagnostic({ type: "warning", msg: `attribute "environments" of target '${this.name}' is empty, target can't be build`});
     let at = new AttributePath(this.__path());
     at.push('');
     this.type = AttributeTypes.validateString(reporter, at.set('type'), this.type) || "bad type";
-    this.exports = componentListResolver.resolve(reporter, this.exports  || [], at.set('exports'));
-    this.exportsByEnvironment = componentByEnvResolver.resolve(reporter, this.exports  || {}, at.set('exportsByEnvironment'));
+    this.exports = componentListResolver.resolve(reporter, at.set('exports'), this.exports  || [], null);
+    this.exportsByEnvironment = componentByEnvResolver.resolve(reporter, at.set('exportsByEnvironment'), this.exports  || {}, null);
     at.pop();
   }
 
@@ -100,7 +100,7 @@ export class TargetElement extends ComponentElement {
 }
 
 export const targetElementValidator = createElementValidator('target', TargetElement);
-const targetListResolver = new AttributeResolvers.ListResolver(function (reporter: Reporter, path: AttributePath, value: any) {
+const targetListResolver = new AttributeResolvers.ListResolver<TargetElement, any>(function (reporter: Reporter, path: AttributePath, value: any) {
   value = elementValidator(reporter, path, value);
   if (value !== undefined && value instanceof TargetElement)
     return <TargetElement>value;
@@ -145,7 +145,7 @@ export class BuildTargetElement extends TargetElement {
 
     let at = new AttributePath(this.__path());
     at.push('');
-    let targets = targetListResolver.resolve(reporter, this.targets || [], at.set('targets'));
+    let targets = targetListResolver.resolve(reporter, at.set('targets'), this.targets || [], null);
     this.targets = [];
     targets.forEach(t => {
       if (t instanceof BuildTargetElement)

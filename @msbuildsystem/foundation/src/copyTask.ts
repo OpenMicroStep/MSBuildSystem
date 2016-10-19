@@ -19,7 +19,7 @@ export class CopyTask extends Task {
     for (var i = 0, len = files.length; i < len; i++) {
       var file = files[i];
       var p = expand
-            ? path.join(outDir, commonPart ? path.relative(file.path, commonPart) : file.name)
+            ? path.join(outDir, commonPart ? path.relative(commonPart, file.path) : file.name)
             : path.join(outDir, file.name);
       this.willCopyFile(reporter, file, File.getShared(p, file.isDirectory));
     }
@@ -29,7 +29,7 @@ export class CopyTask extends Task {
     if (file.isDirectory || to.isDirectory)
       reporter.diagnostic({ type: "warning", msg: `willCopyFile doesn't support copying directory, ignoring ${file.path}` });
     else
-      this.steps.push(file, to);
+      this.steps.push(to, file);
   }
 
   foreach(fn: (from: File, to: File) => void) {
@@ -47,7 +47,7 @@ export class CopyTask extends Task {
       let to = this.steps[i - 1];
       from.copyTo(to, step.lastSuccessTime, (err) => {
         if (err)
-          step.diagnostic({type: "error", msg: "couldn't copy file: " + err.message});
+          step.diagnostic({type: "error", msg: "couldn't copy file: " + err + this});
         barrier.dec();
       });
     }

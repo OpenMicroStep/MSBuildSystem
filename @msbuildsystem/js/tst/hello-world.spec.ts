@@ -1,5 +1,6 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, Target, File, Async, Task, TGraph} from '@msbuildsystem/core';
-import {CXXExecutable, CompileClangTask, LinkLibToolTask, CXXDarwinSysroot} from '@msbuildsystem/cxx';
+import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, TGraph} from '@msbuildsystem/core';
+import {CopyTask} from '@msbuildsystem/foundation';
+import {JSTarget, DefaultJSCompiler} from '@msbuildsystem/js';
 import {assert} from 'chai';
 import * as path from 'path';
 
@@ -18,8 +19,8 @@ export function tests() {
     let reporter = new Reporter();
     graph = project.buildGraph(reporter, {});
     let targets = Array.from(graph.allTasks());
-    targets.forEach((t: CXXExecutable) => {
-      let files = t.files.keys();
+    targets.forEach((t: JSTarget) => {
+      let files = t.files;
       for (let file of files)
         assert.instanceOf(file, File);
     });
@@ -34,39 +35,23 @@ export function tests() {
     assert.deepEqual(reporter.diagnostics, []);
     assert.deepEqual(tree, [
       {
-        "constructor": CXXExecutable,
-        "environment": "darwin-i386",
+        "constructor": JSTarget,
+        "environment": "js",
         "name": "Hello World",
         "project": project.path,
         "type": "target",
         "variant": "debug",
         "children": [
           {
-            "constructor": CXXDarwinSysroot,
-            "name": "darwin",
-            "type": "sysroot",
+            "constructor": DefaultJSCompiler,
+            "name": "javascript",
+            "type": "compiler",
             "children": [
-              { "constructor": CompileClangTask, "name": "main.c", "type": "cxxcompile" },
-              { "constructor": LinkLibToolTask, "name": "Hello World", "type": "link" }
-            ]
-          }
-        ]
-      },
-      {
-        "constructor": CXXExecutable,
-        "environment": "darwin-x86_64",
-        "name": "Hello World",
-        "project": project.path,
-        "type": "target",
-        "variant": "debug",
-        "children": [
-          {
-            "constructor": CXXDarwinSysroot,
-            "name": "darwin",
-            "type": "sysroot",
-            "children": [
-              { "constructor": CompileClangTask, "name": "main.c", "type": "cxxcompile" },
-              { "constructor": LinkLibToolTask, "name": "Hello World", "type": "link" }
+              {
+                "constructor": CopyTask,
+                "name": "javascript",
+                "type": "copy"
+              }
             ]
           }
         ]

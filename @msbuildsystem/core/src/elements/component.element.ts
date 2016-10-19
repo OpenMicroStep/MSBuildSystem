@@ -1,4 +1,4 @@
-import {Element, declareElementFactory, Reporter, MakeJS, AttributeResolvers, AttributePath} from '../index.priv';
+import {Element, declareElementFactory, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
 
 declareElementFactory('component', (reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element
@@ -65,7 +65,7 @@ export class ComponentElement extends Element {
       this.components = <ComponentElement[]>this.__loadElements(reporter, value, attrPath);
     }
     else if (key === 'tags') {
-      this.tags = AttributeResolvers.stringListResolver.resolve(reporter, value, attrPath);
+      this.tags = AttributeTypes.validateStringList(reporter, attrPath, value);
     }
     else {
       super.__loadReservedValue(reporter, key, value, attrPath);

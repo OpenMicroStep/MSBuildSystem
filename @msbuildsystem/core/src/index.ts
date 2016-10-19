@@ -19,7 +19,9 @@ export { Diagnostic } from '@msbuildsystem/shared/src/diagnostic';
 export { Project, RootGraph } from './project';
 export { Workspace  } from './workspace';
 
+//import * as logger from './logger';
 import * as process from './process';
 import * as util    from './util';
 export { util as util };
 export { process as process };
+//export { logger as logger };

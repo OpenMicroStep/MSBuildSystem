@@ -49,7 +49,7 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
     });
   }
 
-  let tags = "tags" in definition ? AttributeResolvers.stringListResolver.resolve(reporter, definition["tags"], attrPath) : [];
+  let tags = "tags" in definition ? AttributeTypes.validateStringList(reporter, attrPath, definition["tags"]) : [];
   for (let i = 0, len = files.length; i < len; ++i) {
     let file = files[i];
     list.push(new FileElement(file, parent, tags));
@@ -85,7 +85,8 @@ export module FileElement {
   };
   export const fileSetResolver = new AttributeResolvers.SetResolver(fileValidator);
   export type FileGroup = { values: File[], ext: { dest: string, expand: boolean } };
-  export const fileGroupResolver: AttributeResolvers.Resolver<FileGroup[]> = new AttributeResolvers.GroupResolver<File, { dest: string, expand: boolean }>(
+  export const fileGroupResolver: AttributeResolvers.Resolver<FileGroup[], any> =
+  new AttributeResolvers.GroupResolver<File, { dest: string, expand: boolean }, null>(
     fileValidator,
     [
       {path: "dest"  , validator: AttributeTypes.validateString , default: ""   },

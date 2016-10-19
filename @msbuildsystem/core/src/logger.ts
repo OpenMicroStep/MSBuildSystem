@@ -22,15 +22,15 @@ export type Logger = {
 }
 var consolelog = console.log;
 var methods = [
-  {fn: 'error', level: 4, name: "ERROR", fmt:chalk.red.bold  },
-  {fn: 'warn' , level: 3, name: " WARN", fmt:chalk.yellow  },
-  {fn: 'info' , level: 2, name: " INFO", fmt:s => s },
-  {fn: 'log'  , level: 1, name: "DEBUG", fmt:chalk.gray },
-  {fn: 'debug', level: 1, name: "DEBUG", fmt:chalk.gray  },
-  {fn: 'trace', level: 0, name: "TRACE", fmt:chalk.gray  }
+  {fn: 'error', level: 4, name: "ERROR", fmt: chalk.red.bold  },
+  {fn: 'warn' , level: 3, name: " WARN", fmt: chalk.yellow  },
+  {fn: 'info' , level: 2, name: " INFO", fmt: s => s },
+  {fn: 'log'  , level: 1, name: "DEBUG", fmt: chalk.gray },
+  {fn: 'debug', level: 1, name: "DEBUG", fmt: chalk.gray  },
+  {fn: 'trace', level: 0, name: "TRACE", fmt: chalk.gray  }
 ];
 
-type LoggerOptions = {
+export type LoggerOptions = {
   on?: any,
   level?: 'error' | 'warn' | 'info' | 'debug' | 'trace',
   colors?: boolean,
@@ -45,8 +45,7 @@ export function install(options: LoggerOptions) : Logger {
   var writer = options.writer || consolelog;
   var gc = options.gc && global.gc;
 
-  function setupMethod(f)
-  {
+  function setupMethod(f) {
     var method = methods[f];
     if (method.level < level) {
       con[f] = function () {};
@@ -66,8 +65,8 @@ export function install(options: LoggerOptions) : Logger {
       return writer.call(con, date, diff + " ", mem, method.fmt(method.name + " " + util.format.apply(util.format, arguments)));
     };
   }
-  for(var f in methods) {
-    if(methods.hasOwnProperty(f))
+  for (var f in methods) {
+    if (methods.hasOwnProperty(f))
       setupMethod(f);
   }
 

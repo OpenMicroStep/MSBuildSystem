@@ -1,9 +1,9 @@
 import {Task, TaskName, Graph, File, Step} from '@msbuildsystem/core';
-import * as fs from 'fs-extra';
+import * as fs from 'fs';
 import {Hash} from 'crypto';
 
 export abstract class GenerateFileTask extends Task {
-  constructor(name: TaskName, graph: Graph | null, public path: string) {
+  constructor(name: TaskName, graph: Graph, public path: string) {
     super(name, graph);
   }
 

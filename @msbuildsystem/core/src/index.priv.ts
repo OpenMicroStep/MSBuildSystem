@@ -1,10 +1,10 @@
 export { Async, Diagnostic } from '@msbuildsystem/shared';
 export { Loader  } from './loader';
+//import * as logger from './logger'; export { logger as logger };
 import * as util from './util'; export { util as util };
 import * as process from './process'; export { process as process };
 import * as MakeJS from './make'; export { MakeJS as MakeJS };
 import * as BuildSession from './buildSession'; export { BuildSession as BuildSession };
-
 export * from './attributes';
 export * from './element';
 export * from './elements/group.element';

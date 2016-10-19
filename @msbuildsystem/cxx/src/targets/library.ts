@@ -1,9 +1,7 @@
 import {declareTarget, resolver, AttributeResolvers, AttributeTypes, Reporter, FileElement} from '@msbuildsystem/core';
 import {CopyTask} from '@msbuildsystem/foundation';
-import {CXXTarget, CXXLinkType, CXXTargetGraph} from '../index.priv';
+import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
-
-export type CXXLibraryGraph = CXXTargetGraph & { copyPublicHeadersTask?: CopyTask };
 
 @declareTarget({ type: "Library" })
 export class CXXLibrary extends CXXTarget {
@@ -16,6 +14,8 @@ export class CXXLibrary extends CXXTarget {
   @resolver(AttributeResolvers.stringResolver)
   publicHeadersBasePath: string = "includes";
 
+  taskCopyPublicHeaders?: CopyTask;
+
   configure(reporter: Reporter) {
     super.configure(reporter);
     this.linkType = this.static ? CXXLinkType.STATIC : CXXLinkType.DYNAMIC;
@@ -25,18 +25,13 @@ export class CXXLibrary extends CXXTarget {
     return path.join(this.paths.output, this.publicHeadersBasePath);
   }
 
-  buildGraph(reporter: Reporter) : CXXLibraryGraph {
-    let ret = <CXXLibraryGraph>super.buildGraph(reporter);
+  buildGraph(reporter: Reporter) {
+    super.buildGraph(reporter);
     if (this.publicHeaders.length) {
-      let copy = new CopyTask("public headers", this);
+      let copy = this.taskCopyPublicHeaders = new CopyTask("public headers", this);
       copy.willCopyFileGroups(reporter, this.publicHeaders, this.absolutePublicHeadersBasePath());
-      this.inputs.forEach((task) => {
-        if (task !== copy)
-          task.addDependency(copy);
-      });
-      ret.copyPublicHeadersTask = copy;
+      this.sysroot.addDependency(copy); // is this dependency really necessary ?
     }
-    return ret;
   }
 
   /*

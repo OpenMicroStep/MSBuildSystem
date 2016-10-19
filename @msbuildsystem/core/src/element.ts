@@ -279,9 +279,9 @@ export class Element {
     for (let group of groups) {
       let delayed = false;
       let el: Element | null = this;
-      let steps = group.split(':');
+      let steps = group.split(':').map(s => s.trim());
       for (let i = 0, len = steps.length; el && i < len; ++i) {
-        let step = steps[i].trim();
+        let step = steps[i];
         if (step.length === 0) {
           if (i === 0
           && steps.length >= 5

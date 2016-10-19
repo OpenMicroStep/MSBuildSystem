@@ -1,14 +1,10 @@
 {
-  "name": "@msbuildsystem/core",
+  "name": "@msbuildsystem/js",
   "version": "0.0.0-PLACEHOLDER",
   "description": "",
   "main": "src/index.js",
   "typings": "src/index.d.ts",
   "test": "tst/index.js",
   "author": "microstep",
-  "license": "MIT",
-  "dependencies": {
-    "fs-extra": "^0.30.0",
-    "source-map-support": "^0.4.0"
-  }
+  "license": "MIT"
 }

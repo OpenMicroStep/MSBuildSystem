@@ -1,9 +1,9 @@
 import {
-  Target, File, Reporter,
+  Target, File, Reporter, Graph,
   AttributePath, AttributeTypes, AttributeResolvers,
   resolver, FileElement
 } from '@msbuildsystem/core';
-import {CXXSysroot, CompileTask, LinkTask} from './index.priv';
+import {CXXSysroot} from './index.priv';
 const {validateString, validateStringList} = AttributeTypes;
 const {SimpleResolver, stringResolver, stringListResolver, stringSetResolver} = AttributeResolvers;
 export var CXXSourceExtensions: { [s: string]: string } =  {
@@ -27,7 +27,7 @@ export enum CXXLinkType {
   EXECUTABLE
 }
 
-export function validateSysroot(reporter: Reporter, path: AttributePath, value: any) : CXXSysroot | undefined {
+export function validateSysroot(reporter: Reporter, path: AttributePath, value: any, target: CXXTarget) : CXXSysroot | undefined {
   let v = AttributeTypes.validateString(reporter, path, value);
   if (v !== undefined) {
     let m = v.match(/^([^:\s]+)(?::([^:\s]+)(?:@([^:\s]+))?)?$/);
@@ -35,7 +35,7 @@ export function validateSysroot(reporter: Reporter, path: AttributePath, value: 
       let conditions = { platform: m[1], architecture: m[2], version: m[3] };
       let sysroots = CXXSysroot.find(conditions);
       if (sysroots.length === 1)
-        return new sysroots[0](conditions);
+        return new sysroots[0](target, conditions);
       else if (sysroots.length === 0)
         reporter.diagnostic({ type: "error", msg: `unable to find sysroot`});
       else
@@ -48,8 +48,6 @@ export function validateSysroot(reporter: Reporter, path: AttributePath, value: 
 }
 
 export type CompileFileParams = {language: string | undefined, compiler: string | undefined, compileFlags: string[]};
-
-export type CXXTargetGraph = { compileTasks: CompileTask[], linkTasks: LinkTask[] };
 
 /**
  * Base target for C/C++ targets (library, framework, executable)
@@ -98,13 +96,7 @@ export abstract class CXXTarget extends Target {
 
   linkType: CXXLinkType;
 
-  configure(reporter: Reporter) {
-    super.configure(reporter);
-    if (this.sysroot)
-      this.sysroot.target = this;
-  }
-
-  buildGraph(reporter: Reporter) : CXXTargetGraph {
-    return this.sysroot.buildGraph(reporter);
+  buildGraph(reporter: Reporter) {
+    this.sysroot.buildGraph(reporter);
   }
 }

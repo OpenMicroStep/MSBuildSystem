@@ -106,7 +106,7 @@ var waitingProcesses = <{fct: any, args: any, cb: any}[]>[];
 var nbProcessRunning = 0;
 function _run(fct, args, startCallback) {
   nbProcessRunning++;
-  console.trace("Run process", args[0], args[1].join(" "));
+  // console.trace("Run process", args[0], args[1].join(" "));
   try {
     var ret = fct.apply(child_process, args);
     startCallback(ret);

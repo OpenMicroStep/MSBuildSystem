@@ -1,7 +1,7 @@
-import {Task, TaskName, File, Step, Barrier} from './index.priv';
+import {Task, TaskName, File, Step, Barrier, Reporter} from './index.priv';
 
 export class TGraph<T extends Task> extends Task {
-  constructor(name: TaskName, graph: Graph | null, public inputs: Set<T> = new Set<T>()) {
+  constructor(name: TaskName, graph: Graph, public inputs: Set<T> = new Set<T>()) {
     super(name, graph);
   }
 
@@ -132,4 +132,12 @@ export class TGraph<T extends Task> extends Task {
 
 export class Graph extends TGraph<Task> {
 
+}
+
+export class SelfBuildGraph<P extends Graph> extends Graph {
+  graph: P;
+  constructor(name: TaskName, graph: P) {
+    super(name, graph);
+  }
+  buildGraph(reporter: Reporter) {}
 }

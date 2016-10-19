@@ -1,4 +1,4 @@
-import {Element, declareElementFactory, ComponentElement, Reporter, MakeJS, AttributeResolvers, AttributePath} from '../index.priv';
+import {Element, declareElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
 
 declareElementFactory('environment', (reporter: Reporter, name: string,
   definition: MakeJS.Environment, attrPath: AttributePath, parent: Element
@@ -16,7 +16,7 @@ export class EnvironmentElement extends ComponentElement {
 
   __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
     if (key === 'compatibleEnvironments') {
-      this.compatibleEnvironments = AttributeResolvers.stringListResolver.resolve(reporter, value, attrPath);
+      this.compatibleEnvironments = AttributeTypes.validateStringList(reporter, attrPath, value);
     }
     else {
       super.__loadReservedValue(reporter, key, value, attrPath);

@@ -1,14 +1,7 @@
 import {declareTarget, resolver, FileElement, AttributeResolvers, AttributeTypes, Reporter} from '@msbuildsystem/core';
 import {CopyTask} from '@msbuildsystem/foundation';
-import {CXXLibrary, CXXLibraryGraph, PlistInfoTask, HeaderAliasTask} from '../index.priv';
+import {CXXLibrary, PlistInfoTask, HeaderAliasTask} from '../index.priv';
 import * as path from 'path';
-
-
-export type CXXFrameworkGraph = CXXLibraryGraph & {
-  aliasHeadersTask?: HeaderAliasTask,
-  plistInfoTask?: PlistInfoTask,
-  copyBundleResourcesTask?: CopyTask
-};
 
 @declareTarget({ type: 'CXXFramework' })
 export class CXXFramework extends CXXLibrary {
@@ -48,23 +41,25 @@ export class CXXFramework extends CXXLibrary {
     return path.join(this.paths.intermediates, "alias", this.outputName + ".framework", "Headers");
   }
 
-  buildGraph(reporter: Reporter) : CXXFrameworkGraph {
-    let ret = <CXXFrameworkGraph>super.buildGraph(reporter);
-    if (ret.copyPublicHeadersTask) {
+  taskAliasHeader?: HeaderAliasTask;
+  taskPlistInfo?: PlistInfoTask;
+  taskCopyBundleResources?: CopyTask;
+
+  buildGraph(reporter: Reporter) {
+    super.buildGraph(reporter);
+    if (this.taskCopyPublicHeaders) {
       let aliaspath = this.absolutePublicHeadersAliasPath();
-      let h = new HeaderAliasTask(this, aliaspath);
-      ret.copyPublicHeadersTask.foreach(h.willAliasHeader.bind(h));
-      ret.aliasHeadersTask = h;
+      let h = this.taskAliasHeader = new HeaderAliasTask(this, aliaspath);
+      this.sysroot.addDependency(h);
+      this.taskCopyPublicHeaders.foreach(h.willAliasHeader.bind(h));
     }
     if (this.bundleInfo) {
-      ret.plistInfoTask = new PlistInfoTask(this, this.bundleInfo, this.absoluteBundleInfoPath());
+      this.taskPlistInfo = new PlistInfoTask(this, this.bundleInfo, this.absoluteBundleInfoPath());
     }
     if (this.resources.length) {
-      let copy = new CopyTask("bundle resources", this);
+      let copy = this.taskCopyBundleResources = new CopyTask("bundle resources", this);
       copy.willCopyFileGroups(reporter, this.resources, this.absoluteBundleResourcesBasePath());
-      ret.copyBundleResourcesTask = copy;
     }
-    return ret;
   }
 
 /*

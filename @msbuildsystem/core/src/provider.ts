@@ -1,4 +1,36 @@
-import {File, Task, Step} from "./index.priv";
+import {File, Task, Step, Target, SelfBuildGraph, Reporter, AttributePath, AttributeResolvers, AttributeTypes} from "./index.priv";
+
+export function createBuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>>(type: string) {
+  let list = new Map<string, { new (graph: P) : T }>();
+  function declareBuildGraphProvider(names: string[]) {
+    return function (constructor: { new (graph: P) : T }) {
+      names.forEach(name => {
+        list.set(name, constructor);
+      });
+    };
+  }
+  function find(name: string) {
+    return list.get(name);
+  }
+  function validate(reporter: Reporter, path: AttributePath, value: any, target: P) : T | undefined {
+    let v = AttributeTypes.validateString(reporter, path, value);
+    if (v !== undefined) {
+      let builder = find(v);
+      if (builder !== undefined)
+        return new builder(target);
+      else
+        reporter.diagnostic({ type: "error", msg: `unable to find ${type}`});
+    }
+    return undefined;
+  }
+  return {
+    list: list,
+    declare: declareBuildGraphProvider,
+    find: find,
+    validate: validate,
+    resolver: new AttributeResolvers.SimpleResolver(validate)
+  };
+}
 
 export type ProviderRequirement = "inputs" | "outputs" | "files" | "dependencies outputs";
 export type ProviderAttributeValue = string | {value: string, version: string, versions: string[], minVersion: string, maxVersion: string};

@@ -19,11 +19,11 @@ export class Task {
   dependencies: Set<Task> = new Set<Task>();
   requiredBy: Set<Task> = new Set<Task>();
   name: TaskName;
-  graph: Graph | null;
+  graph: Graph;
   private sessionKey: string | undefined | null;
 
   classname: string; // on the prototype, see registerClass
-  constructor(name: TaskName, graph: Graph | null) {
+  constructor(name: TaskName, graph: Graph) {
     this.name = name;
     this.graph = graph;
     this.sessionKey = undefined;

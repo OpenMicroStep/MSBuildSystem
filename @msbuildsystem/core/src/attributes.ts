@@ -1,15 +1,18 @@
-import {Reporter, util} from './index.priv';
+import {Reporter, util, Target} from './index.priv';
 
 export interface Attributes {
   components?: string[];
   [s: string]: any;
 }
 
-function listResolve<T> (reporter: Reporter, validator: AttributeTypes.Validator<T>, attr, path: AttributePath, push: (T) => void) {
+function listResolve<T, A0> (
+  reporter: Reporter, path: AttributePath, attr: T[], a0: A0,
+  validator: AttributeTypes.Validator<T, A0>, push: (T) => void
+) {
   path.push("[", "", "]");
   if (Array.isArray(attr)) {
     for (var idx = 0, attrlen = attr.length; idx < attrlen; idx++) {
-      var value = validator(reporter, path.set(idx.toString(), -1), attr[idx]);
+      var value = validator(reporter, path.set(idx.toString(), -1), attr[idx], a0);
       if (value !== undefined)
         push(value);
     }
@@ -20,28 +23,28 @@ function listResolve<T> (reporter: Reporter, validator: AttributeTypes.Validator
   path.pop(3);
 }
 
-function validateComplex<T, T2>(
-  reporter: Reporter, path: AttributePath, attr: any,
-  validator: AttributeTypes.Validator<T>, extensions: AttributeResolvers.Extension<any>[],
+function validateComplex<T, T2, A0>(
+  reporter: Reporter, path: AttributePath, attr: any, a0: A0,
+  validator: AttributeTypes.Validator<T, A0>, extensions: AttributeResolvers.Extension<any, A0>[],
   push: (keys: T[], value: T2) => void
 ) {
   let keys = <T[]>[];
   let value = <T2>{};
   if (typeof attr === "object" && attr.value) { // complex object
     path.push('.value');
-    listResolve(reporter, validator, path, attr.value, keys.push.bind(keys));
+    listResolve(reporter, path, attr.value, a0, validator, keys.push.bind(keys));
     path.pop();
     for (let i = 0, len = extensions.length; i < len; i++) {
       let ext = extensions[i];
       let v = attr[ext.path];
       if (v !== undefined) {
         path.set(ext.path, -2);
-        v = ext.validator(reporter, path, v);
+        v = ext.validator(reporter, path, v, a0);
       }
       value[ext.path] = v !== undefined ? v : ext.default;
     }
   }
-  else if ((attr= validator(reporter, path, attr))) { // directly the object
+  else if ((attr = validator(reporter, path, attr, a0))) { // directly the object
     keys.push(attr);
     for (let i = 0, len = extensions.length; i < len; i++) {
       let ext = extensions[i];
@@ -56,7 +59,7 @@ export module AttributeTypes {
   export type Value<T> = T[];
   export type ComplexValue<T, E> = (({$?: T[] } & E) | T)[];
 
-  export type Validator<T> = (reporter: Reporter, path: AttributePath, value: any, ...args) => T | undefined;
+  export type Validator<T, A0> = (reporter: Reporter, path: AttributePath, value: any, a0: A0) => T | undefined;
   export type MapValue<T> = (reporter: Reporter, path: AttributePath, value: any, values: T[], ...args) => void;
 
   export function validateStringValue(reporter: Reporter, path: AttributePath, value: any, expected: string) {
@@ -72,9 +75,9 @@ export module AttributeTypes {
     return undefined;
   }
 
-  export function validateStringList(reporter: Reporter, path: AttributePath, value: any) {
+  export function validateStringList(reporter: Reporter, path: AttributePath, value: string[]) {
     let ret = <string[]>[];
-    listResolve(reporter, validateString, value, path, ret.push.bind(ret));
+    listResolve(reporter, path, value, null!, validateString, ret.push.bind(ret));
     return ret;
   }
 
@@ -136,57 +139,55 @@ export module AttributeUtil {
 }
 
 export module AttributeResolvers {
-  export abstract class Resolver<T> {
-    abstract resolve(reporter: Reporter, value, at: AttributePath, ...args) : T;
+  export abstract class Resolver<T, A0> {
+    abstract resolve(reporter: Reporter, at: AttributePath, value, a0: A0) : T;
   }
 
-  export class FunctionResolver extends Resolver<void> {
+  export class FunctionResolver<A0> extends Resolver<void, A0> {
     prototype: string;
     constructor(prototype: string) {
       super();
       this.prototype = prototype;
     }
 
-    resolve(reporter: Reporter, value, at: AttributePath, ...args) {
-      AttributeUtil.safeCall(reporter, value, this.prototype, null, at, ...args);
+    resolve(reporter: Reporter, at: AttributePath, value, a0: A0) {
+      AttributeUtil.safeCall(reporter, value, this.prototype, null, at, a0);
     }
   }
 
-  export class SimpleResolver<T> extends Resolver<T | undefined> {
-    constructor(public validator: AttributeTypes.Validator<T>) {
+  export class SimpleResolver<T, A0> extends Resolver<T | undefined, A0> {
+    constructor(public validator: AttributeTypes.Validator<T, A0>) {
       super();
     }
 
-    resolve(reporter: Reporter, attr, path: AttributePath) : T | undefined {
-      return this.validator(reporter, path, attr);
+    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : T | undefined {
+      return this.validator(reporter, path, attr, a0);
     }
   }
 
-  export class ListResolver<T> extends Resolver<T[]> {
-    validator: AttributeTypes.Validator<T>;
-
-    constructor(validator: AttributeTypes.Validator<T>) {
+  export class ListResolver<T, A0> extends Resolver<T[], A0> {
+    constructor(public validator: AttributeTypes.Validator<T, A0>) {
       super();
       this.validator = validator;
     }
 
-    resolve(reporter: Reporter, attr, path: AttributePath) : T[] {
+    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : T[] {
       let ret = [];
-      listResolve(reporter, this.validator, attr, path, ret.push.bind(ret));
+      listResolve(reporter, path, attr, a0, this.validator, ret.push.bind(ret));
       return ret;
     }
   }
 
-  export type Extension<T> = { path: string, validator: AttributeTypes.Validator<T>, default: T };
-  export class MapResolver<T, T2> extends Resolver<Map<T, T2>> {
-    constructor(public validator: AttributeTypes.Validator<T>, public extensions: Extension<any>[]) {
+  export type Extension<T, A0> = { path: string, validator: AttributeTypes.Validator<T, A0>, default: T };
+  export class MapResolver<T, T2, A0> extends Resolver<Map<T, T2>, A0> {
+    constructor(public validator: AttributeTypes.Validator<T, A0>, public extensions: Extension<any, A0>[]) {
       super();
     }
 
-    resolve(reporter: Reporter, attr, path: AttributePath) : Map<T, T2> {
+    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : Map<T, T2> {
       var ret = new Map<T, T2>();
-      listResolve(reporter, (reporter: Reporter, path: AttributePath, attr: any) => {
-        return validateComplex(reporter, path, attr, this.validator, this.extensions, function(keys: T[], value: T2) {
+      listResolve(reporter, path, attr, a0, (reporter: Reporter, path: AttributePath, attr: any) => {
+        return validateComplex(reporter, path, attr, a0, this.validator, this.extensions, function validate(keys: T[], value: T2) {
           for (var key of keys) {
             if (ret.has(key)) {
               // TODO: warn only when value differ ?
@@ -195,21 +196,21 @@ export module AttributeResolvers {
             ret.set(key, value);
           }
         });
-      }, attr, path, function() {});
+      }, function push() {});
       return ret;
     }
   }
 
-  export class GroupResolver<T, T2> extends Resolver<{values: T[], ext: T2}[]> {
-    constructor(public validator: AttributeTypes.Validator<T>, public extensions: Extension<any>[]) {
+  export class GroupResolver<T, T2, A0> extends Resolver<{values: T[], ext: T2}[], A0> {
+    constructor(public validator: AttributeTypes.Validator<T, A0>, public extensions: Extension<any, A0>[]) {
       super();
     }
 
-    resolve(reporter: Reporter, attr, path: AttributePath) : {values: T[], ext: T2}[] {
+    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : {values: T[], ext: T2}[] {
       var ret = <{values: T[], ext: T2}[]>[];
       var set = new Set<T>();
-      listResolve(reporter, (reporter: Reporter, path: AttributePath, attr: any) => {
-        return validateComplex(reporter, path, attr, this.validator, this.extensions, function(keys: T[], value: T2) {
+      listResolve(reporter, path, attr, a0, (reporter: Reporter, path: AttributePath, attr: any) => {
+        return validateComplex(reporter, path, attr, a0, this.validator, this.extensions, function validate(keys: T[], value: T2) {
           for (var key of keys) {
             if (set.has(key))
               reporter.diagnostic({ type: 'warning', msg: `attribute ${path.toString()} is present multiple times` });
@@ -217,43 +218,37 @@ export module AttributeResolvers {
           }
           ret.push({values: keys, ext: value});
         });
-      }, attr, path, function() {});
+      }, function pusth() {});
       return ret;
     }
   }
 
-  export class SetResolver<T>  extends Resolver<Set<T>> {
-    validator: AttributeTypes.Validator<T>;
-
-    constructor(validator: AttributeTypes.Validator<T>) {
+  export class SetResolver<T, A0>  extends Resolver<Set<T>, A0> {
+    constructor(public validator: AttributeTypes.Validator<T, A0>) {
       super();
-      this.validator = validator;
     }
 
-    resolve(reporter: Reporter, attr, path: AttributePath) : Set<T> {
+    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : Set<T> {
       let ret = new Set<T>();
-      listResolve(reporter, this.validator, attr, path, function(value) {
+      listResolve(reporter, path, attr, a0, this.validator, function(value) {
         ret.add(value);
       });
       return ret;
     }
   }
 
-  export class ByEnvListResolver<T> extends Resolver<{ [s: string]: T[] }> {
-    validator: AttributeTypes.Validator<T>;
-
-    constructor(validator: AttributeTypes.Validator<T>) {
+  export class ByEnvListResolver<T, A0> extends Resolver<{ [s: string]: T[] }, A0> {
+    constructor(public validator: AttributeTypes.Validator<T, A0>) {
       super();
-      this.validator = validator;
     }
 
-    resolve(reporter: Reporter, attr, path: AttributePath) : { [s: string]: T[] } {
+    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : { [s: string]: T[] } {
       var ret: { [s: string]: T[] } = {};
       if (typeof attr === "object") {
         path.push("");
         for (var k in attr) {
           var list = ret[k] = [];
-          listResolve(reporter, this.validator, attr[k], path.set(k), list.push.bind(list));
+          listResolve(reporter, path.set(k), attr[k], a0, this.validator, list.push.bind(list));
         }
         path.pop();
       }
@@ -267,7 +262,6 @@ export module AttributeResolvers {
   export const stringListResolver = new ListResolver(AttributeTypes.validateString);
   export const stringResolver = new SimpleResolver(AttributeTypes.validateString);
   export const stringSetResolver = new SetResolver(AttributeTypes.validateString);
-  export const defaultString = "8c41b119-e7ae-4cf9-888f-d65a88faacec";
 }
 
 export class AttributePath {

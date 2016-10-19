@@ -141,7 +141,10 @@ export class Project {
       let targetEnvs = target.environments.filter(e => environments.indexOf(e) !== -1);
       targetEnvs.forEach(environment => {
         variants.forEach(variant => {
-          root.buildTarget(reporter, root.buildTargetElement(reporter, target, environment, variant), outputdir);
+          let outputdirpath = outputdir
+            .replace(/\$\{environment\}/g, environment.name)
+            .replace(/\$\{variant\}/g, variant);
+          root.buildTarget(reporter, root.buildTargetElement(reporter, target, environment, variant), outputdirpath);
         });
       });
     });

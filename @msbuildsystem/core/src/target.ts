@@ -1,5 +1,5 @@
-import {Project, RootGraph, Reporter,
-  AttributeResolvers, AttributePath, Task, Graph, BuildTargetElement, File, Step
+import {Project, RootGraph, Reporter, SelfBuildGraph,
+  AttributeResolvers, AttributePath, Task, BuildTargetElement, File
 } from './index.priv';
 import {Hash} from 'crypto';
 import * as path from 'path';
@@ -13,7 +13,7 @@ export function declareTarget(options: { type: string }) {
   };
 }
 
-export class PropResolver<R extends AttributeResolvers.Resolver<any>> {
+export class PropResolver<R extends AttributeResolvers.Resolver<any, Target>> {
   constructor(public resolver: R, public attrPath: string, public clsPath?: string) {}
 }
 
@@ -28,13 +28,13 @@ function setupResolvers(prototype: typeof Target.prototype) : PropResolver<any>[
   return p.resolvers;
 }
 
-export function pushResolver(prototype: typeof Target.prototype, r: AttributeResolvers.Resolver<any>, attrPath: string, clsPath?: string) {
+export function pushResolver(prototype: typeof Target.prototype, r: AttributeResolvers.Resolver<any, Target>, attrPath: string, clsPath?: string) {
   let resolvers = setupResolvers(prototype);
   let prop = new PropResolver(r, attrPath, clsPath);
   resolvers.push(prop);
 }
 
-export function resolver<T>(r: AttributeResolvers.Resolver<T>, attrPath?: string) {
+export function resolver<T>(r: AttributeResolvers.Resolver<T, Target>, attrPath?: string) {
   return function pushResolverOnProperty(prototype: typeof Target.prototype, propertyName: string, descriptor?: TypedPropertyDescriptor<T>) {
      pushResolver(prototype, r, attrPath || propertyName, propertyName);
   };
@@ -42,10 +42,9 @@ export function resolver<T>(r: AttributeResolvers.Resolver<T>, attrPath?: string
 
 const configureResolver = new PropResolver(new AttributeResolvers.FunctionResolver("(target: Target) => void"), "configure");
 
-export class Target extends Graph {
+export class Target extends SelfBuildGraph<RootGraph> {
   readonly resolvers: PropResolver<any>[]; // on the prototype
 
-  graph: RootGraph;
   dependencies: Set<Target>;
   requiredBy: Set<Target>;
 
@@ -111,7 +110,7 @@ export class Target extends Graph {
 
   doConfigure(reporter: Reporter) {
     this.configure(reporter);
-    this.resolveAttr(reporter, configureResolver, this);
+    this.resolveAttr(reporter, configureResolver);
     if (!reporter.failed)
       this.buildGraph(reporter);
   }
@@ -122,19 +121,15 @@ export class Target extends Graph {
     }
   }
 
-  resolveAttr<T, A1>(reporter: Reporter, prop: PropResolver<AttributeResolvers.Resolver<T>>, a1?: A1) : T | undefined {
+  resolveAttr<T>(reporter: Reporter, prop: PropResolver<AttributeResolvers.Resolver<T, Target>>) : T | undefined {
     let attr = this.attributes[prop.attrPath];
     let r: T | undefined = undefined;
     if (attr !== undefined || (prop.clsPath && (r = this[prop.clsPath]) === undefined)) {
-      r = prop.resolver.resolve(reporter, attr, new AttributePath(prop.attrPath), a1);
+      r = prop.resolver.resolve(reporter, new AttributePath(prop.attrPath), attr, this);
       if (prop.clsPath && r !== undefined)
         this[prop.clsPath] = r;
     }
     return r;
-  }
-
-  buildGraph(reporter: Reporter) : { [s: string]: Task[] | Task | undefined } {
-    return {};
   }
 
   addDependency(task: Target) {

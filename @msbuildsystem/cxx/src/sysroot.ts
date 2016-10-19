@@ -1,4 +1,4 @@
-import {Reporter, File, ProviderConditions} from '@msbuildsystem/core';
+import {Reporter, Graph, File, ProviderConditions, SelfBuildGraph, TaskName} from '@msbuildsystem/core';
 import {CXXTarget, CXXFramework, CompileTask, LinkTask, CompileFileParams} from './index.priv';
 import * as path from 'path';
 
@@ -18,7 +18,10 @@ export type Conditions = {
   /** Architecture (ie. i386, x86_64, armv7, ...) */
   architecture?: string;
 };
-export type CXXSysrootConstructor = { new (conditions: Conditions): CXXSysroot, isCompatible: (conditions: Conditions) => boolean };
+export type CXXSysrootConstructor = {
+  new (graph: CXXTarget, conditions: Conditions): CXXSysroot;
+  isCompatible: (conditions: Conditions) => boolean;
+};
 
 export var sysrootClasses = <CXXSysrootConstructor[]>[];
 export function declareSysroot(defaults: CXXSysrootDefaults) {
@@ -31,7 +34,7 @@ export function declareSysroot(defaults: CXXSysrootDefaults) {
 /**
  * A sysroot is a CXX compilation toolchain kit that target a specific platform api and architecture
  */
-export abstract class CXXSysroot implements CXXSysrootDefaults {
+export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CXXSysrootDefaults {
   readonly compilers: { [s: string]: typeof CompileTask };
   readonly linkers: { [s: string]: typeof LinkTask };
   readonly defaultCompiler: string;
@@ -41,18 +44,23 @@ export abstract class CXXSysroot implements CXXSysrootDefaults {
   version?: string;
   architecture?: string;
 
-  target: CXXTarget;
-  constructor(conditions: Conditions) {
+  static find(conditions: Conditions) : CXXSysrootConstructor[] {
+    return sysrootClasses.filter(s => s.isCompatible(conditions));
+  }
+
+  constructor(name: TaskName, graph: CXXTarget, conditions: Conditions) {
+    super(name, graph);
     this.platform = conditions.platform;
     this.version = conditions.version;
     this.architecture = conditions.architecture;
   }
 
-  static find(conditions: Conditions) : CXXSysrootConstructor[] {
-    return sysrootClasses.filter(s => s.isCompatible(conditions));
+  buildGraph(reporter: Reporter) {
+    this.createTasks(reporter);
+    return {};
   }
 
-  buildGraph(reporter: Reporter) : { compileTasks: CompileTask[], linkTasks: LinkTask[] } {
+  createTasks(reporter: Reporter) : { compileTasks: CompileTask[], linkTasks: LinkTask[] }  {
     let compileTasks = this.createCompileTasks(reporter);
     let linkTask =  this.createLinkTask(reporter);
     linkTask.addDependencies(compileTasks);
@@ -62,7 +70,7 @@ export abstract class CXXSysroot implements CXXSysrootDefaults {
 
   createCompileTasks(reporter: Reporter) : CompileTask[] {
     let compileTasks = <CompileTask[]>[];
-    let target = this.target;
+    let target = this.graph;
     target.files.forEach((params, srcFile) => {
       let relativePath = path.relative(target.project.directory, srcFile.path + ".o");
       let objFile = File.getShared(path.join(target.paths.intermediates, relativePath));
@@ -73,13 +81,13 @@ export abstract class CXXSysroot implements CXXSysrootDefaults {
   }
 
   createCompileTask(reporter: Reporter, srcFile: File, objFile: File, params: CompileFileParams) : CompileTask {
-    params.compiler = params.compiler || this.target.compiler || this.defaultCompiler;
+    params.compiler = params.compiler || this.graph.compiler || this.defaultCompiler;
     let compilerCstor = this.compilers[params.compiler];
     if (!compilerCstor) {
       reporter.diagnostic({ type: "error", msg: `unsupported compiler '${params.compiler}` });
       compilerCstor = CompileTask;
     }
-    return new compilerCstor(this.target, srcFile, objFile, this.compileTaskProvider(params));
+    return new compilerCstor(this, srcFile, objFile, this.compileTaskProvider(params));
   }
 
   compileTaskProvider(params: CompileFileParams) : ProviderConditions {
@@ -87,13 +95,13 @@ export abstract class CXXSysroot implements CXXSysrootDefaults {
   }
 
   createLinkTask(reporter: Reporter) : LinkTask {
-    let linkerName = this.target.linker || this.defaultLinker;
+    let linkerName = this.graph.linker || this.defaultLinker;
     let linkerCstor = this.linkers[linkerName];
     if (!linkerCstor) {
       reporter.diagnostic({ type: "error", msg: `unsupported compiler '${linkerName}` });
       linkerCstor = LinkTask;
     }
-    return new linkerCstor(this.target, File.getShared(this.linkFinalPath()), this.target.linkType, this.linkTaskProvider(linkerName));
+    return new linkerCstor(this, File.getShared(this.linkFinalPath()), this.graph.linkType, this.linkTaskProvider(linkerName));
   }
 
   linkTaskProvider(linkerName: string) : ProviderConditions {
@@ -101,19 +109,19 @@ export abstract class CXXSysroot implements CXXSysrootDefaults {
   }
 
   linkFinalPath() : string {
-    return path.join(this.linkBasePath(), this.target.outputFinalName || this.linkFinalName());
+    return path.join(this.linkBasePath(), this.graph.outputFinalName || this.linkFinalName());
   }
 
   linkFinalName() : string {
-    return this.target.outputName;
+    return this.graph.outputName;
   }
 
   linkBasePath() : string {
     let ret: string;
-    if (this.target instanceof CXXFramework)
-      ret = this.target.absoluteBundleBasePath();
+    if (this.graph instanceof CXXFramework)
+      ret = this.graph.absoluteBundleBasePath();
     else
-      ret = this.target.paths.output;
+      ret = this.graph.paths.output;
     return ret;
   }
 }

@@ -1,4 +1,4 @@
-import {File, declareTask, Graph, Diagnostic, Step, ProviderConditions} from '@msbuildsystem/core';
+import {File, declareTask, Task, Graph, Diagnostic, Step, ProviderConditions} from '@msbuildsystem/core';
 import {ProcessTask} from '@msbuildsystem/foundation';
 
 //              1:path  2:row 3:col    4:ranges                      5:type                                  6:msg     7:option     8:category
