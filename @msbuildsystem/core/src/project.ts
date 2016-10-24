@@ -123,7 +123,7 @@ export class Project {
   }
 
   resolveFilePath(filepath: string) {
-    return path.isAbsolute(filepath) ? filepath : path.join(this.directory, filepath);
+    return util.pathJoinIfRelative(this.directory, filepath);
   }
 
   buildGraph(reporter: Reporter, options: BuildGraphOptions) : RootGraph {

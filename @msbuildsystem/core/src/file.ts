@@ -125,10 +125,7 @@ export class File {
           throw "arg must either be an array or a string";
         }
       } else {
-        var p = path.join(...paths);
-        if (!path.isAbsolute(p))
-          p = path.join(root, p);
-        files.push(p);
+        files.push(util.pathJoinIfRelative(root, path.join(...paths)));
       }
     }
     nextArg(0);
