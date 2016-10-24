@@ -1,15 +1,21 @@
-import {Element, declareElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
+import {Element, declareElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath, util} from '../index.priv';
+import *  as path from 'path';
 
 declareElementFactory('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => {
   return [new GroupElement(name, parent)];
 });
 export class GroupElement extends Element {
   elements: ComponentElement[];
+  /** if defined, the absolute filepath */
   path?: string;
   constructor(name: string, parent: Element) {
     super('group', name, parent);
     this.elements = [];
     this.path = undefined;
+  }
+
+  __absoluteFilepath() : string {
+    return this.path || this.__parent!.__absoluteFilepath();
   }
 
   __resolve(reporter: Reporter) {
@@ -63,6 +69,8 @@ export class GroupElement extends Element {
     }
     else if (key === 'path') {
       this.path = AttributeTypes.validateString(reporter, attrPath, value);
+      if (this.path && !path.isAbsolute(this.path))
+        this.path = path.join(this.__parent!.__absoluteFilepath(), this.path);
     }
     else {
       super.__loadReservedValue(reporter, key, value, attrPath);

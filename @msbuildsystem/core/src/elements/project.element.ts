@@ -11,4 +11,8 @@ export class ProjectElement extends Element {
   __project() {
     return this.___project;
   }
+
+  __absoluteFilepath() : string {
+    return this.___project.directory;
+  }
 }

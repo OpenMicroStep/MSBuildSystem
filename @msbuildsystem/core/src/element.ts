@@ -190,6 +190,10 @@ export class Element {
     return this.__parent!.__project();
   }
 
+  __absoluteFilepath() : string {
+    return this.__parent!.__absoluteFilepath();
+  }
+
   __path() {
     var p = "";
     var element: Element | null = this;

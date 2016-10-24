@@ -1,4 +1,9 @@
-import {Element, declareElementFactory, createElementValidator, AttributeTypes, File, util, Reporter, MakeJS, AttributeResolvers, AttributePath} from '../index.priv';
+import {
+  Element,
+  declareElementFactory, createElementValidator,
+  AttributeTypes, AttributeResolvers, AttributePath,
+  File, util, Reporter, MakeJS
+} from '../index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -20,26 +25,14 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
     name = function(relativepath) { return rx.test(relativepath); };
   }
 
-  let p: Element | null = parent;
-  let absolutePath = "";
-  let projectPath = parent.__project().directory;
-  while (!absolutePath && p) {
-    absolutePath = (<any>p).path; // path is a reserved key that is set to the absolute value if found
-    p = p.__parent;
-  }
-  if (!absolutePath)
-    absolutePath = projectPath;
+  let absolutePath = parent.__absoluteFilepath();
   if (typeof name === "function") {
     let depth = (<MakeJS.File>definition).depth;
-    let relpath = path.relative(projectPath, absolutePath);
+    let relpath = path.relative(parent.__project().directory, absolutePath);
     loadElementFiles(reporter, attrPath, absolutePath, relpath, name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
   }
   else if (typeof name === "string") {
-    if (path.isAbsolute(name))
-      absolutePath = name;
-    else
-      absolutePath = path.join(absolutePath, name);
-    loadElementFile(reporter, attrPath, absolutePath, files);
+    loadElementFile(reporter, attrPath, util.pathJoinIfRelative(absolutePath, name), files);
   }
   else {
     reporter.diagnostic({
