@@ -61,13 +61,13 @@ export function tests() {
   it('build', (done) => {
     let runner = new Runner(graph, 'build');
     runner.enable(graph);
-    runner.on('taskend', (step) => {
-      if (step.failed && step.logs)
-        console.warn(step.logs);
-      assert.deepEqual(step.diagnostics, []);
-      assert.equal(step.failed, false);
+    runner.on('taskend', (context) => {
+      if (context.reporter.failed && context.reporter.logs)
+        console.warn(context.reporter.logs);
+      assert.deepEqual(context.reporter.diagnostics, []);
+      assert.equal(context.reporter.failed, false);
     });
-    Async.run(null, [
+    Async.run<{ runner: Runner }>(null, [
       runner.run.bind(runner),
       (p) => {
         assert.equal(runner, p.context.runner);

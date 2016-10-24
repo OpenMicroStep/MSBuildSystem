@@ -1,246 +1,276 @@
-export interface ActionFct      {(pool: Flux): void;}
-export interface SuperactionFct {(pool: Flux, arg: any): void;}
-export interface ConditionalFct {(pool: Flux): boolean;}
-export type      Element=       ActionFct | _A | Async | _P
-export type      Elements=      Element | (Element | Element[])[] | undefined
+export interface ActionFct<T>   {(pool: Flux<T>): void; }
+export interface SuperactionFct<T, A> {(pool: Flux<T>, arg: A): void; }
+export interface ConditionalFct<T>    { (pool: Flux<T>): boolean; }
+export type      Element<T> =      ActionFct<T> | Async<any> | undefined;
+export type      Elements<T>=      Element<T> | (Element<T> | Element<T>[])[];
 
-export class _A { _s; _args; constructor(superaction, args) {this._s= superaction; this._args= args;} }
-export class _P { _p; _ctxs; constructor(p          , ctxs) {this._p= p;           this._ctxs= ctxs;} }
+function _forr<T> (as: ArrayLike<T>, callback: (v: T) => void) { var n = as.length; while (n > 0) callback(as[--n]); }
 
-export function _for  (as, callback) {var i, n= as.length; for (i= 0; i<n; i++) callback(as[i]);}
-export function _forr (as, callback) {var n= as.length; while (n-->0) callback(as[n],n,as);}
-
-export class Async {
-  static State= {defining: 0, started: 1, aborted: 2, finishing: 3, terminated: 4};
-
-  context:       any; // { locale: { lastActionInterval?: number }}
-  _actions:      ActionFct[];
-
-  constructor(ctx?, actionsOrPools?: Elements)
-  {
-    this.context= ctx || {};
-    if (!this.context.locale) this.context.locale= {};
-    this._actions=      [];
-    if (actionsOrPools) this.setFirstElements(actionsOrPools);
-  }
-
-  state() {return Async.State.defining;}
-
-  setFirstElements(elements: Elements) {
-    var me= this;
-    function _doer(es, f) {
-      if (!es) {}
-      else if (typeof es === 'function') me._actions.push(es);
-      else if (es instanceof Async._A  ) me._setFirstRepeatedSuperaction(es._s, es._args);
-      else if (es instanceof Async     ) me._setFirstRepeatedSuperaction(Async._runParallelePools, es);
-      else if (es instanceof Async._P  ) {
-        _forr (es._ctxs, (ctx) => {      me._setFirstRepeatedSuperaction(Async._runParallelePools, Async.P(es._p, ctx));});}
-      else if (Array.isArray(es)       ) {if (es.length) f(es);}}
-    _doer(elements, function (es) {
-      _forr (es, (e) => {_doer(e, function (ees) {me._paralleleElementsBuilder(ees);});});});
-  }
-
-  // Rem: null and undefined are acceptable values for args because they are acceptable values
-  //      for array's elements.
-  // Si args est très grand, on ne peut pas faire
-  // _forr (args, (a) => {this._actions.push((p)=>{superaction(p, a);});});
-  // C'est pour ça qu'on le fait par récursion.
-  // setImmediate: pour éviter 'Maximum call stack size exceeded' sur très grosse répétition
-  _setFirstRepeatedSuperaction(superaction: SuperactionFct, args: any | any[]) {
-    var as;
-    function one(p) {
-      if (as.length===1) superaction(p, as.pop());
+function embed<C, T, A>(c: C, args: A | A[], executor: (flux: Flux<T>, c: C, arg: A) => void ) : ActionFct<T> {
+  if (!Array.isArray(args))
+    return (flux: Flux<T>) => { executor(flux, c, args); };
+  return (flux: Flux<T>) => {
+    let idx = 0, len = args.length;
+    let next = (flux: Flux<T>) => {
+      if (idx < len) {
+        idx++;
+        flux.setFirstElements(next);
+        executor(flux, c, args[idx]);
+      }
       else {
-        p._actions.push(one);
-        p._actions.push((pp)=>{superaction(pp, as.pop());});
-        p.continue();}}
-    if (superaction) {
-      if (!Array.isArray(args)) this._actions.push((pool)=>{superaction(pool, args);});
-      else if (args.length) {as= args.slice(0).reverse(); this._actions.push(one);}}}
+        flux.continue();
+      }
+    };
+    next(flux);
+  };
+}
 
-  _paralleleElementsBuilder(es: Element[]) { // length > 0
-    if (es.length===1 && typeof es[0] === 'function') this._actions.push(<ActionFct>es[0]);
-    else {
-      var pools= <Element[]>[];
-      _for (es, (e) => {
-        if (!e) {}
-        else if (typeof e === 'function') pools.push(new Async(this.context, e));
-        else if (e instanceof Async     ) pools.push(e);
-        else if (e instanceof Async._P  ) pools.push(e);
-        else if (e instanceof Async._A  ) _for (e._args, (a) => {
-          pools.push(new Async(this.context, Async.A(e._s, a)));});});
-      if (pools.length) this._setFirstRepeatedSuperaction(Async._runParallelePools, [pools]);}}
+export interface Flux<T> {
+  context: AsyncContext<T>;
+  state() : AsyncState;
+  setFirstElements(elements: Elements<T>);
+  setLastActionInterval(interval: number);
+  continue();
+}
 
-  continue(atEndCallback = null, ctx = this.context) : Flux {
-    var flux: Flux;
-    flux= new Flux(this._actions.slice(0), ctx, atEndCallback);
+export enum AsyncState {
+  Defining = 0,
+  Started,
+  Aborted,
+  Finishing,
+  Terminated
+}
+export type AsyncContext<T> = T & { locale: { lastActionInterval?: number } };
+export class Async<T> {
+  static State = AsyncState;
+
+  context: AsyncContext<T>;
+  _actions: ActionFct<T>[];
+
+  constructor(ctx?: T | null, actionsOrPools?: Elements<T>) {
+    this.context = <AsyncContext<T>>(ctx || {});
+    if (!this.context.locale)
+      this.context.locale = {};
+    this._actions = [];
+    if (actionsOrPools)
+      this.setFirstElements(actionsOrPools);
+  }
+
+  state() : AsyncState {
+    return AsyncState.Defining;
+  }
+
+  setFirstElements(elements: Elements<T>) {
+    let self = this;
+    _doer(elements, level0);
+
+    function _doer(es: Elements<T>, array?: (es: (Element<T> | Element<T>[])[]) => void) {
+      if (!es) {}
+      else if (typeof es === 'function') { self._actions.push(es); }
+      else if (Array.isArray(es)       ) { if (es.length > 0 && array) array(es); }
+      else if (es instanceof Async     ) { self._actions.push((flux: Flux<T>) => { es.continue(flux.continue.bind(flux)); }); }
+    }
+
+    function level0(es: (Element<T> | Element<T>[])[]) {
+      _forr(es, (e) => { _doer(e, level1); });
+    }
+
+    function level1(ees: Element<T>[]) {
+      // level 1 elements are run in parallel
+      let pools = <Async<T>[]>[];
+      for (var i = 0, len = ees.length; i < len; i++) {
+        let element = ees[i];
+        if      (typeof element === 'function') { pools.push(new Async(self.context, [element])); }
+        else if (element instanceof Async     ) { pools.push(element); }
+      }
+      self._actions.push((flux: Flux<T>) => { Async.runInParallel(flux, pools); });
+    }
+  }
+
+  continue(atEndCallback: ((flux: Flux<T>) => void) | null = null, ctx: T = this.context) : Flux<T> {
+    var flux = new FluxImpl(this._actions.slice(0), ctx, atEndCallback);
     flux.continue();
     return flux;
   }
 
   setLastActionInterval(interval: number) {
-    this.context.locale.lastActionInterval= interval;
+    this.context.locale.lastActionInterval = interval;
   }
 
-  // Pousser dans un array une function ou un ensemble de functions en FIFO,
-  static _pushFunctions(fcts: any | any[], array: any[]) {
-    function _doer(fs, f?) {
-      if (!fs) {}
-      else if (typeof fs === 'function') array.push(fs);
-      else if (f && Array.isArray(fs)  && fs.length) f(fs);}
-    _doer(fcts, function (fs) {_forr (fs, (f) => {_doer(f);});});}
+  static runInParallel<T>(flux: Flux<T>, pools: Async<any>[]) {
+    let nb = pools.length + 1;
+    pools.forEach((pool) => { pool.continue(atEnd); });
+    atEnd();
 
-  static _runParallelePools(mainFlux: Flux, pools: (_P|Async) | (_P|Async)[]) {
-    function buildAtEnd(nb: number) {
-      return function (pool) {
-        if (--nb === 0) mainFlux.continue();}}
-    if (pools) {
-      var ps= (!Array.isArray(pools) ? [pools] : pools);
-      var atEnd, n= 0;
-      _for (ps, (p) => {n+= (p instanceof Async) ? 1 : (<_P>p)._ctxs.length;});
-      atEnd= buildAtEnd(n+1);
-      _for (ps, (p) => {
-        if      (p instanceof Async   ) p.continue(atEnd);
-        else if (p instanceof Async._P) {
-          _for ((<_P>p)._ctxs, (ctx) => {<_P>p._p.continue(atEnd, ctx ? ctx : mainFlux.context);});}});
-      mainFlux._actions.push(atEnd);}
-    mainFlux.continue();}
+    function atEnd() {
+      if (--nb === 0)
+        flux.continue();
+    }
+  }
 
-  static _X(classFct, a, bs) {
-    if (!Array.isArray(bs)) bs= [bs];
-    return (!a || bs.length===0) ? undefined : new classFct(a, bs);}
+  // Embed a superaction and its arguments into a sequential action
+  static A<T, A>(superaction: SuperactionFct<T, A>, args: A | A[]) : ActionFct<T> {
+    return embed(superaction, args, (flux: Flux<T>, superaction: SuperactionFct<T, A>, arg: A) => {
+      superaction(flux, arg);
+    });
+  }
 
-  static _A= _A;
-  static _P= _P;
-  static A(superaction, args) {return Async._X(Async._A, superaction, args);}
-  static P(pool       , ctxs) {return Async._X(Async._P, pool       , ctxs);}
+  // Embed a pool and its contexts into a sequential action
+  static P<T>(pool: Async<T>, ctxs: T | T[]) : ActionFct<T> {
+    return embed(pool, ctxs, (flux: Flux<T>, superaction: Async<T>, ctx: T) => {
+      pool.continue(flux.continue.bind(flux), ctx);
+    });
+  }
 
-  static while(cond: ConditionalFct, es: Elements) {return function whileStatement(p: Flux) {
-    if (cond(p)) {
-      p.setFirstElements(whileStatement);
-      p.setFirstElements(es);}
-    p.continue();}}
-  static if(cond: ConditionalFct, es: Elements, ees?: Elements) {return function (p: Flux) {
-    p.setFirstElements(cond(p) ? es : ees);
-    p.continue();}}
-  static once(es: Elements) {
-    var obs: any = null, done = false;
-    function end(p) {
-      p.continue();}
-    return function (p: Flux) {
-      if (done) {
-        end(p);}
-      else if (obs === null) {
-        obs = [];
-        p.setFirstElements(function(p) {
-          done = true;
-          end(p);
-          obs.forEach(end);
-          obs = null;});
-        p.setFirstElements(es);
-        p.continue();}
-      else {
-        obs.push(p);}}}
+  static while<T>(condition: ConditionalFct<T>, action: Elements<T>) : ActionFct<T> {
+    return function whileStatement(p: Flux<T>) {
+      if (condition(p)) {
+        p.setFirstElements(whileStatement);
+        p.setFirstElements(action);
+      }
+      p.continue();
+    };
+  }
+  static if<T>(condition: ConditionalFct<T>, thenAction: Elements<T>, elseAction?: Elements<T>) {
+    return function ifStatement(p: Flux<T>) {
+      p.setFirstElements(condition(p) ? thenAction : elseAction);
+      p.continue();
+    };
+  }
 
-  static run(ctx, actionsOrPools: Elements) : Flux {
-    var flux = new Flux([], ctx, null);
+  static run<T>(ctx: T | null, actionsOrPools: Elements<T>) : Flux<T> {
+    var flux = new FluxImpl<T>([], ctx, null);
     flux.setFirstElements(actionsOrPools);
     flux.continue();
     return flux;
   }
 
-  static debug = false;
+  static configuration = {
+    debug: false,
+    stackProtection: true,
+    strict: true
+  };
   static debugDumpPendings = debugDumpPendings;
 }
 
 export var run = Async.run;
 
-export class Flux extends Async {
-  context:       any;
-  _actions:      ActionFct[];
+class FluxImpl<T> extends Async<T> {
   _state:        number;
-  _lastInterval: number| null;
+  _lastInterval: number | undefined | null;
   _timer:        any;
-  _endCallback: ActionFct | null;
+  _endCallback: ActionFct<T> | null;
   _stackprotection: number; // 0 = no exec, 1 = action is executing, 2 = continue is pending
 
-  constructor(actions: ActionFct[], ctx, atEndCallback) {
+  constructor(actions: ActionFct<T>[], ctx: T | null, atEndCallback) {
     super(ctx);
     this._actions = actions;
-    this._state = Async.State.started;
+    this._state = AsyncState.Started;
     this._lastInterval = this.context.locale.lastActionInterval;
     this._timer = null;
-    this._endCallback= atEndCallback;
+    this._endCallback = atEndCallback;
     this._startInterval();
-    this._stackprotection= 0;
-    if (Async.debug)
+    this._stackprotection = 0;
+    if (Async.configuration.debug)
       debugNewFlux(this);
   }
 
-  state() {return this._state;}
+  state() { return this._state; }
 
-  continue() : Flux {
+  continue() : Flux<T> {
     if (this._stackprotection === 1) {
       // this is a synchronous action, delay the call until the execution if given back to this
       this._stackprotection = 2;
-      return this;}
+      return this;
+    }
 
     do {
-      this._stackprotection = 1;
+      this._stackprotection = Async.configuration.stackProtection ? 1 : 0;
       // On reste finishing dès qu'on a touché la dernière action, même si celle-ci rajoute des actions au pool.
-      if ((this._state === Async.State.started || this._state === Async.State.finishing) &&
+      if ((this._state === AsyncState.Started || this._state === AsyncState.Finishing) &&
           this._actions.length > 0) {
-        var action= this._actions.pop()!;
-        if (this._actions.length === 0) this._state= Async.State.finishing;       ///// finishing
-        if (!Async.debug) { action(this); }
-        else { debugAction(this, action);}}
+        if (this._actions.length === 0) this._state = AsyncState.Finishing;       ///// finishing
+        this._runAction(this._actions.pop()!);
+      }
       else {
         this._stopInterval();
-        if (this._state !== Async.State.aborted)
-          this._state= Async.State.terminated;                                   ///// terminated
+        if (this._state !== AsyncState.Aborted)
+          this._state = AsyncState.Terminated;                                   ///// terminated
         if (this._endCallback) {
           this._endCallback(this);
-          this._endCallback = null;}
-          if (Async.debug)
-            debugEndFlux(this);}
+          this._endCallback = null;
+        }
+        if (Async.configuration.debug)
+          debugEndFlux(this);
+      }
     } while (this._stackprotection === 2);
     this._stackprotection = 0;
     return this;
   }
 
+  _runAction(action: ActionFct<T>) {
+    if (Async.configuration.debug) { new DebugFluxProxy(this, action); }
+    else if (Async.configuration.strict) { action(new FluxSnapshot(this)); }
+    else {action(this); }
+  }
+
   setLastActionInterval(interval: number) {
     this._stopInterval();
-    if (this._state < Async.State.aborted) {
-      this._lastInterval= interval;
-      this._startInterval();}
+    if (this._state < AsyncState.Aborted) {
+      this._lastInterval = interval;
+      this._startInterval();
+    }
   }
 
   _startInterval() {
     if (this._lastInterval === void 0 || this._lastInterval < 0)
       this._lastInterval = null;
-    if (this._state === Async.State.started && this._actions.length > 0 &&
-        this._lastInterval!==null && this._timer===null) {
+    if (this._state === AsyncState.Started && this._actions.length > 0 &&
+        this._lastInterval !== null && this._timer === null) {
       if (this._lastInterval === 0) {
-        this._state= Async.State.aborted;                                         ///// aborted
-        this._actions[0](this);}
+        this._state = AsyncState.Aborted;                                         ///// aborted
+        this._actions[0](this);
+      }
       else {
-        this._timer= setInterval(
-          () => {
-            if (this._actions.length > 0 && this._state !== Async.State.finishing)
-              this._actions[0](this);
-            else this._stopInterval();},
-          this._lastInterval);}}}
+        this._timer = setInterval(() => {
+          if (this._actions.length > 0 && this._state !== AsyncState.Finishing)
+            this._actions[0](this);
+          else this._stopInterval();
+        }, this._lastInterval);
+      }
+    }
+  }
 
   _stopInterval() {
     if (this._timer) {
       clearInterval(this._timer);
-      this._timer= null;
-      this._lastInterval= null;}}
+      this._timer = null;
+      this._lastInterval = null;
+    }
+  }
+}
+
+class FluxSnapshot<T> implements Flux<T> {
+  private _done = 0;
+  constructor(private _origin: Flux<T>) {
+    this.context = _origin.context;
+  }
+  context: AsyncContext<T>;
+  state() : AsyncState { return this._origin.state(); }
+  setFirstElements(elements: Elements<T>) { return this._origin.setFirstElements(elements); }
+  setLastActionInterval(interval: number) { return this._origin.setLastActionInterval(interval); }
+  continue() {
+    if (++this._done === 1)
+      this._origin.continue();
+    else
+      console.error("continue was called " + this._done + " times on flux by the same action");
+  }
 }
 
 var debug = { pendings: new Set(), id: 0 };
-class DebugFluxProxy extends Flux {
-  _p: Flux;
+type DebugFluxContext<T> = T & { locale: { debugActionHistory? } };
+class DebugFluxProxy<T> extends FluxImpl<DebugFluxContext<T>> {
+  _p: FluxImpl<DebugFluxContext<T>>;
   _state: number;
   _action;
   _stacks: any[];
@@ -252,10 +282,10 @@ class DebugFluxProxy extends Flux {
       flux: this._p,
       action: this._action,
       stacks: this._stacks.map((e) => { var s = e.stack.split("\n"); s.splice(1, 1); return s; }),
-    }
+    };
   }
   get _actions() { return this._p._actions; }
-  constructor(p: Flux, action) {
+  constructor(p: FluxImpl<DebugFluxContext<T>>, action) {
     super([], p.context, null);
     this._p = p;
     this._state = 0;
@@ -266,8 +296,8 @@ class DebugFluxProxy extends Flux {
       p.context.locale.debugActionHistory.push(this);
     action(this);
   }
-  state() {return this._p._state;}
-  continue() : Flux {
+  state() { return this._p._state; }
+  continue() : Flux<T> {
     ++this._state;
     this._pushStack("continue");
     if (this._state !== 1)
@@ -285,9 +315,6 @@ class DebugFluxProxy extends Flux {
     return this._p.setFirstElements(els);
   }
 }
-function debugAction(p, action) {
-  new DebugFluxProxy(p, action);
-}
 
 function debugNewFlux(p) {
   debug.pendings.add(p);
@@ -304,7 +331,7 @@ function debugFluxInfo(p) {
     history: p.context.locale.debugActionHistory.map((p) => {
       return p._debugInfo();
     })
-  }
+  };
 }
 
 export function debugDumpPendings() {

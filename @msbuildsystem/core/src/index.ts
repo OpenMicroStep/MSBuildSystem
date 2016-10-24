@@ -1,5 +1,5 @@
 import * as priv from './index.priv'; priv; // force loading of priv
-export { Async } from '@msbuildsystem/shared';
+export { Async, Flux } from '@msbuildsystem/shared';
 export { Loader  } from './loader';
 export { Element } from './element';
 export { GroupElement } from './elements/group.element';

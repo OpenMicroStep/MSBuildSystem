@@ -38,13 +38,13 @@ export class TypescriptTask extends Task {
   // TODO: clean output
   // TODO: async run (slower startup with tsc or create and use a worker API)
 
-  run(step: Step) {
+  run(step: Step<{}>) {
     let program = ts.createProgram(this.files.map(f => f.path), this.options);
     let emitResult = program.emit();
     let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
     tsDiagnostics.forEach(diagnostic => {
         let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-        step.diagnostic({
+        step.context.reporter.diagnostic({
           type: mapCategory.get(diagnostic.category)!,
           col: character + 1,
           row: line + 1,

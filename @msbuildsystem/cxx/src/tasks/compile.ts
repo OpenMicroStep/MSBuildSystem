@@ -1,4 +1,4 @@
-import {File, declareTask, Task, Graph, Diagnostic, Step, ProviderConditions} from '@msbuildsystem/core';
+import {File, declareTask, Step, Graph, Diagnostic, StepWithData, ProviderConditions} from '@msbuildsystem/core';
 import {ProcessTask} from '@msbuildsystem/foundation';
 
 //              1:path  2:row 3:col    4:ranges                      5:type                                  6:msg     7:option     8:category
@@ -26,7 +26,7 @@ export class CompileTask extends ProcessTask {
         var d = File.getShared(dir, true);
         this.inputFiles.push(d);
         this.addFlags([['-I', d]]);
-      })
+      });
     }
     if (options.frameworkPath) {
       options.frameworkPath.forEach((dir) => {
@@ -37,9 +37,9 @@ export class CompileTask extends ProcessTask {
     }
   }
 
-  parseHeaderMap(step) {
+  parseHeaderMap(step: StepWithData<{}, {}, { headers?: string[] }>) {
     this.hmapFile.readUtf8File((err, content) => {
-      if (err) { step.error(err); }
+      if (err) { step.context.reporter.error(err); }
       else {
         var headers = <string[]>[];
         var lines = content.split("\n");
@@ -52,7 +52,7 @@ export class CompileTask extends ProcessTask {
           if (header.length)
             headers.push(header);
         }
-        step.sharedData.headers = headers;
+        step.context.sharedData.headers = headers;
       }
       step.continue();
     });
@@ -75,7 +75,7 @@ export class CompileTask extends ProcessTask {
     return ret;
   }
 
-  parseLogs(logs) : Diagnostic[] {
+  parseLogs(logs: string) : Diagnostic[] {
     var diag: Diagnostic | null = null;
     var diags: Diagnostic[] = [];
     var lines = logs.split(/[\r\n]+/);
@@ -84,7 +84,7 @@ export class CompileTask extends ProcessTask {
       var matches = line.match(rxdiag);
       if (matches) {
         var d = {
-          type: matches[5],
+          type: <any>matches[5],
           path: matches[1],
           row: parseInt(matches[2]),
           col: parseInt(matches[3]),
@@ -117,10 +117,10 @@ export class CompileTask extends ProcessTask {
     return diags;
   }
 
-  runProcess(step, provider) {
+  runProcess(step: Step<{ output?: string, err?: any }>, provider) {
     step.setFirstElements((step) => {
       var output = step.context.output;
-      step.data.diagnostics = output ? this.parseLogs(output) : [];
+      step.context.reporter.diagnostics = output ? this.parseLogs(output) : [];
       this.parseHeaderMap(step);
     });
     super.runProcess(step, provider);
@@ -130,10 +130,10 @@ export class CompileTask extends ProcessTask {
     return ["inputs", "files", "dependencies outputs"];
   }
 
-  isRunRequired(step: Step) {
+  isRunRequired(step: StepWithData<{ runRequired?: boolean }, {}, { headers: string[] }>) {
      step.setFirstElements((step) => {
-       if (!step.context.runRequired && step.sharedData.headers) {
-         File.ensure(step.sharedData.headers.map(h => File.getShared(h)), step.lastSuccessTime, {}, (err, required) => {
+       if (!step.context.runRequired && step.context.sharedData.headers) {
+         File.ensure(step.context.sharedData.headers.map(h => File.getShared(h)), step.context.lastSuccessTime, {}, (err, required) => {
            step.context.runRequired = !!(err || required);
            step.continue();
          });

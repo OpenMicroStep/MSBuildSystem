@@ -1,7 +1,65 @@
 import {EventEmitter} from 'events';
 import {format} from 'util';
-import {Task, util, BuildSession} from './index.priv';
-import {Async, Flux, Diagnostic, diagnosticFromError} from '@msbuildsystem/shared';
+import {Task, BuildSession, Async} from './index.priv';
+import {Flux, Diagnostic, diagnosticFromError} from '@msbuildsystem/shared';
+
+export type RunnerContext = { runner: Runner };
+export type StepContext<DATA, SHARED> = {
+  runner: Runner,
+  execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext<any, any>>) => void),
+  task: Task,
+  reporter: Reporter,
+  storage: BuildSession.BuildSession,
+  data: { logs?: string, diagnostics?: Diagnostic[] } & DATA;
+  sharedData: SHARED;
+  lastRunStartTime: number;
+  lastRunEndTime: number;
+  lastSuccessTime: number;
+}
+export type Step<T> = Flux<StepContext<{}, {}> & T>;
+export type StepWithData<T, DATA, SHARED> = Flux<StepContext<DATA, SHARED> & T>;
+
+function start(flux: Flux<StepContext<any, any>>) {
+  let ctx = flux.context;
+  ctx.storage.load(() => {
+    ctx.data = ctx.storage.get(ctx.runner.action) || {};
+    ctx.sharedData = ctx.storage.get("SHARED") || {};
+    ctx.lastRunStartTime = Date.now();
+    ctx.lastRunEndTime = ctx.data.lastRunEndTime || 0;
+    ctx.lastSuccessTime = ctx.data.lastSuccessTime || 0;
+    flux.continue();
+  });
+}
+
+function end(flux: Flux<StepContext<any, any>>) {
+  let ctx = flux.context;
+  ctx.data.logs = ctx.reporter.logs;
+  ctx.data.diagnostics = ctx.reporter.diagnostics;
+  ctx.data.lastRunEndTime = Date.now();
+  ctx.data.lastRunStartTime = ctx.lastRunStartTime;
+  ctx.data.lastSuccessTime = ctx.reporter.failed ? ctx.data.lastRunEndTime : 0;
+  ctx.storage.set(ctx.runner.action, ctx.data);
+  ctx.storage.set("SHARED", ctx.sharedData);
+  ctx.storage.save(() => {
+    ctx.runner.emit("taskend", ctx);
+    flux.continue();
+  });
+}
+
+function execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext<any, any>>) => void) {
+  Async.run<StepContext<any, any>>({
+    runner: runner,
+    execute: execute,
+    task: task,
+    storage: task.getStorage(),
+    reporter: new Reporter(),
+    data: null,
+    sharedData: null,
+    lastRunStartTime: 0,
+    lastRunEndTime: 0,
+    lastSuccessTime: 0
+  }, [start, task.do.bind(task), end, lastAction]);
+}
 
 export class Runner extends EventEmitter {
   context: any;
@@ -27,29 +85,24 @@ export class Runner extends EventEmitter {
     this.enabled.add(task);
   }
 
-  run(p: Async) {
-    var step = new Step(this, this.root);
+  run(p: Flux<RunnerContext>) {
     p.context.runner = this;
-    p.context.step = step;
-    step.once(() => {
-      this.failed = step.failed;
+    execute(this, this.root, (flux) => {
+      this.failed = this.failed || flux.context.reporter.failed;
+      flux.continue();
       p.continue();
     });
   }
 
-  on(event: "taskend", listener: (step: Step) => void) : this;
+  emit<T>(event: "taskend", context: StepContext<any, any>);
+  emit(event: string, ...args) {
+    super.emit(event, ...args);
+  }
+
+  on<T>(event: "taskend", listener: (ctx: StepContext<any, any>) => void) : this;
   on(event: string, listener: Function) : this {
     return super.on(event, listener);
   }
-}
-
-export function skipStepIfFailed(element: (step: Step) => void) {
-  return function(step: Step) {
-    if (step.failed)
-      step.continue();
-    else
-      element(step);
-  };
 }
 
 export class Reporter {
@@ -92,95 +145,3 @@ export class Reporter {
     return desc;
   }
 }
-
-export class Step extends Flux implements Reporter {
-  runner: Runner;
-  task: Task;
-  logs: string;
-  diagnostics: Diagnostic[];
-  failed: boolean;
-  data: any;
-  sharedData: any;
-  lastRunStartTime: number;
-  lastRunEndTime: number;
-  lastSuccessTime: number;
-  storage: BuildSession.BuildSession | null;
-  _once: (((p) => void)[]) | null;
-
-  constructor(runner: Runner, task: Task) {
-    super([], {}, null);
-    this.setFirstElements([this._start.bind(this), task.do.bind(task), this._end.bind(this)]);
-    this.task = task;
-    this.runner = runner;
-    this.logs = "";
-    this.failed = false;
-    this.diagnostics = [];
-    this.storage = null;
-    this.data = null;
-    this.sharedData = null;
-    this.lastRunStartTime = 0;
-    this.lastRunEndTime = 0;
-    this.lastSuccessTime = 0;
-    this._once = null;
-  }
-
-  setFirstElements(elements: ((step: Step) => void) | ((step: Step) => void)[]) : void {
-    super.setFirstElements(elements);
-  }
-
-  once(cb: (step: Step) => void) {
-    if (this._once) {
-      this._once.push(cb);
-    }
-    else if (this.storage === null) {
-      this._once = [cb];
-      this.continue();
-    }
-    else if (this._once === null) {
-      cb(this);
-    }
-  }
-
-  reuseLastRunData() {
-    this.logs = this.data.logs || "";
-    this.diagnostics = this.data.diagnostics || [];
-  }
-
-  log: (...args) => void;
-  lognl: (...args) => void;
-  debug: (...args) => void;
-  debugnl: (...args) => void;
-  diagnostic: (d: Diagnostic) => void;
-  error: (err: Error, base?: Diagnostic) => void;
-  description: () => string;
-
-  _start(p) {
-    this.storage = this.task.getStorage();
-    this.storage.load(() => {
-      this.data = this.storage!.get(this.runner.action) || {};
-      this.sharedData = this.storage!.get("SHARED") || {};
-      this.lastRunStartTime = Date.now();
-      this.lastRunEndTime = this.data.lastRunEndTime || 0;
-      this.lastSuccessTime = this.data.lastSuccessTime || 0;
-      this.continue();
-    });
-  }
-
-  _end(step) {
-    this.data.logs = this.logs;
-    this.data.diagnostics = this.diagnostics;
-    this.data.lastRunEndTime = Date.now();
-    this.data.lastRunStartTime = this.lastRunStartTime;
-    this.data.lastSuccessTime = this.diagnostics.length > 0 ? 0 : this.data.lastRunEndTime;
-    this.storage!.set(this.runner.action, this.data);
-    this.storage!.set("SHARED", this.sharedData);
-    this.storage!.save(() => {
-      this.runner.emit("taskend", this);
-      this.continue();
-      this._once!.forEach((cb) => { cb(this); });
-      this._once = null;
-    });
-  }
-}
-
-util.applyMixins(Step, [Reporter]);

@@ -15,8 +15,8 @@ export abstract class GenerateFileTask extends Task {
     return true;
   }
 
-  isRunRequired(step: Step) {
-    File.getShared(this.path).ensure(true, step.lastSuccessTime, (err, required) => {
+  isRunRequired(step: Step<{ runRequired?: boolean }>) {
+    File.getShared(this.path).ensure(true, step.context.lastSuccessTime, (err, required) => {
       step.context.runRequired = !!(err || required);
       step.continue();
     });

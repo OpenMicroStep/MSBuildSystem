@@ -118,20 +118,22 @@ export class Task {
 
   listOutputFiles(set: Set<File>) { }
 
-  do(step: Step) {
-    switch (step.runner.action) {
+  do(step: Step<{ runRequired?: boolean }>) {
+    switch (step.context.runner.action) {
       case "build":
         step.setFirstElements([
-           (step) => { this.isRunRequired(step); },
-           (step) => {
-             if (step.failed)
-               step.continue();
-             else if (step.context.runRequired)
+          (step) => { this.isRunRequired(step); },
+          (step) => {
+            if (step.context.reporter.failed)
+              step.continue();
+            else if (step.context.runRequired)
               this.run(step);
-             else {
-               step.reuseLastRunData();
-               step.continue(); }
-           }
+            else {
+              step.context.reporter.logs = step.context.data.logs || "";
+              step.context.reporter.diagnostics = step.context.data.diagnostics || [];
+              step.continue();
+            }
+          }
         ]);
         step.continue();
         break;
@@ -141,29 +143,29 @@ export class Task {
         break;
 
       default:
-        step.diagnostic({
+        step.context.reporter.diagnostic({
           type: "warning",
-          msg: `task doesn't support "${step.runner.action}" action`
+          msg: `task doesn't support "${step.context.runner.action}" action`
         });
         step.continue();
         break;
     }
   }
 
-  isRunRequired(step: Step) {
+  isRunRequired(step: Step<{ runRequired?: boolean }>) {
     step.context.runRequired = true;
     step.continue();
   }
 
-  run(step: Step) {
-    step.diagnostic({
+  run(step: Step<{}>) {
+    step.context.reporter.diagnostic({
       type: "fatal error",
       msg: "'run' must be reimplemented by subclasses"
     });
     step.continue();
   }
 
-  clean(step: Step) {
+  clean(step: Step<{}>) {
     step.continue();
   }
 

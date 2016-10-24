@@ -16,16 +16,16 @@ export class HeaderAliasTask extends Task {
     this.steps.push([File.getShared(inFile), File.getShared(outFile)]);
   }
 
-  run(fstep: Step) {
+  run(fstep: Step<{}>) {
     var i = 0;
     var step = () => {
       if (i < this.steps.length) {
         var s = this.steps[i++];
-        s[1].ensure(true, fstep.lastSuccessTime, (err, changed) => {
-          if (err) { fstep.error(err); fstep.continue(); }
+        s[1].ensure(true, fstep.context.lastSuccessTime, (err, changed) => {
+          if (err) { fstep.context.reporter.error(err); fstep.continue(); }
           else if (changed) {
             fs.writeFile(s[1].path, "#import \"" + path.relative(this.aliaspath, s[0].path) + "\"\n", 'utf8', (err) => {
-              if (err) { fstep.error(err); fstep.continue(); }
+              if (err) { fstep.context.reporter.error(err); fstep.continue(); }
               else step();
             });
           }

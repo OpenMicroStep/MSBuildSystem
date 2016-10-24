@@ -1,4 +1,4 @@
-import {Graph, Task, TaskName, Step, File, Provider, ProviderConditions, ProviderRequirement, Barrier} from '@msbuildsystem/core';
+import {Graph, Task, TaskName, Step, StepWithData, File, Provider, ProviderConditions, ProviderRequirement, Barrier} from '@msbuildsystem/core';
 import {Hash} from 'crypto';
 
 /** if the argument is an array, the content the array will be concatenated */
@@ -46,17 +46,17 @@ export class ProcessTask extends Task {
     return true;
   }
 
-  isRunRequired(step: Step) {
+  isRunRequired(step: Step<{ runRequired?: boolean }>) {
     step.context.runRequired = true;
     if (this.inputFiles.length && this.outputFiles.length) {
       // Force creation of output file directories
-      File.ensure(this.outputFiles, step.lastSuccessTime, {ensureDir: true}, (err, required) => {
+      File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {
         if (err || required) {
           step.context.runRequired = true;
           step.continue();
         }
         else {
-          File.ensure(this.inputFiles, step.lastSuccessTime, {}, (err, required) => {
+          File.ensure(this.inputFiles, step.context.lastSuccessTime, {}, (err, required) => {
             step.context.runRequired = !!(err || required);
             step.continue();
           });
@@ -84,15 +84,15 @@ export class ProcessTask extends Task {
     });
   }
 
-  do(step) {
-    step.sharedData.command = { provider: this.provider, args: this.flattenArgs() };
+  do(step: StepWithData<{}, {}, { command: { provider: any, args: string[] } }>) {
+    step.context.sharedData.command = { provider: this.provider, args: this.flattenArgs() };
     super.do(step);
   }
 
-  run(step: Step) {
+  run(step: Step<{}>) {
     var provider = Provider.find(this.provider);
     if (!provider) {
-      step.diagnostic({
+      step.context.reporter.diagnostic({
         type: "error",
         msg: "unable to find provider"
       });
@@ -103,10 +103,10 @@ export class ProcessTask extends Task {
     }
   }
 
-  runProcess(step: Step, provider: Provider) {
+  runProcess(step: Step<{ output?: string, err?: any }>, provider: Provider) {
     step.setFirstElements((step) => {
-      step.log(step.context.output);
-      step.error(step.context.err);
+      step.context.reporter.log(step.context.output);
+      step.context.reporter.error(step.context.err);
       step.continue();
     });
     provider.process(step, {
@@ -124,13 +124,13 @@ export class ProcessTask extends Task {
     return ["inputs", "outputs"];
   }
 
-  clean(step: Step) {
+  clean(step: Step<{}>) {
     var barrier = new Barrier("Clear process product", this.outputFiles.length);
     this.outputFiles.forEach((file) => {
       file.unlink((err) => {
-        step.log("unlink " + file.path + (err ? " failed" : "succeeded"));
+        step.context.reporter.log("unlink " + file.path + (err ? " failed" : "succeeded"));
         if (err)
-          step.error(err);
+          step.context.reporter.error(err);
         barrier.dec();
       });
     });

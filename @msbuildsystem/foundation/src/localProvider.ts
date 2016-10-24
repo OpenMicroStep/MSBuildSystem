@@ -7,7 +7,7 @@ var waitingTasks: (() => void)[] = [];
 
 /** The local provider limits the amount of work done locally */
 export abstract class LocalProvider extends Provider {
-  process(step: Step, options: ProviderOptions) {
+  process(step: Step<{}>, options: ProviderOptions) {
     step.setFirstElements((step) => {
       nbTaskRunning--;
       if (waitingTasks.length > 0)
@@ -26,7 +26,7 @@ export abstract class LocalProvider extends Provider {
     }
   }
 
-  abstract localprocess(step: Step, options: ProviderOptions);
+  abstract localprocess(step: Step<{}>, options: ProviderOptions);
 }
 
 export class ProcessProvider extends Provider {
@@ -36,7 +36,7 @@ export class ProcessProvider extends Provider {
   map(path) {
     return path;
   }
-  process(step: Step, options: ProviderOptions) {
+  process(step: Step<{}>, options: ProviderOptions) {
     var env = options.env || {};
     var args = options.args || [];
     if (this.options && this.options.PATH) {
@@ -48,13 +48,13 @@ export class ProcessProvider extends Provider {
     }
     this.run(this.bin, args, env, (err, code, signal, out) => {
       if (err)
-        step.error(err);
+        step.context.reporter.error(err);
       else if (signal)
-        step.diagnostic({ type: "error", msg: `process terminated with signal ${signal}` });
+        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with signal ${signal}` });
       else if (code !== 0)
-        step.diagnostic({ type: "error", msg: `process terminated with exit code: ${code}` });
+        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with exit code: ${code}` });
       if (out)
-        step.log(out);
+        step.context.reporter.log(out);
       step.continue();
     });
   }

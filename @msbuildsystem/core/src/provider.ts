@@ -71,7 +71,7 @@ export abstract class Provider {
   abstract map(path: string) : string;
 
   /** process the given action */
-  abstract process(step: Step, options: ProviderOptions);
+  abstract process(step: Step<{ output?: string, err?: any }>, options: ProviderOptions);
 
   static providers: Provider[]= [];
   static find(conditions: ProviderConditions) : Provider | null {

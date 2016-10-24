@@ -5,48 +5,50 @@ export class TGraph<T extends Task> extends Task {
     super(name, graph);
   }
 
-  do(gstep: Step) {
+  do(flux: Step<any>) {
     var barrier = new Barrier("Graph");
-    var map = new Map<Task, {step: Step | null, requirements: number}>();
+    var map = new Map<Task, { running: boolean, requirements: number }>();
     this.inputs.forEach(function (task) {
       var substep = getstep(task);
       if (substep.requirements === 0)
         run(substep, task);
     });
-    barrier.endWith(gstep.continue.bind(gstep));
+    barrier.endWith(() => { flux.continue(); });
 
     function getstep(task: Task) {
       var step = map.get(task);
       if (!step) {
-        step = { requirements: task.dependencies.size, step: null };
+        step = { requirements: task.dependencies.size, running: false };
         map.set(task, step);
       }
       return step;
     }
 
-    function cb(step: Step) {
-      var task = step.task;
+    function lastAction(step: Step<any>) {
+      let ctx = step.context;
+      let task = ctx.task;
       // console.trace("End task %s %s (action=%s)", task.name.type, task.name.name, step.failed, task.requiredBy.size);
-      if (!step.failed) {
+      if (!ctx.reporter.failed) {
         task.requiredBy.forEach(function (next) {
-          var n = getstep(next);
+          let n = getstep(next);
           if (--n.requirements === 0)
             run(n, next);
         });
       }
       else {
         console.trace("Task %s %s failed", task.name.type, task.name.name);
-        console.trace(step.logs);
-        gstep.failed = true;
+        console.trace(ctx.reporter.logs);
+        flux.context.reporter.failed = true;
       }
       barrier.dec();
     }
 
-    function run(substep, task: Task) {
-      barrier.inc();
-      if (!substep.step)
-        substep.step = new Step(gstep.runner, task);
-      substep.step.once(cb);
+    function run(substep: { running: boolean, requirements: number }, task: Task) {
+      if (!substep.running) {
+        substep.running = true;
+        barrier.inc();
+        flux.context.execute(flux.context.runner, task, lastAction);
+      }
     }
   }
 

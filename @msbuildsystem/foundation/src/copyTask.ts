@@ -40,26 +40,26 @@ export class CopyTask extends Task {
     }
   }
 
-  run(step: Step) {
+  run(step: Step<{}>) {
     let barrier = new Barrier("Copy files", this.steps.length / 2);
     for (let i = 1, len = this.steps.length; i < len; i += 2) {
       let from = this.steps[i];
       let to = this.steps[i - 1];
-      from.copyTo(to, step.lastSuccessTime, (err) => {
+      from.copyTo(to, step.context.lastSuccessTime, (err) => {
         if (err)
-          step.diagnostic({type: "error", msg: "couldn't copy file: " + err + this});
+          step.context.reporter.diagnostic({type: "error", msg: "couldn't copy file: " + err + this});
         barrier.dec();
       });
     }
     barrier.endWith(step.continue.bind(step));
   }
-  clean(step: Step) {
+  clean(step: Step<{}>) {
     let barrier = new Barrier("Clean copied files", this.steps.length / 2);
     for (let i = 1, len = this.steps.length; i < len; i += 2) {
       let to = this.steps[i - 1];
       to.unlink((err) => {
         if (err)
-          step.diagnostic({type: "error", msg: "couldn't unlike file: " + err.message});
+          step.context.reporter.diagnostic({type: "error", msg: "couldn't unlike file: " + err.message});
         barrier.dec();
       });
     }
