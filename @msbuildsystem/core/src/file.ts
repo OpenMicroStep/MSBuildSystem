@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import {util} from './index.priv';
+import {util, Barrier} from './index.priv';
 
 export class File {
   public path: string;
@@ -49,41 +49,45 @@ export class File {
     files: File[],
     time: number,
     options: {ensureDir?: boolean; time?: number; parallel?: boolean},
-    callback: (err?: Error, changed?: boolean) => any
+    callback: (err: Error | undefined, changed: boolean) => any
   ) {
     var i = 0, len = files.length;
     var ensureDir = options.ensureDir || false;
-    var parallel = options.parallel || ensureDir;
-    var barrier = files.length + 1;
+    var parallel = options.parallel;
+    var retErr = undefined;
+    var retChanged = false;
+    var barrier = new Barrier("ensure", files.length);
     if (parallel) {
       while (i < len)
         files[i++].ensure(ensureDir, time, dec);
-      dec();
     }
     else {
       next();
     }
+    barrier.endWith(() => {
+      callback(retErr, retChanged);
+    });
 
     function next() {
-      if (i < len)
-        files[i].ensure(ensureDir, time, dec);
-      else
-        dec();
+      if (i < len) {
+        let idx = i++;
+        files[idx].ensure(ensureDir, time, dec);
+      }
     }
 
-    function dec(err?, required?) {
-      if (err || required) {
-        barrier = 0;
-        callback(err, required);
+    function dec(err, required) {
+      if (err) retErr = err;
+      if (required) retChanged = true;
+      if (!ensureDir && (err || required))
+        barrier.break();
+      else {
+        barrier.dec();
+        if (!parallel) next();
       }
-      if (--barrier === 0)
-        callback(undefined, false);
-      else if (parallel && barrier > 0)
-        next();
     };
   }
 
-  ensure(ensureDir: boolean, time: number, callback: (err?: Error, changed?: boolean) => any) {
+  ensure(ensureDir: boolean, time: number, callback: (err: Error | undefined, changed: boolean) => any) {
     if (this.isDirectory)
       return callback(undefined, false);
     this.stats((err, stats) => {

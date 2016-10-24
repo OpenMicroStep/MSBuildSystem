@@ -1,83 +1,47 @@
 export class Barrier {
-  protected actions: ((...args) => any)[];
+  protected action: (() => void) | undefined;
   protected counter: number;
 
   constructor(public name: string, counter: number = 0) {
-    this.reset(counter);
-  }
-
-  reset(counter: number) {
-    this.actions = [];
-    this.counter = counter;
+    this.action = undefined;
+    this.counter = counter + 1;
   }
 
   inc() {
-    this.counter++;
+    if (this.counter > 0)
+      this.counter++;
   }
 
   dec() {
-    if (--this.counter === 0 && this.actions.length > 0) {
-      this.actions.forEach((action) => {
-       this.signal(action);
-      });
+    if (this.counter > 0 && --this.counter === 0)
+      this.break();
+  }
+
+  break() {
+    this.counter = 0;
+    if (this.action) {
+      let action = this.action;
+      action();
+      this.action = undefined;
     }
   }
-  protected signal(action) {
-    action();
+
+  isPending() {
+    return this.counter > 0;
   }
+
   decCallback() {
     return () => { this.dec(); };
   }
-  waitOn(action?: (...args) => any) {
-    this.inc();
-    var _this = this;
-    return function() {
-      if (action) action.apply(null, arguments);
-      _this.dec();
-    };
-  }
 
   endWith(action: () => any) {
-    if (this.counter <= 0)
-      this.signal(action);
-    else
-      this.actions.push(action);
-  }
-}
-
-export class FirstErrBarrier extends Barrier {
-  protected err = null;
-  dec(err?: any) {
-    if (err && this.counter > 0) {
-      this.err = err;
-      this.counter = 1;
+    if (this.counter === 1) {
+      action();
+      this.counter = 0;
     }
-    super.dec();
-  }
-  decCallback() {
-    return (err?: any) => { this.dec(err); };
-  }
-  protected signal(action) {
-    action(this.err);
-  }
-  endWith(action: (err?) => any) {
-    super.endWith(action);
-  }
-}
-
-export class ErrBarrier extends Barrier {
-  protected errors = <any[]>[];
-  dec(err?: any) {
-    if (err) this.errors.push(err);
-    super.dec();
-  }
-  decCallback() {
-    return (err?: any) => { this.dec(err); };
-  }
-  protected signal(action) {
-    action(this.errors);
-  }
-  endWith(action: (errors?: any[]) => any) {
-    super.endWith(action);
+    else if (this.counter > 1) {
+      this.action = action;
+      this.counter--;
+    }
   }
 }
