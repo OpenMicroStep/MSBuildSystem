@@ -60,8 +60,8 @@ export class TargetElement extends ComponentElement {
     return new TargetExportElement(this, exports);
   }
 
-  __resolveValueForKey(reporter: Reporter, v, k: string, keepGroups) {
-    super.__resolveValueForKey(reporter, v, k, k === 'exports' || k === 'exportsByEnvironment');
+  __resolveValueForKey(reporter: Reporter, v, k: string, keepGroups: boolean, attrPath: AttributePath) {
+    super.__resolveValueForKey(reporter, v, k, k === 'exports' || k === 'exportsByEnvironment', attrPath);
   }
 
   __resolve(reporter: Reporter) {
@@ -142,7 +142,13 @@ export class BuildTargetElement extends TargetElement {
     this.__resolve(reporter);
     // 3. resolve environment related attributes
     this.__resolveByEnvironment(reporter, this, this.environment);
+  }
 
+  __path() {
+    return `${super.__path()}{${this.variant}/${this.environment.name}}`;
+  }
+
+  __resolveTargets(reporter: Reporter) {
     let at = new AttributePath(this.__path());
     at.push('');
     let targets = targetListResolver.resolve(reporter, at.set('targets'), this.targets || [], null);
@@ -179,12 +185,12 @@ export class BuildTargetElement extends TargetElement {
     return this.root.buildTargetElement(reporter, target, environment, this.variant);
   }
 
-  __resolveValue(reporter: Reporter, el, ret: any[]) {
+  __resolveValue(reporter: Reporter, el, ret: any[], keepGroups: boolean, attrPath: AttributePath) {
     if (el instanceof DelayedElement) {
-      ret.push(...el.__delayedResolve(reporter, this));
+      ret.push(...el.__delayedResolve(reporter, this, attrPath));
     }
     else {
-      super.__resolveValue(reporter, el, ret);
+      super.__resolveValue(reporter, el, ret, keepGroups, attrPath);
     }
   }
 }

@@ -1,4 +1,4 @@
-import {Reporter, util, Target} from './index.priv';
+import {Reporter, util, Diagnostic} from './index.priv';
 
 export interface Attributes {
   components?: string[];
@@ -9,18 +9,18 @@ function listResolve<T, A0> (
   reporter: Reporter, path: AttributePath, attr: T[], a0: A0,
   validator: AttributeTypes.Validator<T, A0>, push: (T) => void
 ) {
-  path.push("[", "", "]");
   if (Array.isArray(attr)) {
+    path.push("[", "", "]");
     for (var idx = 0, attrlen = attr.length; idx < attrlen; idx++) {
       var value = validator(reporter, path.set(idx.toString(), -1), attr[idx], a0);
       if (value !== undefined)
         push(value);
     }
+    path.pop(3);
   }
   else {
     reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be an array`});
   }
-  path.pop(3);
 }
 
 function validateComplex<T, T2, A0>(
@@ -264,51 +264,67 @@ export module AttributeResolvers {
   export const stringSetResolver = new SetResolver(AttributeTypes.validateString);
 }
 
+/** Very fast path management (push, pop) */
+export type AttributePathComponent = ({ __path() : string } | string | number);
 export class AttributePath {
-  path: string[];
+  /** components of the path that are concatenated by toString() */
+  components: AttributePathComponent[];
 
-  constructor(path?: string) {
-    this.path = path !== undefined ? [path] : [];
+  constructor(...components: AttributePathComponent[]);
+  constructor(c0?: AttributePathComponent, c1?: AttributePathComponent, c2?: AttributePathComponent) {
+    this.reset.apply(this, arguments);
   }
 
-  push(...attr: string[]) {
-    this.path.push(...attr);
+  reset(...components: AttributePathComponent[]);
+  reset(c0?: AttributePathComponent, c1?: AttributePathComponent, c2?: AttributePathComponent) {
+    var length = arguments.length;
+    this.components = [];
+    for (var i = 0; i < length; i++)
+      this.components.push(arguments[i]);
+    return this;
+  }
+
+  push(...components: AttributePathComponent[]);
+  push() {
+    var length = arguments.length;
+    for (var i = 0; i < length; i++)
+      this.components.push(arguments[i]);
     return this;
   }
 
   pop(nb: number = 1) {
     while (--nb >= 0)
-      this.path.pop();
+      this.components.pop();
     return this;
   }
 
-  set(attr: string, at: number = -1) {
-    this.path[at < 0 ? this.path.length + at : at] = attr;
-    return this;
+  rewrite(...components: AttributePathComponent[])
+  rewrite() {
+    var i = 0, len = arguments.length;
+    var end = this.components.length - len;
+    while (i < len)
+      this.components[end++] = arguments[i++];
   }
 
-  last() : string {
-    return this.path[this.path.length - 1];
+  set(attr: AttributePathComponent, at: number = -1) {
+    this.components[at < 0 ? this.components.length + at : at] = attr;
+    return this;
   }
 
   copy() {
     var cpy = new AttributePath();
-    cpy.path = this.path.slice(0);
+    cpy.components = this.components.slice(0);
     return cpy;
   }
 
   toString() : string {
-    var ret = "";
-    var addPoint = false;
-    for (var i = 0, len = this.path.length; i < len; ++i) {
-      var p = this.path[i];
-      if (p) {
-        if (addPoint && p !== "[" && p !== "]" && p[0] !== ".")
-          ret += ":";
-        ret += p;
-      }
-      addPoint = p !== "[";
-    }
-    return ret;
+    return this.components.map(c => typeof c === "object" ? c.__path() : c).join('');
+  }
+
+  diagnostic(reporter: Reporter, d: Diagnostic, ...components: AttributePathComponent[]) {
+    this.push(...components);
+    d.path = this.toString() + (d.path || "");
+    this.pop(components.length);
+    reporter.diagnostic(d);
   }
 }

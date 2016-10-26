@@ -1,8 +1,8 @@
-import {Element, declareElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath, util} from '../index.priv';
+import {Element, declareSimpleElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
 import *  as path from 'path';
 
-declareElementFactory('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => {
-  return [new GroupElement(name, parent)];
+declareSimpleElementFactory('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => {
+  return new GroupElement(name, parent);
 });
 export class GroupElement extends Element {
   elements: ComponentElement[];
@@ -39,7 +39,8 @@ export class GroupElement extends Element {
       if (typeof el !== type) {
         reporter.diagnostic({
           type: 'error',
-          msg:  `'${this.__path()}.elements' must only contains elements of the same type, expecting ${type}, got ${typeof el}`
+          path: `${this.__path()}.elements`,
+          msg:  `elements must be of the same type, expecting ${type}, got ${typeof el}`
         });
       }
       else {
@@ -49,7 +50,8 @@ export class GroupElement extends Element {
         if (is !== cis) {
           reporter.diagnostic({
             type: 'error',
-            msg:  `'${this.__path()}.elements' must only contains elements of the same type, expecting ${is}, got ${cis}`
+            path: `${this.__path()}.elements`,
+            msg:  `elements must be of the same type, expecting ${is}, got ${cis}`
           });
         }
         else {

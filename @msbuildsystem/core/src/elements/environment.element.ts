@@ -1,9 +1,9 @@
-import {Element, declareElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
+import {Element, declareSimpleElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
 
-declareElementFactory('environment', (reporter: Reporter, name: string,
+declareSimpleElementFactory('environment', (reporter: Reporter, name: string,
   definition: MakeJS.Environment, attrPath: AttributePath, parent: Element
 ) => {
-  return [new EnvironmentElement(name, parent)];
+  return new EnvironmentElement(name, parent);
 });
 export class EnvironmentElement extends ComponentElement {
   compatibleEnvironments: string[];

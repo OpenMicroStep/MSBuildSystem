@@ -3,7 +3,7 @@ import {CopyTask} from '@msbuildsystem/foundation';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
 
-@declareTarget({ type: "Library" })
+@declareTarget({ type: "CXXLibrary" })
 export class CXXLibrary extends CXXTarget {
   @resolver(new AttributeResolvers.SimpleResolver(AttributeTypes.validateBoolean))
   static: boolean = false;

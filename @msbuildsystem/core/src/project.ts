@@ -1,4 +1,4 @@
-import {Workspace, AttributePath, Target, getTargetClass,
+import {Workspace, AttributePath, Target, getTargetClass, util, Diagnostic,
   TGraph, Task, File, Reporter, MakeJS, Element,
   ProjectElement, BuildTargetElement, TargetElement, FileElement, EnvironmentElement
 } from './index.priv';
@@ -11,6 +11,13 @@ export interface BuildGraphOptions {
   outputdir?: string;
 };
 
+function transformWithCategory(category: string) {
+  return function setDiagCategory(diagnostic: Diagnostic) {
+    diagnostic.category = category;
+    return diagnostic;
+  };
+}
+
 export class RootGraph extends TGraph<Target> {
   buildTargetElements: BuildTargetElement[] = [];
   constructor() {
@@ -20,6 +27,9 @@ export class RootGraph extends TGraph<Target> {
   doConfigure(reporter: Reporter) {
     this.iterate(false, (t: Target) => {
       t.doConfigure(reporter);
+      reporter.diagnostics.forEach(d => {
+        //if (!d.path) d.path = `${t.name.variant}/${t.name.environment}/${t.name.name}`;
+      });
       return true;
     });
   }
@@ -28,8 +38,10 @@ export class RootGraph extends TGraph<Target> {
     let ret = this.buildTargetElements.find(e => {
       return e.__target === target && e.environment === environment && e.variant === variant;
     });
-    if (!ret)
+    if (!ret) {
       this.buildTargetElements.push(ret = new BuildTargetElement(reporter, this, target, environment, variant));
+      ret.__resolveTargets(reporter);
+    }
     return ret;
   }
 
@@ -45,7 +57,8 @@ export class RootGraph extends TGraph<Target> {
       if (!cls) {
         reporter.diagnostic({
           type: "error",
-          msg: `cannot create target ${buildTarget.name}, unsupported target type ${buildTarget.type}`
+          msg: `cannot create target ${buildTarget.__path()}, unsupported target type ${buildTarget.type}`,
+          path: buildTarget.__path()
         });
         return null;
       }
@@ -55,10 +68,11 @@ export class RootGraph extends TGraph<Target> {
       });
       task.attributes.targets.forEach((dependency) => {
         var t = this.buildTarget(reporter, dependency, outputdir);
-        if (t && t.allDependencies().has(task!)) {
+        if (t && (t === task || t.allDependencies().has(task!))) {
           reporter.diagnostic({
             type: "error",
-            msg: `cyclic dependencies between ${t.attributes.name} and ${task!.attributes.name}`
+            msg: `cyclic dependencies between ${t.attributes.__path()} and ${task!.attributes.__path()}`,
+            path: buildTarget.__path()
           });
         }
         else if (t) {
@@ -114,12 +128,15 @@ export class Project {
   loadDefinition(reporter: Reporter) {
     if (this.definition!.is !== 'project')
       reporter.diagnostic({ type: 'error', msg: `the root element 'is' attribute must be 'project'`});
-
     this.targets = [];
     this.environments = [];
-    this.tree = new ProjectElement(this);
-    this.tree.__load(reporter, this.definition!, new AttributePath(this.definition!.name));
+    this.tree = new ProjectElement(this, this.definition!.name);
+    reporter.transform.push(transformWithCategory('load'));
+    this.tree.__load(reporter, this.definition!, new AttributePath(this.tree));
+    reporter.transform.pop();
+    reporter.transform.push(transformWithCategory('resolve'));
     this.tree.__resolve(reporter);
+    reporter.transform.pop();
   }
 
   resolveFilePath(filepath: string) {
@@ -137,6 +154,7 @@ export class Project {
     if (options.environments)
       environments = environments.filter(c => options.environments!.indexOf(c.name) !== -1);
 
+    reporter.transform.push(transformWithCategory('graph'));
     targets.forEach(target => {
       let targetEnvs = target.environments.filter(e => environments.indexOf(e) !== -1);
       targetEnvs.forEach(environment => {
@@ -148,8 +166,11 @@ export class Project {
         });
       });
     });
+    reporter.transform.pop();
 
+    reporter.transform.push(transformWithCategory('configure'));
     root.doConfigure(reporter);
+    reporter.transform.pop();
     return root;
   }
 

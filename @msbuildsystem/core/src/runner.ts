@@ -106,9 +106,15 @@ export class Runner extends EventEmitter {
 }
 
 export class Reporter {
+  /** raw logs */
   logs: string = "";
+  /** structured diagnostics, use diagnostic(...) or error(...) to add somes */
   diagnostics: Diagnostic[] = [];
+  /** true if the task failed, automatically set to true if a diagnostic of type error is added e*/
   failed: boolean = false;
+  /** if not null, run a transformation on new diagnostics (ie. set category, prefix path, ...) */
+  transform: ((diagnostic: Diagnostic) => Diagnostic)[] = [];
+
 
   log(...args) {
     this.logs += format.apply(null, arguments);
@@ -127,6 +133,8 @@ export class Reporter {
 
   diagnostic(d: Diagnostic) {
     if (!d) return;
+    if (this.transform.length)
+      d = this.transform[this.transform.length - 1](d);
     this.diagnostics.push(d);
     if (d.type === "error" || d.type === "fatal error")
       this.failed = true;

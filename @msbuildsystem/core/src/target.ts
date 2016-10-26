@@ -43,6 +43,7 @@ export function resolver<T>(r: AttributeResolvers.Resolver<T, Target>, attrPath?
 const configureResolver = new PropResolver(new AttributeResolvers.FunctionResolver("(target: Target) => void"), "configure");
 
 export class Target extends SelfBuildGraph<RootGraph> {
+  name: { type: "target", name: string, environment: string, variant: string, project: string };
   readonly resolvers: PropResolver<any>[]; // on the prototype
 
   dependencies: Set<Target>;
@@ -98,6 +99,10 @@ export class Target extends SelfBuildGraph<RootGraph> {
     fs.ensureDirSync(this.paths.tasks);
   }
 
+  __path() {
+    return this.attributes.__path();
+  }
+
   uniqueKey(hash: Hash) : boolean {
     hash.update(this.variant + "\t" + this.environment + "\t" + this.targetName);
     return true;
@@ -116,19 +121,26 @@ export class Target extends SelfBuildGraph<RootGraph> {
   }
 
   configure(reporter: Reporter) {
+    let path = new AttributePath(this);
     for (var r of this.resolvers) {
-      this.resolveAttr(reporter, r);
+      this.resolveAttr(reporter, r, path);
     }
   }
 
-  resolveAttr<T>(reporter: Reporter, prop: PropResolver<AttributeResolvers.Resolver<T, Target>>) : T | undefined {
+  resolveAttr<T>(reporter: Reporter, prop: PropResolver<AttributeResolvers.Resolver<T, Target>>, path: AttributePath = new AttributePath(this)) : T | undefined {
     let attr = this.attributes[prop.attrPath];
     let r: T | undefined = undefined;
+    path.push('.', prop.attrPath);
     if (attr !== undefined || (prop.clsPath && (r = this[prop.clsPath]) === undefined)) {
-      r = prop.resolver.resolve(reporter, new AttributePath(prop.attrPath), attr, this);
-      if (prop.clsPath && r !== undefined)
-        this[prop.clsPath] = r;
+      if (attr === undefined)
+        path.diagnostic(reporter, { type: "error", msg: `attribute '${prop.attrPath}'' is required`});
+      else {
+        r = prop.resolver.resolve(reporter, path, attr, this);
+        if (prop.clsPath && r !== undefined)
+          this[prop.clsPath] = r;
+      }
     }
+    path.pop(2);
     return r;
   }
 

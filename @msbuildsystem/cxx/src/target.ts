@@ -1,9 +1,9 @@
 import {
-  Target, File, Reporter, Graph,
+  Target, File, Reporter,
   AttributePath, AttributeTypes, AttributeResolvers,
-  resolver, FileElement
+  resolver, FileElement, Diagnostic
 } from '@msbuildsystem/core';
-import {CXXSysroot} from './index.priv';
+import {CXXSysroot, sysrootClasses} from './index.priv';
 const {validateString, validateStringList} = AttributeTypes;
 const {SimpleResolver, stringResolver, stringListResolver, stringSetResolver} = AttributeResolvers;
 export var CXXSourceExtensions: { [s: string]: string } =  {
@@ -37,12 +37,33 @@ export function validateSysroot(reporter: Reporter, path: AttributePath, value: 
       if (sysroots.length === 1)
         return new sysroots[0](target, conditions);
       else if (sysroots.length === 0)
-        reporter.diagnostic({ type: "error", msg: `unable to find sysroot`});
+        path.diagnostic(reporter, {
+          type: "error",
+          msg: `unable to find sysroot`,
+          notes: [<Diagnostic>{ type: "note", msg: `while looking for sysroot: ${v}` }]
+            .concat(sysrootClasses.map(s => (<Diagnostic>{
+              type: "note",
+              msg: `found: ${s.name}`
+            })))
+        });
       else
-        reporter.diagnostic({ type: "error", msg: `multiple sysroots found`});
+        path.diagnostic(reporter, {
+          type: "error",
+          msg: `multiple sysroots found`,
+          notes: [<Diagnostic>{ type: "note", msg: `while looking for sysroot: ${v}` }]
+            .concat(sysroots.map(s => (<Diagnostic>{
+              type: "note",
+              msg: `found: ${s.name}`
+            })))
+        });
     }
-    else
-      reporter.diagnostic({ type: "error", msg: `sysroot attribute format is invalid`});
+    else {
+      path.diagnostic(reporter, {
+        type: "error",
+        msg: `sysroot attribute format is invalid`,
+        notes: [{ type: "note", msg: "valid format is 'platform[:architecture[:version]]'" }]
+      });
+    }
   }
   return undefined;
 }

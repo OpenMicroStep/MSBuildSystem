@@ -1,9 +1,9 @@
-import {Element, declareElementFactory, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
+import {Element, declareSimpleElementFactory, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
 
-declareElementFactory('component', (reporter: Reporter, name: string,
+declareSimpleElementFactory('component', (reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element
 ) => {
-  return [new ComponentElement('component', name, parent)];
+  return new ComponentElement('component', name, parent);
 });
 export class ComponentElement extends Element {
   static notInjectedKeys = new Set(["tags", "components", "elements"]);
@@ -65,7 +65,7 @@ export class ComponentElement extends Element {
       this.components = <ComponentElement[]>this.__loadElements(reporter, value, attrPath);
     }
     else if (key === 'tags') {
-      this.tags = AttributeTypes.validateStringList(reporter, attrPath, value);
+      this.tags = AttributeTypes.validateStringList(reporter, new AttributePath(this, '.', key), value);
     }
     else {
       super.__loadReservedValue(reporter, key, value, attrPath);

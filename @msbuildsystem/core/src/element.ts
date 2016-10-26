@@ -1,9 +1,11 @@
 import {Reporter, AttributePath, Project, ComponentElement, GroupElement, util,
-  MakeJS, BuildTargetElement, TargetElement
+  MakeJS, BuildTargetElement, TargetElement, Diagnostic
 } from './index.priv';
 
-export type ElementFactory = (reporter: Reporter, name: string,
+export type ElementFactory = (reporter: Reporter, name: string | undefined,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => Element[];
+export type SimpleElementFactory = (reporter: Reporter, name: string,
+  definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => Element;
 
 export const elementValidator = (reporter: Reporter, path: AttributePath, value: any) => {
   if (!(value instanceof Element))
@@ -25,7 +27,33 @@ export function createElementValidator<T extends Element>(is: string, cls: { new
 
 export var elementFactories = new Map<string, ElementFactory>();
 export function declareElementFactory(type: string, factory: ElementFactory) {
-    elementFactories.set(type, factory);
+  elementFactories.set(type, factory);
+}
+
+export function declareSimpleElementFactory(type: string, factory: SimpleElementFactory) {
+  elementFactories.set(type, function simpleElementFactory(
+    reporter: Reporter, name: string | undefined,
+    definition: MakeJS.Element, attrPath: AttributePath, parent: Element
+  ) : Element[] {
+    name = handleSimpleElementName(reporter, name, definition.name, attrPath);
+    return name ? [factory(reporter, name, definition, attrPath, parent)] : [];
+  });
+}
+
+export function handleSimpleElementName(reporter: Reporter, namespaceName: string | undefined, definitionName: string | undefined, attrPath: AttributePath) {
+  if (!namespaceName) {
+    if (typeof definitionName === 'string' && definitionName.length > 0)
+      namespaceName = definitionName;
+    else
+      attrPath.diagnostic(reporter, { type: 'error', msg: `'name' attribute must be a non empty string` });
+  }
+  else if (namespaceName === definitionName) {
+    attrPath.diagnostic(reporter, { type: 'warning', msg: `'name' attribute is already defined by the namespace` });
+  }
+  else if (typeof definitionName === 'string') {
+    attrPath.diagnostic(reporter, { type: 'error', msg: `'name' attribute is already defined by the namespace with a different value` });
+  }
+  return namespaceName;
 }
 
 declareElementFactory('element', (reporter: Reporter, name: string,
@@ -48,142 +76,189 @@ export class Element {
     this.name = name;
   }
 
-  static instantiate(reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) : Element[] {
+  static instantiate(reporter: Reporter, name: string | undefined, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) : Element[] {
     var is = definition.is;
-    if (typeof is !== 'string') {
-      reporter.diagnostic({ type: 'error', msg: `'${attrPath.toString()}.is' attribute must be a string`});
-      return [];
+    var error: string | undefined;
+    if (typeof is !== 'string')
+      error = `'is' attribute must be a string`;
+    else {
+      var factory = elementFactories.get(is);
+      if (!factory)
+        error = `'is' attribute must be a valid element type`;
+      else {
+        attrPath = name ? new AttributePath(parent, ':', name) : attrPath;
+        var elements = factory(reporter, name, definition, attrPath, parent);
+        for (var element of elements)
+          element.__load(reporter, definition, !name && element.name ? new AttributePath(element) : attrPath);
+        return elements;
+      }
     }
-
-    var factory = elementFactories.get(is);
-    if (!factory) {
-      reporter.diagnostic({ type: 'error', msg: `'${attrPath.toString()}.is' attribute must be a valid element type`});
-      factory = elementFactories.get('element')!;
-    }
-    var elements = factory(reporter, name, definition, attrPath, parent);
-    for (var i = 0, len = elements.length; i < len; i++) {
-      elements[i].__load(reporter, definition, attrPath);
-    }
-    return elements;
+    attrPath.diagnostic(reporter, { type: "error", msg: error }, '.is');
+    return [];
   }
 
   __load(reporter: Reporter, definition: MakeJS.Element, attrPath: AttributePath) {
-    attrPath.push("");
+    attrPath.push('', '');
     for (var k in definition) {
       var v = definition[k];
       if (k[k.length - 1] === "=") {
+        // namespace definition
         var n = k.substring(0, k.length - 1);
-        attrPath.set(n);
+        attrPath.rewrite(':', n);
         this.__loadNamespace(reporter, n, v, attrPath);
       }
       else if (k in this) {
-        attrPath.set("." + k);
-        this.__loadReservedValue(reporter, k, v, attrPath);
+        // reserved property
+        if (k !== 'is' && k !== 'name') {
+          attrPath.rewrite('.', k);
+          this.__loadReservedValue(reporter, k, v, attrPath);
+        }
       }
       else {
-        if (Element.warningProbableMisuseOfKey.has(k))
-          reporter.diagnostic({
-            type: 'note',
-            msg:  `'${attrPath.toString()}' could be misused, this key has special meaning for other element types`
-          });
+        // simple property
+        attrPath.rewrite('.', k);
+        if (Element.warningProbableMisuseOfKey.has(k)) {
+          attrPath.diagnostic(reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for other element types` });
+        }
         this[k] = v;
       }
     }
-    attrPath.pop();
+    attrPath.pop(2);
   }
 
-  __resolveValue(reporter: Reporter, el, ret: any[], keepGroups?: boolean) {
+  __loadNamespace(reporter: Reporter, name: string, value: MakeJS.Element, attrPath: AttributePath) {
+    var els = Element.instantiate(reporter, name, value, attrPath, this);
+    if (els.length > 1)
+      attrPath.diagnostic(reporter, { type: 'warning', msg: `element has been expanded to a multiple elements and can't be referenced` });
+    if (els.length === 1) {
+      name += '=';
+      if (name in this)
+        attrPath.diagnostic(reporter, { type: 'error', msg:  `conflict with an element defined with the same name: '${name.substring(0, name.length - 1)}'` });
+      this[name] = els[0];
+    }
+  }
+
+  __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
+    attrPath.diagnostic(reporter, { type: 'error', msg: `'${key}' can't be defined, this key is reserved` });
+    // 'is' is handled by the instantiate method
+  }
+
+  __loadElements(reporter: Reporter, elements: (MakeJS.Element|string)[], attrPath: AttributePath
+  ) : (ComponentElement|GroupElement|string)[] {
+    var list = <any[]>[];
+    if (Array.isArray(elements)) {
+      for (var i = 0, len = elements.length; i < len; i++) {
+        var e = elements[i];
+        if (typeof e === 'string') {
+          list.push(e); // this will be resolved in a 2nd pass (__resolve)
+        }
+        else if (typeof e === 'object') {
+          attrPath.push("[", "", "]");
+          var subs = Element.instantiate(reporter, undefined, <MakeJS.Element>e, attrPath.set(i, -2), this);
+          for (var j = 0, jlen = subs.length; j < jlen; ++j) {
+            var sub = subs[j];
+            if (sub && sub.name) {
+              var k = sub.name + "=";
+              if (k in this)
+                attrPath.diagnostic(reporter, { type: 'error', msg: `conflict with an element defined with the same name: '${sub.name}'` });
+              this[k] = sub;
+            }
+          }
+          list.push(...subs);
+          attrPath.pop(3);
+        }
+      }
+    }
+    else {
+      attrPath.diagnostic(reporter, { type: 'error', msg: `attribute must be an array of elements` });
+    }
+    return list;
+  }
+
+  __resolve(reporter: Reporter) {
+    this.__resolved = true;
+    let attrPath = new AttributePath(this, '.', '');
+    for (var k in this)
+      this.__resolveValueForKey(reporter, this[k], k, false, attrPath.set(k));
+  }
+  __resolveValueForKey(reporter: Reporter, v, k: string, keepGroups: boolean, attrPath: AttributePath) {
+    if (k[k.length - 1] === "=") {
+      if (!(<Element>v).__resolved)
+        (<Element>v).__resolve(reporter);
+    }
+    else if (Array.isArray(v)) {
+      this[k] = this.__resolveValues(reporter, v, keepGroups, attrPath);
+    }
+    else if (k.endsWith("ByEnvironment") && typeof v === 'object') {
+      this[k] = this.__resolveValuesByEnv(reporter, v, keepGroups, attrPath);
+    }
+  }
+  __resolveValuesByEnv(reporter: Reporter, valuesByEnv: { [s: string]: any[]}, keepGroups: boolean, attrPath: AttributePath) : { [s: string]: any[]} {
+    var copy: { [s: string]: any[]} = {};
+    attrPath.push('[', '', ']');
+    for (var env in valuesByEnv) {
+      var v = valuesByEnv[env];
+      if (Array.isArray(v)) {
+        copy[env] = Array.isArray(v) ? this.__resolveValues(reporter, v, keepGroups, attrPath.set(env, -2)) : v;
+      }
+    }
+    attrPath.pop(3);
+    return copy;
+  }
+  __resolveValues(reporter: Reporter, values: any[], keepGroups: boolean, attrPath: AttributePath) : any[] {
+    var ret: any[] = [];
+    attrPath.push('[', '', ']');
+    for (var i = 0, len = values.length; i < len; ++i)
+      this.__resolveValue(reporter, values[i], ret, keepGroups, attrPath.set(i, -2));
+    attrPath.pop(3);
+    return ret;
+  }
+  __resolveValue(reporter: Reporter, el, ret: any[], keepGroups: boolean, attrPath: AttributePath) {
     if (el instanceof DelayedElement && !el.__parent) {
       el.__parent = this;
     }
     else if (typeof el === "string") {
       if (el[0] === "=") {
-        ret.push(...this.resolveElements(reporter, el.substring(1), keepGroups));
+        ret.push(...this.__resolveElementsPriv(reporter, el.substring(1), keepGroups, attrPath));
         return;
       }
       else if (el[0] === "\\" && el[1] === "=") {
         el = el.substring(1);
       }
     }
+    else if (typeof el === "object" && typeof el.value === "object" && Array.isArray(el.value)) {
+      // resolve complex values
+      attrPath.push('.value');
+      el.value = this.__resolveValues(reporter, el.value, keepGroups, attrPath);
+      attrPath.pop();
+    }
     ret.push(el);
   }
-
-  __resolveValues(reporter: Reporter, values: any[], keepGroups: boolean) : any[] {
-    var ret: any[] = [];
-    for (var i = 0, len = values.length; i < len; ++i) {
-      this.__resolveValue(reporter, values[i], ret, keepGroups);
-    }
-    return ret;
-  }
-  __resolveValuesByEnv(reporter: Reporter, valuesByEnv: { [s: string]: any[]}, keepGroups: boolean) : { [s: string]: any[]} {
-    var copy: { [s: string]: any[]} = {};
-    for (var env in valuesByEnv) {
-      var v = valuesByEnv[env];
-      if (Array.isArray(v)) {
-        copy[env] = Array.isArray(v) ? this.__resolveValues(reporter, v, keepGroups) : v;
-      }
-    }
-    return copy;
-  }
-  __resolveValueForKey(reporter: Reporter, v, k: string, keepGroups: boolean) {
-    if (k[k.length - 1] === "=") {
-      if (!(<Element>v).__resolved)
-        (<Element>v).__resolve(reporter);
-    }
-    else if (Array.isArray(v)) {
-      this[k] = this.__resolveValues(reporter, v, keepGroups);
-    }
-    else if (k.endsWith("ByEnvironment") && typeof v === 'object') {
-      this[k] = this.__resolveValuesByEnv(reporter, v, keepGroups);
-    }
-  }
-  __resolve(reporter: Reporter) {
-    this.__resolved = true;
-    for (var k in this) {
-      this.__resolveValueForKey(reporter, this[k], k, false);
-    }
-  }
-
-  __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    if (key === 'name') {
-      if (!this.name) {
-        if (typeof value === 'string' && value.length > 0)
-          this.name = value;
-        else
-          reporter.diagnostic({ type: 'error', msg: `'${attrPath.toString()}' attribute must be a string`});
-      }
-      else if (this.name === value) {
-        reporter.diagnostic({ type: 'warning', msg: `'${attrPath.toString()}' attribute is already defined by the namespace`});
+  __resolveElements<T extends Element>(reporter: Reporter, elements: any[], path: string, is: string) {
+    var components = <T[]>[];
+    for (var i = 0, len = elements.length; i < len; i++) {
+      var cmp = elements[i];
+      if (cmp instanceof Element) {
+        if (cmp.is !== is && cmp.is !== 'delayed') {
+          reporter.diagnostic({
+            type: 'error',
+            msg:  `only elements of type '${is}' are accepted, got {is: '${cmp.is}', name: '${cmp.name}'}'`,
+            path: `'${this.__path()}.${path}[${i}]`
+          });
+        }
+        else {
+          components.push(<T>cmp);
+        }
       }
       else {
         reporter.diagnostic({
           type: 'error',
-          msg: `'${attrPath.toString()}' attribute is already defined by the namespace with a different value`
+          msg:  `only elements of type '${is}' are accepted, got ${JSON.stringify(cmp)}`,
+          path: `'${this.__path()}.${path}[${i}]`
         });
       }
     }
-    else if (key !== 'is') {
-      reporter.diagnostic({ type: 'error', msg:  `'${attrPath.toString()}' can't be defined, this key is reserved`});
-    }
-    // 'is' is handled by the instantiate method
-  }
-
-  __loadNamespace(reporter: Reporter, name: string, value, attrPath: AttributePath) {
-    var els = Element.instantiate(reporter, name, value, attrPath, this);
-    if (els.length > 1)
-        reporter.diagnostic({
-          type: 'warning',
-          msg:  `'${attrPath.toString()}' has been expanded to a multiple elements, none will be referencable`
-        });
-    if (els.length === 1) {
-      name += '=';
-      if (name in this)
-        reporter.diagnostic({
-          type: 'error',
-          msg: `'${attrPath.toString()}' attribute is in conflict with an element defined with the same name`
-        });
-      this[name] = els[0];
-    }
+    return components;
   }
 
   __project() : Project {
@@ -204,69 +279,11 @@ export class Element {
     return p;
   }
 
-  __loadElements(reporter: Reporter, elements: (MakeJS.Element|string)[], attrPath: AttributePath
-  ) : (ComponentElement|GroupElement|string)[] {
-    var list = <any[]>[];
-    if (Array.isArray(elements)) {
-      attrPath.push("[", "", "]", "");
-      for (var i = 0, len = elements.length; i < len; i++) {
-        var e = elements[i];
-        if (typeof e === 'string') {
-          list.push(e); // this will be resolved in a 2nd pass (__resolve)
-        }
-        else if (typeof e === 'object') {
-          attrPath.set(i.toString(), -3);
-          attrPath.set("");
-          var subs = Element.instantiate(reporter, "", <MakeJS.Element>e, attrPath, this);
-          for (var j = 0, jlen = subs.length; j < jlen; ++j) {
-            var sub = subs[j];
-            if (sub && sub.name) {
-              var k = sub.name + "=";
-              if (k in this)
-                reporter.diagnostic({
-                  type: 'error',
-                  msg: `'${attrPath.toString()}' attribute is in conflict with an element defined with the same name`
-                });
-              this[k] = sub;
-            }
-          }
-          list.push(...subs);
-        }
-      }
-      attrPath.pop(4);
-    }
-    else {
-      reporter.diagnostic({ type: 'error', msg: `'${attrPath.toString()}' attribute must be an array of elements`});
-    }
-    return list;
+  resolveElements(reporter: Reporter, query: string) {
+    return this.__resolveElementsPriv(reporter, query, false, undefined);
   }
 
-  __resolveElements<T extends Element>(reporter: Reporter, elements: any[], path: string, is: string) {
-    var components = <T[]>[];
-    for (var i = 0, len = elements.length; i < len; i++) {
-      var cmp = elements[i];
-      if (cmp instanceof Element) {
-        if (cmp.is !== is) {
-          reporter.diagnostic({
-            type: 'error',
-            msg:  `'${this.__path()}.${path}' must only contain elements of type '${is}', got {is: '${cmp.is}', name: '${cmp.name}'}'`
-          });
-        }
-        else {
-          components.push(<T>cmp);
-        }
-      }
-      else {
-        reporter.diagnostic({
-          type: 'error',
-          msg:  `'${this.__path()}.${path}' must only contain elements of type '${is}', got ${JSON.stringify(cmp)}`
-        });
-      }
-    }
-    return components;
-  }
-
-  resolveElements(reporter: Reporter, query: string, keepGroups = false) : Element[] {
+  __resolveElementsPriv(reporter: Reporter, query: string, keepGroups: boolean | undefined, attrPath: AttributePath | undefined) : Element[] {
     let ret: Element[] = [];
     let sides = query.split("?");
     let groups = sides[0].split("+");
@@ -291,11 +308,8 @@ export class Element {
           && steps.length >= 5
           && steps[1].length === 0
           && steps[2].length > 0
-          && (
-            (steps[3].length === 0 && steps[4].length === 0 )
-            ||
-            (steps.length >= 6 && steps[4].length === 0 && steps[5].length === 0)
-          )) { // ::[env:]target::
+          && ((steps[3].length === 0) || (steps.length >= 6 && steps[4].length === 0))
+          ) { // ::[env:]target::
             ret.push(new DelayedQuery(steps, tags, this));
             delayed = true;
             el = null;
@@ -303,9 +317,9 @@ export class Element {
           }
           else {
             if (steps.length > 1)
-              reporter.diagnostic({
+              reportDiagnostic(reporter, attrPath, {
                 type: "warning",
-                msg: `query '${query}' is invalid, one the groups is an empty string, the group '${group}' is ignored`
+                msg: `query '${query}' is invalid, one the groups is an empty string, the group '${group}' is ignored`,
               });
             break;
           }
@@ -341,9 +355,9 @@ export class Element {
         }
       }
       else if (!delayed) {
-        reporter.diagnostic({
+        reportDiagnostic(reporter, attrPath, {
           type: "warning",
-          msg: `query '${query}' refer to a group that can't be found, the group '${group}' is ignored`
+          msg: `query '${query}' refer to a group that can't be found, the group '${group}' is ignored`,
         });
       }
     }
@@ -351,11 +365,17 @@ export class Element {
   }
 }
 
+function reportDiagnostic(reporter: Reporter, attrPath: AttributePath | undefined, diagnostic: Diagnostic) {
+  if (attrPath)
+    diagnostic.path = attrPath.toString();
+  reporter.diagnostic(diagnostic);
+}
+
 export class DelayedElement extends Element {
   constructor(parent: Element | null) {
     super('delayed', 'delayed', parent);
   }
-  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement) : Element[] {
+  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
     throw "must be implemented by subclasses";
   }
 }
@@ -364,7 +384,7 @@ export class DelayedQuery extends DelayedElement {
   constructor(public steps: string[], public tags: string[], parent: Element | null) {
     super(parent);
   }
-  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement) : Element[] {
+  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
     let env = this.steps[3].length > 0 ? this.steps[2] : null;
     let target = this.steps[env ? 3 : 2];
     const size = env ? 6 : 5;
@@ -376,14 +396,14 @@ export class DelayedQuery extends DelayedElement {
       targets.push(...p.targets.filter(t => t.name === target));
     });
     if (targets.length === 0) {
-      reporter.diagnostic({
+      attrPath.diagnostic(reporter, {
         type: "error",
         msg: `query '${this.steps.join(':')}?${this.tags.join('+')}' is invalid, the target '${target}' is not present in the workspace`
       });
     }
     else if (targets.length > 1) {
       // TODO: do this check after project loaded
-      reporter.diagnostic({
+      attrPath.diagnostic(reporter, {
         type: "error",
         msg: `the target '${target}' is present multiple times in the workspace, this shouldn't happen`
       });

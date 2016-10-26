@@ -29,10 +29,10 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
   if (typeof name === "function") {
     let depth = (<MakeJS.File>definition).depth;
     let relpath = path.relative(parent.__project().directory, absolutePath);
-    loadElementFiles(reporter, attrPath, absolutePath, relpath, name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
+    loadElementFiles(reporter, absolutePath, relpath, name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
   }
   else if (typeof name === "string") {
-    loadElementFile(reporter, attrPath, util.pathJoinIfRelative(absolutePath, name), files);
+    loadElementFile(reporter, new AttributePath(parent, ':', name), util.pathJoinIfRelative(absolutePath, name), files);
   }
   else {
     reporter.diagnostic({
@@ -51,6 +51,7 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
 });
 
 export class FileElement extends Element {
+  is: 'file';
   __file: File;
   tags: string[];
 
@@ -61,11 +62,11 @@ export class FileElement extends Element {
   }
 
   __loadNamespace(reporter: Reporter, name: string, value, attrPath: AttributePath) {
-    reporter.diagnostic({ type: 'error', msg:  `'${attrPath.toString()}' can't be an element, 'file' element forbids sub namespace`});
+    attrPath.diagnostic(reporter, { type: 'error', msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
   }
 
   __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    if (key !== 'name' && key !== 'tags')
+    if (key !== 'tags') // name and tags are handled by instanciate
       super.__loadReservedValue(reporter, key, value, attrPath);
   }
 }
@@ -92,14 +93,14 @@ function loadElementFile(reporter: Reporter, attrPath: AttributePath, filepath: 
   try {
     let stats = fs.statSync(filepath);
     if (!stats.isFile())
-      reporter.diagnostic({ type: 'error', msg: `'${attrPath.toString()}' doesn't refer to a file`, path: filepath});
+      attrPath.diagnostic(reporter, { type: 'error', msg: `path '${filepath}' doesn't refer to a file` });
   } catch (e) {
-    reporter.diagnostic({ type: 'warning', msg: `'${attrPath.toString()}' refer to a file that can't be found`, path: filepath});
+    attrPath.diagnostic(reporter, { type: 'warning', msg: `file '${filepath}' not found` });
   }
   files.push(File.getShared(filepath));
 }
 
-function loadElementFiles(reporter: Reporter, attrPath: AttributePath,
+function loadElementFiles(reporter: Reporter,
   abspath: string, relpath: string,
   filter: (relpath: string) => boolean, depth: number,
   files: File[]
@@ -115,7 +116,7 @@ function loadElementFiles(reporter: Reporter, attrPath: AttributePath,
           files.push(File.getShared(abs));
       }
       else if (stats.isDirectory() && depth > 0) {
-        loadElementFiles(reporter, attrPath, abs, rel, filter, depth - 1, files);
+        loadElementFiles(reporter, abs, rel, filter, depth - 1, files);
       }
     }
   } catch (e) {}

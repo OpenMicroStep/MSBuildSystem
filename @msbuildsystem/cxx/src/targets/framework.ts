@@ -6,7 +6,7 @@ import * as path from 'path';
 @declareTarget({ type: 'CXXFramework' })
 export class CXXFramework extends CXXLibrary {
   @resolver(FileElement.fileGroupResolver)
-  resources: FileElement.FileGroup[];
+  resources: FileElement.FileGroup[] = [];
 
   @resolver(AttributeResolvers.stringResolver)
   bundleExtension: string = "framework";

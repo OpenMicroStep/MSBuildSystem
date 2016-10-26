@@ -11,8 +11,7 @@ export function tests() {
   it('load', () => {
     project = workspace.project(__dirname + "/data/hello-world");
     assert.equal(project.definition!.name, 'Hello World');
-    assert.deepEqual(project.reporter.diagnostics.map(d => { if (d.path) d.path = path.relative(project.directory, d.path); return d; }), [
-    ]);
+    assert.deepEqual(project.reporter.diagnostics, []);
   });
   it('graph', () => {
     let reporter = new Reporter();
