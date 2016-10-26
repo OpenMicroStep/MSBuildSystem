@@ -35,6 +35,7 @@
     "cxx.tools.clang/install.ts",
     "js/src/index.ts",
     "js/tst/index.ts",
-    "js.typescript/src/index.ts"
+    "js.typescript/src/index.ts",
+    "js.typescript/tst/index.ts"
   ]
 }
