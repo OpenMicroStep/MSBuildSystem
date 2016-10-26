@@ -499,7 +499,7 @@ let proxyHandler: ProxyHandler<DelayedElement> = {
   },
   get: function(target: DelayedProxy, property) {
     if (property === '__delayedResolve')
-      return (reporter, buildTarget) => { return target.__delayedResolve(reporter, buildTarget); };
+      return (reporter, buildTarget, attrPath) => { return target.__delayedResolve(reporter, buildTarget, attrPath); };
     if (property === '__unproxy')
       return target;
     return new Proxy<DelayedElement>(createDelayedGetProxy(target, property), proxyHandler);

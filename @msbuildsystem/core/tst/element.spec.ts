@@ -1,4 +1,4 @@
-import {Reporter} from '@msbuildsystem/core';
+import {Reporter, AttributePath} from '@msbuildsystem/core';
 import {newProxyElement, DelayedElement} from '@msbuildsystem/core/src/element';
 import {assert} from 'chai';
 
@@ -22,7 +22,7 @@ it("proxy element", function() {
   };
   let reporter = new Reporter();
   let buildTarget: any = {};
-  let res = (<DelayedElement>$2).__delayedResolve(reporter, buildTarget);
+  let res = (<DelayedElement>$2).__delayedResolve(reporter, buildTarget, new AttributePath());
   assert.deepEqual(res, [{
     reporter: reporter,
     query: 'tests',
