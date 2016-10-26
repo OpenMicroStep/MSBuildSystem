@@ -7,10 +7,8 @@ mapCategory.set(ts.DiagnosticCategory.Warning, 'warning');
 mapCategory.set(ts.DiagnosticCategory.Error, 'error');
 mapCategory.set(ts.DiagnosticCategory.Message, 'note');
 
-
-
 @JSCompilers.declare(['typescript', 'ts'])
-export class TypescriptJSCompiler extends SelfBuildGraph<JSTarget> {
+export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   constructor(graph: JSTarget) {
     super({ type: "compiler", name: "typescript" }, graph);
   }
@@ -18,6 +16,9 @@ export class TypescriptJSCompiler extends SelfBuildGraph<JSTarget> {
   buildGraph(reporter: Reporter) {
     let tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addFiles(this.graph.files);
+    tsc.setOptions({
+      outDir: this.graph.paths.output
+    });
   }
 }
 
@@ -31,7 +32,7 @@ export class TypescriptTask extends Task {
   }
 
   addFiles(files: File[]) {
-    files.push(...files);
+    this.files.push(...files);
   }
 
   // TODO: incremental build
