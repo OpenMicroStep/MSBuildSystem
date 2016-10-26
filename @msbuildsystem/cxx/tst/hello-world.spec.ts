@@ -74,18 +74,17 @@ export function tests() {
   });
   it('build', (done) => {
     let runner = new Runner(graph, 'build');
-    runner.enable(graph);
     runner.on('taskend', (context) => {
       if (context.reporter.failed && context.reporter.logs)
         console.warn(context.reporter.logs);
       assert.deepEqual(context.reporter.diagnostics, []);
       assert.equal(context.reporter.failed, false);
     });
-    Async.run<{ runner: Runner }>(null, [
+    Async.run<{ runner: Runner, failed: boolean }>(null, [
       (p) => { runner.run(p); },
       (p) => {
         assert.equal(runner, p.context.runner);
-        assert.equal(runner.failed, false);
+        assert.equal(p.context.failed, false);
         done();
       }
     ]);

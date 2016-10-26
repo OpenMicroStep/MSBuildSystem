@@ -1,9 +1,9 @@
 import {EventEmitter} from 'events';
 import {format} from 'util';
-import {Task, BuildSession, Async} from './index.priv';
+import {Task, Graph, BuildSession, Async} from './index.priv';
 import {Flux, Diagnostic, diagnosticFromError} from '@msbuildsystem/shared';
 
-export type RunnerContext = { runner: Runner };
+export type RunnerContext = { runner: Runner, failed: boolean };
 export type StepContext<DATA, SHARED> = {
   runner: Runner,
   execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext<any, any>>) => void),
@@ -61,37 +61,53 @@ function execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext
   }, [start, task.do.bind(task), end, lastAction]);
 }
 
+function isChildOf(parent: Task, task: Task) {
+  return task.parents().indexOf(<Graph>parent) !== -1;
+}
+
+function createTaskAction(task: Task) {
+  return function run(p: Flux<RunnerContext>) {
+    execute(p.context.runner, task, (flux) => {
+      p.context.failed = p.context.failed || flux.context.reporter.failed;
+      flux.continue();
+      p.continue();
+    });
+  };
+}
+
 export class Runner extends EventEmitter {
-  context: any;
   root: Task;
   action: string;
   enabled: Set<Task>;
-  failed: boolean;
 
   constructor(root: Task, action: string) {
     super();
     this.root = root;
-    this.context = {};
     this.action = action;
     this.enabled = new Set<Task>();
   }
 
   enable(task: Task) {
-    var parent = task.graph;
-    while (parent) {
-      this.enabled.add(parent);
-      parent = parent.graph;
+    let parents = task.parents();
+    let alreadyEnabled = this.enabled.has(task) || parents.some(p => this.enabled.has(p));
+    if (!alreadyEnabled) {
+      this.enabled.forEach(t => {
+        if (isChildOf(task, t))
+          this.enabled.delete(t);
+      });
+      this.enabled.add(task);
     }
-    this.enabled.add(task);
   }
 
   run(p: Flux<RunnerContext>) {
     p.context.runner = this;
-    execute(this, this.root, (flux) => {
-      this.failed = this.failed || flux.context.reporter.failed;
-      flux.continue();
+    if (this.enabled.size === 0) {
+      createTaskAction(this.root)(p);
+    }
+    else {
+      p.setFirstElements([Array.from(this.enabled).map(createTaskAction)]);
       p.continue();
-    });
+    }
   }
 
   emit<T>(event: "taskend", context: StepContext<any, any>);
@@ -99,7 +115,7 @@ export class Runner extends EventEmitter {
     super.emit(event, ...args);
   }
 
-  on<T>(event: "taskend", listener: (ctx: StepContext<any, any>) => void) : this;
+  on(event: "taskend", listener: (ctx: StepContext<any, any>) => void) : this;
   on(event: string, listener: Function) : this {
     return super.on(event, listener);
   }

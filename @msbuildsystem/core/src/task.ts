@@ -109,6 +109,16 @@ export class Task {
     return graph;
   }
 
+  parents() : Graph[] {
+    let parents = <Graph[]>[];
+    let parent = this.graph;
+    while (parent) {
+      parents.push(parent);
+      parent = parent.graph;
+    }
+    return parents;
+  }
+
   listDependenciesOutputFiles(set: Set<File>) {
     this.dependencies.forEach((t) => {
       t.listOutputFiles(set);
