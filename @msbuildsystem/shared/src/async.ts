@@ -93,6 +93,14 @@ export class Async<T> {
     return flux;
   }
 
+  promise() : Promise<AsyncContext<T>> {
+    return new Promise((resolve) => {
+      this.continue((p) => {
+        resolve(p.context);
+      });
+    });
+  }
+
   setLastActionInterval(interval: number) {
     this.context.locale.lastActionInterval = interval;
   }
@@ -122,6 +130,11 @@ export class Async<T> {
     });
   }
 
+  // Embed a method and it contexts into a sequential action
+  static bind<T, S>(self: S, action: (this: S, pool: Async<T>) => void) : ActionFct<T> {
+    return (flux: Flux<T>) => { action.call(self, flux); };
+  }
+
   static while<T>(condition: ConditionalFct<T>, action: Elements<T>) : ActionFct<T> {
     return function whileStatement(p: Flux<T>) {
       if (condition(p)) {
@@ -138,11 +151,24 @@ export class Async<T> {
     };
   }
 
+  static run<T0, T1>(ctx: T0 & T1 | null, actionsOrPools: [Element<T0>, Element<T0 & T1>]) : Flux<T0 & T1>;
+  static run<T0, T1, T2>(ctx: T0 & T1 & T2 | null, actionsOrPools: [Element<T0>, Element<T1>, Element<T0 & T1 & T2>]) : Flux<T0 & T1 & T2>;
+  static run<T>(ctx: T | null, actionsOrPools: Elements<T>) : Flux<T>;
   static run<T>(ctx: T | null, actionsOrPools: Elements<T>) : Flux<T> {
     var flux = new FluxImpl<T>([], ctx, null);
     flux.setFirstElements(actionsOrPools);
     flux.continue();
     return flux;
+  }
+
+  static promise<T>(ctx: T | null, actionsOrPools: Elements<T>) : Promise<AsyncContext<T>> {
+    return new Promise((resolve) => {
+      var flux = new FluxImpl<T>([], ctx, (p) => {
+        resolve(p.context);
+      });
+      flux.setFirstElements(actionsOrPools);
+      flux.continue();
+    });
   }
 
   static configuration = {
