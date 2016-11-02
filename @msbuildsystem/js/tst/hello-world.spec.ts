@@ -1,6 +1,6 @@
 import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, TGraph} from '@msbuildsystem/core';
 import {CopyTask} from '@msbuildsystem/foundation';
-import {JSTarget, DefaultJSCompiler} from '@msbuildsystem/js';
+import {JSTarget, DefaultJSCompiler, DefaultJSPackager} from '@msbuildsystem/js';
 import {assert} from 'chai';
 import * as path from 'path';
 
@@ -44,7 +44,7 @@ export function tests() {
         "children": [
           {
             "constructor": DefaultJSCompiler,
-            "name": "javascript",
+            "name": "javascript default",
             "type": "compiler",
             "children": [
               {
@@ -53,6 +53,12 @@ export function tests() {
                 "type": "copy"
               }
             ]
+          },
+          {
+            "constructor": DefaultJSPackager,
+            "name": "javascript default",
+            "type": "packager",
+            "children": []
           }
         ]
       }

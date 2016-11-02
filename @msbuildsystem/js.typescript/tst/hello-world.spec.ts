@@ -1,6 +1,5 @@
 import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, TGraph} from '@msbuildsystem/core';
-import {CopyTask} from '@msbuildsystem/foundation';
-import {JSTarget} from '@msbuildsystem/js';
+import {JSTarget, DefaultJSPackager} from '@msbuildsystem/js';
 import {TypescriptCompiler, TypescriptTask} from '@msbuildsystem/js.typescript';
 import {assert} from 'chai';
 import * as path from 'path';
@@ -54,6 +53,12 @@ export function tests() {
                 "type": "typescript"
               }
             ]
+          },
+          {
+            "constructor": DefaultJSPackager,
+            "name": "javascript default",
+            "type": "packager",
+            "children": []
           }
         ]
       }
