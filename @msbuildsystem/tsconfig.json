@@ -24,6 +24,7 @@
     }
   },
   "files" : [
+    "cli/src/index.ts",
     "shared/src/index.ts",
     "shared/tst/index.ts",
     "core/src/index.ts",
