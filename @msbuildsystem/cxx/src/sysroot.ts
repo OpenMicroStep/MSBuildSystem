@@ -30,6 +30,7 @@ export const CXXSysroots = Object.assign(
     declare(defaults: CXXSysrootDefaults) : (constructor: CXXSysrootConstructor) => void {
       return function register(constructor: CXXSysrootConstructor) {
         CXXSysroots.register(constructor);
+        Object.assign(constructor.prototype, defaults);
       };
     }
   }
