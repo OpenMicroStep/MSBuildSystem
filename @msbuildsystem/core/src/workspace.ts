@@ -4,6 +4,8 @@ import * as path from 'path';
 export class Workspace {
   projects = new Map<string, Project>();
 
+  constructor(public directory: string = '/opt/microstep') {}
+
   project(directory: string) : Project {
     directory = path.normalize(directory);
     if (!path.isAbsolute(directory))

@@ -36,4 +36,3 @@ export function nodepromise(action: (cb: (err, value?) => void) => void) {
     });
   });
 }
-

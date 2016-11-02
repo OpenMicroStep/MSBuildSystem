@@ -101,7 +101,6 @@ export class Project {
   public environments: EnvironmentElement[];
   protected tree: ProjectElement;
   public reporter: Reporter;
-  public error;
 
   constructor(workspace: Workspace, directory: string, name = "make.js") {
     this.workspace = workspace;
@@ -147,7 +146,7 @@ export class Project {
     let targets = this.targets;
     let environments = this.environments;
     let variants = options.variants || ["debug"];
-    let outputdir = options.outputdir || "/opt/microstep/${environment}/${variant}";
+    let outputdir = options.outputdir || path.join(this.workspace.directory, "${environment}/${variant}");
     let root = new RootGraph();
     if (options.targets)
       targets = targets.filter(c => options.targets!.indexOf(c.name) !== -1);

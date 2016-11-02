@@ -111,11 +111,11 @@ it('components', () => {
     ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
  assert.deepEqual(
     project.resolveElements(reporter, "darwin-i386").map(simplify),
-    [{ is: 'environment', sysroot: "darwin:i386" , mylist: ["v2"], compiler: "clang", components: project.resolveElements(reporter, "clang"), tags: ["darwin", "i386"],
+    [{ is: 'environment', sysroot: "darwin:i386" , mylist: ["v2"], compiler: "clang", components: [], tags: ["darwin", "i386"],
        name: 'darwin-i386', __parent: 'MySimpleProject', __resolved: true, compatibleEnvironments: [] }]);
  assert.deepEqual(
     project.resolveElements(reporter, "darwin-x86_64").map(simplify),
-    [{ is: 'environment', sysroot: "darwin:x86_64" , mylist: ["v1", "v2"], compiler: "clang", components: project.resolveElements(reporter, "clang"), tags: ["darwin", "x86_64"],
+    [{ is: 'environment', sysroot: "darwin:x86_64" , mylist: ["v2", "v1"], compiler: "clang", components: [], tags: ["darwin", "x86_64"],
        name: 'darwin-x86_64', __parent: 'MySimpleProject', __resolved: true, compatibleEnvironments: [] }]);
   let msstds = project.resolveElements(reporter, "MSStd");
   assert.strictEqual(msstds.length, 1);
