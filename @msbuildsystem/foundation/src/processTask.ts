@@ -1,14 +1,16 @@
-import {Graph, Task, TaskName, Step, StepWithData, File, Provider, ProviderConditions, ProviderRequirement, Barrier} from '@msbuildsystem/core';
+import {Graph, Task, TaskName, Step, StepWithData, File, AttributePath, Barrier} from '@msbuildsystem/core';
+import {ProcessProvider, ProcessProviderConditions, ProcessProviderRequirement, ProcessProviders} from './index';
 import {Hash} from 'crypto';
 
 /** if the argument is an array, the content the array will be concatenated */
 export type Arg = string | (string|File)[];
 
 export class ProcessTask extends Task {
-  public args: Arg[] = [];
-  public env?: {[s: string]: string} = undefined;
+  args: Arg[] = [];
+  env?: {[s: string]: string} = undefined;
+  cwd?: string = undefined;
 
-  constructor(name: TaskName, graph: Graph, public inputFiles: File[], public outputFiles: File[], public provider: ProviderConditions) {
+  constructor(name: TaskName, graph: Graph, public inputFiles: File[], public outputFiles: File[], public provider: ProcessProviderConditions) {
     super(name, graph);
   }
 
@@ -23,6 +25,9 @@ export class ProcessTask extends Task {
   }
   setEnv(env: {[s: string]: string}) {
     this.env = env;
+  }
+  setCwd(cwd: string) {
+    this.cwd = cwd;
   }
 
   protected insertArgs(pos: number, args: Arg[]) {
@@ -47,7 +52,6 @@ export class ProcessTask extends Task {
   }
 
   isRunRequired(step: Step<{ runRequired?: boolean }>) {
-    step.context.runRequired = true;
     if (this.inputFiles.length && this.outputFiles.length) {
       // Force creation of output file directories
       File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {
@@ -64,11 +68,12 @@ export class ProcessTask extends Task {
       });
     }
     else {
+      step.context.runRequired = step.context.lastSuccessTime === 0;
       step.continue();
     }
   }
 
-  flattenArgs(provider?: Provider, args?: Arg[]) : string[] {
+  flattenArgs(provider?: ProcessProvider, args?: Arg[]) : string[] {
     return (args || this.args).map((arg) => {
       if (typeof arg === "string")
         return arg;
@@ -90,12 +95,8 @@ export class ProcessTask extends Task {
   }
 
   run(step: Step<{}>) {
-    var provider = Provider.find(this.provider);
+    var provider = ProcessProviders.validate(step.context.reporter, new AttributePath(this.target()), this.provider);
     if (!provider) {
-      step.context.reporter.diagnostic({
-        type: "error",
-        msg: "unable to find provider"
-      });
       step.continue();
     }
     else {
@@ -103,7 +104,7 @@ export class ProcessTask extends Task {
     }
   }
 
-  runProcess(step: Step<{ output?: string, err?: any }>, provider: Provider) {
+  runProcess(step: Step<{ output?: string, err?: any }>, provider: ProcessProvider) {
     step.setFirstElements((step) => {
       step.context.reporter.log(step.context.output);
       step.context.reporter.error(step.context.err);
@@ -111,17 +112,17 @@ export class ProcessTask extends Task {
     });
     provider.process(step, {
       action: "run",
-      args: this.flattenArgs(provider),
+      arguments: this.flattenArgs(provider),
       env: this.env,
+      cwd: this.cwd,
       requirements: this.providerRequirements(),
       inputs: this.inputFiles,
-      outputs: this.outputFiles,
-      task: this
+      outputs: this.outputFiles
     });
   }
 
-  providerRequirements() : ProviderRequirement[] {
-    return ["inputs", "outputs"];
+  providerRequirements() : ProcessProviderRequirement[] {
+    return [ProcessProviderRequirement.Inputs, ProcessProviderRequirement.Outputs];
   }
 
   clean(step: Step<{}>) {

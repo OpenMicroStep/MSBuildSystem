@@ -1,9 +1,10 @@
-import {File, declareTask, Graph, ProviderConditions} from '@msbuildsystem/core';
+import {File, declareTask, Graph} from '@msbuildsystem/core';
+import {ProcessProviderConditions} from '@msbuildsystem/foundation';
 import {CompileTask} from '../index.priv';
 
 @declareTask({ type: "cxxcompileclang" })
 export class CompileClangTask extends CompileTask {
-  constructor(graph: Graph, srcFile: File, objFile: File, provider: ProviderConditions = { compiler: "clang" }) {
+  constructor(graph: Graph, srcFile: File, objFile: File, provider: ProcessProviderConditions = { compiler: "clang" }) {
     super(graph, srcFile, objFile, provider);
     this.appendArgs([
       "-o", [objFile],

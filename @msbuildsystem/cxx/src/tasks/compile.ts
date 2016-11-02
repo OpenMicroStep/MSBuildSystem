@@ -1,5 +1,5 @@
-import {File, declareTask, Step, Graph, Diagnostic, StepWithData, ProviderConditions} from '@msbuildsystem/core';
-import {ProcessTask} from '@msbuildsystem/foundation';
+import {File, declareTask, Step, Graph, Diagnostic, StepWithData} from '@msbuildsystem/core';
+import {ProcessTask, ProcessProviderConditions} from '@msbuildsystem/foundation';
 
 //              1:path  2:row 3:col    4:ranges                      5:type                                  6:msg     7:option     8:category
 var rxdiag  = /^([^:]+):(\d+):(\d+):(?:((?:\{\d+:\d+-\d+:\d+\})+):)? (warning|(?:fatal )?error|note|remark): (.+?)(?:\[([^,\]]+)(?:,([^\]]+))?\])?$/;
@@ -9,7 +9,7 @@ var rxfixit = /^fix-it:"([^"]+)":\{(\d+):(\d+)-(\d+):(\d+)\}:"([^"]+)"$/;
 @declareTask({ type: "cxxcompile" })
 export class CompileTask extends ProcessTask {
   hmapFile: File;
-  constructor(graph: Graph, srcFile: File, objFile: File, provider: ProviderConditions) {
+  constructor(graph: Graph, srcFile: File, objFile: File, provider: ProcessProviderConditions) {
     super({type: "cxxcompile", name: srcFile.name}, graph, [srcFile], [objFile], provider);
     this.addHeaderMapArgs(objFile);
   }

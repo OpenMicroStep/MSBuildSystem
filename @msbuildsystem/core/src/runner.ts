@@ -27,6 +27,7 @@ function start(flux: Flux<StepContext<any, any>>) {
     ctx.lastRunStartTime = Date.now();
     ctx.lastRunEndTime = ctx.data.lastRunEndTime || 0;
     ctx.lastSuccessTime = ctx.data.lastSuccessTime || 0;
+    ctx.runner.emit("taskbegin", ctx);
     flux.continue();
   });
 }
@@ -37,7 +38,7 @@ function end(flux: Flux<StepContext<any, any>>) {
   ctx.data.diagnostics = ctx.reporter.diagnostics;
   ctx.data.lastRunEndTime = Date.now();
   ctx.data.lastRunStartTime = ctx.lastRunStartTime;
-  ctx.data.lastSuccessTime = ctx.reporter.failed ? ctx.data.lastRunEndTime : 0;
+  ctx.data.lastSuccessTime = ctx.reporter.failed ? 0 : ctx.data.lastRunEndTime;
   ctx.storage.set(ctx.runner.action, ctx.data);
   ctx.storage.set("SHARED", ctx.sharedData);
   ctx.storage.save(() => {
@@ -110,11 +111,13 @@ export class Runner extends EventEmitter {
     }
   }
 
-  emit<T>(event: "taskend", context: StepContext<any, any>);
+  emit(event: "taskbegin", context: StepContext<any, any>);
+  emit(event: "taskend", context: StepContext<any, any>);
   emit(event: string, ...args) {
     super.emit(event, ...args);
   }
 
+  on(event: "taskbegin", listener: (ctx: StepContext<any, any>) => void) : this;
   on(event: "taskend", listener: (ctx: StepContext<any, any>) => void) : this;
   on(event: string, listener: Function) : this {
     return super.on(event, listener);

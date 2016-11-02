@@ -1,4 +1,5 @@
-import {Reporter, Graph, File, ProviderConditions, SelfBuildGraph, TaskName} from '@msbuildsystem/core';
+import {Reporter, File, SelfBuildGraph, TaskName, createProviderList, ProviderList} from '@msbuildsystem/core';
+import {ProcessProviderConditions} from '@msbuildsystem/foundation';
 import {CXXTarget, CXXFramework, CompileTask, LinkTask, CompileFileParams} from './index.priv';
 import * as path from 'path';
 
@@ -23,14 +24,16 @@ export type CXXSysrootConstructor = {
   isCompatible: (conditions: Conditions) => boolean;
 };
 
-export var sysrootClasses = <CXXSysrootConstructor[]>[];
-export function declareSysroot(defaults: CXXSysrootDefaults) {
-  return function (constructor: CXXSysrootConstructor) {
-    sysrootClasses.push(constructor);
-    Object.assign(constructor.prototype, defaults);
-  };
-}
-
+export const CXXSysroots = Object.assign(
+  createProviderList<CXXSysrootConstructor, Conditions>('sysroot'),
+  {
+    declare(defaults: CXXSysrootDefaults) : (constructor: CXXSysrootConstructor) => void {
+      return function register(constructor: CXXSysrootConstructor) {
+        CXXSysroots.register(constructor);
+      };
+    }
+  }
+);
 /**
  * A sysroot is a CXX compilation toolchain kit that target a specific platform api and architecture
  */
@@ -43,10 +46,6 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
   platform: string;
   version?: string;
   architecture?: string;
-
-  static find(conditions: Conditions) : CXXSysrootConstructor[] {
-    return sysrootClasses.filter(s => s.isCompatible(conditions));
-  }
 
   constructor(name: TaskName, graph: CXXTarget, conditions: Conditions) {
     super(name, graph);
@@ -90,7 +89,7 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
     return new compilerCstor(this, srcFile, objFile, this.compileTaskProvider(params));
   }
 
-  compileTaskProvider(params: CompileFileParams) : ProviderConditions {
+  compileTaskProvider(params: CompileFileParams) : ProcessProviderConditions {
     return {compiler: params.compiler! };
   }
 
@@ -104,7 +103,7 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
     return new linkerCstor(this, File.getShared(this.linkFinalPath()), this.graph.linkType, this.linkTaskProvider(linkerName));
   }
 
-  linkTaskProvider(linkerName: string) : ProviderConditions {
+  linkTaskProvider(linkerName: string) : ProcessProviderConditions {
     return {linker: linkerName};
   }
 

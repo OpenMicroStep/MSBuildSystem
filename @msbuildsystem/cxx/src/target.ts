@@ -1,11 +1,10 @@
 import {
   Target, File, Reporter,
-  AttributePath, AttributeTypes, AttributeResolvers,
+  AttributePath, AttributeTypes,
   resolver, FileElement, Diagnostic
 } from '@msbuildsystem/core';
-import {CXXSysroot, sysrootClasses} from './index.priv';
+import {CXXSysroot, CXXSysroots} from './index.priv';
 const {validateString, validateStringList} = AttributeTypes;
-const {SimpleResolver, stringResolver, stringListResolver, stringSetResolver} = AttributeResolvers;
 export var CXXSourceExtensions: { [s: string]: string } =  {
   '.m' : 'OBJC',
   '.c' : 'C',
@@ -33,29 +32,9 @@ export function validateSysroot(reporter: Reporter, path: AttributePath, value: 
     let m = v.match(/^([^:\s]+)(?::([^:\s]+)(?:@([^:\s]+))?)?$/);
     if (m) {
       let conditions = { platform: m[1], architecture: m[2], version: m[3] };
-      let sysroots = CXXSysroot.find(conditions);
-      if (sysroots.length === 1)
-        return new sysroots[0](target, conditions);
-      else if (sysroots.length === 0)
-        path.diagnostic(reporter, {
-          type: "error",
-          msg: `unable to find sysroot`,
-          notes: [<Diagnostic>{ type: "note", msg: `while looking for sysroot: ${v}` }]
-            .concat(sysrootClasses.map(s => (<Diagnostic>{
-              type: "note",
-              msg: `found: ${s.name}`
-            })))
-        });
-      else
-        path.diagnostic(reporter, {
-          type: "error",
-          msg: `multiple sysroots found`,
-          notes: [<Diagnostic>{ type: "note", msg: `while looking for sysroot: ${v}` }]
-            .concat(sysroots.map(s => (<Diagnostic>{
-              type: "note",
-              msg: `found: ${s.name}`
-            })))
-        });
+      let sysroot = CXXSysroots.validate(reporter, path, conditions);
+      if (sysroot !== undefined)
+        return new sysroot(target, conditions);
     }
     else {
       path.diagnostic(reporter, {

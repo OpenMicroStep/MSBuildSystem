@@ -1,9 +1,10 @@
-import {File, declareTask, Graph, ProviderConditions} from '@msbuildsystem/core';
+import {File, declareTask, Graph} from '@msbuildsystem/core';
+import {ProcessProviderConditions} from '@msbuildsystem/foundation';
 import {CompileTask} from '../index.priv';
 
 @declareTask({ type: "cxxcompilegcc" })
 export class CompileGCCTask extends CompileTask {
-  constructor(graph: Graph, srcFile:File, objFile:File, provider: ProviderConditions = { compiler: "gcc" }) {
+  constructor(graph: Graph, srcFile:File, objFile:File, provider: ProcessProviderConditions = { compiler: "gcc" }) {
     super(graph, srcFile, objFile, provider);
     /*
     if(options.variant === "release")

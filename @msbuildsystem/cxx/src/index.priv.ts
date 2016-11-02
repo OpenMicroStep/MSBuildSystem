@@ -23,5 +23,3 @@ export * from './targets/bundle';
 export * from './sysroots/darwin';
 //export {CXXLinuxSysroot} from './sysroots/linux';
 //export {CXXWindowsSysroot} from './sysroots/windows';
-export * from './sysroots/detect';
-

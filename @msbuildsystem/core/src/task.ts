@@ -1,5 +1,6 @@
 import {Graph, Target, Step, File, BuildSession} from './index.priv';
 import {createHash, Hash} from 'crypto';
+import * as os from 'os';
 
 export type TaskName = { type: string, name: string, [s: string]: string };
 
@@ -128,24 +129,40 @@ export class Task {
 
   listOutputFiles(set: Set<File>) { }
 
+
   do(step: Step<{ runRequired?: boolean }>) {
+    step.setFirstElements([
+      takeTaskSlot,
+      (step) => { this.isDoRequired(step); },
+      (step) => {
+        if (step.context.reporter.failed)
+          step.continue();
+        else if (step.context.runRequired)
+          this.requiredDo(step);
+        else {
+          step.context.reporter.logs = step.context.data.logs || "";
+          step.context.reporter.diagnostics = step.context.data.diagnostics || [];
+          step.continue();
+        }
+      },
+      giveTaskSlot
+    ]);
+    step.continue();
+  }
+
+  isDoRequired(step: Step<{ runRequired?: boolean }>) {
+    if (step.context.runner.action === "build")
+      this.isRunRequired(step);
+    else {
+      step.context.runRequired = true;
+      step.continue();
+    }
+  }
+
+  requiredDo(step: Step<{}>) {
     switch (step.context.runner.action) {
       case "build":
-        step.setFirstElements([
-          (step) => { this.isRunRequired(step); },
-          (step) => {
-            if (step.context.reporter.failed)
-              step.continue();
-            else if (step.context.runRequired)
-              this.run(step);
-            else {
-              step.context.reporter.logs = step.context.data.logs || "";
-              step.context.reporter.diagnostics = step.context.data.diagnostics || [];
-              step.continue();
-            }
-          }
-        ]);
-        step.continue();
+        this.run(step);
         break;
 
       case "clean":
@@ -187,3 +204,25 @@ export class Task {
   }
 }
 
+export var maxConcurrentTasks: number = os.cpus().length;
+var nbTaskRunning: number = 0;
+var waitingTasks: (() => void)[] = [];
+function takeTaskSlot(step: Step<{}>) {
+  if (nbTaskRunning < maxConcurrentTasks || maxConcurrentTasks === 0) {
+    nbTaskRunning++;
+    step.continue();
+  }
+  else {
+    waitingTasks.push(() => {
+      nbTaskRunning++;
+      step.continue();
+    });
+  }
+}
+
+function giveTaskSlot(step: Step<{}>) {
+  nbTaskRunning--;
+  if (waitingTasks.length > 0)
+    waitingTasks.shift()!();
+  step.continue();
+}
