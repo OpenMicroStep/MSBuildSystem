@@ -10,16 +10,27 @@ export type StepContext<DATA, SHARED> = {
   task: Task,
   reporter: Reporter,
   storage: BuildSession.BuildSession,
-  data: { logs?: string, diagnostics?: Diagnostic[] } & DATA;
+  data: {
+    lastRunStartTime?: number,
+    lastRunEndTime?: number,
+    lastSuccessTime?: number,
+    logs?: string,
+    diagnostics?: Diagnostic[]
+  } & DATA;
   sharedData: SHARED;
   lastRunStartTime: number;
   lastRunEndTime: number;
   lastSuccessTime: number;
 }
+export type StepData<DATA> = DATA & {
+  lastRunStartTime: number;
+  lastRunEndTime: number;
+  lastSuccessTime: number;
+};
 export type Step<T> = Flux<StepContext<{}, {}> & T>;
 export type StepWithData<T, DATA, SHARED> = Flux<StepContext<DATA, SHARED> & T>;
 
-function start(flux: Flux<StepContext<any, any>>) {
+function start(flux: Flux<StepContext<{}, {}>>) {
   let ctx = flux.context;
   ctx.storage.load(() => {
     ctx.data = ctx.storage.get(ctx.runner.action) || {};
@@ -32,13 +43,13 @@ function start(flux: Flux<StepContext<any, any>>) {
   });
 }
 
-function end(flux: Flux<StepContext<any, any>>) {
+function end(flux: Flux<StepContext<{}, {}>>) {
   let ctx = flux.context;
   ctx.data.logs = ctx.reporter.logs;
   ctx.data.diagnostics = ctx.reporter.diagnostics;
-  ctx.data.lastRunEndTime = Date.now();
+  ctx.data.lastRunEndTime = ctx.lastRunEndTime = Date.now();
   ctx.data.lastRunStartTime = ctx.lastRunStartTime;
-  ctx.data.lastSuccessTime = ctx.reporter.failed ? 0 : ctx.data.lastRunEndTime;
+  ctx.data.lastSuccessTime = ctx.lastSuccessTime = ctx.reporter.failed ? 0 : ctx.data.lastRunEndTime;
   ctx.storage.set(ctx.runner.action, ctx.data);
   ctx.storage.set("SHARED", ctx.sharedData);
   ctx.storage.save(() => {
