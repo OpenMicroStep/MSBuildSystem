@@ -1,26 +1,26 @@
-import {declareTarget, resolver, FileElement, AttributeResolvers, AttributeTypes, Reporter} from '@msbuildsystem/core';
+import {declareTarget, resolver, FileElement, AttributeTypes, Reporter} from '@msbuildsystem/core';
 import {CopyTask} from '@msbuildsystem/foundation';
 import {CXXLibrary, PlistInfoTask, HeaderAliasTask} from '../index.priv';
 import * as path from 'path';
 
 @declareTarget({ type: 'CXXFramework' })
 export class CXXFramework extends CXXLibrary {
-  @resolver(FileElement.fileGroupResolver)
+  @resolver(FileElement.validateFileGroup)
   resources: FileElement.FileGroup[] = [];
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   bundleExtension: string = "framework";
 
-  @resolver(new AttributeResolvers.SimpleResolver(AttributeTypes.validateObject))
+  @resolver(AttributeTypes.validateObject)
   bundleInfo: any = null;
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   bundleBasePath: string = this.outputName + "." + this.bundleExtension;
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   bundleResourcesBasePath: string = "Resources";
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   bundleInfoPath: string = "Info.plist";
 
   publicHeadersBasePath: string = "Headers";

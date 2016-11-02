@@ -1,13 +1,13 @@
-import {declareTarget, Target, resolver, FileElement, AttributeResolvers, Reporter} from '@msbuildsystem/core';
+import {declareTarget, Target, resolver, FileElement, Reporter, AttributeTypes} from '@msbuildsystem/core';
 import {CopyTask} from './index';
 import * as path from 'path';
 
 @declareTarget({ type: 'Copy' })
 export class CopyTarget extends Target {
-  @resolver(FileElement.fileGroupResolver)
+  @resolver(FileElement.validateFileGroup)
   copyFiles: FileElement.FileGroup[];
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   copyBasePath: string = "";
 
 

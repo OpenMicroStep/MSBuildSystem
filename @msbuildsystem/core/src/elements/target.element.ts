@@ -1,6 +1,6 @@
-import {declareElementFactory, createElementValidator, elementValidator,
+import {declareElementFactory, elementValidator, validateElement,
   Element, DelayedElement, ComponentElement, EnvironmentElement, GroupElement,
-  Reporter, MakeJS, AttributeTypes, AttributePath, AttributeResolvers, RootGraph
+  Reporter, MakeJS, AttributeTypes, AttributePath, RootGraph
 } from '../index.priv';
 
 const componentValidator = (reporter: Reporter, path: AttributePath, value: any) =>  {
@@ -10,8 +10,8 @@ const componentValidator = (reporter: Reporter, path: AttributePath, value: any)
     : undefined
   );
 };
-const componentListResolver = new AttributeResolvers.ListResolver<ComponentElement | GroupElement, any>(componentValidator);
-const componentByEnvResolver = new AttributeResolvers.ByEnvListResolver<ComponentElement | GroupElement, any>(componentValidator);
+const validateComponentList = AttributeTypes.listValidator<ComponentElement | GroupElement, any>(componentValidator);
+const validateComponentByEnv = AttributeTypes.byEnvListValidator<ComponentElement | GroupElement, any>(componentValidator);
 
 
 function __resolveValuesByEnvForEnv(
@@ -68,12 +68,16 @@ export class TargetElement extends ComponentElement {
     super.__resolve(reporter);
     this.environments = this.__resolveElements<EnvironmentElement>(reporter, this.environments, 'environments', 'environment');
     if (this.environments.length === 0)
-      reporter.diagnostic({ type: "warning", msg: `attribute "environments" of target '${this.name}' is empty, target can't be build`});
+      reporter.diagnostic({
+        type: "warning",
+        msg: `attribute "environments" of target '${this.name}' is empty, target can't be build`,
+        path: `${this.__path()}.environments`
+      });
     let at = new AttributePath(this.__path());
     at.push('');
-    this.type = AttributeTypes.validateString(reporter, at.set('type'), this.type) || "bad type";
-    this.exports = componentListResolver.resolve(reporter, at.set('exports'), this.exports  || [], null);
-    this.exportsByEnvironment = componentByEnvResolver.resolve(reporter, at.set('exportsByEnvironment'), this.exports  || {}, null);
+    this.type = AttributeTypes.validateString(reporter, at.set('.type'), this.type) || "bad type";
+    this.exports = validateComponentList(reporter, at.set('.exports'), this.exports  || [], null);
+    this.exportsByEnvironment = validateComponentByEnv(reporter, at.set('.exportsByEnvironment'), this.exports  || {}, null);
     at.pop();
   }
 
@@ -85,13 +89,15 @@ export class TargetElement extends ComponentElement {
     if (compatibleEnvs.length === 0) {
       reporter.diagnostic({
         type: "error",
-        msg: `no compatible environment found for target '${this.name}' with build environment '${environment.name}'`
+        msg: `no compatible environment found for target '${this.name}' with build environment '${environment.name}'`,
+        path: `${this.__path()}.targets`
       });
     }
     else if (compatibleEnvs.length > 1) {
       reporter.diagnostic({
         type: "error",
-        msg: `multiple compatible environments found for target '${this.name}' with build environment '${environment.name}'`
+        msg: `multiple compatible environments found for target '${this.name}' with build environment '${environment.name}'`,
+        path: `${this.__path()}.targets`
       });
     }
     else return compatibleEnvs[0];
@@ -99,13 +105,13 @@ export class TargetElement extends ComponentElement {
   }
 }
 
-export const targetElementValidator = createElementValidator('target', TargetElement);
-const targetListResolver = new AttributeResolvers.ListResolver<TargetElement, any>(function (reporter: Reporter, path: AttributePath, value: any) {
-  value = elementValidator(reporter, path, value);
+export const validateTargetElement = elementValidator('target', TargetElement);
+const validateTargetList = AttributeTypes.listValidator<TargetElement, any>(function (reporter: Reporter, path: AttributePath, value: any) {
+  value = validateElement(reporter, path, value);
   if (value !== undefined && value instanceof TargetElement)
     return <TargetElement>value;
   if (value !== undefined)
-    reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a 'target' element, got a ${value.is}`});
+    path.diagnostic(reporter, { type: "warning", msg: `attribute must be a 'target' element, got a ${value.is}`});
   return undefined;
 });
 
@@ -151,7 +157,7 @@ export class BuildTargetElement extends TargetElement {
   __resolveTargets(reporter: Reporter) {
     let at = new AttributePath(this.__path());
     at.push('');
-    let targets = targetListResolver.resolve(reporter, at.set('targets'), this.targets || [], null);
+    let targets = validateTargetList(reporter, at.set('targets'), this.targets || [], null);
     this.targets = [];
     targets.forEach(t => {
       if (t instanceof BuildTargetElement)

@@ -1,17 +1,17 @@
-import {declareTarget, resolver, AttributeResolvers, AttributeTypes, Reporter, FileElement} from '@msbuildsystem/core';
+import {declareTarget, resolver, AttributeTypes, Reporter, FileElement} from '@msbuildsystem/core';
 import {CopyTask} from '@msbuildsystem/foundation';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
 
 @declareTarget({ type: "CXXLibrary" })
 export class CXXLibrary extends CXXTarget {
-  @resolver(new AttributeResolvers.SimpleResolver(AttributeTypes.validateBoolean))
+  @resolver(AttributeTypes.validateBoolean)
   static: boolean = false;
 
-  @resolver(FileElement.fileGroupResolver)
+  @resolver(FileElement.validateFileGroup)
   publicHeaders: FileElement.FileGroup[] = [];
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   publicHeadersBasePath: string = "includes";
 
   taskCopyPublicHeaders?: CopyTask;

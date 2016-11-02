@@ -7,19 +7,19 @@ export type ElementFactory = (reporter: Reporter, name: string | undefined,
 export type SimpleElementFactory = (reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => Element;
 
-export const elementValidator = (reporter: Reporter, path: AttributePath, value: any) => {
+export function validateElement(reporter: Reporter, path: AttributePath, value: any) {
   if (!(value instanceof Element))
-    reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be an element, got a ${util.limitedDescription(value)}` });
+    path.diagnostic(reporter, { type: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
   else
     return value;
   return undefined;
-};
-export function createElementValidator<T extends Element>(is: string, cls: { new(...args): T }) {
+}
+export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) {
   return function (reporter: Reporter, path: AttributePath, value: any) {
-    if ((value = elementValidator(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
+    if ((value = validateElement(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
       return <T>value;
     if (value !== undefined)
-      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a '${is}' element, got a ${value.is}`});
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
     return undefined;
   };
 }
@@ -291,7 +291,7 @@ export class Element {
     tags = tags.filter((t, i) => {
       var ok =  t.length > (t[0] === '!' ? 1 : 0);
       if (!ok && tags.length > 1)
-        reporter.diagnostic({
+        reportDiagnostic(reporter, attrPath, {
           type: "warning",
           msg: `query '${query}' is invalid, one the tags is an empty string, the tag '${t}' is ignored`
         });

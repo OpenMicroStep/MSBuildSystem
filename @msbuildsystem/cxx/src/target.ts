@@ -75,41 +75,41 @@ export type CompileFileParams = {language: string | undefined, compiler: string 
  * The sysroot is responsible of the build graph creation
 */
 export abstract class CXXTarget extends Target {
-  @resolver(new SimpleResolver(validateSysroot))
+  @resolver(validateSysroot)
   sysroot: CXXSysroot;
 
-  @resolver(stringResolver)
+  @resolver(AttributeTypes.validateString)
   compiler: string | null = null;
 
-  @resolver(stringResolver)
+  @resolver(AttributeTypes.validateString)
   linker: string | null = null;
 
-  @resolver(stringSetResolver)
+  @resolver(AttributeTypes.validateStringSet)
   includeDirectories: Set<string> = new Set();
 
-  @resolver(new AttributeResolvers.MapResolver(FileElement.fileValidator, [
+  @resolver(AttributeTypes.mapValidator(FileElement.validateFile, [
     { path: 'language', validator: validateString, default: undefined },
     { path: 'compiler', validator: validateString, default: undefined },
     { path: 'compileFlags', validator: validateStringList, default: [] }
   ]))
   files: Map<File, CompileFileParams>;
 
-  @resolver(stringListResolver)
+  @resolver(AttributeTypes.validateStringList)
   defines: string[] = [];
 
-  @resolver(stringListResolver)
+  @resolver(AttributeTypes.validateStringList)
   compileFlags: string[] = [];
 
-  @resolver(stringListResolver)
+  @resolver(AttributeTypes.validateStringList)
   linkFlags: string[] = [];
 
-  @resolver(stringListResolver)
+  @resolver(AttributeTypes.validateStringList)
   libraries: string[] = [];
 
-  @resolver(stringListResolver)
+  @resolver(AttributeTypes.validateStringList)
   archives: string[] = [];
 
-  @resolver(stringListResolver)
+  @resolver(AttributeTypes.validateStringList)
   frameworks: string[] = [];
 
   sysrootProvider;

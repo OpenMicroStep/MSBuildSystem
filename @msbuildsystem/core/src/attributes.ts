@@ -5,7 +5,7 @@ export interface Attributes {
   [s: string]: any;
 }
 
-function listResolve<T, A0> (
+function superValidateList<T, A0> (
   reporter: Reporter, path: AttributePath, attr: T[], a0: A0,
   validator: AttributeTypes.Validator<T, A0>, push: (T) => void
 ) {
@@ -19,20 +19,20 @@ function listResolve<T, A0> (
     path.pop(3);
   }
   else {
-    reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be an array`});
+    path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
   }
 }
 
-function validateComplex<T, T2, A0>(
+function superValidateComplex<T, T2, A0>(
   reporter: Reporter, path: AttributePath, attr: any, a0: A0,
-  validator: AttributeTypes.Validator<T, A0>, extensions: AttributeResolvers.Extension<any, A0>[],
+  validator: AttributeTypes.Validator<T, A0>, extensions: AttributeTypes.Extension<any, A0>[],
   push: (keys: T[], value: T2) => void
 ) {
   let keys = <T[]>[];
   let value = <T2>{};
   if (typeof attr === "object" && attr.value) { // complex object
     path.push('.value');
-    listResolve(reporter, path, attr.value, a0, validator, keys.push.bind(keys));
+    superValidateList(reporter, path, attr.value, a0, validator, keys.push.bind(keys));
     path.pop();
     for (let i = 0, len = extensions.length; i < len; i++) {
       let ext = extensions[i];
@@ -60,39 +60,39 @@ export module AttributeTypes {
   export type ComplexValue<T, E> = (({$?: T[] } & E) | T)[];
 
   export type Validator<T, A0> = (reporter: Reporter, path: AttributePath, value: any, a0: A0) => T | undefined;
+  export type Validator0<T> = (reporter: Reporter, path: AttributePath, value: any) => T | undefined;
+  export type ValidatorNU<T, A0> = (reporter: Reporter, path: AttributePath, value: any, a0: A0) => T;
+  export type ValidatorNU0<T> = (reporter: Reporter, path: AttributePath, value: any) => T;
+  export type Reducer<T, R> = (reporter: Reporter, current: T, previous: R | undefined) => R;
   export type MapValue<T> = (reporter: Reporter, path: AttributePath, value: any, values: T[], ...args) => void;
+  export type Extension<T, A0> = { path: string, validator: AttributeTypes.Validator<T, A0>, default: T };
+  export type Extension0<T> = { path: string, validator: AttributeTypes.Validator0<T>, default: T };
 
   export function validateStringValue(reporter: Reporter, path: AttributePath, value: any, expected: string) {
     if (typeof value !== "string")
-      reporter.diagnostic({
+      path.diagnostic(reporter, {
         type: "warning",
-        msg: `attribute ${path.toString()} must be the string '${expected}', got ${util.limitedDescription(value)}`
+        msg: `attribute must be the string '${expected}', got ${util.limitedDescription(value)}`
       });
     else if (value !== expected)
-      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be '${expected}', got ${util.limitedDescription(value)}` });
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be '${expected}', got ${util.limitedDescription(value)}` });
     else
       return value;
     return undefined;
   }
 
-  export function validateStringList(reporter: Reporter, path: AttributePath, value: string[]) {
-    let ret = <string[]>[];
-    listResolve(reporter, path, value, null!, validateString, ret.push.bind(ret));
-    return ret;
-  }
-
-  export function validateObject(reporter: Reporter, path: AttributePath, value: any) {
+  export function validateObject(reporter: Reporter, path: AttributePath, value: any) : { [s: string]: any } | undefined {
     if (typeof value !== "object")
-      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a object, got ${typeof value}`});
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof value}`});
     else
       return value;
     return undefined;
   }
   export function validateString(reporter: Reporter, path: AttributePath, value: any) {
     if (typeof value !== "string")
-      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a string, got ${typeof value}`});
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a string, got ${typeof value}`});
     else if (value.length === 0)
-      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} can't be an empty string`});
+      path.diagnostic(reporter, { type: "warning", msg: `attribute can't be an empty string`});
     else
       return value;
     return undefined;
@@ -100,11 +100,143 @@ export module AttributeTypes {
 
   export function validateBoolean(reporter: Reporter, path: AttributePath, value: any) {
     if (typeof value !== "boolean")
-      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be a boolean, got ${typeof value}`});
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a boolean, got ${typeof value}`});
     else
       return value;
     return undefined;
   }
+
+  export function mapAfterValidator<T0, T1, A0>(validator: Validator<T0, A0>, map: (T0) => T1) : Validator<T1, A0> {
+    return function validateWithAfterMap(reporter, path: AttributePath, value, a0: A0) {
+      let t0 = validator(reporter, path, value, a0);
+      if (t0 !== undefined)
+        return map(t0);
+      return undefined;
+    };
+  }
+
+  export function defaultValueValidator<T, A0>(validator: Validator<T, A0>, defaultValue: T) : Validator<T, A0> {
+    return function validateWithDefaultValue(reporter, path: AttributePath, value, a0: A0) {
+      if (value === undefined)
+        return defaultValue;
+      return validator(reporter, path, value, a0);
+    };
+  }
+  export function dynamicDefaultValueValidator<T, A0>(validator: Validator<T, A0>, createDefaultValue: (a0: A0) => T) : Validator<T, A0> {
+    return function validateWithDefaultValue(reporter, path: AttributePath, value, a0: A0) {
+      if (value === undefined)
+        return createDefaultValue(a0);
+      return validator(reporter, path, value, a0);
+    };
+  }
+
+  export function functionValidator<A0>(prototype: string) : Validator<void, A0> {
+    return function validateFunction(reporter, path: AttributePath, value, a0: A0) {
+      AttributeUtil.safeCall(reporter, value, prototype, null, path, a0);
+    };
+  }
+
+  export function listValidator<T>(validator: AttributeTypes.Validator0<T>) : ValidatorNU0<T[]>;
+  export function listValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>) : ValidatorNU<T[], A0>;
+  export function listValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>) {
+    return function validateList(reporter: Reporter, path: AttributePath, attr, a0: A0) : T[] {
+      let ret = [];
+      superValidateList(reporter, path, attr, a0, validator, ret.push.bind(ret));
+      return ret;
+    };
+  }
+
+  export function mapValidator<T, T2>(validator: AttributeTypes.Validator0<T>, extensions: Extension0<any>[]) : ValidatorNU0<Map<T, T2>>;
+  export function mapValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) : ValidatorNU<Map<T, T2>, A0>;
+  export function mapValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) {
+    return function validateMap(reporter: Reporter, path: AttributePath, attr, a0: A0) : Map<T, T2> {
+      var ret = new Map<T, T2>();
+      superValidateList(reporter, path, attr, a0, (reporter: Reporter, path: AttributePath, attr: any) => {
+        return superValidateComplex(reporter, path, attr, a0, validator, extensions, function validate(keys: T[], value: T2) {
+          for (var key of keys) {
+            if (ret.has(key)) {
+              // TODO: warn only when value differ ?
+              path.diagnostic(reporter, { type: 'warning', msg: `attribute overwrite previous value` });
+            }
+            ret.set(key, value);
+          }
+        });
+      }, function push() {});
+      return ret;
+    };
+  }
+
+  export function groupValidator<T, T2>(validator: AttributeTypes.Validator0<T>, extensions: Extension0<any>[]) : ValidatorNU0<{values: T[], ext: T2}[]>;
+  export function groupValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) : ValidatorNU<{values: T[], ext: T2}[], A0>;
+  export function groupValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) {
+    return function validateGroup(reporter: Reporter, path: AttributePath, attr, a0: A0) : {values: T[], ext: T2}[] {
+      var ret = <{values: T[], ext: T2}[]>[];
+      var set = new Set<T>();
+      superValidateList(reporter, path, attr, a0, (reporter: Reporter, path: AttributePath, attr: any) => {
+        return superValidateComplex(reporter, path, attr, a0, validator, extensions, function validate(keys: T[], value: T2) {
+          for (var key of keys) {
+            if (set.has(key))
+              path.diagnostic(reporter, { type: 'warning', msg: `attribute is present multiple times` });
+            set.add(key);
+          }
+          ret.push({values: keys, ext: value});
+        });
+      }, function pusth() {});
+      return ret;
+    };
+  }
+
+  export function setValidator<T>(validator: AttributeTypes.Validator0<T>) : ValidatorNU0<Set<T>>;
+  export function setValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>) : ValidatorNU<Set<T>, A0>;
+  export function setValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>) {
+    return function validateSet(reporter: Reporter, path: AttributePath, attr, a0: A0) : Set<T> {
+      let ret = new Set<T>();
+      superValidateList(reporter, path, attr, a0, validator, function(value) {
+        ret.add(value);
+      });
+      return ret;
+    };
+  }
+
+  export function byEnvListValidator<T>(validator: AttributeTypes.Validator0<T>) : ValidatorNU0<{ [s: string]: T[] }>;
+  export function byEnvListValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>) : ValidatorNU<{ [s: string]: T[] }, A0>;
+  export function byEnvListValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>) {
+    return function validateByEnvList(reporter: Reporter, path: AttributePath, attr, a0: A0) : { [s: string]: T[] } {
+      var ret: { [s: string]: T[] } = {};
+      if (typeof attr === "object") {
+        path.push("");
+        for (var k in attr) {
+          var list = ret[k] = [];
+          superValidateList(reporter, path.set(k), attr[k], a0, validator, list.push.bind(list));
+        }
+        path.pop();
+      }
+      else {
+        path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
+      }
+      return ret;
+    };
+  }
+
+  export function reducedListValidator<T, R>(validator: AttributeTypes.Validator0<T>, reduce: AttributeTypes.Reducer<T, R>) : Validator0<R>;
+  export function reducedListValidator<T, R, A0>(validator: AttributeTypes.Validator<T, A0>, reduce: AttributeTypes.Reducer<T, R>) : Validator<R, A0>;
+  export function reducedListValidator<T, R, A0>(validator: AttributeTypes.Validator<T, A0>, reduce: AttributeTypes.Reducer<T, R>) {
+    return function validateReducedList(reporter: Reporter, path: AttributePath, attr, a0: A0) : R | undefined {
+      let previous: R | undefined = undefined;
+      superValidateList(reporter, path, attr, a0, validator, (value) => {
+        previous = reduce(reporter, value, previous);
+      });
+      return previous;
+    };
+  }
+
+  export function reduceByMergingObjects(reporter: Reporter, current: { [s: string]: any }, previous: { [s: string]: any } | undefined) : { [s: string]: any } {
+    return Object.assign(previous || {}, current);
+  }
+
+  export const validateStringList = listValidator(AttributeTypes.validateString);
+  export const validateStringSet = setValidator(AttributeTypes.validateString);
+  export const validateMergedObjectList = reducedListValidator(AttributeTypes.validateObject, AttributeTypes.reduceByMergingObjects);
 }
 
 export module AttributeUtil {
@@ -112,9 +244,9 @@ export module AttributeUtil {
     if (!fn) return defaultReturnValue;
 
     if (typeof fn !== "function") {
-      reporter.diagnostic({
+      path.diagnostic(reporter, {
         type: "error",
-        msg: `attribute ${path.toString()} must be a function with signature ${signature}`
+        msg: `attribute must be a function with signature ${signature}`
       });
     }
     else {
@@ -123,7 +255,7 @@ export module AttributeUtil {
       } catch (e) {
         reporter.error(e, {
           type: "error",
-          msg: `attribute ${path.toString()} must be a function with signature ${signature}`
+          msg: `attribute must be a function with signature ${signature}`
         });
       }
     }
@@ -133,135 +265,9 @@ export module AttributeUtil {
   export function isArray(reporter: Reporter, path: AttributePath, value: any) {
     var ret = Array.isArray(value);
     if (!ret)
-      reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be an array`});
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
     return ret;
   }
-}
-
-export module AttributeResolvers {
-  export abstract class Resolver<T, A0> {
-    abstract resolve(reporter: Reporter, at: AttributePath, value, a0: A0) : T;
-  }
-
-  export class FunctionResolver<A0> extends Resolver<void, A0> {
-    prototype: string;
-    constructor(prototype: string) {
-      super();
-      this.prototype = prototype;
-    }
-
-    resolve(reporter: Reporter, at: AttributePath, value, a0: A0) {
-      AttributeUtil.safeCall(reporter, value, this.prototype, null, at, a0);
-    }
-  }
-
-  export class SimpleResolver<T, A0> extends Resolver<T | undefined, A0> {
-    constructor(public validator: AttributeTypes.Validator<T, A0>) {
-      super();
-    }
-
-    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : T | undefined {
-      return this.validator(reporter, path, attr, a0);
-    }
-  }
-
-  export class ListResolver<T, A0> extends Resolver<T[], A0> {
-    constructor(public validator: AttributeTypes.Validator<T, A0>) {
-      super();
-      this.validator = validator;
-    }
-
-    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : T[] {
-      let ret = [];
-      listResolve(reporter, path, attr, a0, this.validator, ret.push.bind(ret));
-      return ret;
-    }
-  }
-
-  export type Extension<T, A0> = { path: string, validator: AttributeTypes.Validator<T, A0>, default: T };
-  export class MapResolver<T, T2, A0> extends Resolver<Map<T, T2>, A0> {
-    constructor(public validator: AttributeTypes.Validator<T, A0>, public extensions: Extension<any, A0>[]) {
-      super();
-    }
-
-    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : Map<T, T2> {
-      var ret = new Map<T, T2>();
-      listResolve(reporter, path, attr, a0, (reporter: Reporter, path: AttributePath, attr: any) => {
-        return validateComplex(reporter, path, attr, a0, this.validator, this.extensions, function validate(keys: T[], value: T2) {
-          for (var key of keys) {
-            if (ret.has(key)) {
-              // TODO: warn only when value differ ?
-              reporter.diagnostic({ type: 'warning', msg: `attribute ${path.toString()} overwrite previous value` });
-            }
-            ret.set(key, value);
-          }
-        });
-      }, function push() {});
-      return ret;
-    }
-  }
-
-  export class GroupResolver<T, T2, A0> extends Resolver<{values: T[], ext: T2}[], A0> {
-    constructor(public validator: AttributeTypes.Validator<T, A0>, public extensions: Extension<any, A0>[]) {
-      super();
-    }
-
-    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : {values: T[], ext: T2}[] {
-      var ret = <{values: T[], ext: T2}[]>[];
-      var set = new Set<T>();
-      listResolve(reporter, path, attr, a0, (reporter: Reporter, path: AttributePath, attr: any) => {
-        return validateComplex(reporter, path, attr, a0, this.validator, this.extensions, function validate(keys: T[], value: T2) {
-          for (var key of keys) {
-            if (set.has(key))
-              reporter.diagnostic({ type: 'warning', msg: `attribute ${path.toString()} is present multiple times` });
-            set.add(key);
-          }
-          ret.push({values: keys, ext: value});
-        });
-      }, function pusth() {});
-      return ret;
-    }
-  }
-
-  export class SetResolver<T, A0>  extends Resolver<Set<T>, A0> {
-    constructor(public validator: AttributeTypes.Validator<T, A0>) {
-      super();
-    }
-
-    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : Set<T> {
-      let ret = new Set<T>();
-      listResolve(reporter, path, attr, a0, this.validator, function(value) {
-        ret.add(value);
-      });
-      return ret;
-    }
-  }
-
-  export class ByEnvListResolver<T, A0> extends Resolver<{ [s: string]: T[] }, A0> {
-    constructor(public validator: AttributeTypes.Validator<T, A0>) {
-      super();
-    }
-
-    resolve(reporter: Reporter, path: AttributePath, attr, a0: A0) : { [s: string]: T[] } {
-      var ret: { [s: string]: T[] } = {};
-      if (typeof attr === "object") {
-        path.push("");
-        for (var k in attr) {
-          var list = ret[k] = [];
-          listResolve(reporter, path.set(k), attr[k], a0, this.validator, list.push.bind(list));
-        }
-        path.pop();
-      }
-      else {
-        reporter.diagnostic({ type: "warning", msg: `attribute ${path.toString()} must be an array`});
-      }
-      return ret;
-    }
-  }
-
-  export const stringListResolver = new ListResolver(AttributeTypes.validateString);
-  export const stringResolver = new SimpleResolver(AttributeTypes.validateString);
-  export const stringSetResolver = new SetResolver(AttributeTypes.validateString);
 }
 
 /** Very fast path management (push, pop) */

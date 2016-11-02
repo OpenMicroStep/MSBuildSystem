@@ -1,4 +1,4 @@
-import {Task, TaskName, File, Step, Barrier, Reporter} from './index.priv';
+import {Task, TaskName, File, Step, Barrier} from './index.priv';
 
 export class TGraph<T extends Task> extends Task {
   constructor(name: TaskName, graph: Graph, public inputs: Set<T> = new Set<T>()) {
@@ -36,8 +36,6 @@ export class TGraph<T extends Task> extends Task {
         });
       }
       else {
-        console.trace("Task %s %s failed", task.name.type, task.name.name);
-        console.trace(ctx.reporter.logs);
         flux.context.reporter.failed = true;
       }
       barrier.dec();
@@ -134,12 +132,4 @@ export class TGraph<T extends Task> extends Task {
 
 export class Graph extends TGraph<Task> {
 
-}
-
-export class SelfBuildGraph<P extends Graph> extends Graph {
-  graph: P;
-  constructor(name: TaskName, graph: P) {
-    super(name, graph);
-  }
-  buildGraph(reporter: Reporter) {}
 }

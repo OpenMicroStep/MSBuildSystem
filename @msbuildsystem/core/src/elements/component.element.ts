@@ -30,19 +30,21 @@ export class ComponentElement extends Element {
           reporter.diagnostic({
             type: "warning",
             msg: `attribute '${key}' value is incoherent for component ${this.__path()} `
-               + `while injecting ${depcomponent.__path()}, attribute is ignored`
+               + `while injecting ${depcomponent.__path()}, attribute is ignored`,
+            path: this.__path()
           });
         }
         else if (dvalueIsArr) {
           if (!cvalue)
             cvalue = this[key] = [];
-          cvalue.push.apply(cvalue, dvalue);
+          (<any[]>cvalue).unshift(...dvalue);
         }
         else if (keysWithSimpleValue.has(key)) {
           reporter.diagnostic({
             type: "warning",
             msg: `attribute '${key}' value is incoherent for component ${this.__path()} `
-               + `while injecting ${depcomponent.__path()}, attribute is removed`
+               + `while injecting ${depcomponent.__path()}, attribute is removed`,
+            path: this.__path()
           });
           delete this[key];
         }
@@ -58,6 +60,7 @@ export class ComponentElement extends Element {
     super.__resolve(reporter);
     this.components = this.__resolveElements<ComponentElement>(reporter, this.components, 'components', 'component');
     this.__injectElements(reporter, this.components);
+    this.components = [];
   }
 
   __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {

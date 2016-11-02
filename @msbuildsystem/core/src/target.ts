@@ -1,5 +1,6 @@
-import {Project, RootGraph, Reporter, SelfBuildGraph,
-  AttributeResolvers, AttributePath, Task, BuildTargetElement, File
+import {Project, RootGraph, Reporter,
+  AttributePath, AttributeTypes,
+  Task, Graph, TaskName, BuildTargetElement, File
 } from './index.priv';
 import {Hash} from 'crypto';
 import * as path from 'path';
@@ -13,38 +14,73 @@ export function declareTarget(options: { type: string }) {
   };
 }
 
-export class PropResolver<R extends AttributeResolvers.Resolver<any, Target>> {
-  constructor(public resolver: R, public attrPath: string, public clsPath?: string) {}
-}
-
 export function getTargetClass(type: string) : typeof Target | undefined {
   return targetClasses.get(type);
 }
 
-function setupResolvers(prototype: typeof Target.prototype) : PropResolver<any>[] {
-  let p = <{resolvers: PropResolver<any>[]}>prototype;
+export class PropertyResolver<V extends AttributeTypes.Validator<T, Target>, T> {
+  constructor(public validator: V, public attributePath: string, public propertyPath?: string) {}
+
+  resolve(reporter: Reporter, into: SelfBuildGraph<any>, target: Target, path: AttributePath = new AttributePath(target)) : T | undefined {
+    let attr = target.attributes[this.attributePath];
+    let r: T | undefined = undefined;
+    path.push('.', this.attributePath);
+    if (attr !== undefined || (this.propertyPath && (r = into[this.propertyPath]) === undefined)) {
+      r = this.validator(reporter, path, attr, target);
+      if (this.propertyPath && r !== undefined)
+        into[this.propertyPath] = r;
+    }
+    path.pop(2);
+    return r;
+  }
+}
+
+function setupResolvers(prototype: { resolvers: PropertyResolver<any, any>[] }) : PropertyResolver<any, any>[] {
+  let p = prototype;
   if (!p.hasOwnProperty('resolvers'))
     p.resolvers = prototype.resolvers ? prototype.resolvers.slice() : [];
   return p.resolvers;
 }
 
-export function pushResolver(prototype: typeof Target.prototype, r: AttributeResolvers.Resolver<any, Target>, attrPath: string, clsPath?: string) {
-  let resolvers = setupResolvers(prototype);
-  let prop = new PropResolver(r, attrPath, clsPath);
-  resolvers.push(prop);
+export function pushResolvers(prototype: { resolvers: PropertyResolver<any, any>[] }, r: PropertyResolver<any, any>[]) {
+  setupResolvers(prototype).push(...r);
 }
 
-export function resolver<T>(r: AttributeResolvers.Resolver<T, Target>, attrPath?: string) {
-  return function pushResolverOnProperty(prototype: typeof Target.prototype, propertyName: string, descriptor?: TypedPropertyDescriptor<T>) {
-     pushResolver(prototype, r, attrPath || propertyName, propertyName);
+export function declareResolvers(r: PropertyResolver<any, any>[]) {
+  return function installResolvers(cls: { prototype: { resolvers: PropertyResolver<any, any>[] } }) {
+    pushResolvers(cls.prototype, r);
+  };
+}
+export function resolver<T>(r: AttributeTypes.Validator<T, Target>, options?: {
+  attributePath?: string
+ }) {
+  return function pushResolverOnProperty(prototype: typeof SelfBuildGraph.prototype, propertyName: string, descriptor?: TypedPropertyDescriptor<T>) {
+    setupResolvers(prototype).push(new PropertyResolver(r, (options && options.attributePath) || propertyName, propertyName));
   };
 }
 
-const configureResolver = new PropResolver(new AttributeResolvers.FunctionResolver("(target: Target) => void"), "configure");
+export abstract class SelfBuildGraph<P extends Graph> extends Graph {
+  readonly resolvers: PropertyResolver<any, any>[]; // on the prototype
+  graph: P;
+
+  constructor(name: TaskName, graph: P) {
+    super(name, graph);
+  }
+
+  resolve(reporter: Reporter, target: Target, path: AttributePath = new AttributePath(target)) {
+    for (var r of this.resolvers) {
+      r.resolve(reporter, this, target, path);
+    }
+  }
+
+  buildGraph(reporter: Reporter) {}
+}
+setupResolvers(SelfBuildGraph.prototype);
+
+const configureResolver = new PropertyResolver<AttributeTypes.Validator<void, Target>, void>(AttributeTypes.functionValidator("(target: Target) => void"), "configure");
 
 export class Target extends SelfBuildGraph<RootGraph> {
   name: { type: "target", name: string, environment: string, variant: string, project: string };
-  readonly resolvers: PropResolver<any>[]; // on the prototype
 
   dependencies: Set<Target>;
   requiredBy: Set<Target>;
@@ -63,10 +99,10 @@ export class Target extends SelfBuildGraph<RootGraph> {
   environment: string;
   targetName: string;
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   outputName: string;
 
-  @resolver(AttributeResolvers.stringResolver)
+  @resolver(AttributeTypes.validateString)
   outputFinalName: string | null = null;
 
   constructor(graph: RootGraph, project: Project, attributes: BuildTargetElement, options: {
@@ -80,7 +116,6 @@ export class Target extends SelfBuildGraph<RootGraph> {
       variant: attributes.variant,
       project: project.path
     }, graph);
-    setupResolvers(this.constructor.prototype);
 
     this.project = project;
     this.variant = attributes.variant;
@@ -115,33 +150,14 @@ export class Target extends SelfBuildGraph<RootGraph> {
 
   doConfigure(reporter: Reporter) {
     this.configure(reporter);
-    this.resolveAttr(reporter, configureResolver);
     if (!reporter.failed)
       this.buildGraph(reporter);
   }
 
   configure(reporter: Reporter) {
     let path = new AttributePath(this);
-    for (var r of this.resolvers) {
-      this.resolveAttr(reporter, r, path);
-    }
-  }
-
-  resolveAttr<T>(reporter: Reporter, prop: PropResolver<AttributeResolvers.Resolver<T, Target>>, path: AttributePath = new AttributePath(this)) : T | undefined {
-    let attr = this.attributes[prop.attrPath];
-    let r: T | undefined = undefined;
-    path.push('.', prop.attrPath);
-    if (attr !== undefined || (prop.clsPath && (r = this[prop.clsPath]) === undefined)) {
-      if (attr === undefined)
-        path.diagnostic(reporter, { type: "error", msg: `attribute '${prop.attrPath}'' is required`});
-      else {
-        r = prop.resolver.resolve(reporter, path, attr, this);
-        if (prop.clsPath && r !== undefined)
-          this[prop.clsPath] = r;
-      }
-    }
-    path.pop(2);
-    return r;
+    this.resolve(reporter, this, path);
+    configureResolver.resolve(reporter, this, this, path);
   }
 
   addDependency(task: Target) {

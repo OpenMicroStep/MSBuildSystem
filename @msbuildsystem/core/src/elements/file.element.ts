@@ -1,7 +1,7 @@
 import {
   Element,
-  declareElementFactory, createElementValidator,
-  AttributeTypes, AttributeResolvers, AttributePath,
+  declareElementFactory, elementValidator,
+  AttributeTypes, AttributePath,
   File, util, Reporter, MakeJS
 } from '../index.priv';
 import * as path from 'path';
@@ -35,11 +35,11 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
     loadElementFile(reporter, new AttributePath(parent, ':', name), util.pathJoinIfRelative(absolutePath, name), files);
   }
   else {
-    reporter.diagnostic({
+    attrPath.diagnostic(reporter, {
       type: 'error',
-      msg: `'${attrPath.toString()}.name' attribute is invalid `
+      msg: `'name' attribute is invalid `
        + `('file' elements requires 'name' to be either a string, a regexp or a filter function)`
-    });
+    }, '.name');
   }
 
   let tags = "tags" in definition ? AttributeTypes.validateStringList(reporter, attrPath, definition["tags"]) : [];
@@ -71,17 +71,17 @@ export class FileElement extends Element {
   }
 }
 export module FileElement {
-  export const fileElementValidator = createElementValidator('file', FileElement);
-  export function fileValidator(reporter: Reporter, path: AttributePath, value: any) {
-    if ((value = fileElementValidator(reporter, path, value)) !== undefined && value.__file)
+  export const validateFileElement = elementValidator('file', FileElement);
+  export function validateFile(reporter: Reporter, path: AttributePath, value: any) {
+    if ((value = validateFileElement(reporter, path, value)) !== undefined && value.__file)
       return <File>value.__file;
     return undefined;
   };
-  export const fileSetResolver = new AttributeResolvers.SetResolver(fileValidator);
+  export const validateFileSet = AttributeTypes.setValidator(validateFile);
   export type FileGroup = { values: File[], ext: { dest: string, expand: boolean } };
-  export const fileGroupResolver: AttributeResolvers.Resolver<FileGroup[], any> =
-  new AttributeResolvers.GroupResolver<File, { dest: string, expand: boolean }, null>(
-    fileValidator,
+  export const validateFileGroup =
+  AttributeTypes.groupValidator<File, { dest: string, expand: boolean }>(
+    validateFile,
     [
       {path: "dest"  , validator: AttributeTypes.validateString , default: ""   },
       {path: "expand", validator: AttributeTypes.validateBoolean, default: false}
