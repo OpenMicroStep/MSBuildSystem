@@ -18,6 +18,7 @@ export * from './barrier'   ;
 export { Diagnostic } from '@msbuildsystem/shared/src/diagnostic';
 export { Project, RootGraph } from './project';
 export { Workspace  } from './workspace';
+export * from './tasks/generateFileTask';
 
 //import * as logger from './logger';
 import * as util    from './util'; export { util as util };

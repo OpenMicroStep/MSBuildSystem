@@ -1,4 +1,4 @@
-import {Task, TaskName, Graph, File, Step} from '@msbuildsystem/core';
+import {Task, TaskName, Graph, File, Step} from '../index.priv';
 import * as fs from 'fs';
 import {Hash} from 'crypto';
 

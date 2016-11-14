@@ -1,5 +1,4 @@
-import {declareTask, Graph} from '@msbuildsystem/core';
-import {GenerateFileTask} from '@msbuildsystem/foundation';
+import {declareTask, Graph, GenerateFileTask} from '@msbuildsystem/core';
 import {basename} from 'path';
 
 export module Plist {
