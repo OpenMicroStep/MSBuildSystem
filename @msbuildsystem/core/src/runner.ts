@@ -1,7 +1,8 @@
 import {EventEmitter} from 'events';
 import {format} from 'util';
-import {Task, Graph, BuildSession, Async} from './index.priv';
+import {Task, Graph, TGraph, BuildSession, Async} from './index.priv';
 import {Flux, Diagnostic, diagnosticFromError} from '@msbuildsystem/shared';
+import * as os from 'os';
 
 export type RunnerContext = { runner: Runner, failed: boolean };
 export type StepContext<DATA, SHARED> = {
@@ -29,6 +30,34 @@ export type StepData<DATA> = DATA & {
 };
 export type Step<T> = Flux<StepContext<{}, {}> & T>;
 export type StepWithData<T, DATA, SHARED> = Flux<StepContext<DATA, SHARED> & T>;
+
+export var maxConcurrentTasks: number = 1; //os.cpus().length;
+var nbTaskRunning: number = 0;
+var waitingTasks: (() => void)[] = [];
+function takeTaskSlot(step: Step<{}>) {
+  if (step.context.task instanceof TGraph) {
+    step.continue();
+  }
+  else if (nbTaskRunning < maxConcurrentTasks || maxConcurrentTasks === 0) {
+    nbTaskRunning++;
+    step.continue();
+  }
+  else {
+    waitingTasks.push(() => {
+      nbTaskRunning++;
+      step.continue();
+    });
+  }
+}
+
+function giveTaskSlot(step: Step<{}>) {
+  if (!(step.context.task instanceof TGraph)) {
+    nbTaskRunning--;
+    if (waitingTasks.length > 0)
+      waitingTasks.shift()!();
+  }
+  step.continue();
+}
 
 function start(flux: Flux<StepContext<{}, {}>>) {
   let ctx = flux.context;
@@ -70,7 +99,7 @@ function execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext
     lastRunStartTime: 0,
     lastRunEndTime: 0,
     lastSuccessTime: 0
-  }, [start, task.do.bind(task), end, lastAction]);
+  }, [takeTaskSlot, start, task.do.bind(task), end, giveTaskSlot, lastAction]);
 }
 
 function isChildOf(parent: Task, task: Task) {
@@ -165,6 +194,7 @@ export class Reporter {
     if (!d) return;
     if (this.transform.length)
       d = this.transform[this.transform.length - 1](d);
+    if (!d) return;
     this.diagnostics.push(d);
     if (d.type === "error" || d.type === "fatal error")
       this.failed = true;

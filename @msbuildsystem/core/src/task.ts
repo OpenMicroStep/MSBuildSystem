@@ -1,6 +1,5 @@
 import {Graph, Target, Step, File, BuildSession} from './index.priv';
 import {createHash, Hash} from 'crypto';
-import * as os from 'os';
 
 export type TaskName = { type: string, name: string, [s: string]: string };
 
@@ -132,7 +131,6 @@ export class Task {
 
   do(step: Step<{ runRequired?: boolean }>) {
     step.setFirstElements([
-      takeTaskSlot,
       (step) => { this.isDoRequired(step); },
       (step) => {
         if (step.context.reporter.failed)
@@ -144,8 +142,7 @@ export class Task {
           step.context.reporter.diagnostics = step.context.data.diagnostics || [];
           step.continue();
         }
-      },
-      giveTaskSlot
+      }
     ]);
     step.continue();
   }
@@ -204,25 +201,3 @@ export class Task {
   }
 }
 
-export var maxConcurrentTasks: number = os.cpus().length;
-var nbTaskRunning: number = 0;
-var waitingTasks: (() => void)[] = [];
-function takeTaskSlot(step: Step<{}>) {
-  if (nbTaskRunning < maxConcurrentTasks || maxConcurrentTasks === 0) {
-    nbTaskRunning++;
-    step.continue();
-  }
-  else {
-    waitingTasks.push(() => {
-      nbTaskRunning++;
-      step.continue();
-    });
-  }
-}
-
-function giveTaskSlot(step: Step<{}>) {
-  nbTaskRunning--;
-  if (waitingTasks.length > 0)
-    waitingTasks.shift()!();
-  step.continue();
-}
