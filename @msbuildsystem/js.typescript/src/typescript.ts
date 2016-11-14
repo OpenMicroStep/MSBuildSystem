@@ -18,6 +18,7 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   tsConfig: ts.CompilerOptions = {};
 
   buildGraph(reporter: Reporter) {
+    super.buildGraph(reporter);
     let tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addFiles(this.graph.files);
     tsc.setOptions(this.tsConfig);

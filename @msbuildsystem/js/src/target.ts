@@ -20,6 +20,7 @@ export class JSTarget extends Target {
   files: File[];
 
   buildGraph(reporter: Reporter) {
+    super.buildGraph(reporter);
     this.compiler.buildGraph(reporter);
     this.packager.buildGraph(reporter);
   }

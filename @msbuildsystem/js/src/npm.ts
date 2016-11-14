@@ -1,9 +1,9 @@
 import {
   Reporter, SelfBuildGraph, resolver, AttributeTypes, util,
-  Task, declareTask, File, Graph
+  declareTask, Graph, GenerateFileTask
 } from '@msbuildsystem/core';
 import {
-  ProcessTask, LocalProcessProvider, ProcessProviders, GenerateFileTask
+  ProcessTask, LocalProcessProvider, ProcessProviders
 } from '@msbuildsystem/foundation';
 import { JSTarget, JSPackagers, JSPackager } from './index';
 import * as path from 'path';
