@@ -277,12 +277,12 @@ export class AttributePath {
   components: AttributePathComponent[];
 
   constructor(...components: AttributePathComponent[]);
-  constructor(c0?: AttributePathComponent, c1?: AttributePathComponent, c2?: AttributePathComponent) {
+  constructor() {
     this.reset.apply(this, arguments);
   }
 
   reset(...components: AttributePathComponent[]);
-  reset(c0?: AttributePathComponent, c1?: AttributePathComponent, c2?: AttributePathComponent) {
+  reset() {
     var length = arguments.length;
     this.components = [];
     for (var i = 0; i < length; i++)
