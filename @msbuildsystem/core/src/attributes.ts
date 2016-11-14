@@ -12,7 +12,7 @@ function superValidateList<T, A0> (
   if (Array.isArray(attr)) {
     path.push("[", "", "]");
     for (var idx = 0, attrlen = attr.length; idx < attrlen; idx++) {
-      var value = validator(reporter, path.set(idx.toString(), -1), attr[idx], a0);
+      var value = validator(reporter, path.set(idx.toString(), -2), attr[idx], a0);
       if (value !== undefined)
         push(value);
     }
@@ -204,12 +204,12 @@ export module AttributeTypes {
     return function validateByEnvList(reporter: Reporter, path: AttributePath, attr, a0: A0) : { [s: string]: T[] } {
       var ret: { [s: string]: T[] } = {};
       if (typeof attr === "object") {
-        path.push("");
+        path.push("[", "", "]");
         for (var k in attr) {
           var list = ret[k] = [];
-          superValidateList(reporter, path.set(k), attr[k], a0, validator, list.push.bind(list));
+          superValidateList(reporter, path.set(k, -2), attr[k], a0, validator, list.push.bind(list));
         }
-        path.pop();
+        path.pop(3);
       }
       else {
         path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
