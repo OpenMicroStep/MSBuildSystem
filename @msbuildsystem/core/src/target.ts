@@ -200,6 +200,24 @@ export class Target extends SelfBuildGraph<RootGraph> {
 }
 
 export namespace Target {
+  export function validateDirectory(reporter: Reporter, path: AttributePath, value: any, target: Target) {
+    if (typeof value === "string") {
+      let v = AttributeTypes.validateString(reporter, path, value);
+      if (v !== undefined) {
+        v = util.pathJoinIfRelative(target.paths.output, v);
+        return File.getShared(v, true);
+      }
+    }
+    else if (value instanceof FileElement) {
+      let f = value.__file;
+      return f.isDirectory ? f : f.directory();
+    }
+    else {
+      path.diagnostic(reporter, { type: "warning", msg: "attribute must be a 'file' element or a string" });
+    }
+    return undefined;
+  }
+
   export class GenerateExports extends GenerateFileTask {
     constructor(graph: Target, public info: any, path: string) {
       super({ type: "exports", name: graph.name.name }, graph, path);

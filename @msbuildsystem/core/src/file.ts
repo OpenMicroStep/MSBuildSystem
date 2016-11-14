@@ -18,6 +18,8 @@ export class File {
   }
 
   private static files: Map<string, File> = new Map<any, any>();
+  static getShared(filePath: string, isDirectory: true) : Directory;
+  static getShared(filePath: string, isDirectory?: boolean) : File;
   static getShared(filePath: string, isDirectory = false) : File {
     var file = File.files.get(filePath);
     if (file) return file;
@@ -29,6 +31,10 @@ export class File {
     if (!file)
       File.files.set(filePath, file = new File(filePath, isDirectory));
     return file;
+  }
+
+  directory() : Directory {
+    return <Directory>File.getShared(path.dirname(this.path), true);
   }
 
   static ensureDirs = new Map<string, (cb: (...args) => void) => void>();
@@ -161,7 +167,7 @@ export class File {
     fs.writeFile(this.path, content, "utf8", cb);
   }
   ensureDir(cb: (err: Error) => void) {
-    var dir = path.dirname(this.path);
+    var dir = this.isDirectory ? this.path : path.dirname(this.path);
     var ensure = File.ensureDirs.get(dir);
     if (!ensure)
       File.ensureDirs.set(dir, ensure = util.once((cb) => { fs.ensureDir(dir, cb); }));
@@ -196,4 +202,8 @@ export class File {
       cb(err && (<NodeJS.ErrnoException>err).code !== "ENOENT" ? err : undefined);
     });
   }
+}
+
+export interface Directory extends File {
+  isDirectory: true;
 }

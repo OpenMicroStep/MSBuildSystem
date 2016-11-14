@@ -5,6 +5,10 @@ export function pathJoinIfRelative(basePath: string, relativeOrAbsolutePath: str
   return path.isAbsolute(relativeOrAbsolutePath) ? relativeOrAbsolutePath : path.join(basePath, relativeOrAbsolutePath);
 }
 
+export function pathRelativeToBase(basePath: string, absolutePath: string) {
+  return path.relative(basePath, absolutePath);
+}
+
 export function timeElapsed(title: string, action: () => void) : number;
 export function timeElapsed(action: () => void) : number;
 export function timeElapsed(title: string) : () => number;
