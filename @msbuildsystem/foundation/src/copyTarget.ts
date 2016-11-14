@@ -15,13 +15,12 @@ export class CopyTarget extends Target {
     return path.join(this.paths.output, this.copyBasePath);
   }
 
-  buildGraph(reporter: Reporter) : { copy?: CopyTask } {
+  buildGraph(reporter: Reporter) {
+    super.buildGraph(reporter);
     if (this.copyFiles.length) {
       let copy = new CopyTask("bundle resources", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyBasePath());
-      return { copy: copy };
     }
-    return {};
   }
 }
 

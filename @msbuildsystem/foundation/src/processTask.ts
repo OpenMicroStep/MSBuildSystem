@@ -8,10 +8,11 @@ export type Arg = string | (string|File)[];
 export class ProcessTask extends Task {
   args: Arg[] = [];
   env?: {[s: string]: string} = undefined;
-  cwd?: string = undefined;
+  cwd: string;
 
   constructor(name: TaskName, graph: Graph, public inputFiles: File[], public outputFiles: File[], public provider: ProcessProviderConditions) {
     super(name, graph);
+    this.cwd = graph.target().paths.output;
   }
 
   addOptions(options: any) {
@@ -104,12 +105,7 @@ export class ProcessTask extends Task {
     }
   }
 
-  runProcess(step: Step<{ output?: string, err?: any }>, provider: ProcessProvider) {
-    step.setFirstElements((step) => {
-      step.context.reporter.log(step.context.output);
-      step.context.reporter.error(step.context.err);
-      step.continue();
-    });
+  runProcess(step: Step<{}>, provider: ProcessProvider) {
     provider.process(step, {
       action: "run",
       arguments: this.flattenArgs(provider),

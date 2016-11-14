@@ -45,5 +45,5 @@ export abstract class ProcessProvider {
   abstract map(path: string) : string;
 
   /** process the given action */
-  abstract process(step: Step<{ output?: string, err?: any }>, options: ProcessProviderOptions);
+  abstract process(step: Step<{}>, options: ProcessProviderOptions);
 }
