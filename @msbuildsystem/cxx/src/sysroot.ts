@@ -1,15 +1,17 @@
 import {Reporter, File, SelfBuildGraph, TaskName, createProviderList, ProviderList} from '@msbuildsystem/core';
 import {ProcessProviderConditions} from '@msbuildsystem/foundation';
-import {CXXTarget, CXXFramework, CompileTask, LinkTask, CompileFileParams} from './index.priv';
+import {CXXTarget, CXXFramework, CompileTask, LinkTask, CompilerOptions, LinkerOptions, CXXLinkType} from './index.priv';
 import * as path from 'path';
 
 export interface CXXSysrootDefaults {
-  compilers?: { [s: string]: typeof CompileTask };
-  linkers?: { [s: string]: typeof LinkTask };
-  exeLinkers?: { [s: string]: typeof CompileTask };
-  defaultCompiler?: string;
-  defaultLinker?: string;
-  defaultExeLinker?: string;
+  compilers: { [s: string]: typeof CompileTask };
+  ranLinkers: { [s: string]: typeof LinkTask };
+  exeLinkers: { [s: string]: typeof LinkTask };
+  libLinkers: { [s: string]: typeof LinkTask };
+  defaultCompiler: string;
+  defaultRanLinker: string;
+  defaultLibLinker: string;
+  defaultExeLinker: string;
 }
 export type Conditions = {
   /** platform (ie. darwin, linux, win32, mingw-w64, mingw, bsd, ios, ...) */
@@ -40,9 +42,13 @@ export const CXXSysroots = Object.assign(
  */
 export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CXXSysrootDefaults {
   readonly compilers: { [s: string]: typeof CompileTask };
-  readonly linkers: { [s: string]: typeof LinkTask };
+  readonly ranLinkers: { [s: string]: typeof LinkTask };
+  readonly exeLinkers: { [s: string]: typeof LinkTask };
+  readonly libLinkers: { [s: string]: typeof LinkTask };
   readonly defaultCompiler: string;
-  readonly defaultLinker: string;
+  readonly defaultRanLinker: string;
+  readonly defaultLibLinker: string;
+  readonly defaultExeLinker: string;
 
   platform: string;
   version?: string;
@@ -57,7 +63,6 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
 
   buildGraph(reporter: Reporter) {
     this.createTasks(reporter);
-    return {};
   }
 
   createTasks(reporter: Reporter) : { compileTasks: CompileTask[], linkTasks: LinkTask[] }  {
@@ -65,6 +70,7 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
     let linkTask =  this.createLinkTask(reporter);
     linkTask.addDependencies(compileTasks);
     linkTask.addObjFiles(compileTasks.map(c => c.outputFiles[0]));
+    this.configureLinkTask(reporter, linkTask, this.graph.linkerOptions);
     return { compileTasks: compileTasks, linkTasks: [linkTask] };
   }
 
@@ -75,13 +81,14 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
       let relativePath = path.relative(target.project.directory, srcFile.path + ".o");
       let objFile = File.getShared(path.join(target.paths.intermediates, relativePath));
       let task = this.createCompileTask(reporter, srcFile, objFile, params);
+      this.configureCompileTask(reporter, task, params);
       compileTasks.push(task);
     });
     return compileTasks;
   }
 
-  createCompileTask(reporter: Reporter, srcFile: File, objFile: File, params: CompileFileParams) : CompileTask {
-    params.compiler = params.compiler || this.graph.compiler || this.defaultCompiler;
+  createCompileTask(reporter: Reporter, srcFile: File, objFile: File, params: CompilerOptions) : CompileTask {
+    params.compiler = params.compiler || this.graph.compilerOptions.compiler || this.defaultCompiler;
     let compilerCstor = this.compilers[params.compiler];
     if (!compilerCstor) {
       reporter.diagnostic({ type: "error", msg: `unsupported compiler '${params.compiler}` });
@@ -90,18 +97,41 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
     return new compilerCstor(this, srcFile, objFile, this.compileTaskProvider(params));
   }
 
-  compileTaskProvider(params: CompileFileParams) : ProcessProviderConditions {
+  configureCompileTask(reporter: Reporter, task: CompileTask, params: CompilerOptions) {
+    task.addOptions(this.graph.compilerOptions);
+  }
+
+  compileTaskProvider(params: CompilerOptions) : ProcessProviderConditions {
     return {compiler: params.compiler! };
   }
 
+  protected defaultLinker(type: CXXLinkType) {
+    switch (type) {
+      case CXXLinkType.STATIC: return this.defaultRanLinker;
+      case CXXLinkType.DYNAMIC: return this.defaultLibLinker;
+      case CXXLinkType.EXECUTABLE: return this.defaultExeLinker;
+    }
+  }
+  protected linkers(type: CXXLinkType) {
+    switch (type) {
+      case CXXLinkType.STATIC: return this.ranLinkers;
+      case CXXLinkType.DYNAMIC: return this.libLinkers;
+      case CXXLinkType.EXECUTABLE: return this.exeLinkers;
+    }
+  }
+
   createLinkTask(reporter: Reporter) : LinkTask {
-    let linkerName = this.graph.linker || this.defaultLinker;
-    let linkerCstor = this.linkers[linkerName];
+    let linkerName = this.graph.linkerOptions.linker || this.defaultLinker(this.graph.linkType);
+    let linkerCstor = this.linkers(this.graph.linkType)[linkerName];
     if (!linkerCstor) {
       reporter.diagnostic({ type: "error", msg: `unsupported compiler '${linkerName}` });
       linkerCstor = LinkTask;
     }
     return new linkerCstor(this, File.getShared(this.linkFinalPath()), this.graph.linkType, this.linkTaskProvider(linkerName));
+  }
+
+  configureLinkTask(reporter: Reporter, task: LinkTask, params: LinkerOptions) {
+    task.addOptions(this.graph.linkerOptions);
   }
 
   linkTaskProvider(linkerName: string) : ProcessProviderConditions {

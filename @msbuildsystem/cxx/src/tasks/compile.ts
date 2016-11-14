@@ -1,10 +1,30 @@
-import {File, declareTask, Step, Graph, Diagnostic, StepWithData} from '@msbuildsystem/core';
+import {
+  File, Directory, declareTask, Step, Graph, Diagnostic, StepWithData,
+  AttributeTypes, Target, AttributePath, Reporter
+} from '@msbuildsystem/core';
 import {ProcessTask, ProcessProviderConditions} from '@msbuildsystem/foundation';
 
 //              1:path  2:row 3:col    4:ranges                      5:type                                  6:msg     7:option     8:category
 var rxdiag  = /^([^:]+):(\d+):(\d+):(?:((?:\{\d+:\d+-\d+:\d+\})+):)? (warning|(?:fatal )?error|note|remark): (.+?)(?:\[([^,\]]+)(?:,([^\]]+))?\])?$/;
 //                     1:path       2-5:range                   6:replacement
 var rxfixit = /^fix-it:"([^"]+)":\{(\d+):(\d+)-(\d+):(\d+)\}:"([^"]+)"$/;
+
+export type CompilerOptions = {
+  language: string | undefined;
+  compiler: string | undefined;
+  defines: string[];
+  flags: string[];
+  includeDirectories: Directory[];
+  frameworkDirectories: Directory[];
+}
+export const validateCompilerOptions = AttributeTypes.mergedObjectListValidator<CompilerOptions, Target>([
+    { path: 'language'            , validator: AttributeTypes.validateString, default: undefined },
+    { path: 'compiler'            , validator: AttributeTypes.validateString, default: undefined },
+    { path: 'defines'             , validator: AttributeTypes.validateStringList, default: [] },
+    { path: 'flags'               , validator: AttributeTypes.validateStringList, default: [] },
+    { path: 'includeDirectories'  , validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+    { path: 'frameworkDirectories', validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+]);
 
 @declareTask({ type: "cxxcompile" })
 export class CompileTask extends ProcessTask {
@@ -20,21 +40,23 @@ export class CompileTask extends ProcessTask {
     this.appendArgs(["-MMD", "-MF", [this.hmapFile]]);
   }
 
-  addOptions(options: any) {
-    if (options.includeSearchPath) {
-      options.includeSearchPath.forEach((dir) => {
-        var d = File.getShared(dir, true);
-        this.inputFiles.push(d);
-        this.addFlags([['-I', d]]);
+  addOptions(options: CompilerOptions) {
+    if (options.includeDirectories && options.includeDirectories.length) {
+      options.includeDirectories.forEach((dir) => {
+        this.inputFiles.push(dir);
+        this.addFlags([['-I', dir]]);
       });
     }
-    if (options.frameworkPath) {
-      options.frameworkPath.forEach((dir) => {
-        var d = File.getShared(dir, true);
-        this.inputFiles.push(d);
-        this.addFlags([['-F', d]]);
+    if (options.defines && options.defines.length) {
+      this.addFlags(options.defines.map(def => '-D' + def));
+    }
+    if (options.frameworkDirectories && options.frameworkDirectories.length) {
+      options.frameworkDirectories.forEach((dir) => {
+        this.inputFiles.push(dir);
+        this.addFlags([['-F', dir]]);
       });
     }
+    this.addFlags(options.flags);
   }
 
   parseHeaderMap(step: StepWithData<{}, {}, { headers?: string[] }>) {

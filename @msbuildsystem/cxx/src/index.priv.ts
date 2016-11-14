@@ -1,13 +1,15 @@
-export * from './target';
-export * from './sysroot';
-
 export * from './tasks/compile';
 export * from './tasks/compileClang';
 export * from './tasks/compileGCC';
 export * from './tasks/compileMasm';
 
 export * from './tasks/link';
+export * from './tasks/linkClang';
 export * from './tasks/linkLibTool';
+
+export * from './target';
+export * from './sysroot';
+
 //export {LinkBinUtilsTask} from './tasks/linkBinUtils';
 //export {LinkMSCVTask} from './tasks/linkMSVC';
 

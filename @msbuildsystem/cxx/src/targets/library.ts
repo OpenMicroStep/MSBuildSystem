@@ -1,4 +1,4 @@
-import {declareTarget, resolver, AttributeTypes, Reporter, FileElement} from '@msbuildsystem/core';
+import {declareTarget, resolver, AttributeTypes, Reporter, FileElement, AttributePath} from '@msbuildsystem/core';
 import {CopyTask} from '@msbuildsystem/foundation';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
@@ -14,10 +14,13 @@ export class CXXLibrary extends CXXTarget {
   @resolver(AttributeTypes.validateString)
   publicHeadersBasePath: string = "includes";
 
+  @resolver(AttributeTypes.validateString)
+  publicHeadersFolder: string = this.outputName;
+
   taskCopyPublicHeaders?: CopyTask;
 
-  configure(reporter: Reporter) {
-    super.configure(reporter);
+  configure(reporter: Reporter, path: AttributePath) {
+    super.configure(reporter, path);
     this.linkType = this.static ? CXXLinkType.STATIC : CXXLinkType.DYNAMIC;
   }
 
@@ -25,27 +28,25 @@ export class CXXLibrary extends CXXTarget {
     return path.join(this.paths.output, this.publicHeadersBasePath);
   }
 
+  absolutePublicHeadersPath() {
+    return path.join(this.absolutePublicHeadersBasePath(), this.publicHeadersFolder);
+  }
+
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
     if (this.publicHeaders.length) {
       let copy = this.taskCopyPublicHeaders = new CopyTask("public headers", this);
-      copy.willCopyFileGroups(reporter, this.publicHeaders, this.absolutePublicHeadersBasePath());
-      this.sysroot.addDependency(copy); // is this dependency really necessary ?
+      copy.willCopyFileGroups(reporter, this.publicHeaders, this.absolutePublicHeadersPath());
+      this.sysroot.addDependency(copy);
     }
   }
 
-  /*
-  exports(targetToConfigure: Target, callback: ErrCallback) {
-    if (targetToConfigure instanceof CXXTarget) {
-      targetToConfigure.addIncludeDirectory(this.buildPublicHeaderPath());
-      if (this.linkType === CXXTarget.LinkType.STATIC)
-        targetToConfigure.addArchives([this.sysroot.linkFinalPath(this)]);
-      else
-        targetToConfigure.addLibraries([this.sysroot.linkFinalPath(this)]);
-      super.exports(targetToConfigure, callback);
-    }
-    else {
-      return callback(new Error("target " +  targetToConfigure.targetName + " is incompable with " + this.targetName));
-    }
-  }*/
+  configureExports(reporter: Reporter) {
+    super.configureExports(reporter);
+    let exports = this.exports;
+    let linkerOptions = {};
+    linkerOptions[this.linkType === CXXLinkType.STATIC ? "archives" : "libraries"] = [exports.__filepath(this.sysroot.linkFinalPath())];
+    exports["compilerOptions"] = [{ includeDirectories: [exports.__filepath(this.absolutePublicHeadersBasePath())] }];
+    exports["linkerOptions"] = [linkerOptions];
+  }
 }

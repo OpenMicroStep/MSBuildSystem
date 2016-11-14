@@ -1,24 +1,30 @@
 import {declareTask, Graph, File} from '@msbuildsystem/core';
 import {Arg} from '@msbuildsystem/foundation';
-import {CXXLinkType, LinkTask} from '../index.priv';
+import {CXXLinkType, LinkTask, LinkerOptions} from '../index.priv';
 
-@declareTask({ type: "link-libtool" })
-export class LinkLibToolTask extends LinkTask {
-  constructor(graph: Graph, finalFile: File, type: CXXLinkType, provider?) {
-    provider = provider || (type === CXXLinkType.STATIC ? {linker: "libtool"} : { compiler: "clang"});
+@declareTask({ type: "link-clang" })
+export class LinkClangTask extends LinkTask {
+  constructor(graph: Graph, finalFile: File, type: CXXLinkType, provider = { compiler: "clang"}) {
     super(graph, finalFile, type, provider);
     if (this.type === CXXLinkType.STATIC) {
       this.appendArgs(["-static", "-o", [finalFile]]);
     }
     else {
       if (this.type === CXXLinkType.DYNAMIC)
-        this.appendArgs(["-dynamic"]);
+        this.appendArgs(["-shared"]);
       this.appendArgs(["-o", [finalFile]]);
     }
     this.appendArgs(this.inputFiles.map(function (file) {
       return file.path;
     }));
   }
+
+  addOptions(options: LinkerOptions) {
+    this.appendArgs(options.archives);
+    this.appendArgs(options.libraries);
+    super.addOptions(options);
+  }
+
   addFlags(libs: Arg[]) {
     this.insertArgs(3, libs);
   }

@@ -1,4 +1,4 @@
-import {declareTarget, resolver, FileElement, AttributeTypes, Reporter} from '@msbuildsystem/core';
+import {declareTarget, resolver, FileElement, AttributeTypes, Reporter, AttributePath, File} from '@msbuildsystem/core';
 import {CopyTask} from '@msbuildsystem/foundation';
 import {CXXLibrary, PlistInfoTask, HeaderAliasTask} from '../index.priv';
 import * as path from 'path';
@@ -24,9 +24,13 @@ export class CXXFramework extends CXXLibrary {
   bundleInfoPath: string = "Info.plist";
 
   publicHeadersBasePath: string = "Headers";
+  publicHeadersFolder = "";
 
+  absoluteBundleDirectory() {
+    return this.paths.output;
+  }
   absoluteBundleBasePath() {
-    return path.join(this.paths.output, this.bundleBasePath);
+    return path.join(this.absoluteBundleDirectory(), this.bundleBasePath);
   }
   absoluteBundleResourcesBasePath() {
     return path.join(this.absoluteBundleBasePath(), this.bundleResourcesBasePath);
@@ -37,22 +41,20 @@ export class CXXFramework extends CXXLibrary {
   absolutePublicHeadersBasePath() {
     return path.join(this.absoluteBundleBasePath(), this.publicHeadersBasePath);
   }
-  absolutePublicHeadersAliasPath() {
-    return path.join(this.paths.intermediates, "alias", this.outputName + ".framework", "Headers");
-  }
 
   taskAliasHeader?: HeaderAliasTask;
   taskPlistInfo?: PlistInfoTask;
   taskCopyBundleResources?: CopyTask;
 
+  configure(reporter: Reporter, path: AttributePath) {
+    super.configure(reporter, path);
+    let dir = File.getShared(this.absoluteBundleDirectory(), true);
+    this.compilerOptions.frameworkDirectories.push(dir);
+    this.linkerOptions.frameworkDirectories.push(dir);
+  }
+
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
-    if (this.taskCopyPublicHeaders) {
-      let aliaspath = this.absolutePublicHeadersAliasPath();
-      let h = this.taskAliasHeader = new HeaderAliasTask(this, aliaspath);
-      this.sysroot.addDependency(h);
-      this.taskCopyPublicHeaders.foreach(h.willAliasHeader.bind(h));
-    }
     if (this.bundleInfo) {
       this.taskPlistInfo = new PlistInfoTask(this, this.bundleInfo, this.absoluteBundleInfoPath());
     }

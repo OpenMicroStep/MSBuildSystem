@@ -12,8 +12,8 @@ export class HeaderAliasTask extends Task {
   }
 
   /** Make this task copy file 'inFile' to 'outFile' */
-  willAliasHeader(inFile: string, outFile: string) {
-    this.steps.push([File.getShared(inFile), File.getShared(outFile)]);
+  willAliasHeader(inFile: File, outFile: File) {
+    this.steps.push([inFile, outFile]);
   }
 
   run(fstep: Step<{}>) {

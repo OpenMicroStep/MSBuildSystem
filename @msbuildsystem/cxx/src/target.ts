@@ -1,10 +1,14 @@
 import {
   Target, File, Reporter,
   AttributePath, AttributeTypes,
-  resolver, FileElement, Diagnostic
+  resolver, FileElement
 } from '@msbuildsystem/core';
-import {CXXSysroot, CXXSysroots} from './index.priv';
-const {validateString, validateStringList} = AttributeTypes;
+import {
+  CXXSysroot, CXXSysroots,
+  CompilerOptions, validateCompilerOptions,
+  LinkerOptions, validateLinkerOptions
+} from './index.priv';
+
 export var CXXSourceExtensions: { [s: string]: string } =  {
   '.m' : 'OBJC',
   '.c' : 'C',
@@ -47,7 +51,13 @@ export function validateSysroot(reporter: Reporter, path: AttributePath, value: 
   return undefined;
 }
 
-export type CompileFileParams = {language: string | undefined, compiler: string | undefined, compileFlags: string[]};
+const compilerExtensions = <AttributeTypes.Extension<any, Target>[]>[
+  { path: 'language'          , validator: AttributeTypes.validateString, default: null },
+  { path: 'compiler'          , validator: AttributeTypes.validateString, default: null },
+  { path: 'defines'           , validator: AttributeTypes.validateStringList, default: [] },
+  { path: 'compileFlags'      , validator: AttributeTypes.validateStringList, default: [] },
+  { path: 'includeDirectories', validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+];
 
 /**
  * Base target for C/C++ targets (library, framework, executable)
@@ -57,46 +67,23 @@ export abstract class CXXTarget extends Target {
   @resolver(validateSysroot)
   sysroot: CXXSysroot;
 
-  @resolver(AttributeTypes.validateString)
-  compiler: string | null = null;
+  @resolver(validateCompilerOptions)
+  compilerOptions: CompilerOptions;
 
-  @resolver(AttributeTypes.validateString)
-  linker: string | null = null;
+  @resolver(validateLinkerOptions)
+  linkerOptions: LinkerOptions;
 
-  @resolver(AttributeTypes.validateStringSet)
-  includeDirectories: Set<string> = new Set();
-
-  @resolver(AttributeTypes.mapValidator(FileElement.validateFile, [
-    { path: 'language', validator: validateString, default: undefined },
-    { path: 'compiler', validator: validateString, default: undefined },
-    { path: 'compileFlags', validator: validateStringList, default: [] }
-  ]))
-  files: Map<File, CompileFileParams>;
-
-  @resolver(AttributeTypes.validateStringList)
-  defines: string[] = [];
-
-  @resolver(AttributeTypes.validateStringList)
-  compileFlags: string[] = [];
-
-  @resolver(AttributeTypes.validateStringList)
-  linkFlags: string[] = [];
-
-  @resolver(AttributeTypes.validateStringList)
-  libraries: string[] = [];
-
-  @resolver(AttributeTypes.validateStringList)
-  archives: string[] = [];
-
-  @resolver(AttributeTypes.validateStringList)
-  frameworks: string[] = [];
-
-  sysrootProvider;
-  compilerProvider;
+  @resolver(AttributeTypes.mapValidator<File, CompilerOptions, Target>(FileElement.validateFile, compilerExtensions))
+  files: Map<File, CompilerOptions>;
 
   linkType: CXXLinkType;
 
   buildGraph(reporter: Reporter) {
+    super.buildGraph(reporter);
     this.sysroot.buildGraph(reporter);
+  }
+
+  configure(reporter: Reporter, path: AttributePath) {
+    super.configure(reporter, path);
   }
 }
