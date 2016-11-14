@@ -18,8 +18,12 @@ export class Barrier {
   }
 
   break() {
-    this.counter = 0;
+    if (this.counter < 0)
+      return; // you can broke a barrier only once
+
+    this.counter = -1;
     if (this.action) {
+      this.counter = -2;
       let action = this.action;
       action();
       this.action = undefined;
@@ -35,13 +39,14 @@ export class Barrier {
   }
 
   endWith(action: () => any) {
-    if (this.counter === 1) {
+    if (this.counter === -1) {
+      // the barrier is broken by force, do the action
       action();
-      this.counter = 0;
+      this.counter = -2;
     }
-    else if (this.counter > 1) {
+    else {
       this.action = action;
-      this.counter--;
+      this.dec();
     }
   }
 }

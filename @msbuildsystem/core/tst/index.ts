@@ -1,3 +1,4 @@
+import {tests as barrier_tests} from './barrier.spec';
 import {tests as attributes_tests} from './attributes.spec';
 import {tests as util_tests} from './util.spec';
 import {tests as file_tests} from './file.spec';
@@ -6,6 +7,7 @@ import {tests as project_tests} from './project.spec';
 import {tests as element_tests} from './element.spec';
 
 export function tests() {
+  describe('barrier', barrier_tests);
   describe('attributes', attributes_tests);
   describe('util', util_tests);
   describe('file', file_tests);
