@@ -1,6 +1,6 @@
 import {Workspace, AttributePath, Target, getTargetClass, util, Diagnostic,
-  TGraph, Task, File, Reporter, MakeJS, Element,
-  ProjectElement, BuildTargetElement, TargetElement, FileElement, EnvironmentElement
+  TGraph, Task, Reporter, MakeJS,
+  ProjectElement, BuildTargetElement, TargetElement, EnvironmentElement
 } from './index.priv';
 import * as path from 'path';
 
@@ -24,35 +24,39 @@ export class RootGraph extends TGraph<Target> {
     super({ name: "Root", type: "root" }, null!);
   }
 
-  doConfigure(reporter: Reporter) {
+  buildGraph(reporter: Reporter) {
     this.iterate(false, (t: Target) => {
-      t.doConfigure(reporter);
-      reporter.diagnostics.forEach(d => {
-        //if (!d.path) d.path = `${t.name.variant}/${t.name.environment}/${t.name.name}`;
-      });
+      t.buildGraph(reporter);
       return true;
     });
   }
 
-  buildTargetElement(reporter: Reporter, target: TargetElement, environment: EnvironmentElement, variant: string) {
-    let ret = this.buildTargetElements.find(e => {
-      return e.__target === target && e.environment === environment && e.variant === variant;
-    });
-    if (!ret) {
-      this.buildTargetElements.push(ret = new BuildTargetElement(reporter, this, target, environment, variant));
-      ret.__resolveTargets(reporter);
-    }
-    return ret;
-  }
-
-  buildTarget(reporter: Reporter, buildTarget: BuildTargetElement, outputdir: string) : Target | null {
+  buildTarget(reporter: Reporter, requester: BuildTargetElement | null, target: TargetElement, environment: EnvironmentElement, variant: string, outputdir: string) : Target | null {
     let task: Target | null = null;
     this.iterate(false, (t: Target) => {
-      if (t.attributes === buildTarget)
+      let e = t.attributes;
+      if (e.__target === target && e.environment === environment && e.variant === variant)
         task = t;
       return !task;
     });
-    if (!task) {
+    if (!task && requester) {
+      let buildTarget = this.buildTargetElements.find(e => {
+        return e.__target === target && e.environment === environment && e.variant === variant;
+      });
+      if (buildTarget) {
+        reporter.diagnostic({
+          type: "error",
+          msg: `cyclic dependencies between ${requester.__path()} and ${buildTarget.__path()}`,
+          path: requester.__path()
+        });
+      }
+      else {
+        requester = null;
+      }
+    }
+    if (!task && !requester) {
+      reporter.transform.push(transformWithCategory('instantiate'));
+      let buildTarget = new BuildTargetElement(reporter, this, target, environment, variant, outputdir);
       let cls = getTargetClass(buildTarget.type);
       if (!cls) {
         reporter.diagnostic({
@@ -60,25 +64,19 @@ export class RootGraph extends TGraph<Target> {
           msg: `cannot create target ${buildTarget.__path()}, unsupported target type ${buildTarget.type}`,
           path: buildTarget.__path()
         });
-        return null;
       }
-      task = new cls(this, buildTarget.__project(), buildTarget, {
-        outputBasePath: outputdir,
-        buildPath: path.join(outputdir, '.build'),
-      });
-      task.attributes.targets.forEach((dependency) => {
-        var t = this.buildTarget(reporter, dependency, outputdir);
-        if (t && (t === task || t.allDependencies().has(task!))) {
-          reporter.diagnostic({
-            type: "error",
-            msg: `cyclic dependencies between ${t.attributes.__path()} and ${task!.attributes.__path()}`,
-            path: buildTarget.__path()
-          });
-        }
-        else if (t) {
-          task!.addDependency(t);
-        }
-      });
+      else {
+        task = new cls(this, buildTarget.__project(), buildTarget);
+      }
+      reporter.transform.pop();
+      if (task) {
+        reporter.transform.push(transformWithCategory('configure'));
+        task.configure(reporter, new AttributePath(task));
+        reporter.transform.pop();
+        reporter.transform.push(transformWithCategory('exports'));
+        task.configureExports(reporter);
+        reporter.transform.pop();
+      }
     }
     return task;
   }
@@ -93,14 +91,14 @@ export class RootGraph extends TGraph<Target> {
 }
 
 export class Project {
-  public workspace: Workspace;
-  public directory: string;
-  public path: string;
-  public definition: MakeJS.Project | null;
-  public targets: TargetElement[];
-  public environments: EnvironmentElement[];
-  protected tree: ProjectElement;
-  public reporter: Reporter;
+  workspace: Workspace;
+  directory: string;
+  path: string;
+  definition: MakeJS.Project | null;
+  targets: TargetElement[];
+  environments: EnvironmentElement[];
+  tree: ProjectElement;
+  reporter: Reporter;
 
   constructor(workspace: Workspace, directory: string, name = "make.js") {
     this.workspace = workspace;
@@ -153,7 +151,7 @@ export class Project {
     if (options.environments)
       environments = environments.filter(c => options.environments!.indexOf(c.name) !== -1);
 
-    reporter.transform.push(transformWithCategory('graph'));
+    // Phase 1: create targets graph
     targets.forEach(target => {
       let targetEnvs = target.environments.filter(e => environments.indexOf(e) !== -1);
       targetEnvs.forEach(environment => {
@@ -161,29 +159,18 @@ export class Project {
           let outputdirpath = outputdir
             .replace(/\$\{environment\}/g, environment.name)
             .replace(/\$\{variant\}/g, variant);
-          root.buildTarget(reporter, root.buildTargetElement(reporter, target, environment, variant), outputdirpath);
+          root.buildTarget(reporter, null, target, environment, variant, outputdirpath);
         });
       });
     });
-    reporter.transform.pop();
 
-    reporter.transform.push(transformWithCategory('configure'));
-    root.doConfigure(reporter);
-    reporter.transform.pop();
-    return root;
-  }
-
-  resolveElements(reporter: Reporter, query: string) : Element[] {
-    return this.tree.resolveElements(reporter, query);
-  }
-
-  resolveFiles(reporter: Reporter, query: string) : File[] {
-    var ret = <File[]>[];
-    for (let el of this.tree.resolveElements(reporter, query)) {
-      if (el.is === 'file')
-        ret.push((<FileElement>el).__file);
+    // Phase 2: create sub graph for each target
+    if (!reporter.failed) {
+      reporter.transform.push(transformWithCategory('graph'));
+      root.buildGraph(reporter);
+      reporter.transform.pop();
     }
-    return ret;
+    return root;
   }
 }
 

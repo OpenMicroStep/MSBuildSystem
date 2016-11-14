@@ -1,9 +1,9 @@
-import {Reporter, AttributePath, Project, ComponentElement, GroupElement, util,
+import {Reporter, AttributePath, AttributeTypes, Project, ComponentElement, GroupElement, util,
   MakeJS, BuildTargetElement, TargetElement, Diagnostic
 } from './index.priv';
 
 export type ElementFactory = (reporter: Reporter, name: string | undefined,
-  definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => Element[];
+  definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName: boolean) => Element[];
 export type SimpleElementFactory = (reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => Element;
 
@@ -24,7 +24,6 @@ export function elementValidator<T extends Element>(is: string, cls: { new(...ar
   };
 }
 
-
 export var elementFactories = new Map<string, ElementFactory>();
 export function declareElementFactory(type: string, factory: ElementFactory) {
   elementFactories.set(type, factory);
@@ -33,19 +32,21 @@ export function declareElementFactory(type: string, factory: ElementFactory) {
 export function declareSimpleElementFactory(type: string, factory: SimpleElementFactory) {
   elementFactories.set(type, function simpleElementFactory(
     reporter: Reporter, name: string | undefined,
-    definition: MakeJS.Element, attrPath: AttributePath, parent: Element
+    definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName
   ) : Element[] {
-    name = handleSimpleElementName(reporter, name, definition.name, attrPath);
-    return name ? [factory(reporter, name, definition, attrPath, parent)] : [];
+    name = handleSimpleElementName(reporter, name, definition.name, attrPath, allowNoName);
+    return name !== undefined ? [factory(reporter, name, definition, attrPath, parent)] : [];
   });
 }
 
-export function handleSimpleElementName(reporter: Reporter, namespaceName: string | undefined, definitionName: string | undefined, attrPath: AttributePath) {
+export function handleSimpleElementName(reporter: Reporter, namespaceName: string | undefined, definitionName: string | undefined, attrPath: AttributePath, allowNoName: boolean) {
   if (!namespaceName) {
     if (typeof definitionName === 'string' && definitionName.length > 0)
       namespaceName = definitionName;
-    else
+    else if (!allowNoName)
       attrPath.diagnostic(reporter, { type: 'error', msg: `'name' attribute must be a non empty string` });
+    else
+      namespaceName = "";
   }
   else if (namespaceName === definitionName) {
     attrPath.diagnostic(reporter, { type: 'warning', msg: `'name' attribute is already defined by the namespace` });
@@ -65,18 +66,20 @@ export class Element {
   __resolved: boolean;
   is: string;
   name: string;
+  tags: string[];
   [s: string]: any;
 
-  static warningProbableMisuseOfKey = new Set(["tags", "components", "elements", "depth"]);
+  static warningProbableMisuseOfKey = new Set(["tags", "components", "elements", "depth", "exports"]);
 
-  constructor(is: string, name: string, parent: Element | null) {
+  constructor(is: string, name: string, parent: Element | null, tags: string[] = []) {
     this.__parent = parent;
     this.__resolved = false;
     this.is = is;
     this.name = name;
+    this.tags = tags;
   }
 
-  static instantiate(reporter: Reporter, name: string | undefined, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) : Element[] {
+  static instantiate(reporter: Reporter, name: string | undefined, definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName = false) : Element[] {
     var is = definition.is;
     var error: string | undefined;
     if (typeof is !== 'string')
@@ -87,7 +90,7 @@ export class Element {
         error = `'is' attribute must be a valid element type`;
       else {
         attrPath = name ? new AttributePath(parent, ':', name) : attrPath;
-        var elements = factory(reporter, name, definition, attrPath, parent);
+        var elements = factory(reporter, name, definition, attrPath, parent, allowNoName);
         for (var element of elements)
           element.__load(reporter, definition, !name && element.name ? new AttributePath(element) : attrPath);
         return elements;
@@ -97,6 +100,8 @@ export class Element {
     return [];
   }
 
+  ///////////////////
+  // Load definitions
   __load(reporter: Reporter, definition: MakeJS.Element, attrPath: AttributePath) {
     attrPath.push('', '');
     for (var k in definition) {
@@ -120,12 +125,76 @@ export class Element {
         if (Element.warningProbableMisuseOfKey.has(k)) {
           attrPath.diagnostic(reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for other element types` });
         }
-        this[k] = v;
+        this[k] = this.__loadValue(reporter, v, attrPath);
       }
     }
     attrPath.pop(2);
   }
 
+  __loadValue(reporter: Reporter, value: any, attrPath: AttributePath) {
+    if (typeof value === "object") {
+      if (Array.isArray(value))
+        return this.__loadArray(reporter, value, [], attrPath);
+      return this.__loadObject(reporter, value, {}, attrPath);
+    }
+    return value;
+  }
+  __loadIfObject(reporter: Reporter, object: {[s: string]: any}, into: {[s: string]: any}, attrPath: AttributePath) {
+    if (AttributeTypes.validateObject(reporter, attrPath, object) !== undefined)
+      this.__loadObject(reporter, object, into, attrPath);
+  }
+  __loadObject(reporter: Reporter, object: {[s: string]: any}, into: {[s: string]: any}, attrPath: AttributePath) {
+    attrPath.push('.', '');
+    for (var k in object) {
+      var v = object[k];
+      attrPath.set(k);
+      if (Element.warningProbableMisuseOfKey.has(k)) {
+        attrPath.diagnostic(reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for some elements` });
+      }
+      into[k] = v;
+    }
+    attrPath.pop(2);
+    return into;
+  }
+  __loadIfArray(reporter: Reporter, values: any[], into: any[], attrPath: AttributePath) {
+    if (AttributeTypes.validateArray(reporter, attrPath, values) !== undefined)
+      this.__loadArray(reporter, values, into, attrPath);
+  }
+  __loadArray(reporter: Reporter, values: any[], into: any[], attrPath: AttributePath) {
+    attrPath.push('[', '', ']');
+    for (var i = 0, len = values.length; i < len; ++i) {
+      var v = values[i];
+      if (typeof v === "object") {
+        if (Array.isArray(v))
+          into.push(this.__loadArray(reporter, v, [], attrPath.set(i, -2)));
+        else
+          this.__loadObjectInArray(reporter, v, into, attrPath.set(i, -2));
+      }
+      else {
+        into.push(v);
+      }
+    }
+    attrPath.pop(3);
+    return into;
+  }
+  __loadObjectInArray(reporter: Reporter, object: {[s: string]: any}, into: any[], attrPath: AttributePath) {
+    if ("is" in object) {
+      var subs = Element.instantiate(reporter, undefined, <MakeJS.Element>object, attrPath, this, true);
+      for (var j = 0, jlen = subs.length; j < jlen; ++j) {
+        var sub = subs[j];
+        if (sub && sub.name) {
+          var k = sub.name + "=";
+          if (k in this)
+            attrPath.diagnostic(reporter, { type: 'error', msg: `conflict with an element defined with the same name: '${sub.name}'` });
+          this[k] = sub;
+        }
+      }
+      into.push(...subs);
+    }
+    else {
+      into.push(this.__loadObject(reporter, object, {}, attrPath));
+    }
+  }
   __loadNamespace(reporter: Reporter, name: string, value: MakeJS.Element, attrPath: AttributePath) {
     var els = Element.instantiate(reporter, name, value, attrPath, this);
     if (els.length > 1)
@@ -137,49 +206,23 @@ export class Element {
       this[name] = els[0];
     }
   }
-
   __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    attrPath.diagnostic(reporter, { type: 'error', msg: `'${key}' can't be defined, this key is reserved` });
-    // 'is' is handled by the instantiate method
-  }
-
-  __loadElements(reporter: Reporter, elements: (MakeJS.Element|string)[], attrPath: AttributePath
-  ) : (ComponentElement|GroupElement|string)[] {
-    var list = <any[]>[];
-    if (Array.isArray(elements)) {
-      for (var i = 0, len = elements.length; i < len; i++) {
-        var e = elements[i];
-        if (typeof e === 'string') {
-          list.push(e); // this will be resolved in a 2nd pass (__resolve)
-        }
-        else if (typeof e === 'object') {
-          attrPath.push("[", "", "]");
-          var subs = Element.instantiate(reporter, undefined, <MakeJS.Element>e, attrPath.set(i, -2), this);
-          for (var j = 0, jlen = subs.length; j < jlen; ++j) {
-            var sub = subs[j];
-            if (sub && sub.name) {
-              var k = sub.name + "=";
-              if (k in this)
-                attrPath.diagnostic(reporter, { type: 'error', msg: `conflict with an element defined with the same name: '${sub.name}'` });
-              this[k] = sub;
-            }
-          }
-          list.push(...subs);
-          attrPath.pop(3);
-        }
-      }
+    if (key === 'tags') {
+      this.tags = AttributeTypes.validateStringList(reporter, new AttributePath(this, '.', key), value);
     }
     else {
-      attrPath.diagnostic(reporter, { type: 'error', msg: `attribute must be an array of elements` });
+      attrPath.diagnostic(reporter, { type: 'error', msg: `'${key}' can't be defined, this key is reserved` });
+      // 'is' is handled by the instantiate method
     }
-    return list;
   }
+  // Load definitions
+  ///////////////////
 
+  ///////////////////
+  // Resolve elements
   __resolve(reporter: Reporter) {
     this.__resolved = true;
-    let attrPath = new AttributePath(this, '.', '');
-    for (var k in this)
-      this.__resolveValueForKey(reporter, this[k], k, false, attrPath.set(k));
+    this.__resolveValuesInObject(reporter, this, this, false, new AttributePath(this));
   }
   __resolveValueForKey(reporter: Reporter, v, k: string, keepGroups: boolean, attrPath: AttributePath) {
     if (k[k.length - 1] === "=") {
@@ -187,33 +230,43 @@ export class Element {
         (<Element>v).__resolve(reporter);
     }
     else if (Array.isArray(v)) {
-      this[k] = this.__resolveValues(reporter, v, keepGroups, attrPath);
+      this[k] = this.__resolveValuesInArray(reporter, v, keepGroups, attrPath);
     }
-    else if (k.endsWith("ByEnvironment") && typeof v === 'object') {
-      this[k] = this.__resolveValuesByEnv(reporter, v, keepGroups, attrPath);
+    else if (typeof v === 'object') {
+      this[k] = this.__resolveValuesInObject(reporter, v, {}, keepGroups, attrPath);
     }
   }
-  __resolveValuesByEnv(reporter: Reporter, valuesByEnv: { [s: string]: any[]}, keepGroups: boolean, attrPath: AttributePath) : { [s: string]: any[]} {
-    var copy: { [s: string]: any[]} = {};
-    attrPath.push('[', '', ']');
-    for (var env in valuesByEnv) {
-      var v = valuesByEnv[env];
-      if (Array.isArray(v)) {
-        copy[env] = Array.isArray(v) ? this.__resolveValues(reporter, v, keepGroups, attrPath.set(env, -2)) : v;
+  __resolveValuesInObject(reporter: Reporter, object: { [s: string]: any}, into: { [s: string]: any}, keepGroups: boolean, attrPath: AttributePath) : { [s: string]: any[]} {
+    attrPath.push('.', '');
+    for (var key in object) { if (key[0] === '_' && key[1] === '_') continue;
+      var v = object[key];
+      into[key] = this.__resolveAnyValue(reporter, v, keepGroups, attrPath.set(key));
+    }
+    attrPath.pop(2);
+    return into;
+  }
+  __resolveAnyValue(reporter: Reporter, value, keepGroups: boolean, attrPath: AttributePath) {
+    if (typeof value === "object") {
+      if (Array.isArray(value))
+        return this.__resolveValuesInArray(reporter, value, keepGroups, attrPath);
+      if (value instanceof Element) {
+        if (!value.__resolved)
+          value.__resolve(reporter);
+        return value;
       }
+      return this.__resolveValuesInObject(reporter, value, {}, keepGroups, attrPath);
     }
-    attrPath.pop(3);
-    return copy;
+    return value;
   }
-  __resolveValues(reporter: Reporter, values: any[], keepGroups: boolean, attrPath: AttributePath) : any[] {
+  __resolveValuesInArray(reporter: Reporter, values: any[], keepGroups: boolean, attrPath: AttributePath) : any[] {
     var ret: any[] = [];
     attrPath.push('[', '', ']');
     for (var i = 0, len = values.length; i < len; ++i)
-      this.__resolveValue(reporter, values[i], ret, keepGroups, attrPath.set(i, -2));
+      this.__resolveValueInArray(reporter, values[i], ret, keepGroups, attrPath.set(i, -2));
     attrPath.pop(3);
     return ret;
   }
-  __resolveValue(reporter: Reporter, el, ret: any[], keepGroups: boolean, attrPath: AttributePath) {
+  __resolveValueInArray(reporter: Reporter, el, ret: any[], keepGroups: boolean, attrPath: AttributePath) {
     if (el instanceof DelayedElement && !el.__parent) {
       el.__parent = this;
     }
@@ -229,31 +282,27 @@ export class Element {
     else if (typeof el === "object" && typeof el.value === "object" && Array.isArray(el.value)) {
       // resolve complex values
       attrPath.push('.value');
-      el.value = this.__resolveValues(reporter, el.value, keepGroups, attrPath);
+      el.value = this.__resolveValuesInArray(reporter, el.value, keepGroups, attrPath);
       attrPath.pop();
     }
     ret.push(el);
   }
-  __resolveElements<T extends Element>(reporter: Reporter, elements: any[], path: string, is: string) {
+  // Resolve elements
+  ///////////////////
+
+  __validateElements<T extends Element>(reporter: Reporter, elements: any[], path: string, isList: string[]) {
     var components = <T[]>[];
     for (var i = 0, len = elements.length; i < len; i++) {
       var cmp = elements[i];
-      if (cmp instanceof Element) {
-        if (cmp.is !== is && cmp.is !== 'delayed') {
-          reporter.diagnostic({
-            type: 'error',
-            msg:  `only elements of type '${is}' are accepted, got {is: '${cmp.is}', name: '${cmp.name}'}'`,
-            path: `'${this.__path()}.${path}[${i}]`
-          });
-        }
-        else {
-          components.push(<T>cmp);
-        }
-      }
+      var ok = cmp instanceof Element;
+      if (ok && !(ok = isList.indexOf(cmp.is) !== -1))
+        cmp = {is: cmp.is, name: cmp.name};
+      if (ok)
+        components.push(<T>cmp);
       else {
         reporter.diagnostic({
           type: 'error',
-          msg:  `only elements of type '${is}' are accepted, got ${JSON.stringify(cmp)}`,
+          msg:  `only elements of type ${JSON.stringify(isList)} are accepted, got ${JSON.stringify(cmp)}`,
           path: `'${this.__path()}.${path}[${i}]`
         });
       }
@@ -287,16 +336,24 @@ export class Element {
     let ret: Element[] = [];
     let sides = query.split("?");
     let groups = sides[0].split("+");
-    let tags = (sides[1] || "").split("+").map(t => t.trim().replace(/^!\s+/, "!"));
-    tags = tags.filter((t, i) => {
-      var ok =  t.length > (t[0] === '!' ? 1 : 0);
-      if (!ok && tags.length > 1)
-        reportDiagnostic(reporter, attrPath, {
-          type: "warning",
-          msg: `query '${query}' is invalid, one the tags is an empty string, the tag '${t}' is ignored`
-        });
-      return ok;
-    });
+    let requiredTags = <string[]>[];
+    let rejectedTags = <string[]>[];
+    if (sides[1]) {
+      sides[1].split("+").forEach(t => {
+        t = t.trim();
+        let isNeg = t[0] === '!';
+        if (isNeg)
+          t = t.replace(/^!\s*/, "");
+        if (t.length === 0) {
+          reportDiagnostic(reporter, attrPath, {
+            type: "warning",
+            msg: `query '${query}' is invalid, one the tags is an empty string, the tag '${t}' is ignored`
+          });
+        }
+        else
+          (isNeg ? rejectedTags : requiredTags).push(t);
+      });
+    }
     for (let group of groups) {
       let delayed = false;
       let el: Element | null = this;
@@ -310,7 +367,7 @@ export class Element {
           && steps[2].length > 0
           && ((steps[3].length === 0) || (steps.length >= 6 && steps[4].length === 0))
           ) { // ::[env:]target::
-            ret.push(new DelayedQuery(steps, tags, this));
+            ret.push(new DelayedQuery(steps, sides[1] || "", this));
             delayed = true;
             el = null;
             break;
@@ -338,16 +395,20 @@ export class Element {
       if (el) {
         if (!el.__resolved)
           el.__resolve(reporter);
-        if (el.is === 'group' && !keepGroups) {
+        if (!keepGroups) {
           let els = el.is === 'group' ? (<GroupElement>el).elements || [] : [el];
-          for (let e of <({tags: string[]} & Element)[]><any[]>els) {
-            let ok = ((e.tags && e.tags.length) || 0) >= tags.length;
-            for (let i = 0, len = tags.length; ok && i < len; ++i) {
-              let tag = tags[i];
-              ok = (e.tags.indexOf(tag) !== -1) === (tag[0] !== '!');
+          let requiredTagsLen = requiredTags.length;
+          let rejectedTagsLen = rejectedTags.length;
+          let e: {tags: string[]} & Element, i: number;
+          for (e of <any[]>els) {
+            let ok = ((e.tags && e.tags.length) || 0) >= requiredTagsLen;
+            for (i = 0; ok && i < requiredTagsLen; ++i)
+              ok = e.tags.indexOf(requiredTags[i]) !== -1;
+            for (i = 0; ok && i < rejectedTagsLen; ++i)
+              ok = e.tags.indexOf(rejectedTags[i]) === -1;
+            if (ok) {
+              ret.push(e instanceof TargetElement ? new DelayedTarget(e, this) : e);
             }
-            if (ok)
-              ret.push(e);
           }
         }
         else {
@@ -381,13 +442,13 @@ export class DelayedElement extends Element {
 }
 
 export class DelayedQuery extends DelayedElement {
-  constructor(public steps: string[], public tags: string[], parent: Element | null) {
+  constructor(public steps: string[], public tagsQuery: string, parent: Element | null) {
     super(parent);
   }
   __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
     let env = this.steps[3].length > 0 ? this.steps[2] : null;
     let target = this.steps[env ? 3 : 2];
-    const size = env ? 6 : 5;
+    const size = env ? 5 : 4;
     let project = this.__parent!.__project();
     let workspace = project.workspace;
     let targets = <TargetElement[]>[];
@@ -398,7 +459,7 @@ export class DelayedQuery extends DelayedElement {
     if (targets.length === 0) {
       attrPath.diagnostic(reporter, {
         type: "error",
-        msg: `query '${this.steps.join(':')}?${this.tags.join('+')}' is invalid, the target '${target}' is not present in the workspace`
+        msg: `query '${this.steps.join(':')}${this.tagsQuery ? "?" + this.tagsQuery : ""}' is invalid, the target '${target}' is not present in the workspace`
       });
     }
     else if (targets.length > 1) {
@@ -411,18 +472,26 @@ export class DelayedQuery extends DelayedElement {
     else {
       let targetElement: TargetElement = targets[0];
       let envStr = env ? { name: env, compatibleEnvironments: [] } : buildTarget.environment;
-      let envElement = targetElement.__compatibleEnvironment(reporter, envStr);
-      if (envElement) {
-        if (this.steps.length > size || this.tags.length > 0) {
-          // we must now resolve exported components
-          let p = `${this.steps.slice(size).join(':')}?${this.tags.join('+')}`;
-          elements = targetElement.__resolveExports(reporter, envElement).resolveElements(reporter, p);
-          buildTarget.resolveElementsForEnvironment(reporter, elements, envElement);
-        }
-        else {
-          elements = [buildTarget.buildTargetElement(reporter, targetElement, envElement)];
-        }
+      let exports = buildTarget.__resolveDelayedExports(reporter, targetElement, envStr);
+      if (exports) {
+        let p = `${this.steps.slice(size).join(':')}${this.tagsQuery ? "?" + this.tagsQuery : ""}`;
+        elements = exports.resolveElements(reporter, p);
       }
+    }
+    return elements;
+  }
+}
+
+export class DelayedTarget extends DelayedElement {
+  constructor(public target: TargetElement, parent: Element | null) {
+    super(parent);
+  }
+  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
+    let elements = <Element[]>[];
+    let targetElement: TargetElement = this.target;
+    let exports = buildTarget.__resolveDelayedExports(reporter, targetElement, buildTarget.environment);
+    if (exports) {
+      elements = [exports];
     }
     return elements;
   }

@@ -45,7 +45,7 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
   let tags = "tags" in definition ? AttributeTypes.validateStringList(reporter, attrPath, definition["tags"]) : [];
   for (let i = 0, len = files.length; i < len; ++i) {
     let file = files[i];
-    list.push(new FileElement(file, parent, tags));
+    list.push(new FileElement(typeof name === "string" ? name : null, file, parent, tags));
   }
   return list;
 });
@@ -53,12 +53,10 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
 export class FileElement extends Element {
   is: 'file';
   __file: File;
-  tags: string[];
 
-  constructor(file: File, parent: Element, tags: string[]) {
-    super('file', file.name, parent);
+  constructor(name: string | null, file: File, parent: Element, tags: string[]) {
+    super('file', name || file.name, parent, tags);
     this.__file = file;
-    this.tags = tags;
   }
 
   __loadNamespace(reporter: Reporter, name: string, value, attrPath: AttributePath) {
@@ -66,7 +64,7 @@ export class FileElement extends Element {
   }
 
   __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    if (key !== 'tags') // name and tags are handled by instanciate
+    if (key !== 'tags') // name and tags are handled by instantiation
       super.__loadReservedValue(reporter, key, value, attrPath);
   }
 }
@@ -79,8 +77,7 @@ export module FileElement {
   };
   export const validateFileSet = AttributeTypes.setValidator(validateFile);
   export type FileGroup = { values: File[], ext: { dest: string, expand: boolean } };
-  export const validateFileGroup =
-  AttributeTypes.groupValidator<File, { dest: string, expand: boolean }>(
+  export const validateFileGroup = AttributeTypes.groupValidator<File, { dest: string, expand: boolean }>(
     validateFile,
     [
       {path: "dest"  , validator: AttributeTypes.validateString , default: ""   },

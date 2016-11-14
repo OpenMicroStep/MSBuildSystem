@@ -1,6 +1,6 @@
 import {Project, RootGraph, Reporter,
-  AttributePath, AttributeTypes,
-  Task, Graph, TaskName, BuildTargetElement, File
+  AttributePath, AttributeTypes, TargetExportsElement, FileElement, ComponentElement,
+  Task, Graph, TaskName, BuildTargetElement, File, util, GenerateFileTask
 } from './index.priv';
 import {Hash} from 'crypto';
 import * as path from 'path';
@@ -18,8 +18,8 @@ export function getTargetClass(type: string) : typeof Target | undefined {
   return targetClasses.get(type);
 }
 
-export class PropertyResolver<V extends AttributeTypes.Validator<T, Target>, T> {
-  constructor(public validator: V, public attributePath: string, public propertyPath?: string) {}
+export class PropertyResolver<T> {
+  constructor(public validator: AttributeTypes.Validator<T, Target>, public attributePath: string, public propertyPath?: string) {}
 
   resolve(reporter: Reporter, into: SelfBuildGraph<any>, target: Target, path: AttributePath = new AttributePath(target)) : T | undefined {
     let attr = target.attributes[this.attributePath];
@@ -35,19 +35,19 @@ export class PropertyResolver<V extends AttributeTypes.Validator<T, Target>, T> 
   }
 }
 
-function setupResolvers(prototype: { resolvers: PropertyResolver<any, any>[] }) : PropertyResolver<any, any>[] {
+function setupResolvers(prototype: { resolvers: PropertyResolver<any>[] }) : PropertyResolver<any>[] {
   let p = prototype;
   if (!p.hasOwnProperty('resolvers'))
     p.resolvers = prototype.resolvers ? prototype.resolvers.slice() : [];
   return p.resolvers;
 }
 
-export function pushResolvers(prototype: { resolvers: PropertyResolver<any, any>[] }, r: PropertyResolver<any, any>[]) {
+export function pushResolvers(prototype: { resolvers: PropertyResolver<any>[] }, r: PropertyResolver<any>[]) {
   setupResolvers(prototype).push(...r);
 }
 
-export function declareResolvers(r: PropertyResolver<any, any>[]) {
-  return function installResolvers(cls: { prototype: { resolvers: PropertyResolver<any, any>[] } }) {
+export function declareResolvers(r: PropertyResolver<any>[]) {
+  return function installResolvers(cls: { prototype: { resolvers: PropertyResolver<any>[] } }) {
     pushResolvers(cls.prototype, r);
   };
 }
@@ -60,7 +60,7 @@ export function resolver<T>(r: AttributeTypes.Validator<T, Target>, options?: {
 }
 
 export abstract class SelfBuildGraph<P extends Graph> extends Graph {
-  readonly resolvers: PropertyResolver<any, any>[]; // on the prototype
+  readonly resolvers: PropertyResolver<any>[]; // on the prototype
   graph: P;
 
   constructor(name: TaskName, graph: P) {
@@ -77,7 +77,7 @@ export abstract class SelfBuildGraph<P extends Graph> extends Graph {
 }
 setupResolvers(SelfBuildGraph.prototype);
 
-const configureResolver = new PropertyResolver<AttributeTypes.Validator<void, Target>, void>(AttributeTypes.functionValidator("(target: Target) => void"), "configure");
+const configureResolver = new PropertyResolver<void>(AttributeTypes.functionValidator("(target: Target) => void"), "configure");
 
 export class Target extends SelfBuildGraph<RootGraph> {
   name: { type: "target", name: string, environment: string, variant: string, project: string };
@@ -85,11 +85,14 @@ export class Target extends SelfBuildGraph<RootGraph> {
   dependencies: Set<Target>;
   requiredBy: Set<Target>;
 
+  exports: TargetExportsElement;
+  exportsTask: Target.GenerateExports;
   project: Project;
   attributes: BuildTargetElement;
   paths: {
     output: string,
     build: string,
+    shared: string,
     intermediates: string,
     tasks: string,
   };
@@ -105,10 +108,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   @resolver(AttributeTypes.validateString)
   outputFinalName: string | null = null;
 
-  constructor(graph: RootGraph, project: Project, attributes: BuildTargetElement, options: {
-    outputBasePath: string,
-    buildPath: string
-  }) {
+  constructor(graph: RootGraph, project: Project, attributes: BuildTargetElement) {
     super({
       type: "target",
       name: attributes.name,
@@ -125,12 +125,16 @@ export class Target extends SelfBuildGraph<RootGraph> {
     this.attributes = attributes;
 
     this.modifiers = [];
+    let build = path.join(attributes.__outputdir, '.build');
     this.paths = {
-      output       : options.outputBasePath,
-      build        : options.buildPath,
-      intermediates: path.join(options.buildPath, "intermediates", this.targetName),
-      tasks        : path.join(options.buildPath, "tasks")
+      output       : attributes.__outputdir,
+      shared       : path.join(attributes.__outputdir, '.shared'),
+      build        : build,
+      intermediates: path.join(build, "intermediates", this.targetName),
+      tasks        : path.join(build, "tasks")
     };
+    this.exports = new TargetExportsElement(this, this.attributes.name);
+    this.attributes.targets.forEach(t => t.__target && this.addDependency(t.__target));
     fs.ensureDirSync(this.paths.tasks);
   }
 
@@ -148,16 +152,23 @@ export class Target extends SelfBuildGraph<RootGraph> {
     return id ? this.paths.tasks + '/' + id : null;
   }
 
-  doConfigure(reporter: Reporter) {
-    this.configure(reporter);
-    if (!reporter.failed)
-      this.buildGraph(reporter);
-  }
-
-  configure(reporter: Reporter) {
-    let path = new AttributePath(this);
+  configure(reporter: Reporter, path: AttributePath) {
     this.resolve(reporter, this, path);
     configureResolver.resolve(reporter, this, this, path);
+  }
+
+  configureExports(reporter: Reporter) {
+    let components = <ComponentElement[]>[];
+    this.attributes.exports.forEach(c => {
+      if (c.name)
+        this.exports[`${c.name}=`] = c;
+      if (c.is === 'component')
+        components.push(c);
+    });
+  }
+
+  buildGraph(reporter: Reporter) {
+    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(), path.join(this.paths.shared, this.name.name + '.json'));
   }
 
   addDependency(task: Target) {
@@ -187,3 +198,20 @@ export class Target extends SelfBuildGraph<RootGraph> {
 
   listInputFiles(set: Set<File>) { }
 }
+
+export namespace Target {
+  export class GenerateExports extends GenerateFileTask {
+    constructor(graph: Target, public info: any, path: string) {
+      super({ type: "exports", name: graph.name.name }, graph, path);
+    }
+
+    uniqueKeyInfo() : any {
+      return this.info;
+    }
+
+    generate() : Buffer {
+      return new Buffer(JSON.stringify(this.info, null, 2), 'utf8');
+    }
+  }
+}
+

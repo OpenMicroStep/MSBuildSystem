@@ -23,6 +23,32 @@ function superValidateList<T, A0> (
   }
 }
 
+function superFillDefaults<T, A0>(extensions: AttributeTypes.Extension<any, A0>[], into: T, a0: A0) : T {
+  for (var i = 0, len = extensions.length; i < len; i++) {
+    var ext = extensions[i];
+    into[ext.path] = ext.default;
+  }
+  return into;
+}
+
+function superFill<T, A0>(
+  reporter: Reporter, path: AttributePath, attr: any, a0: A0,
+  into: T, extensions: AttributeTypes.Extension<any, A0>[]
+) : T {
+  path.push('[', '', ']');
+  for (var i = 0, len = extensions.length; i < len; i++) {
+    var ext = extensions[i];
+    var v = attr[ext.path];
+    if (v !== undefined) {
+      path.set(ext.path, -2);
+      v = ext.validator(reporter, path, v, a0);
+    }
+    into[ext.path] = v !== undefined ? v : ext.default;
+  }
+  path.pop(3);
+  return into;
+}
+
 function superValidateComplex<T, T2, A0>(
   reporter: Reporter, path: AttributePath, attr: any, a0: A0,
   validator: AttributeTypes.Validator<T, A0>, extensions: AttributeTypes.Extension<any, A0>[],
@@ -33,25 +59,15 @@ function superValidateComplex<T, T2, A0>(
   if (typeof attr === "object" && attr.value) { // complex object
     path.push('.value');
     superValidateList(reporter, path, attr.value, a0, validator, keys.push.bind(keys));
-    path.pop();
-    for (let i = 0, len = extensions.length; i < len; i++) {
-      let ext = extensions[i];
-      let v = attr[ext.path];
-      if (v !== undefined) {
-        path.set(ext.path, -2);
-        v = ext.validator(reporter, path, v, a0);
-      }
-      value[ext.path] = v !== undefined ? v : ext.default;
-    }
+    path.pop(2);
+    superFill(reporter, path, attr, a0, value, extensions);
   }
   else if ((attr = validator(reporter, path, attr, a0))) { // directly the object
     keys.push(attr);
-    for (let i = 0, len = extensions.length; i < len; i++) {
-      let ext = extensions[i];
-      value[ext.path] = ext.default;
-    }
+    superFillDefaults(extensions, value, a0);
   }
-  push(keys, value);
+  if (keys.length > 0)
+    push(keys, value);
   return keys;
 }
 
@@ -63,7 +79,7 @@ export module AttributeTypes {
   export type Validator0<T> = (reporter: Reporter, path: AttributePath, value: any) => T | undefined;
   export type ValidatorNU<T, A0> = (reporter: Reporter, path: AttributePath, value: any, a0: A0) => T;
   export type ValidatorNU0<T> = (reporter: Reporter, path: AttributePath, value: any) => T;
-  export type Reducer<T, R> = (reporter: Reporter, current: T, previous: R | undefined) => R;
+  export type Reducer<T, R, C extends {}> = (reporter: Reporter, path: AttributePath, current: T, previous: R | undefined, context: C) => R;
   export type MapValue<T> = (reporter: Reporter, path: AttributePath, value: any, values: T[], ...args) => void;
   export type Extension<T, A0> = { path: string, validator: AttributeTypes.Validator<T, A0>, default: T };
   export type Extension0<T> = { path: string, validator: AttributeTypes.Validator0<T>, default: T };
@@ -84,6 +100,14 @@ export module AttributeTypes {
   export function validateObject(reporter: Reporter, path: AttributePath, value: any) : { [s: string]: any } | undefined {
     if (typeof value !== "object")
       path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof value}`});
+    else
+      return value;
+    return undefined;
+  }
+
+  export function validateArray(reporter: Reporter, path: AttributePath, value: any) {
+    if (!Array.isArray(value))
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
     else
       return value;
     return undefined;
@@ -117,16 +141,16 @@ export module AttributeTypes {
 
   export function defaultValueValidator<T, A0>(validator: Validator<T, A0>, defaultValue: T) : Validator<T, A0> {
     return function validateWithDefaultValue(reporter, path: AttributePath, value, a0: A0) {
-      if (value === undefined)
+      if (value === undefined || (value = validator(reporter, path, value, a0)) === undefined)
         return defaultValue;
-      return validator(reporter, path, value, a0);
+      return value;
     };
   }
   export function dynamicDefaultValueValidator<T, A0>(validator: Validator<T, A0>, createDefaultValue: (a0: A0) => T) : Validator<T, A0> {
     return function validateWithDefaultValue(reporter, path: AttributePath, value, a0: A0) {
-      if (value === undefined)
+      if (value === undefined || (value = validator(reporter, path, value, a0)) === undefined)
         return createDefaultValue(a0);
-      return validator(reporter, path, value, a0);
+      return value;
     };
   }
 
@@ -142,6 +166,22 @@ export module AttributeTypes {
     return function validateList(reporter: Reporter, path: AttributePath, attr, a0: A0) : T[] {
       let ret = [];
       superValidateList(reporter, path, attr, a0, validator, ret.push.bind(ret));
+      return ret;
+    };
+  }
+
+  export function objectValidator<T>(extensions: Extension0<any>[]) : ValidatorNU0<T>;
+  export function objectValidator<T, A0>(extensions: Extension<any, A0>[]) : ValidatorNU<T, A0>;
+  export function objectValidator<T, A0>(extensions: Extension<any, A0>[]) {
+    return function validateObject(reporter: Reporter, path: AttributePath, attr, a0: A0) : T {
+      var ret = <T>{};
+      if (typeof attr !== "object") {
+        path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
+        superFillDefaults(extensions, ret, a0);
+      }
+      else {
+        superFill(reporter, path, attr, a0, ret, extensions);
+      }
       return ret;
     };
   }
@@ -218,20 +258,63 @@ export module AttributeTypes {
     };
   }
 
-  export function reducedListValidator<T, R>(validator: AttributeTypes.Validator0<T>, reduce: AttributeTypes.Reducer<T, R>) : Validator0<R>;
-  export function reducedListValidator<T, R, A0>(validator: AttributeTypes.Validator<T, A0>, reduce: AttributeTypes.Reducer<T, R>) : Validator<R, A0>;
-  export function reducedListValidator<T, R, A0>(validator: AttributeTypes.Validator<T, A0>, reduce: AttributeTypes.Reducer<T, R>) {
+  export function reducedListValidator<T, R, C>(validator: AttributeTypes.Validator0<T>, reduce: AttributeTypes.Reducer<T, R, C>) : Validator0<R>;
+  export function reducedListValidator<T, R, C, A0>(validator: AttributeTypes.Validator<T, A0>, reduce: AttributeTypes.Reducer<T, R, C>) : Validator<R, A0>;
+  export function reducedListValidator<T, R, C, A0>(validator: AttributeTypes.Validator<T, A0>, reduce: AttributeTypes.Reducer<T, R, C>) {
     return function validateReducedList(reporter: Reporter, path: AttributePath, attr, a0: A0) : R | undefined {
       let previous: R | undefined = undefined;
+      let context = {};
       superValidateList(reporter, path, attr, a0, validator, (value) => {
-        previous = reduce(reporter, value, previous);
+        previous = reduce(reporter, path, value, previous, <C>context);
       });
       return previous;
     };
   }
 
-  export function reduceByMergingObjects(reporter: Reporter, current: { [s: string]: any }, previous: { [s: string]: any } | undefined) : { [s: string]: any } {
-    return Object.assign(previous || {}, current);
+  export function mergedObjectListValidator<R>(extensions: Extension0<any>[]) : Validator0<R>;
+  export function mergedObjectListValidator<R, A0>(extensions: Extension<any, A0>[]) : Validator<R, A0>;
+  export function mergedObjectListValidator<R, A0>(extensions: Extension<any, A0>[]) {
+    return dynamicDefaultValueValidator(reducedListValidator(objectValidator(extensions), reduceByMergingObjects), (a0: A0) => {
+      return superFillDefaults(extensions, {}, a0);
+    });
+  }
+
+  export function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: { [s: string]: any }, previous: { [s: string]: any } | undefined, context: { keysWithSimpleValue?: Set<string> }) : { [s: string]: any } {
+    if (previous === undefined)
+      previous = {};
+    if (!context.keysWithSimpleValue)
+      context.keysWithSimpleValue = new Set();
+    path.push('.', '');
+    for (var key in current) {
+      var cvalue = previous[key];
+      var dvalue = current[key];
+      var cvalueIsArr = cvalue ? Array.isArray(cvalue) : false;
+      var dvalueIsArr = dvalue ? Array.isArray(dvalue) : false;
+      if (cvalue === dvalue) {}
+      else if (cvalue !== undefined && cvalueIsArr !== dvalueIsArr) {
+        path.set(key).diagnostic(reporter, {
+          type: "warning",
+          msg: `attribute value is incoherent for merging, attribute is ignored`
+        });
+      }
+      else if (dvalueIsArr) {
+        if (!cvalue)
+          cvalue = previous[key] = [];
+        cvalue.push(...dvalue);
+      }
+      else if (context.keysWithSimpleValue.has(key)) {
+        path.set(key).diagnostic(reporter, {
+          type: "warning",
+          msg: `attribute value is incoherent for injection, attribute is removed`
+        });
+      }
+      else if (cvalue === undefined) {
+        context.keysWithSimpleValue.add(key);
+        previous[key] = dvalue;
+      }
+    }
+    path.pop(2);
+    return previous;
   }
 
   export const validateStringList = listValidator(AttributeTypes.validateString);
@@ -260,13 +343,6 @@ export module AttributeUtil {
       }
     }
     return defaultReturnValue;
-  }
-
-  export function isArray(reporter: Reporter, path: AttributePath, value: any) {
-    var ret = Array.isArray(value);
-    if (!ret)
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
-    return ret;
   }
 }
 

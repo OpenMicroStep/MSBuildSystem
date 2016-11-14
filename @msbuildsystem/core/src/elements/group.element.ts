@@ -2,17 +2,12 @@ import {Element, declareSimpleElementFactory, ComponentElement, Reporter, MakeJS
 import *  as path from 'path';
 
 declareSimpleElementFactory('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => {
-  return new GroupElement(name, parent);
+  return new GroupElement('group', name, parent);
 });
 export class GroupElement extends Element {
-  elements: ComponentElement[];
+  elements: ComponentElement[] = [];
   /** if defined, the absolute filepath */
-  path?: string;
-  constructor(name: string, parent: Element) {
-    super('group', name, parent);
-    this.elements = [];
-    this.path = undefined;
-  }
+  path: string | undefined = undefined;
 
   __absoluteFilepath() : string {
     return this.path || this.__parent!.__absoluteFilepath();
@@ -24,7 +19,7 @@ export class GroupElement extends Element {
     var type: string | undefined = undefined;
     var is: string | undefined = undefined;
     var loop = (el) => {
-      var cis = el instanceof Element ? el.is : undefined;
+      var cis = el instanceof Element ? el.is : "not an element";
       if (cis === 'group') {
         if (!(<GroupElement><any>el).__resolved)
           (<GroupElement><any>el).__resolve(reporter);
@@ -67,7 +62,7 @@ export class GroupElement extends Element {
 
   __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
     if (key === 'elements') {
-      this.elements = <ComponentElement[]>this.__loadElements(reporter, value, attrPath);
+      this.__loadIfArray(reporter, value, this.elements, attrPath);
     }
     else if (key === 'path') {
       this.path = AttributeTypes.validateString(reporter, attrPath, value);
