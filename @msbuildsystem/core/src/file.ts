@@ -25,11 +25,13 @@ export class File {
     if (file) return file;
     filePath = path.normalize(filePath);
     if (!path.isAbsolute(filePath))
-      throw new Error("'filePath' must be absolute (filePath=" + filePath + ")");
+      throw new Error(`filepath must be absolute, got: '${filePath}'`);
 
     file = File.files.get(filePath);
     if (!file)
       File.files.set(filePath, file = new File(filePath, isDirectory));
+    if (file.isDirectory !== isDirectory)
+      throw new Error(`isDirectory usage is incoherant for file: '${filePath}'`);
     return file;
   }
 
