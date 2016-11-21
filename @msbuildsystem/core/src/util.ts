@@ -1,4 +1,4 @@
-export * from '@msbuildsystem/shared/src/util';
+export * from '@msbuildsystem/shared/util';
 import * as path from 'path';
 
 export function pathJoinIfRelative(basePath: string, relativeOrAbsolutePath: string) {

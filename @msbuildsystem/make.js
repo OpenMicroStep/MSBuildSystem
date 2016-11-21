@@ -3,18 +3,19 @@ module.exports= {
   name: "MSBuildSystem",
   'files=': {
     is: 'group',
-    'core=':             { is: 'group', elements: [{ is: 'file', name: "core/src/**.ts"          }] },
-    'core tests=':       { is: 'group', elements: [{ is: 'file', name: "core/tst/**.ts"          }] },
-    'shared=':           { is: 'group', elements: [{ is: 'file', name: "shared/src/**.ts"        }] },
-    'shared tests=':     { is: 'group', elements: [{ is: 'file', name: "shared/tst/**.ts"        }] },
-    'foundation=':       { is: 'group', elements: [{ is: 'file', name: "foundation/src/**.ts"    }] },
-    'foundation tests=': { is: 'group', elements: [{ is: 'file', name: "foundation/tst/**.ts"    }] },
-    'cxx=':              { is: 'group', elements: [{ is: 'file', name: "cxx/src/**.ts"           }] },
-    'cxx tests=':        { is: 'group', elements: [{ is: 'file', name: "cxx/tst/**.ts"           }] },
-    'js=':               { is: 'group', elements: [{ is: 'file', name: "js/src/**.ts"            }] },
-    'js tests=':         { is: 'group', elements: [{ is: 'file', name: "js/tst/**.ts"            }] },
-    'typescript=':       { is: 'group', elements: [{ is: 'file', name: "js.typescript/src/**.ts" }] },
-    'typescript tests=': { is: 'group', elements: [{ is: 'file', name: "js.typescript/tst/**.ts" }] }
+    'cli=':              { is: 'group', elements: [{ is: 'file', name: "cli/src/index.ts"           }] },
+    'core=':             { is: 'group', elements: [{ is: 'file', name: "core/src/index.ts"          }] },
+    'core tests=':       { is: 'group', elements: [{ is: 'file', name: "core/tst/index.ts"          }] },
+    'shared=':           { is: 'group', elements: [{ is: 'file', name: "shared/src/index.ts"        }] },
+    'shared tests=':     { is: 'group', elements: [{ is: 'file', name: "shared/tst/index.ts"        }] },
+    'foundation=':       { is: 'group', elements: [{ is: 'file', name: "foundation/src/index.ts"    }] },
+    'foundation tests=': { is: 'group', elements: [{ is: 'file', name: "foundation/tst/index.ts"    }] },
+    'cxx=':              { is: 'group', elements: [{ is: 'file', name: "cxx/src/index.ts"           }] },
+    'cxx tests=':        { is: 'group', elements: [{ is: 'file', name: "cxx/tst/index.ts"           }] },
+    'js=':               { is: 'group', elements: [{ is: 'file', name: "js/src/index.ts"            }] },
+    'js tests=':         { is: 'group', elements: [{ is: 'file', name: "js/tst/index.ts"            }] },
+    'typescript=':       { is: 'group', elements: [{ is: 'file', name: "js.typescript/src/index.ts" }] },
+    'typescript tests=': { is: 'group', elements: [{ is: 'file', name: "js.typescript/tst/index.ts" }] }
   },
   'node env=': { is: "environment", packager: "npm" /* generate to node_modules/${target.outputName} */ },
   'base=': {
@@ -36,12 +37,7 @@ module.exports= {
       "noImplicitThis": true,
       "noImplicitReturns": true,
       "lib": ["es6"],
-      "types": ["node"],
-      "baseUrl": ".",
-      "paths": {
-        "@msbuildsystem/core/src/*": ["./node_modules/@msbuildsystem/core/*"],
-        "@msbuildsystem/shared/src/*": ["./node_modules/@msbuildsystem/shared/*"]
-      }
+      "types": ["node"]
     }],
     npmInstall: [{
       "@types/node": "^4.0.30"
@@ -95,6 +91,23 @@ module.exports= {
     targets: ['=shared'],
     files: ['=files:shared tests'],
   },
+  'cli=': {
+    is: "target",
+    outputName: '@msbuildsystem/cli',
+    components: ['=base'],
+    targets: ['=shared'],
+    files: ['=files:cli'],
+    npmInstall: [{
+      "@types/argparse": "^1.0.30",
+      "@types/chalk": "^0.4.31",
+    }],
+    npmPackage: [{
+      "dependencies": {
+        "argparse": "^1.0.9",
+        "chalk": "^1.1.3"
+      }
+    }]
+  },
   'foundation=': {
     is: "target",
     outputName: '@msbuildsystem/foundation',
@@ -102,13 +115,13 @@ module.exports= {
     targets: ['=core'],
     files: ['=files:foundation']
   },
-  'foundation tests=': {
+  /*'foundation tests=': {
     is: "target",
     outputName: '@msbuildsystem/foundation.tests',
     components: ['=base tests'],
     targets: ['=foundation'],
     files: ['=files:foundation tests'],
-  },
+  },*/
   'cxx=': {
     is: "target",
     outputName: '@msbuildsystem/cxx',
@@ -122,5 +135,33 @@ module.exports= {
     components: ['=base tests'],
     targets: ['=cxx'],
     files: ['=files:cxx tests'],
-  }
+  },
+  'js=':               {
+    is: 'target',
+    outputName: '@msbuildsystem/js',
+    components: ['=base'],
+    targets: ['=core', '=foundation'],
+    files: ['=files:js']
+  },
+  'js tests=':         {
+    is: 'target',
+    outputName: '@msbuildsystem/js.tests',
+    components: ['=base tests'],
+    targets: ['=js'],
+    files: ['=files:js tests']
+  },
+  'typescript=':       {
+    is: 'target',
+    outputName: '@msbuildsystem/js.typescript',
+    components: ['=base'],
+    targets: ['=core', '=foundation', '=js'],
+    files: ['=files:typescript']
+  },
+  'typescript tests=': {
+    is: 'target',
+    outputName: '@msbuildsystem/js.typescript.tests',
+    components: ['=base tests'],
+    targets: ['=typescript'],
+    files: ['=files:typescript tests']
+   }
 }

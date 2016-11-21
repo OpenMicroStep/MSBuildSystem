@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-
+declare function describe(name: string, tests: any);
 require('source-map-support').install();
 
 export namespace Loader {
@@ -22,7 +22,7 @@ export namespace Loader {
 
   export var modules = new Map<string, Module>();
   export function loadModules(at?: string, filter?: (moduleName: string, path: string) => boolean) {
-    at = at || path.join(__dirname, '../..'); // parent folder (aka @msbuildsystem folder)
+    at = at || path.join(__dirname, '../'); // parent folder (aka @msbuildsystem folder)
     var dir = fs.readdirSync(at);
     dir.forEach(function(moduleName) {
       try {

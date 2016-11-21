@@ -15,7 +15,7 @@ export * from './target'    ;
 export * from './runner'    ;
 export * from './provider'  ;
 export * from './barrier'   ;
-export { Diagnostic } from '@msbuildsystem/shared/src/diagnostic';
+export { Diagnostic } from '@msbuildsystem/shared';
 export { Project, RootGraph } from './project';
 export { Workspace  } from './workspace';
 export * from './tasks/generateFileTask';
