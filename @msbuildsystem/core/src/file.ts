@@ -141,7 +141,10 @@ export class File {
     return files;
   }
 
-  static commonDirectory(files: File[]) : string {
+  static commonDirectory(files: File[]) : Directory {
+    return <Directory>File.getShared(File.commonDirectoryPath(files), true);
+  }
+  static commonDirectoryPath(files: File[]) : string {
     var k, klen, i, len, file: File;
     var commonPart = "";
     for (i = 0, len = files.length; i < len; i++) {
@@ -203,6 +206,10 @@ export class File {
     fs.unlink(this.path, function(err?) {
       cb(err && (<NodeJS.ErrnoException>err).code !== "ENOENT" ? err : undefined);
     });
+  }
+
+  relativePath(basePath: string) : string {
+    return path.relative(basePath, this.path);
   }
 }
 

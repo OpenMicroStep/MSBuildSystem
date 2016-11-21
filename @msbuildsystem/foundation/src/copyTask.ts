@@ -15,7 +15,7 @@ export class CopyTask extends Task {
   }
 
   willCopyFiles(reporter: Reporter, files: File[], outDir: string, expand: boolean) {
-    var commonPart = expand ? File.commonDirectory(files) : "";
+    var commonPart = expand ? File.commonDirectoryPath(files) : "";
     for (var i = 0, len = files.length; i < len; i++) {
       var file = files[i];
       var p = expand
