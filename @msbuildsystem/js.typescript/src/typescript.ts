@@ -1,4 +1,4 @@
-import { declareTask, Task, Reporter, SelfBuildGraph, File, Step, resolver, AttributeTypes } from '@msbuildsystem/core';
+import { declareTask, Task, Reporter, SelfBuildGraph, File, Step, resolver, AttributeTypes, util } from '@msbuildsystem/core';
 import { JSTarget, JSCompilers } from '@msbuildsystem/js';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
@@ -91,6 +91,33 @@ export class TypescriptTask extends Task {
       emitTsDiagnostics(step.context.reporter, tsDiagnostics);
     }
     step.continue();
+  }
+
+  requiredDo(step: Step<{}>) {
+    if (step.context.runner.action !== "generate")
+      return super.requiredDo(step);
+
+    let ide: string = step.context.runner.options['ide'];
+    if (ide !== 'terminal')
+      return step.continue();
+
+    let dir = File.commonDirectoryPath(this.files);
+    let tsconfig = File.getShared(path.join(dir, 'tsconfig.json'));
+    tsconfig.ensureDir((err) => {
+      if (err) {
+        step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to create directory for writing file" });
+        step.continue();
+      }
+      else {
+        tsconfig.writeUtf8File(JSON.stringify({
+           compilerOptions: this.options,
+           files: this.files.map(f => f.relativePath(dir))
+        }, null, 2), (err) => {
+          if (err) step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to write file" });
+          step.continue();
+        });
+      }
+    });
   }
 }
 
