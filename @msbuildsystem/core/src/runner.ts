@@ -28,6 +28,7 @@ export type StepData<DATA> = DATA & {
   lastRunEndTime: number;
   lastSuccessTime: number;
 };
+
 export type Step<T> = Flux<StepContext<{}, {}> & T>;
 export type StepWithData<T, DATA, SHARED> = Flux<StepContext<DATA, SHARED> & T>;
 
@@ -119,12 +120,14 @@ function createTaskAction(task: Task) {
 export class Runner extends EventEmitter {
   root: Task;
   action: string;
+  options: { [s: string]: any };
   enabled: Set<Task>;
 
-  constructor(root: Task, action: string) {
+  constructor(root: Task, action: string, options: { [s: string]: any } = {}) {
     super();
     this.root = root;
     this.action = action;
+    this.options = options;
     this.enabled = new Set<Task>();
   }
 

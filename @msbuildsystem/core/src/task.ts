@@ -168,8 +168,9 @@ export class Task {
 
       default:
         step.context.reporter.diagnostic({
-          type: "warning",
-          msg: `task doesn't support "${step.context.runner.action}" action`
+          type: "note",
+          msg: `task doesn't support "${step.context.runner.action}" action`,
+          path: this.toString()
         });
         step.continue();
         break;
