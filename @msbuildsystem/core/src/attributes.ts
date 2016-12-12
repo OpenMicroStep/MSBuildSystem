@@ -292,7 +292,8 @@ export module AttributeTypes {
     });
   }
 
-  export function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: { [s: string]: any }, previous: { [s: string]: any } | undefined, context: { keysWithSimpleValue?: Set<string> }) : { [s: string]: any } {
+  export function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: { [s: string]: any }, previous: { [s: string]: any } | undefined,
+    context: { keysWithSimpleValue?: Set<string>, subContexts?: Map<Object, Object> }) : { [s: string]: any } {
     if (previous === undefined)
       previous = {};
     if (!context.keysWithSimpleValue)
@@ -303,8 +304,10 @@ export module AttributeTypes {
       var dvalue = current[key];
       var cvalueIsArr = cvalue ? Array.isArray(cvalue) : false;
       var dvalueIsArr = dvalue ? Array.isArray(dvalue) : false;
+      var cvalueIsObj = typeof cvalue === "object";
+      var dvalueIsObj = typeof dvalue === "object";
       if (cvalue === dvalue) {}
-      else if (cvalue !== undefined && cvalueIsArr !== dvalueIsArr) {
+      else if (cvalue !== undefined && (cvalueIsArr !== dvalueIsArr || cvalueIsObj !== dvalueIsObj)) {
         path.set(key).diagnostic(reporter, {
           type: "warning",
           msg: `attribute value is incoherent for merging, attribute is ignored`
@@ -314,6 +317,16 @@ export module AttributeTypes {
         if (!cvalue)
           cvalue = previous[key] = [];
         cvalue.push(...dvalue);
+      }
+      else if (dvalueIsObj) {
+        if (!cvalue)
+          cvalue = previous[key] = {};
+        if (!context.subContexts)
+          context.subContexts = new Map();
+        let subcontext = context.subContexts.get(cvalue);
+        if (!subcontext)
+          context.subContexts.set(cvalue, subcontext = {});
+        reduceByMergingObjects(reporter, path, dvalue, cvalue, subcontext);
       }
       else if (context.keysWithSimpleValue.has(key)) {
         path.set(key).diagnostic(reporter, {
