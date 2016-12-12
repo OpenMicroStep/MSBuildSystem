@@ -8,9 +8,10 @@ declareSimpleElementFactory('environment', (reporter: Reporter, name: string,
 export class EnvironmentElement extends ComponentElement {
   compatibleEnvironments: string[];
 
-  constructor(name: string, parent: Element) {
+  constructor(name: string, parent: Element, register = true) {
     super('environment', name, parent);
-    this.__project().environments.push(this);
+    if (register)
+      this.__root().__project().environments.push(this);
     this.compatibleEnvironments = [];
   }
 

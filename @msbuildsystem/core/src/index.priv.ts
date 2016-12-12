@@ -6,6 +6,8 @@ import * as MakeJS from './make'; export { MakeJS as MakeJS };
 import * as BuildSession from './buildSession'; export { BuildSession as BuildSession };
 export * from './attributes';
 export * from './element';
+export * from './elements/delayed.element';
+export * from './elements/make.element';
 export * from './elements/group.element';
 export * from './elements/component.element';
 export * from './elements/file.element';

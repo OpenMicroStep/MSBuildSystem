@@ -1,11 +1,11 @@
-import {Element, EnvironmentElement, declareSimpleElementFactory, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
+import {Element, MakeJSElement, declareSimpleElementFactory, Reporter, MakeJS, AttributePath} from '../index.priv';
 
 declareSimpleElementFactory('component', (reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element
 ) => {
   return new ComponentElement('component', name, parent);
 });
-export class ComponentElement extends Element {
+export class ComponentElement extends MakeJSElement {
 
   components: ComponentElement[];
   componentsByEnvironment: { [s: string]: ComponentElement [] };

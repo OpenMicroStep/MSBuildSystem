@@ -1,10 +1,10 @@
-import {Element, declareSimpleElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath} from '../index.priv';
+import {Element, declareSimpleElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath, MakeJSElement} from '../index.priv';
 import *  as path from 'path';
 
 declareSimpleElementFactory('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => {
   return new GroupElement('group', name, parent);
 });
-export class GroupElement extends Element {
+export class GroupElement extends MakeJSElement {
   elements: ComponentElement[] = [];
   /** if defined, the absolute filepath */
   path: string | undefined = undefined;

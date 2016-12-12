@@ -42,7 +42,7 @@ function setupResolvers(prototype: { resolvers: PropertyResolver<any>[] }) : Pro
   return p.resolvers;
 }
 
-export function pushResolvers(prototype: { resolvers: PropertyResolver<any>[] }, r: PropertyResolver<any>[]) {
+function pushResolvers(prototype: { resolvers: PropertyResolver<any>[] }, r: PropertyResolver<any>[]) {
   setupResolvers(prototype).push(...r);
 }
 
@@ -74,6 +74,7 @@ export abstract class SelfBuildGraph<P extends Graph> extends Graph {
   }
 
   buildGraph(reporter: Reporter) {}
+  configureExports(reporter: Reporter) {}
 }
 setupResolvers(SelfBuildGraph.prototype);
 
@@ -125,10 +126,11 @@ export class Target extends SelfBuildGraph<RootGraph> {
     this.attributes = attributes;
 
     this.modifiers = [];
-    let build = path.join(attributes.__outputdir, '.build');
+    let env_variant = `${this.environment}/${this.variant}`;
+    let build = path.join(this.project.workspace.directory, '.build', env_variant);
     this.paths = {
-      output       : attributes.__outputdir,
-      shared       : path.join(attributes.__outputdir, '.shared'),
+      output       : path.join(this.project.workspace.directory, env_variant),
+      shared       : path.join(this.project.workspace.directory, '.shared', env_variant),
       build        : build,
       intermediates: path.join(build, "intermediates", this.targetName),
       tasks        : path.join(build, "tasks")

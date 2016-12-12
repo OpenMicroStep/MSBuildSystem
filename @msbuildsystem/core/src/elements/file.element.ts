@@ -1,5 +1,5 @@
 import {
-  Element,
+  Element, MakeJSElement,
   declareElementFactory, elementValidator,
   AttributeTypes, AttributePath,
   File, util, Reporter, MakeJS
@@ -8,7 +8,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 declareElementFactory('file', (reporter: Reporter, namespacename: string,
-  definition: MakeJS.Element, attrPath: AttributePath, parent: Element
+  definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement
 ) => {
   let name = namespacename || definition.name;
   let files: File[] = [];
@@ -28,8 +28,15 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
   let absolutePath = parent.__absoluteFilepath();
   if (typeof name === "function") {
     let depth = (<MakeJS.File>definition).depth;
-    let relpath = path.relative(parent.__project().directory, absolutePath);
+    let relpath = path.relative(parent.__root().__project().directory, absolutePath);
     loadElementFiles(reporter, absolutePath, relpath, name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
+    if (files.length === 0) {
+      attrPath.diagnostic(reporter, {
+        type: 'warning',
+        msg: `no file found`
+        + `('file' elements requires 'name' to be either a string, a regexp or a filter function)`
+      }, '.name');
+    }
   }
   else if (typeof name === "string") {
     loadElementFile(reporter, new AttributePath(parent, ':', name), util.pathJoinIfRelative(absolutePath, name), files);
@@ -50,7 +57,7 @@ declareElementFactory('file', (reporter: Reporter, namespacename: string,
   return list;
 });
 
-export class FileElement extends Element {
+export class FileElement extends MakeJSElement {
   is: 'file';
   __file: File;
 

@@ -1,4 +1,4 @@
-import {Reporter, util, Diagnostic} from './index.priv';
+import {Reporter, util, Diagnostic, File, Directory} from './index.priv';
 
 export interface Attributes {
   components?: string[];
@@ -119,6 +119,19 @@ export module AttributeTypes {
       path.diagnostic(reporter, { type: "warning", msg: `attribute can't be an empty string`});
     else
       return value;
+    return undefined;
+  }
+  export function validateDirectory(reporter: Reporter, path: AttributePath, value: any, relative: { directory: string }) : Directory | undefined {
+    if (typeof value === "string") {
+      let v = AttributeTypes.validateString(reporter, path, value);
+      if (v !== undefined) {
+        v = util.pathJoinIfRelative(relative.directory, v);
+        return File.getShared(v, true);
+      }
+    }
+    else {
+      path.diagnostic(reporter, { type: "warning", msg: "attribute must be a relative path" });
+    }
     return undefined;
   }
 

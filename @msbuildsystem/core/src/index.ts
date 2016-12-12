@@ -1,7 +1,7 @@
 import * as priv from './index.priv'; priv; // force loading of priv
 export { Async, Flux } from '@msbuildsystem/shared';
 export { Loader  } from './loader';
-export { Element } from './element';
+export { Element, ElementFactory, declareSimpleElementFactory, declareElementFactory } from './element';
 export { GroupElement } from './elements/group.element';
 export { ComponentElement } from './elements/component.element';
 export { FileElement } from './elements/file.element';

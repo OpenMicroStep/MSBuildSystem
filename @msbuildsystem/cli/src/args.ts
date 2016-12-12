@@ -7,11 +7,11 @@ let parser = new ArgumentParser({
 });
 
 function addCommonArguments(parser: ArgumentGroup) {
-  parser.addArgument(['-p', '--project'], { help: "Path to the make.js file or directory, by default this is the current directory" });
+  parser.addArgument(['-p', '--project'  ], { dest: "projects", action: "append", help: "Path to the make.js file or directory, by default this is the current directory" });
   parser.addArgument(['-w', '--workspace'], { help: "Path to the workspace directory (ie. builddirectory)" });
-  parser.addArgument(['--env']    , { dest: "environments", action: "append", help: "Name of environments to consider, by default all environments are used" });
+  parser.addArgument(['--env'    ], { dest: "environments", action: "append", help: "Name of environments to consider, by default all environments are used" });
   parser.addArgument(['--variant'], { dest: "variants"    , action: "append", help: "Name of variants to consider, by default the 'debug' variant is used" });
-  parser.addArgument(['--target'] , { dest: "targets"     , action: "append", help: "Name of targets to consider, by default all targets are used" });
+  parser.addArgument(['--target' ], { dest: "targets"     , action: "append", help: "Name of targets to consider, by default all targets are used" });
 }
 
 let subs = parser.addSubparsers({
@@ -44,7 +44,7 @@ export const args: {
   action?: string;
   ide?: string;
   workspace: string | null;
-  project: string | null;
+  projects: string[] | null;
   targets: string[] | null;
   environments: string[] | null;
   variants: string[] | null;

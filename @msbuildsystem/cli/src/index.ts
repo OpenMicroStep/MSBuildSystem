@@ -4,18 +4,25 @@ import { args } from './args';
 
 Loader.loadModules();
 
-args.workspace = util.pathJoinIfRelative(process.cwd(), args.workspace || "bootstrap/");
-args.project = util.pathJoinIfRelative(process.cwd(), args.project || "");
+const cwd = process.cwd();
+if (args.workspace)
+  args.workspace = util.pathJoinIfRelative(cwd, args.workspace);
+args.projects = args.projects ? args.projects.map(p => util.pathJoinIfRelative(cwd, p)) : [util.pathJoinIfRelative(cwd, "")];
 if (args.command === "run" && args.action)
   args.command = args.action;
 console.info("Arguments", args);
-let workspace = new Workspace(args.workspace);
-let project = workspace.project(args.project);
+let workspace = new Workspace(args.workspace || undefined);
+let projects = args.projects.map(p => workspace.project(p));
 console.info(`Workspace: ${workspace.directory}`);
-console.info(`Project: ${project.path}`);
-if (printReport(project.reporter, 'Project')) {
+console.info(`Projects: ${projects.map(p => p.path).join(', ')}`);
+let results = true;
+projects.forEach(p => {
+  var r = printReport(p.reporter, 'Project');
+  results = results && r;
+});
+if (results) {
   let reporter = new Reporter();
-  let graph = project.buildGraph(reporter, {
+  let graph = workspace.buildGraph(reporter, {
     environments: args.environments || undefined,
     variants: args.variants || undefined,
     targets: args.targets || undefined

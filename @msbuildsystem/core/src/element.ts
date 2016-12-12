@@ -1,5 +1,5 @@
-import {Reporter, AttributePath, AttributeTypes, Project, ComponentElement, GroupElement, util,
-  MakeJS, BuildTargetElement, TargetElement, Diagnostic
+import {Reporter, AttributePath, AttributeTypes, GroupElement, util,
+  MakeJS, DelayedTarget, TargetElement, Diagnostic, transformWithCategory
 } from './index.priv';
 
 export type ElementFactory = (reporter: Reporter, name: string | undefined,
@@ -7,29 +7,12 @@ export type ElementFactory = (reporter: Reporter, name: string | undefined,
 export type SimpleElementFactory = (reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => Element;
 
-export function validateElement(reporter: Reporter, path: AttributePath, value: any) {
-  if (!(value instanceof Element))
-    path.diagnostic(reporter, { type: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
-  else
-    return value;
-  return undefined;
-}
-export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) {
-  return function (reporter: Reporter, path: AttributePath, value: any) {
-    if ((value = validateElement(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
-      return <T>value;
-    if (value !== undefined)
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
-    return undefined;
-  };
-}
-
-export var elementFactories = new Map<string, ElementFactory>();
-export function declareElementFactory(type: string, factory: ElementFactory) {
+export var globalElementFactories = new Map<string, ElementFactory>();
+export function declareElementFactory(type: string, factory: ElementFactory, elementFactories: Map<string, ElementFactory> = globalElementFactories) {
   elementFactories.set(type, factory);
 }
 
-export function declareSimpleElementFactory(type: string, factory: SimpleElementFactory) {
+export function declareSimpleElementFactory(type: string, factory: SimpleElementFactory, elementFactories: Map<string, ElementFactory> = globalElementFactories) {
   elementFactories.set(type, function simpleElementFactory(
     reporter: Reporter, name: string | undefined,
     definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName
@@ -70,6 +53,8 @@ export class Element {
   [s: string]: any;
 
   static warningProbableMisuseOfKey = new Set(["tags", "components", "elements", "depth", "exports"]);
+  private static loadWarningProbableMisuseOfKey: Set<string>;
+  private static loadElementFactories: Map<string, ElementFactory>;
 
   constructor(is: string, name: string, parent: Element | null, tags: string[] = []) {
     this.__parent = parent;
@@ -79,13 +64,37 @@ export class Element {
     this.tags = tags;
   }
 
+  static load<T extends Element>(reporter: Reporter, definition: MakeJS.Element, root: T, options: {
+    warningProbableMisuseOfKey: string[],
+    elementFactories: Map<string, ElementFactory> | string[],
+  }) {
+    if (Array.isArray(options.elementFactories))
+      Element.loadElementFactories = new Map(options.elementFactories.map<[string, ElementFactory]>(k => [k, globalElementFactories.get(k)!]));
+    else
+      Element.loadElementFactories = options.elementFactories;
+    Element.loadWarningProbableMisuseOfKey = new Set(Element.warningProbableMisuseOfKey);
+    options.warningProbableMisuseOfKey.forEach(k => Element.loadWarningProbableMisuseOfKey.add(k));
+
+    reporter.transform.push(transformWithCategory('load'));
+    root.__load(reporter, definition, new AttributePath(root));
+    reporter.transform.pop();
+    reporter.transform.push(transformWithCategory('resolve'));
+    root.__resolve(reporter);
+    reporter.transform.pop();
+
+    Element.loadElementFactories = new Map();
+    Element.loadWarningProbableMisuseOfKey = Element.warningProbableMisuseOfKey;
+
+    return root;
+  }
+
   static instantiate(reporter: Reporter, name: string | undefined, definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName = false) : Element[] {
     var is = definition.is;
     var error: string | undefined;
     if (typeof is !== 'string')
       error = `'is' attribute must be a string`;
     else {
-      var factory = elementFactories.get(is);
+      var factory = Element.loadElementFactories.get(is);
       if (!factory)
         error = `'is' attribute must be a valid element type`;
       else {
@@ -122,7 +131,7 @@ export class Element {
       else {
         // simple property
         attrPath.rewrite('.', k);
-        if (Element.warningProbableMisuseOfKey.has(k)) {
+        if (Element.loadWarningProbableMisuseOfKey.has(k)) {
           attrPath.diagnostic(reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for other element types` });
         }
         this[k] = this.__loadValue(reporter, v, attrPath);
@@ -148,7 +157,7 @@ export class Element {
     for (var k in object) {
       var v = object[k];
       attrPath.set(k);
-      if (Element.warningProbableMisuseOfKey.has(k)) {
+      if (Element.loadWarningProbableMisuseOfKey.has(k)) {
         attrPath.diagnostic(reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for some elements` });
       }
       into[k] = v;
@@ -267,10 +276,7 @@ export class Element {
     return ret;
   }
   __resolveValueInArray(reporter: Reporter, el, ret: any[], keepGroups: boolean, attrPath: AttributePath) {
-    if (el instanceof DelayedElement && !el.__parent) {
-      el.__parent = this;
-    }
-    else if (typeof el === "string") {
+    if (typeof el === "string") {
       if (el[0] === "=") {
         ret.push(...this.__resolveElementsPriv(reporter, el.substring(1), keepGroups, attrPath));
         return;
@@ -310,12 +316,8 @@ export class Element {
     return components;
   }
 
-  __project() : Project {
-    return this.__parent!.__project();
-  }
-
-  __absoluteFilepath() : string {
-    return this.__parent!.__absoluteFilepath();
+  __root() : Element {
+    return this.__parent ? this.__parent.__root() : this;
   }
 
   __path() {
@@ -330,6 +332,10 @@ export class Element {
 
   resolveElements(reporter: Reporter, query: string) {
     return this.__resolveElementsPriv(reporter, query, false, undefined);
+  }
+
+  __resolveElementsSteps(reporter: Reporter, steps: string[], groups: string[], ret: Element[]) : boolean {
+    return false;
   }
 
   __resolveElementsPriv(reporter: Reporter, query: string, keepGroups: boolean | undefined, attrPath: AttributePath | undefined) : Element[] {
@@ -355,24 +361,12 @@ export class Element {
       });
     }
     for (let group of groups) {
-      let delayed = false;
       let el: Element | null = this;
       let steps = group.split(':').map(s => s.trim());
-      for (let i = 0, len = steps.length; el && i < len; ++i) {
-        let step = steps[i];
-        if (step.length === 0) {
-          if (i === 0
-          && steps.length >= 5
-          && steps[1].length === 0
-          && steps[2].length > 0
-          && ((steps[3].length === 0) || (steps.length >= 6 && steps[4].length === 0))
-          ) { // ::[env:]target::
-            ret.push(new DelayedQuery(steps, sides[1] || "", this));
-            delayed = true;
-            el = null;
-            break;
-          }
-          else {
+      if (!this.__resolveElementsSteps(reporter, steps, groups, ret)) {
+        for (let i = 0, len = steps.length; el && i < len; ++i) {
+          let step = steps[i];
+          if (step.length === 0) {
             if (steps.length > 1)
               reportDiagnostic(reporter, attrPath, {
                 type: "warning",
@@ -380,203 +374,75 @@ export class Element {
               });
             break;
           }
-        }
-        let stepeq = step + "=";
-        let found = el[stepeq];
-        if (i === 0) {
-          while (!found && el.__parent) {
-            el = el.__parent;
-            found = el[stepeq];
-          }
-        }
-        el = found;
-      }
-
-      if (el) {
-        if (!el.__resolved)
-          el.__resolve(reporter);
-        if (!keepGroups) {
-          let els = el.is === 'group' ? (<GroupElement>el).elements || [] : [el];
-          let requiredTagsLen = requiredTags.length;
-          let rejectedTagsLen = rejectedTags.length;
-          let e: {tags: string[]} & Element, i: number;
-          for (e of <any[]>els) {
-            let ok = ((e.tags && e.tags.length) || 0) >= requiredTagsLen;
-            for (i = 0; ok && i < requiredTagsLen; ++i)
-              ok = e.tags.indexOf(requiredTags[i]) !== -1;
-            for (i = 0; ok && i < rejectedTagsLen; ++i)
-              ok = e.tags.indexOf(rejectedTags[i]) === -1;
-            if (ok) {
-              ret.push(e instanceof TargetElement ? new DelayedTarget(e, this) : e);
+          let stepeq = step + "=";
+          let found = el[stepeq];
+          if (i === 0) {
+            while (!found && el.__parent) {
+              el = el.__parent;
+              found = el[stepeq];
             }
+          }
+          el = found;
+        }
+
+        if (el) {
+          if (!el.__resolved)
+            el.__resolve(reporter);
+          if (!keepGroups) {
+            let els = el.is === 'group' ? (<GroupElement>el).elements || [] : [el];
+            let requiredTagsLen = requiredTags.length;
+            let rejectedTagsLen = rejectedTags.length;
+            let e: {tags: string[]} & Element, i: number;
+            for (e of <any[]>els) {
+              let ok = ((e.tags && e.tags.length) || 0) >= requiredTagsLen;
+              for (i = 0; ok && i < requiredTagsLen; ++i)
+                ok = e.tags.indexOf(requiredTags[i]) !== -1;
+              for (i = 0; ok && i < rejectedTagsLen; ++i)
+                ok = e.tags.indexOf(rejectedTags[i]) === -1;
+              if (ok) {
+                ret.push(e instanceof TargetElement ? new DelayedTarget(e, this) : e);
+              }
+            }
+          }
+          else {
+            ret.push(el);
           }
         }
         else {
-          ret.push(el);
+          reportDiagnostic(reporter, attrPath, {
+            type: "warning",
+            msg: `query '${query}' refer to a group that can't be found, the group '${group}' is ignored`,
+          });
         }
-      }
-      else if (!delayed) {
-        reportDiagnostic(reporter, attrPath, {
-          type: "warning",
-          msg: `query '${query}' refer to a group that can't be found, the group '${group}' is ignored`,
-        });
       }
     }
     return ret;
   }
 }
 
+export namespace Element {
+  export function validateElement(reporter: Reporter, path: AttributePath, value: any) {
+    if (!(value instanceof Element))
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
+    else
+      return value;
+    return undefined;
+  }
+  export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) {
+    return function (reporter: Reporter, path: AttributePath, value: any) {
+      if ((value = validateElement(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
+        return <T>value;
+      if (value !== undefined)
+        path.diagnostic(reporter, { type: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
+      return undefined;
+    };
+  }
+}
+export const validateElement = Element.validateElement;
+export const elementValidator = Element.elementValidator;
+
 function reportDiagnostic(reporter: Reporter, attrPath: AttributePath | undefined, diagnostic: Diagnostic) {
   if (attrPath)
     diagnostic.path = attrPath.toString();
   reporter.diagnostic(diagnostic);
-}
-
-export class DelayedElement extends Element {
-  constructor(parent: Element | null) {
-    super('delayed', 'delayed', parent);
-  }
-  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
-    throw "must be implemented by subclasses";
-  }
-}
-
-export class DelayedQuery extends DelayedElement {
-  constructor(public steps: string[], public tagsQuery: string, parent: Element | null) {
-    super(parent);
-  }
-  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
-    let env = this.steps[3].length > 0 ? this.steps[2] : null;
-    let target = this.steps[env ? 3 : 2];
-    const size = env ? 5 : 4;
-    let project = this.__parent!.__project();
-    let workspace = project.workspace;
-    let targets = <TargetElement[]>[];
-    let elements = <Element[]>[];
-    workspace.projects.forEach((p) => {
-      targets.push(...p.targets.filter(t => t.name === target));
-    });
-    if (targets.length === 0) {
-      attrPath.diagnostic(reporter, {
-        type: "error",
-        msg: `query '${this.steps.join(':')}${this.tagsQuery ? "?" + this.tagsQuery : ""}' is invalid, the target '${target}' is not present in the workspace`
-      });
-    }
-    else if (targets.length > 1) {
-      // TODO: do this check after project loaded
-      attrPath.diagnostic(reporter, {
-        type: "error",
-        msg: `the target '${target}' is present multiple times in the workspace, this shouldn't happen`
-      });
-    }
-    else {
-      let targetElement: TargetElement = targets[0];
-      let envStr = env ? { name: env, compatibleEnvironments: [] } : buildTarget.environment;
-      let exports = buildTarget.__resolveDelayedExports(reporter, targetElement, envStr);
-      if (exports) {
-        let p = `${this.steps.slice(size).join(':')}${this.tagsQuery ? "?" + this.tagsQuery : ""}`;
-        elements = exports.resolveElements(reporter, p);
-      }
-    }
-    return elements;
-  }
-}
-
-export class DelayedTarget extends DelayedElement {
-  constructor(public target: TargetElement, parent: Element | null) {
-    super(parent);
-  }
-  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
-    let elements = <Element[]>[];
-    let targetElement: TargetElement = this.target;
-    let exports = buildTarget.__resolveDelayedExports(reporter, targetElement, buildTarget.environment);
-    if (exports) {
-      elements = [exports];
-    }
-    return elements;
-  }
-}
-
-type DelayedProxyOp = (reporter: Reporter, buildTarget: BuildTargetElement, parent: Element, map: (value) => any) => any;
-interface DelayedProxy extends DelayedElement {
-  __chain: DelayedProxy | null;
-  __delayedResolveOp: DelayedProxyOp;
-}
-
-function createDelayedProxy(chain: DelayedProxy | null) {
-  let ret = <(() => void) & DelayedProxy>function DelayedProxy() {};
-  ret.__parent = null;
-  ret.__chain = chain;
-  ret.__delayedResolve = function(this: DelayedProxy, reporter: Reporter, buildTarget: BuildTargetElement) : Element[]
-  {
-    return this.__delayedResolveOp(reporter, buildTarget, ret.__parent!, v => v);
-  };
-  return ret;
-}
-
-const delayedQueryOp = function(this: DelayedProxy & { query: string },
-  reporter: Reporter, buildTarget: BuildTargetElement, parent: Element, map: (value) => any
-) {
-  return parent.resolveElements(reporter, this.query).map(map);
-};
-function createDelayedQueryProxy(chain: DelayedProxy | null, query: string) {
-  let ret = <(() => void) & DelayedProxy & { query: string }>createDelayedProxy(chain);
-  ret.__delayedResolveOp = delayedQueryOp;
-  ret.query = query;
-  return ret;
-}
-
-const delayedGetOp = function(this: DelayedProxy & { property: string },
-  reporter: Reporter, buildTarget: BuildTargetElement, parent: Element, map: (value) => any
-) {
-  return this.__chain!.__delayedResolveOp(reporter, buildTarget, parent, (v) => {
-    return map(v[this.property]);
-  });
-};
-function createDelayedGetProxy(chain: DelayedProxy, property: string) {
-  let ret = <(() => void) & DelayedProxy & { property: string }>createDelayedProxy(chain);
-  ret.__delayedResolveOp = delayedGetOp;
-  ret.property = property;
-  return ret;
-}
-
-const delayedApplyOp = function(this: DelayedProxy & { self: any, args: any[] },
-  reporter: Reporter, buildTarget: BuildTargetElement, parent: Element, map: (value) => any
-) {
-  if (this.__chain!.__delayedResolveOp === delayedGetOp && this.self === this.__chain!.__chain) {
-    let get = <DelayedProxy & { property: string }> this.__chain;
-    return get.__chain!.__delayedResolveOp(reporter, buildTarget, parent, (v) => {
-      return map(v[get.property].apply(v, this.args));
-    });
-  }
-  return this.__chain!.__delayedResolveOp(reporter, buildTarget, parent, (v) => {
-    return map(v.apply(this.self, this.args));
-  });
-};
-function createDelayedApplyProxy(chain: DelayedProxy, self, args) {
-  let ret = <(() => void) & DelayedProxy & { self: any, args: any[] }>createDelayedProxy(chain);
-  ret.__delayedResolveOp = delayedApplyOp;
-  ret.self = self;
-  ret.args = args;
-  return ret;
-}
-
-const prototypeOfDelayedElement = Object.getPrototypeOf(new DelayedElement(null));
-let proxyHandler: ProxyHandler<DelayedElement> = {
-  apply: function(target: DelayedProxy, self, args) {
-    return new Proxy<DelayedElement>(createDelayedApplyProxy(target, (self && self.__unproxy) || self, args), proxyHandler);
-  },
-  get: function(target: DelayedProxy, property) {
-    if (property === '__delayedResolve')
-      return (reporter, buildTarget, attrPath) => { return target.__delayedResolve(reporter, buildTarget, attrPath); };
-    if (property === '__unproxy')
-      return target;
-    return new Proxy<DelayedElement>(createDelayedGetProxy(target, property), proxyHandler);
-  },
-  getPrototypeOf: function (t) {
-    return prototypeOfDelayedElement;
-  }
-};
-export function newProxyElement(query: string) {
-  return new Proxy<DelayedElement>(createDelayedQueryProxy(null, query), proxyHandler);
 }

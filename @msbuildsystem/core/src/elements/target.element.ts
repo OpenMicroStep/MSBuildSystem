@@ -1,11 +1,11 @@
 import {declareSimpleElementFactory, elementValidator, validateElement, util,
-  Element, DelayedElement, ComponentElement, EnvironmentElement,
+  Element, DelayedElement, ComponentElement, EnvironmentElement, MakeJSElement,
   Reporter, MakeJS, AttributeTypes, AttributePath, RootGraph, Target
 } from '../index.priv';
 
-declareSimpleElementFactory('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: Element) => {
+declareSimpleElementFactory('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: MakeJSElement) => {
   let target = new TargetElement(name, parent);
-  parent.__project().targets.push(target);
+  parent.__root().__project().targets.push(target);
   return target;
 });
 export class TargetElement extends ComponentElement {
@@ -146,7 +146,7 @@ export class TargetExportsElement extends ComponentElement {
 
 const notInjectableKeys = /(^__)|([^\\]=$)|tags|elements/;
 
-export class BuildTargetElement extends Element {
+export class BuildTargetElement extends MakeJSElement {
   variant: string;
   environment: EnvironmentElement;
   targets: TargetExportsElement[];
@@ -154,12 +154,11 @@ export class BuildTargetElement extends Element {
   exports: ComponentElement[];
   type: string;
   __target: TargetElement;
-  __outputdir: string;
-  __root: RootGraph;
+  ___root: RootGraph;
 
   static notInjectedKeys = new Set(["tags", "elements"]);
 
-  constructor(reporter: Reporter, root: RootGraph, target: TargetElement, environment: EnvironmentElement, variant: string, outputdir: string) {
+  constructor(reporter: Reporter, root: RootGraph, target: TargetElement, environment: EnvironmentElement, variant: string) {
     super('build-target', target.name, target.__parent!); // the parent is the same as the target to have the same resolution behavior
     this.is = 'build-target';
     this.variant = variant;
@@ -168,8 +167,7 @@ export class BuildTargetElement extends Element {
     this.components = [];
     this.exports = [];
     this.__target = target;
-    this.__outputdir = outputdir;
-    this.__root = root;
+    this.___root = root;
     this.__injectElements(reporter, [target]);
     this.__injectElements(reporter, [this.environment]);
     let at = new AttributePath(this);
@@ -283,7 +281,7 @@ export class BuildTargetElement extends Element {
   __resolveDelayedExports(reporter: Reporter, target: TargetElement, environment: {name: string, compatibleEnvironments: string[]}) {
     let compatibleEnv = target.__compatibleEnvironment(reporter, environment);
     if (compatibleEnv) {
-      let realTarget = this.__root.buildTarget(reporter, this, target, compatibleEnv, this.variant, this.__outputdir);
+      let realTarget = this.___root.createTarget(reporter, this, target, compatibleEnv, this.variant);
       if (realTarget)
         return realTarget.exports;
     }

@@ -1,6 +1,6 @@
-import {Element, Project} from '../index.priv';
+import {Project, MakeJSElement} from '../index.priv';
 
-export class ProjectElement extends Element {
+export class ProjectElement extends MakeJSElement {
   ___project: Project;
 
   constructor(project: Project, name: string) {
@@ -8,11 +8,11 @@ export class ProjectElement extends Element {
     this.___project = project;
   }
 
-  __project() {
-    return this.___project;
-  }
-
   __absoluteFilepath() : string {
     return this.___project.directory;
+  }
+
+  __project() {
+    return this.___project;
   }
 }
