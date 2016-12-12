@@ -15,7 +15,9 @@ module.exports= {
     'js=':               { is: 'group', elements: [{ is: 'file', name: "js/src/index.ts"            }] },
     'js tests=':         { is: 'group', elements: [{ is: 'file', name: "js/tst/index.ts"            }] },
     'typescript=':       { is: 'group', elements: [{ is: 'file', name: "js.typescript/src/index.ts" }] },
-    'typescript tests=': { is: 'group', elements: [{ is: 'file', name: "js.typescript/tst/index.ts" }] }
+    'typescript tests=': { is: 'group', elements: [{ is: 'file', name: "js.typescript/tst/index.ts" }] },
+    'js.logitud=':       { is: 'group', elements: [{ is: 'file', name: "js.logitud/src/index.ts"    }] },
+    'aspects=':          { is: 'group', elements: [{ is: 'file', name: "aspects/src/index.ts"       }] },
   },
   'node env=': { is: "environment", packager: "npm" /* generate to node_modules/${target.outputName} */ },
   'base=': {
@@ -171,5 +173,19 @@ module.exports= {
     components: ['=base tests'],
     targets: ['=typescript'],
     files: ['=files:typescript tests']
+   },
+  'js.logitud=': {
+    is: 'target',
+    outputName: '@msbuildsystem/js.logitud',
+    components: ['=base'],
+    targets: ['=core', '=js'],
+    files: ['=files:js.logitud']
+   },
+  'aspects=': {
+    is: 'target',
+    outputName: '@msbuildsystem/aspects',
+    components: ['=base'],
+    targets: ['=core'],
+    files: ['=files:aspects']
    }
 }
