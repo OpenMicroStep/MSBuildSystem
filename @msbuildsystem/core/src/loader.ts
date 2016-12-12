@@ -26,18 +26,16 @@ export namespace Loader {
     var dir = fs.readdirSync(at);
     dir.forEach(function(moduleName) {
       try {
-        try {
-          let p = path.join(at, moduleName);
-          if (fs.statSync(p).isDirectory()) {
-            if (!filter || filter(moduleName, p)) {
-              modules.set(moduleName, new Module(p, moduleName, require(p)));
-            }
+        let p = path.join(at, moduleName);
+        if (fs.statSync(p).isDirectory()) {
+          if (!filter || filter(moduleName, p)) {
+            modules.set(moduleName, new Module(p, moduleName, require(p)));
           }
-        } catch (e) {
-          if (e.code !== "MODULE_NOT_FOUND")
-            console.error("Unable to load module", moduleName, e);
         }
-      } catch (e) {}
+      } catch (e) {
+        if (e.code !== "MODULE_NOT_FOUND")
+          console.error("Unable to load module", moduleName, e);
+      }
     });
   }
 }
