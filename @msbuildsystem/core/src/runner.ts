@@ -153,18 +153,13 @@ export class Runner extends EventEmitter {
       p.continue();
     }
   }
+}
 
+export interface Runner {
   emit(event: "taskbegin", context: StepContext<any, any>);
   emit(event: "taskend", context: StepContext<any, any>);
-  emit(event: string, ...args) {
-    super.emit(event, ...args);
-  }
-
   on(event: "taskbegin", listener: (ctx: StepContext<any, any>) => void) : this;
   on(event: "taskend", listener: (ctx: StepContext<any, any>) => void) : this;
-  on(event: string, listener: Function) : this {
-    return super.on(event, listener);
-  }
 }
 
 export class Reporter {
@@ -203,7 +198,7 @@ export class Reporter {
       this.failed = true;
   }
 
-  error(err: Error, base?: Diagnostic) {
+  error(err: Error | undefined | null, base?: Diagnostic) {
     if (!err) return;
     this.diagnostic(diagnosticFromError(err, base));
   }
