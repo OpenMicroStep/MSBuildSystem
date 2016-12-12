@@ -37,4 +37,10 @@ export class JSTarget extends Target {
         return step.continue();
     }
   }
+
+  configureExports(reporter: Reporter) {
+    super.configureExports(reporter);
+    this.compiler.configureExports(reporter);
+    this.packager.configureExports(reporter);
+  }
 }

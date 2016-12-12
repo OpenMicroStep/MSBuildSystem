@@ -1,5 +1,5 @@
-import { declareTask, Task, Reporter, SelfBuildGraph, File, Step, resolver, AttributeTypes, util } from '@msbuildsystem/core';
-import { JSTarget, JSCompilers } from '@msbuildsystem/js';
+import { declareTask, Task, Reporter, SelfBuildGraph, File, Step, resolver, AttributeTypes, util, generator } from '@msbuildsystem/core';
+import { JSTarget, JSCompilers, NPMInstallTask } from '@msbuildsystem/js';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
 
@@ -17,9 +17,17 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   @resolver(AttributeTypes.validateMergedObjectList)
   tsConfig: ts.CompilerOptions = {};
 
+  @resolver(AttributeTypes.validateMergedObjectList)
+  npmInstall: { [s: string]: string } = {};
+
+  tsc: TypescriptTask;
+
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
-    let tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
+    let npmInstall = new NPMInstallTask(this.graph, this.graph.paths.output);
+    Object.keys(this.npmInstall).forEach(k => npmInstall.addPackage(k, this.npmInstall[k]));
+    this.graph.compiler.addDependency(npmInstall);
+    let tsc = this.tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addFiles(this.graph.files);
     tsc.setOptions(this.tsConfig);
     tsc.setOptions({
@@ -80,7 +88,7 @@ export class TypescriptTask extends Task {
       let loader = function (moduleName, containingFile) {
         if (moduleName[0] !== '.' && moduleName[0] !== '/' && !containingFile.startsWith(outputDirectory))
           containingFile = workaroundContainingFile;
-        return ts.resolveModuleName(moduleName, containingFile, o.options, host).resolvedModule;
+        return ts.resolveModuleName(moduleName, containingFile, o.options, host).resolvedModule!;
       };
       host.resolveModuleNames = function resolveModuleNames(moduleNames: string[], containingFile: string) : ts.ResolvedModule[] {
         return loadWithLocalCache(moduleNames, containingFile, loader);
@@ -93,14 +101,8 @@ export class TypescriptTask extends Task {
     step.continue();
   }
 
-  requiredDo(step: Step<{}>) {
-    if (step.context.runner.action !== "generate")
-      return super.requiredDo(step);
-
-    let ide: string = step.context.runner.options['ide'];
-    if (ide !== 'terminal')
-      return step.continue();
-
+  @generator
+  do_generate_tsconfig(step: Step<{}>) {
     let dir = File.commonDirectoryPath(this.files);
     let tsconfig = File.getShared(path.join(dir, 'tsconfig.json'));
     tsconfig.ensureDir((err) => {
@@ -121,13 +123,13 @@ export class TypescriptTask extends Task {
   }
 }
 
-function loadWithLocalCache(names: string[], containingFile: string, loader: (moduleName: string, containingFile: string) => ts.ResolvedModule) : ts.ResolvedModule[] {
+function loadWithLocalCache<T>(names: string[], containingFile: string, loader: (moduleName: string, containingFile: string) => T) : T[] {
     if (names.length === 0)
         return [];
-    var resolutions = <ts.ResolvedModule[]>[];
-    var cache = new Map<string, ts.ResolvedModule>();
+    var resolutions = <T[]>[];
+    var cache = new Map<string, T>();
     for (var name of names) {
-      let result: ts.ResolvedModule;
+      let result: T;
       if (cache.has(name))
         result = cache.get(name)!;
       else

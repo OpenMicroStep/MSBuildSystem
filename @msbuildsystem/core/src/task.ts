@@ -1,4 +1,4 @@
-import {Graph, Target, Step, File, BuildSession} from './index.priv';
+import {Graph, Target, Step, File, BuildSession, Flux} from './index.priv';
 import {createHash, Hash} from 'crypto';
 
 export type TaskName = { type: string, name: string, [s: string]: string };
@@ -15,7 +15,14 @@ export function getTask(type: string) : typeof Task | undefined {
   return taskClasses.get(type);
 }
 
+export function generator(prototype: typeof Task.prototype, propertyKey: string, descriptor: TypedPropertyDescriptor<(this: string, step: Step<any>) => void>) {
+  if (!prototype.hasOwnProperty('generators'))
+    prototype.generators = prototype.generators ? prototype.generators.slice() : [];
+  prototype.generators.push(propertyKey.replace(/^do_generate_/, ''));
+}
+
 export class Task {
+  generators: string[];
   dependencies: Set<Task> = new Set<Task>();
   requiredBy: Set<Task> = new Set<Task>();
   name: TaskName;
@@ -166,6 +173,10 @@ export class Task {
         this.clean(step);
         break;
 
+      case "generate":
+        this.do_generate(step);
+        break;
+
       default:
         step.context.reporter.diagnostic({
           type: "note",
@@ -191,6 +202,14 @@ export class Task {
   }
 
   clean(step: Step<{}>) {
+    step.continue();
+  }
+
+  do_generate(step: Step<{}>) {
+    let what = step.context.runner.options['ide'];
+    let generators = this.generators.filter(g => !what || g === what);
+    let els = generators.map(g => ((p: Step<any>) => { this[`do_generate_${g}`](p); }));
+    step.setFirstElements(els);
     step.continue();
   }
 

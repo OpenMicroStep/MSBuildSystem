@@ -1,5 +1,5 @@
 import {
-  Reporter, SelfBuildGraph, resolver, AttributeTypes, util,
+  Reporter, SelfBuildGraph, resolver, generator, AttributeTypes, util,
   declareTask, Graph, GenerateFileTask, Step
 } from '@msbuildsystem/core';
 import {
@@ -17,9 +17,6 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   }
 
   @resolver(AttributeTypes.validateMergedObjectList)
-  npmInstall: { [s: string]: string } = {};
-
-  @resolver(AttributeTypes.validateMergedObjectList)
   npmPackage: NPMPackage = <NPMPackage>{};
 
   absoluteModulesOutputDirectory() : string {
@@ -31,11 +28,19 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   }
 
   buildGraph(reporter: Reporter) {
-    let npmInstall = new NPMInstallTask(this.graph, this.graph.paths.output);
-    Object.keys(this.npmInstall).forEach(k => npmInstall.addPackage(k, this.npmInstall[k]));
-    this.graph.compiler.addDependency(npmInstall);
+    super.buildGraph(reporter);
     this.npmPackage.name = this.graph.outputName;
-    new NPMGeneratePackage(this, this.npmPackage, path.join(this.absoluteCompilationOutputDirectory(), 'package.json'), this.absoluteModulesOutputDirectory());
+    new NPMGeneratePackage(this, this.npmPackage, path.join(this.absoluteCompilationOutputDirectory(), 'package.json'));
+  }
+
+  configureExports(reporter: Reporter) {
+    super.configureExports(reporter);
+    let exports = this.graph.exports;
+    exports["npmPackage"] = {
+      "dependencies": {
+        [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
+      }
+    };
   }
 }
 
@@ -53,7 +58,7 @@ export interface NPMPackage {
 
 @declareTask({ type: "npm package.json" })
 export class NPMGeneratePackage extends GenerateFileTask {
-  constructor(graph: Graph, public info: NPMPackage, path: string, public node_modules: string) {
+  constructor(graph: Graph, public info: NPMPackage, path: string) {
     super({ type: "npm", name: "package.json" }, graph, path);
   }
 
@@ -64,17 +69,25 @@ export class NPMGeneratePackage extends GenerateFileTask {
   generate() : Buffer {
     return new Buffer(JSON.stringify(this.info, null, 2), 'utf8');
   }
+}
 
-  requiredDo(step: Step<{}>) {
-    if (step.context.runner.action !== "generate")
-      return super.requiredDo(step);
+@declareTask({ type: "npm install" })
+export class NPMInstallTask extends ProcessTask {
 
-    let ide: string = step.context.runner.options['ide'];
-    if (ide !== 'terminal')
-      return step.continue();
+  constructor(graph: Graph, directory: string) {
+    super({ type: "npm", name: "install" }, graph, [], [], { type: "npm" });
+    this.addFlags(['install']);
+    this.setCwd(directory);
+  }
 
+  addPackage(name: string, version: string) {
+    this.addFlags([name + '@' + version]);
+  }
+
+  @generator
+  do_generate_npm(step: Step<{}>) {
     let link = path.join(this.target().project.directory, 'node_modules');
-    let target = this.node_modules;
+    let target = path.join(this.cwd, 'node_modules');
     fs.lstat(link, function(err, stats) {
       if (stats && !stats.isSymbolicLink()) {
         step.context.reporter.diagnostic({ type: "error", msg: "file already exists and is not a symbolic link", path: link });
@@ -99,24 +112,7 @@ export class NPMGeneratePackage extends GenerateFileTask {
   }
 }
 
-@declareTask({ type: "npm install" })
-export class NPMInstallTask extends ProcessTask {
-
-  constructor(graph: Graph, directory: string) {
-    super({ type: "npm", name: "install" }, graph, [], [], { type: "npm" });
-    this.addFlags(['install']);
-    this.setCwd(directory);
-  }
-
-  addPackage(name: string, version: string) {
-    this.addFlags([name + '@' + version]);
-  }
-}
-
-if (ProcessProviders.isOutOfDate) {
-  try { // autodetect npm
-    let ret = child_process.execSync('npm --version').toString('utf8').trim();
-    if (ret)
-      ProcessProviders.register(new LocalProcessProvider("npm", { type: "npm", version: ret }));
-  } catch (e) {}
-}
+ProcessProviders.safeLoadIfOutOfDate('npm', () => {
+  let ret = child_process.execSync('npm --version').toString('utf8').trim();
+  return ret ? new LocalProcessProvider("npm", { type: "npm", version: ret }) : undefined;
+});
