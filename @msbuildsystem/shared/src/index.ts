@@ -1,4 +1,4 @@
-export { Async, Flux } from './async';
+export { Async, Flux } from '@microstep/async';
 import * as _util from './util';
 export var util = _util;
 import * as _path from './path';

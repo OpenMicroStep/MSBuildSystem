@@ -24,6 +24,7 @@ module.exports= {
     compiler: "typescript",
     environments: ["=node env"],
     npmPackage: [{
+      "version": "0.1.0",
       "main": "index.js",
       "typings": "index.d.ts"
     }],
@@ -82,7 +83,10 @@ module.exports= {
     is: "target",
     components: ['=base'],
     outputName: '@msbuildsystem/shared',
-    files: ['=files:shared']
+    files: ['=files:shared'],
+    npmInstall: [{
+      "@microstep/async": "^0.1.0",
+    }]
   },
   'shared tests=': {
     is: "target",
@@ -95,7 +99,7 @@ module.exports= {
     is: "target",
     outputName: '@msbuildsystem/cli',
     components: ['=base'],
-    targets: ['=shared'],
+    targets: ['=core'],
     files: ['=files:cli'],
     npmInstall: [{
       "@types/argparse": "^1.0.30",
@@ -105,7 +109,8 @@ module.exports= {
       "dependencies": {
         "argparse": "^1.0.9",
         "chalk": "^1.1.3"
-      }
+      },
+      "bin": { "msbuildsystem": "./index.js" },
     }]
   },
   'foundation=': {
@@ -155,7 +160,10 @@ module.exports= {
     outputName: '@msbuildsystem/js.typescript',
     components: ['=base'],
     targets: ['=core', '=foundation', '=js'],
-    files: ['=files:typescript']
+    files: ['=files:typescript'],
+    npmInstall: [{
+      "typescript": "^2.1.4",
+    }]
   },
   'typescript tests=': {
     is: 'target',
