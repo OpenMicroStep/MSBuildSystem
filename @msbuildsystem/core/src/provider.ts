@@ -62,10 +62,20 @@ export function createProviderList<
 export function createCachedProviderList<
   CSTOR extends { name: string, isCompatible(conditions: C) },
   C extends { [s: string]: any }
-  >(type: string) : ProviderList<CSTOR, C> & { isOutOfDate: boolean } {
-  let r = <ProviderList<CSTOR, C> & { isOutOfDate: boolean }>createProviderList<CSTOR, C>(type);
-  r.isOutOfDate = true;
-  return r;
+  >(type: string) {
+  return Object.assign(createProviderList<CSTOR, C>(type), {
+    isOutOfDate: true,
+    loadCost: 0,
+    safeLoadIfOutOfDate(this: ProviderList<CSTOR, C> & { isOutOfDate: boolean }, name: string, loader: () => CSTOR | undefined) {
+      if (this.isOutOfDate) {
+        try {
+          let p = loader();
+          if (p)
+            this.register(p);
+        } catch (e) {}
+      }
+    }
+  });
 }
 export function createBuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>>(type: string, defaultCstor?: { new (graph: P) : T }) {
   let list = new Map<string, { new (graph: P) : T }>();
