@@ -43,7 +43,7 @@ export class Task {
       this.sessionKey = null;
       var shasum = createHash('sha1');
       if (this.uniqueKey(shasum))
-        this.sessionKey = this.classname + "-" + shasum.digest('hex');
+        this.sessionKey = (this.classname || this.constructor.name) + "-" + shasum.digest('hex');
     }
     return this.sessionKey;
   }
