@@ -168,6 +168,9 @@ export class File {
   readUtf8File(cb: (err: Error, output: string) => any) {
     fs.readFile(this.path, "utf8", cb);
   }
+  writeFile(content: Buffer, cb: (err: Error) => any) {
+    fs.writeFile(this.path, content, cb);
+  }
   writeUtf8File(content: string, cb: (err: Error) => any) {
     fs.writeFile(this.path, content, "utf8", cb);
   }

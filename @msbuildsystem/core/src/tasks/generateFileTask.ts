@@ -1,36 +1,34 @@
-import {Task, TaskName, Graph, File, Step} from '../index.priv';
-import * as fs from 'fs';
+import {InOutTask, TaskName, Graph, File, Step} from '../index.priv';
 import {Hash} from 'crypto';
 
-export abstract class GenerateFileTask extends Task {
-  constructor(name: TaskName, graph: Graph, public path: string) {
-    super(name, graph);
+export abstract class GenerateFileTask extends InOutTask {
+  constructor(name: TaskName, graph: Graph, path: string) {
+    super(name, graph, [], [File.getShared(path)]);
   }
 
   abstract uniqueKeyInfo() : any;
   abstract generate() : Buffer;
 
   uniqueKey(hash: Hash) {
-    hash.update(JSON.stringify({info: this.uniqueKeyInfo(), path: this.path}));
+    hash.update(JSON.stringify({info: this.uniqueKeyInfo(), path: this.outputFiles[0].path}));
     return true;
   }
 
   isRunRequired(step: Step<{ runRequired?: boolean }>) {
-    File.getShared(this.path).ensure(true, step.context.lastSuccessTime, (err, required) => {
+    this.outputFiles[0].ensure(true, step.context.lastSuccessTime, (err, required) => {
       step.context.runRequired = !!(err || required);
       step.continue();
     });
   }
   run(step) {
-    fs.writeFile(this.path, this.generate(), (err) => {
-      if (err) step.error(err.toString());
+    this.outputFiles[0].writeFile(this.generate(), (err) => {
+      step.context.reporter.error(err);
       step.continue();
     });
   }
-  clean(step) {
-    fs.unlink(this.path, (err) => {
-      if (err && (<NodeJS.ErrnoException>err).code !== "ENOENT")
-        step.error(err);
+  clean(step: Step<{}>) {
+    this.outputFiles[0].unlink((err) => {
+      step.context.reporter.error(err);
       step.continue();
     });
   }

@@ -17,6 +17,7 @@ export * from './elements/project.element';
 export * from './file';
 export * from './task';
 export * from './graph';
+export * from './tasks/inOutTask';
 export * from './tasks/generateFileTask';
 export * from './target';
 export * from './runner';

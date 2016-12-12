@@ -1,17 +1,17 @@
-import {Graph, Task, TaskName, Step, StepWithData, File, AttributePath, Barrier} from '@msbuildsystem/core';
+import {Graph, TaskName, Step, StepWithData, File, AttributePath, InOutTask} from '@msbuildsystem/core';
 import {ProcessProvider, ProcessProviderConditions, ProcessProviderRequirement, ProcessProviders} from './index';
 import {Hash} from 'crypto';
 
 /** if the argument is an array, the content the array will be concatenated */
 export type Arg = string | (string|File)[];
 
-export class ProcessTask extends Task {
+export class ProcessTask extends InOutTask {
   args: Arg[] = [];
   env?: {[s: string]: string} = undefined;
   cwd: string;
 
-  constructor(name: TaskName, graph: Graph, public inputFiles: File[], public outputFiles: File[], public provider: ProcessProviderConditions) {
-    super(name, graph);
+  constructor(name: TaskName, graph: Graph, inputFiles: File[], outputFiles: File[], public provider: ProcessProviderConditions) {
+    super(name, graph, inputFiles, outputFiles);
     this.cwd = graph.target().paths.output;
   }
 
@@ -50,28 +50,6 @@ export class ProcessTask extends Task {
       hash.update(" ");
     }
     return true;
-  }
-
-  isRunRequired(step: Step<{ runRequired?: boolean }>) {
-    if (this.inputFiles.length && this.outputFiles.length) {
-      // Force creation of output file directories
-      File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {
-        if (err || required) {
-          step.context.runRequired = true;
-          step.continue();
-        }
-        else {
-          File.ensure(this.inputFiles, step.context.lastSuccessTime, {}, (err, required) => {
-            step.context.runRequired = !!(err || required);
-            step.continue();
-          });
-        }
-      });
-    }
-    else {
-      step.context.runRequired = step.context.lastSuccessTime === 0;
-      step.continue();
-    }
   }
 
   flattenArgs(provider?: ProcessProvider, args?: Arg[]) : string[] {
@@ -119,24 +97,5 @@ export class ProcessTask extends Task {
 
   providerRequirements() : ProcessProviderRequirement[] {
     return [ProcessProviderRequirement.Inputs, ProcessProviderRequirement.Outputs];
-  }
-
-  clean(step: Step<{}>) {
-    var barrier = new Barrier("Clear process product", this.outputFiles.length);
-    this.outputFiles.forEach((file) => {
-      file.unlink((err) => {
-        step.context.reporter.log("unlink " + file.path + (err ? " failed" : "succeeded"));
-        if (err)
-          step.context.reporter.error(err);
-        barrier.dec();
-      });
-    });
-    barrier.endWith(() => {
-      step.continue();
-    });
-  }
-
-  listOutputFiles(set: Set<File>) {
-    this.outputFiles.forEach((out) => { set.add(out); });
   }
 }
