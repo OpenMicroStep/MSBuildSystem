@@ -42,22 +42,27 @@ Ce graphe est généré par les classes :
 Le graphe est composé de noeuds (classe `Task`) qui ont pour attributs:
 
  - `graph` : le noeud parent de type `Graph` qui contient ce noeud
- - `dependencies` et `requiredBy` : un lien dans les deux sens entre noeud ayant le même parent qui définit une relation d'ordre entre eux.
+ - `dependencies` et `requiredBy` : un lien dans les deux sens entre noeuds ayant le même parent qui définit une relation d'ordre entre eux.
 
-Cela permet de décrire une hierachie de tâches et les pré-requis d'exécution de ces tâches. 
-L'approche hierarchique permet de simplifier l'expression des dépendances entre les tâches et permet l'exécution partielle du graphe de compilation (un seul objectif par exemple, ce qui correspond à une branche de l'arbre des graphes).
+Cela permet de décrire une hiérachie de tâches et les pré-requis d'exécution de ces tâches. 
+L'approche hiérarchique permet de simplifier l'expression des dépendances entre les tâches et permet l'exécution partielle du graphe de compilation (un seul objectif par exemple, ce qui correspond à une branche de l'arbre des graphes).
 
-Un objectif est un noeud `Target` (qui étend la classe `Target`) qui a la particularité de générer lui-même ses noeuds enfants.
+Un objectif est un noeud `Target` qui étend la classe `SelfGraph`.
+Les noeuds `SelfGraph` ont la particularité de générer eux-mêmes leurs noeuds enfants.
 
 L'exécution du graphe est effectué par la classe `Runner`.  
-Chaque tache implémente la méthode `do(step: Runner.Step)`, cette méthode prend en paramètre un flux **Async** particulier.
-En effet, ce flux async possède des méthodes supplémentaires: 
+Chaque tache implémente la méthode `do(step: Runner.Step)`, cette méthode prend en paramètre un flux **Async** dont le context possède les informations suivantes :
 
- - `log(msg: string | Error)` : log l'exécution de la tâche.
- - `debug(msg: string | Error | Array)` : log l'exécution de la tâche lorsque le niveau de détail débug est demandé.
- - `diagnostic(diagnostic: Diagnostic)` : remonte un diagnostic levé par la tâche.
+ - `runner: Runner` : l'objet responsable de l'exécution du graphe
+ - `task: Task`: la tâche en cours de traitement
+ - `reporter: Reporter`: le raporteur associé à la tâche pour cette exécution
+ - `data`: les données persistantes (start time, end time, success time, logs, diagnostics)
+ - `sharedData`: les données persistante partagées entre les actions
+ - `lastRunStartTime: number`: le moment où la dernière exécution à commencer
+ - `lastRunEndTime: number`: le moment où la dernière exécution à terminer
+ - `lastSuccessTime: number`: le moment où la dernière exécution à réussi
 
-L'exécution d'une tache est donc lié à deux flux d'informations différents : 
+L'exécution d'une tache est lié à deux flux d'informations différents gérés par le raporteur : 
 
  - un flux textuel sous la forme d'un log
  - un flux structuré sous la forme d'un ensemble de diagnostics.
@@ -79,10 +84,16 @@ Pour simplifier l'analyse des éléments et la configuration des targets, il est
 Cette annotation ajoute dans la liste `resolvers` le lien entre l'élément et la tâche. 
 Ces liens sont résolues dans l'ordre de déclaration lors de l'exécution de `configure()`.
 
+## Element
+
+Toutes les propriétés et méthodes non publiques sont préfixés par `__`.
+
+### Instanciation (`__load`)
+
 ## Barrier
 
 Une barrière (`Barrier`) est un objet qui permet d'attendre plusieurs évenements avant de passer à la suite.   
-Bien que async permet de résoudre ce problème, `Barrier` est bien plus léger et fléxible pour résoudre ce problème précis.
+Bien que async permet de résoudre ce problème, `Barrier` est bien plus léger pour résoudre ce problème précis.
 
 Un compteur est mis à disposition, il commence à `n + 1` et lorsqu'il atteint `0` la barrière s'ouvre. Une fois ouverte, aucune action n'est possible.
 

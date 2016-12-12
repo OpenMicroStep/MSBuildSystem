@@ -586,6 +586,8 @@ Tout composant définit dans le projet peut être exporté par un objectif pour 
 Un objectif est par définition toujours exporté par un projet.
 
 L'export se déclare au niveau de chaque objectif comme pour les fichiers et les composants avec les propriétés `exports` et `exportsByEnvironment`.
+Le comportement de `exports` et `exportsByEnvironment` est équivalent à `components` et `componentsByEnvironment`, c'est à dire que l'objectif exporté est utilisable comme un composant.
+Ce composant est aussi enrichi automatiquement par l'objectif de compilation qui le génère.
 
 Dès lors, pour accéder à ces éléments depuis un autre projet (toujours au sein du même espace de travail), il suffit d'utiliser la syntaxe `::[env:]target::[component]`, où:
 
