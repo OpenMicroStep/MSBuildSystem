@@ -12,7 +12,9 @@ Object.assign(logitud_typescript_angular, {
     "experimentalDecorators": true,
     "strictNullChecks": true,
     "noImplicitThis": true,
-    "noImplicitReturns": true
+    "noImplicitReturns": true,
+    "module": "commonjs",
+    "lib": ["es6", "dom"]
   }],
   npmInstall: [{
     "@angular/common": "~2.3.0",

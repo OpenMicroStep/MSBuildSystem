@@ -212,7 +212,7 @@ export class ParseAspectInterfaceTask extends InOutTask {
             });
           },
           (step: Step<{}>) => {
-            let dest = File.getShared(path.join(this.dest.path, `aspects.generated.interfaces.ts`));
+            let dest = File.getShared(path.join(this.dest.path, `aspects.interfaces.ts`));
             let r = `import {VersionedObject, FarImplementation, Invocation} from '@microstep/aspects';\n`;
             r += aspects.map(i => i.aspect.__decl(i.cls)).join('\n\n');
             dest.writeUtf8File(r, (err) => {
@@ -252,6 +252,5 @@ export class AspectTypescriptCompiler extends TypescriptCompiler {
     let dest = File.getShared(path.join(this.graph.paths.intermediates, 'generated'), true);
     this.parsers = this.interfaces.map(iface => new ParseAspectInterfaceTask(this, iface, dest, this.aspect));
     this.parsers.forEach(p => this.tsc.addDependency(p));
-    this.tsc.options.paths!['generated/aspects.interfaces'] = [path.join(dest.path, 'aspects.generated.interfaces')];
   }
 }
