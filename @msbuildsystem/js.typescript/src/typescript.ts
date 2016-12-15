@@ -1,5 +1,5 @@
-import { declareTask, Task, Reporter, SelfBuildGraph, File, Step, resolver, AttributeTypes, util, generator } from '@msbuildsystem/core';
-import { JSTarget, JSCompilers, NPMInstallTask } from '@msbuildsystem/js';
+import { declareTask, Task, Reporter, SelfBuildGraph, Target, File, Step, resolver, AttributeTypes, util, generator } from '@msbuildsystem/core';
+import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@msbuildsystem/js';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
 
@@ -20,49 +20,50 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   @resolver(AttributeTypes.validateMergedObjectList)
   npmInstall: { [s: string]: string } = {};
 
+  @resolver(AttributeTypes.validateStringList)
+  npmLink: string[] =  [];
+
+  @resolver(Target.validateFile)
+  tsMain: File | null = null;
+
   tsc: TypescriptTask;
 
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
-    let npmInstall = new NPMInstallTask(this.graph, this.graph.paths.output);
+    let npmInstall = new NPMInstallTask(this.graph, this.graph.paths.intermediates);
+    let npmInstallOut = new NPMInstallTask(this.graph, this.graph.paths.output);
     Object.keys(this.npmInstall).forEach(k => npmInstall.addPackage(k, this.npmInstall[k]));
+    Object.keys(this.npmInstall).forEach(k => npmInstallOut.addPackage(k, this.npmInstall[k]));
+    this.npmLink.forEach(l =>
+      npmInstall.addDependency(new NPMLinkTask(this.graph,
+        File.getShared(path.join(this.graph.paths.output, l), true),
+        File.getShared(path.join(this.graph.paths.intermediates, l), true)
+      ))
+    );
     this.graph.compiler.addDependency(npmInstall);
     let tsc = this.tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addFiles(this.graph.files);
     tsc.setOptions(this.tsConfig);
     tsc.setOptions({
-      outDir: this.graph.packager.absoluteCompilationOutputDirectory()
+      outDir: this.graph.packager.absoluteCompilationOutputDirectory(),
+      //rootDir: this.graph.paths.intermediates,
+      baseUrl: this.graph.paths.intermediates
     });
+    this.tsc.options.paths = this.tsc.options.paths || {};
+    new NPMLinkTask(this.graph,
+      File.getShared(path.join(this.graph.paths.intermediates, "node_modules"), true),
+      File.getShared(path.join(this.graph.packager.absoluteCompilationOutputDirectory(), "node_modules"), true)
+    );
   }
 }
 
-function emitTsDiagnostics(reporter: Reporter, tsDiagnostics: ts.Diagnostic[]) {
-  tsDiagnostics.forEach(diagnostic => {
-      if (diagnostic.file) {
-        let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-        reporter.diagnostic({
-          type: mapCategory.get(diagnostic.category)!,
-          col: character + 1,
-          row: line + 1,
-          msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-          path: diagnostic.file.path
-          // , diagnostic.code ?
-        });
-      }
-      else {
-        reporter.diagnostic({
-          type: mapCategory.get(diagnostic.category)!,
-          msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-          // , diagnostic.code ?
-        });
-      }
-  });
-}
+export type CompilerHostWithVirtualFS = (ts.CompilerHost & { fromVirtualFs(p: string) : string, toVirtualFs(p: string) : string });
 
 @declareTask({ type: "typescript" })
 export class TypescriptTask extends Task {
   files: File[] = [];
   options: ts.CompilerOptions = {};
+  nonVirtualPaths = ["generated", "node_modules"];
 
   setOptions(options: ts.CompilerOptions) {
     this.options = Object.assign(this.options, options);
@@ -76,27 +77,81 @@ export class TypescriptTask extends Task {
   // TODO: clean output
   // TODO: async run (slower startup with tsc or create and use a worker API)
 
+  // we have to create a custom compiler host to fix out of src directory limitations
+  createCompilerHost(options: ts.CompilerOptions) : CompilerHostWithVirtualFS {
+    let target = this.target();
+    let workspaceDir = target.project.workspace.directory;
+    let sourceDirectory = target.project.directory;
+    let intermediatesDirectory = target.paths.intermediates;
+    let isMapped = new RegExp(`^${util.escapeRegExp(intermediatesDirectory)}/(?!(${this.nonVirtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$))`);
+    let host = ts.createCompilerHost(options);
+    function fromVirtualFs(p: string) {
+      if (isMapped.test(p))
+        p = path.join(sourceDirectory, path.relative(intermediatesDirectory, p));
+      return p;
+    }
+    function toVirtualFs(p: string) {
+      if (p.startsWith(sourceDirectory) && !p.startsWith(workspaceDir))
+        p = path.join(intermediatesDirectory, path.relative(sourceDirectory, p));
+      return p;
+    }
+    let getDirectories = host.getDirectories;
+    let getSourceFile = host.getSourceFile;
+    let fileExists = host.fileExists;
+    let readFile = host.readFile;
+    let directoryExists = host.directoryExists;
+    let realpath = host.realpath;
+    // let trace = host.trace; if (trace) host.trace = (s) => (s.indexOf('@microstep/async') !== -1 && trace!(s));
+    host.fileExists = (fileName: string) => fileExists(fromVirtualFs(fileName));
+    host.readFile = (fileName: string) => readFile(fromVirtualFs(fileName));
+    if (directoryExists)
+      host.directoryExists = (directoryName: string) => directoryExists!(fromVirtualFs(directoryName));
+    if (realpath)
+      host.realpath = (path: string) => toVirtualFs(realpath!(fromVirtualFs(path)));
+    host.getSourceFile = (fileName: string, languageVersion: ts.ScriptTarget, onError?: (message: string) => void) => {
+      let file = getSourceFile(fromVirtualFs(fileName), languageVersion, onError);
+      if (file) file.fileName = toVirtualFs(file.fileName);
+      return file;
+    };
+    host.getDirectories = (path: string) =>
+      getDirectories(fromVirtualFs(path)).map(d => toVirtualFs(d));
+    host.getCurrentDirectory = () => intermediatesDirectory;
+    return Object.assign(host, { fromVirtualFs: fromVirtualFs, toVirtualFs: toVirtualFs });
+  }
+
+  emitTsDiagnostics(reporter: Reporter, tsDiagnostics: ts.Diagnostic[], host?: CompilerHostWithVirtualFS) {
+    tsDiagnostics.forEach(diagnostic => {
+        if (diagnostic.file) {
+          let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
+          reporter.diagnostic({
+            type: mapCategory.get(diagnostic.category)!,
+            col: character + 1,
+            row: line + 1,
+            msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+            path: host ? host.fromVirtualFs(diagnostic.file.path) : diagnostic.file.path
+            // , diagnostic.code ?
+          });
+        }
+        else {
+          reporter.diagnostic({
+            type: mapCategory.get(diagnostic.category)!,
+            msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+            // , diagnostic.code ?
+          });
+        }
+    });
+  }
+
   run(step: Step<{}>) {
-    let projectDirectory = this.target().project.directory;
     let outputDirectory = this.target().paths.output;
-    let workaroundContainingFile = path.join(outputDirectory, 'workaround.ts');
     let o = ts.convertCompilerOptionsFromJson(this.options, outputDirectory);
-    emitTsDiagnostics(step.context.reporter, o.errors);
+    this.emitTsDiagnostics(step.context.reporter, o.errors);
     if (!step.context.reporter.failed) {
-      let host = ts.createCompilerHost(o.options);
-      host.getCurrentDirectory = () => outputDirectory;
-      let loader = function (moduleName, containingFile) {
-        if (moduleName[0] !== '.' && moduleName[0] !== '/' && !containingFile.startsWith(outputDirectory))
-          containingFile = workaroundContainingFile;
-        return ts.resolveModuleName(moduleName, containingFile, o.options, host).resolvedModule!;
-      };
-      host.resolveModuleNames = function resolveModuleNames(moduleNames: string[], containingFile: string) : ts.ResolvedModule[] {
-        return loadWithLocalCache(moduleNames, containingFile, loader);
-      };
-      let program = ts.createProgram(this.files.map(f => f.path), o.options, host);
+      let host = this.createCompilerHost(o.options);
+      let program = ts.createProgram(this.files.map(f => host.toVirtualFs(f.path)), o.options, host);
       let emitResult = program.emit();
       let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
-      emitTsDiagnostics(step.context.reporter, tsDiagnostics);
+      this.emitTsDiagnostics(step.context.reporter, tsDiagnostics, host);
     }
     step.continue();
   }
@@ -121,20 +176,4 @@ export class TypescriptTask extends Task {
       }
     });
   }
-}
-
-function loadWithLocalCache<T>(names: string[], containingFile: string, loader: (moduleName: string, containingFile: string) => T) : T[] {
-    if (names.length === 0)
-        return [];
-    var resolutions = <T[]>[];
-    var cache = new Map<string, T>();
-    for (var name of names) {
-      let result: T;
-      if (cache.has(name))
-        result = cache.get(name)!;
-      else
-        cache.set(name, result = loader(name, containingFile));
-      resolutions.push(result);
-    }
-    return resolutions;
 }

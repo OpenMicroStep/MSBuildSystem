@@ -3,7 +3,8 @@ module.exports= {
   name: "MSBuildSystem",
   'files=': {
     is: 'group',
-    'cli=':              { is: 'group', elements: [{ is: 'file', name: "cli/src/index.ts"           }] },
+    'cli=':              { is: 'group', elements: [{ is: 'file', name: "cli/src/index.ts"           },
+                                                   { is: 'file', name: "cli/src/bin.ts"             }] },
     'core=':             { is: 'group', elements: [{ is: 'file', name: "core/src/index.ts"          }] },
     'core tests=':       { is: 'group', elements: [{ is: 'file', name: "core/tst/index.ts"          }] },
     'shared=':           { is: 'group', elements: [{ is: 'file', name: "shared/src/index.ts"        }] },
@@ -26,7 +27,7 @@ module.exports= {
     compiler: "typescript",
     environments: ["=node env"],
     npmPackage: [{
-      "version": "0.1.0",
+      "version": "0.1.1",
       "main": "index.js",
       "typings": "index.d.ts"
     }],
@@ -61,8 +62,8 @@ module.exports= {
   'core=': {
     is: "target",
     outputName: '@msbuildsystem/core',
-    components: ['=base'],
     targets: ['=shared'],
+    components: ['=base', '=shared'],
     files: ['=files:core'],
     npmInstall: [{
       "@types/fs-extra": "0.0.28",
@@ -77,8 +78,8 @@ module.exports= {
   'core tests=': {
     is: "target",
     outputName: '@msbuildsystem/core.tests',
-    components: ['=base tests'],
     targets: ['=core'],
+    components: ['=base tests', '=core'],
     files: ['=files:core tests'],
   },
   'shared=': {
@@ -88,21 +89,27 @@ module.exports= {
     files: ['=files:shared'],
     npmInstall: [{
       "@microstep/async": "^0.1.0",
+    }],
+    npmPackage: [{
+      "dependencies": {
+        "@microstep/async": "^0.1.0"
+      }
     }]
   },
   'shared tests=': {
     is: "target",
     outputName: '@msbuildsystem/shared.tests',
-    components: ['=base tests'],
     targets: ['=shared'],
+    components: ['=base tests', '=shared'],
     files: ['=files:shared tests'],
   },
   'cli=': {
     is: "target",
     outputName: '@msbuildsystem/cli',
-    components: ['=base'],
+    components: ['=base', '=core'],
     targets: ['=core'],
     files: ['=files:cli'],
+    //tsConfig: [{ traceResolution: true }],
     npmInstall: [{
       "@types/argparse": "^1.0.30",
       "@types/chalk": "^0.4.31",
@@ -112,14 +119,14 @@ module.exports= {
         "argparse": "^1.0.9",
         "chalk": "^1.1.3"
       },
-      "bin": { "msbuildsystem": "./index.js" },
+      "bin": { "msbuildsystem": "./bin.js" },
     }]
   },
   'foundation=': {
     is: "target",
     outputName: '@msbuildsystem/foundation',
-    components: ['=base'],
     targets: ['=core'],
+    components: ['=base', '=core'],
     files: ['=files:foundation']
   },
   /*'foundation tests=': {
@@ -132,36 +139,36 @@ module.exports= {
   'cxx=': {
     is: "target",
     outputName: '@msbuildsystem/cxx',
-    components: ['=base'],
     targets: ['=core', '=foundation'],
+    components: ['=base', '=core', '=foundation'],
     files: ['=files:cxx']
   },
   'cxx tests=': {
     is: "target",
     outputName: '@msbuildsystem/cxx.tests',
-    components: ['=base tests'],
     targets: ['=cxx'],
+    components: ['=base tests', '=cxx'],
     files: ['=files:cxx tests'],
   },
   'js=':               {
     is: 'target',
     outputName: '@msbuildsystem/js',
-    components: ['=base'],
     targets: ['=core', '=foundation'],
+    components: ['=base', '=core', '=foundation'],
     files: ['=files:js']
   },
   'js tests=':         {
     is: 'target',
     outputName: '@msbuildsystem/js.tests',
-    components: ['=base tests'],
     targets: ['=js'],
+    components: ['=base tests', '=js'],
     files: ['=files:js tests']
   },
   'typescript=':       {
     is: 'target',
     outputName: '@msbuildsystem/js.typescript',
-    components: ['=base'],
     targets: ['=core', '=foundation', '=js'],
+    components: ['=base', '=foundation', '=js', '=core'],
     files: ['=files:typescript'],
     npmInstall: [{
       "typescript": "^2.1.4",
@@ -170,22 +177,22 @@ module.exports= {
   'typescript tests=': {
     is: 'target',
     outputName: '@msbuildsystem/js.typescript.tests',
-    components: ['=base tests'],
+    components: ['=base tests', '=typescript'],
     targets: ['=typescript'],
     files: ['=files:typescript tests']
    },
   'js.logitud=': {
     is: 'target',
     outputName: '@msbuildsystem/js.logitud',
-    components: ['=base'],
+    components: ['=base', '=core', '=js'],
     targets: ['=core', '=js'],
     files: ['=files:js.logitud']
    },
   'aspects=': {
     is: 'target',
     outputName: '@msbuildsystem/aspects',
-    components: ['=base'],
-    targets: ['=core'],
+    components: ['=base', '=core', '=typescript', '=js'],
+    targets: ['=core', '=typescript'],
     files: ['=files:aspects']
-   }
+  }
 }

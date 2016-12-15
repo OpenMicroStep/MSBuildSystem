@@ -1,6 +1,6 @@
 import {
   Reporter, SelfBuildGraph, resolver, generator, AttributeTypes, util,
-  declareTask, Graph, GenerateFileTask, Step
+  declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory
 } from '@msbuildsystem/core';
 import {
   ProcessTask, LocalProcessProvider, ProcessProviders
@@ -36,11 +36,12 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   configureExports(reporter: Reporter) {
     super.configureExports(reporter);
     let exports = this.graph.exports;
-    exports["npmPackage"] = {
+    exports["npmPackage"] = [{
       "dependencies": {
         [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
       }
-    };
+    }];
+    exports["npmLink"] = [exports.__filepath(this.absoluteCompilationOutputDirectory())]; // npmLink
   }
 }
 
@@ -71,13 +72,43 @@ export class NPMGeneratePackage extends GenerateFileTask {
   }
 }
 
-@declareTask({ type: "npm install" })
-export class NPMInstallTask extends ProcessTask {
 
-  constructor(graph: Graph, directory: string) {
-    super({ type: "npm", name: "install" }, graph, [], [], { type: "npm" });
-    this.addFlags(['install']);
+export class NPMTask extends ProcessTask {
+  constructor(name: string, graph: Graph, directory: string) {
+    super({ type: "npm", name: name }, graph, [], [], { type: "npm" });
     this.setCwd(directory);
+  }
+
+  run(step: Step<{}>) {
+    let node_modules = File.getShared(path.join(this.cwd, 'node_modules'), true);
+    node_modules.ensureDir((err) => {
+      if (err) {
+        step.context.reporter.error(err);
+        step.continue();
+      }
+      else super.run(step);
+    });
+  }
+}
+
+@declareTask({ type: "npm link" })
+export class NPMLinkTask extends InOutTask {
+
+  constructor(graph: Graph, source: Directory, target: Directory) {
+    super({ type: "npm", name: "link" }, graph, [source], [target]);
+  }
+
+  run(step: Step<{}>) {
+    this.outputFiles[0].writeSymlinkOf(step, this.inputFiles[0], true);
+  }
+
+}
+
+@declareTask({ type: "npm install" })
+export class NPMInstallTask extends NPMTask {
+  constructor(graph: Graph, directory: string) {
+    super("install", graph, directory);
+    this.addFlags(['install']);
   }
 
   addPackage(name: string, version: string) {
@@ -86,29 +117,9 @@ export class NPMInstallTask extends ProcessTask {
 
   @generator
   do_generate_npm(step: Step<{}>) {
-    let link = path.join(this.target().project.directory, 'node_modules');
-    let target = path.join(this.cwd, 'node_modules');
-    fs.lstat(link, function(err, stats) {
-      if (stats && !stats.isSymbolicLink()) {
-        step.context.reporter.diagnostic({ type: "error", msg: "file already exists and is not a symbolic link", path: link });
-        step.continue();
-      }
-      else if (stats) {
-        fs.readlink(link, function(err, currentTarget) {
-          if (err)
-            step.context.reporter.error(err, { type: "error", msg: err.message, path: link });
-          else if (currentTarget !== target)
-            step.context.reporter.diagnostic({ type: "error", msg: `file already exists and is a symbolic link to '${currentTarget}'`, path: link });
-          step.continue();
-        });
-      }
-      else {
-        fs.symlink(target, link, undefined, (err) => {
-          if (err && err.code !== "EEXIST") step.context.reporter.error(err, { type: "error", msg: err.message, path: link });
-          step.continue();
-        });
-      }
-    });
+    let link = File.getShared(path.join(this.target().project.directory, 'node_modules'), true);
+    let target = File.getShared(path.join(this.cwd, 'node_modules'), true);
+    link.writeSymlinkOf(step, target, true);
   }
 }
 

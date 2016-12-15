@@ -219,6 +219,22 @@ export namespace Target {
     }
     return undefined;
   }
+  export function validateFile(reporter: Reporter, path: AttributePath, value: any, target: Target) {
+    if (typeof value === "string") {
+      let v = AttributeTypes.validateString(reporter, path, value);
+      if (v !== undefined) {
+        v = util.pathJoinIfRelative(target.paths.output, v);
+        return File.getShared(v, false);
+      }
+    }
+    else if (value instanceof FileElement) {
+      return value.__file;
+    }
+    else {
+      path.diagnostic(reporter, { type: "warning", msg: "attribute must be a 'file' element or a string" });
+    }
+    return undefined;
+  }
 
   export class GenerateExports extends GenerateFileTask {
     constructor(graph: Target, public info: any, path: string) {
