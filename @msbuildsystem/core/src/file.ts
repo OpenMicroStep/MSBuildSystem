@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import {util, Barrier} from './index.priv';
+import {util, Barrier, Step} from './index.priv';
 
 export class File {
   public path: string;
@@ -96,8 +96,14 @@ export class File {
   }
 
   ensure(ensureDir: boolean, time: number, callback: (err: Error | undefined, changed: boolean) => any) {
-    if (this.isDirectory)
-      return callback(undefined, false);
+    if (this.isDirectory) {
+      if (ensureDir)
+        this.directory().ensureDir((err) => { callback(err, true); });
+      else
+        callback(undefined, false);
+      return;
+    }
+
     this.stats((err, stats) => {
       if (err && ensureDir) {
           this.ensureDir(function(err) {
@@ -169,10 +175,16 @@ export class File {
     fs.readFile(this.path, "utf8", cb);
   }
   writeFile(content: Buffer, cb: (err: Error) => any) {
-    fs.writeFile(this.path, content, cb);
+    this.ensureDir((err) => {
+      if (err) cb(err);
+      else fs.writeFile(this.path, content, cb);
+    });
   }
   writeUtf8File(content: string, cb: (err: Error) => any) {
-    fs.writeFile(this.path, content, "utf8", cb);
+    this.ensureDir((err) => {
+      if (err) cb(err);
+      else fs.writeFile(this.path, content, "utf8", cb);
+    });
   }
   ensureDir(cb: (err: Error) => void) {
     var dir = this.isDirectory ? this.path : path.dirname(this.path);
@@ -202,6 +214,46 @@ export class File {
           });
         });
       });
+    });
+  }
+
+  writeSymlinkOf(step: Step<{}>, target: File, overwrite: boolean = false) {
+    fs.lstat(this.path, (err, stats) => {
+      if (stats && !stats.isSymbolicLink()) {
+        step.context.reporter.diagnostic({ type: "error", msg: "file already exists and is not a symbolic link", path: this.path });
+        return step.continue();
+      }
+
+      let create = () => {
+        fs.symlink(target.path, this.path, undefined, (err) => {
+          if (err && (<NodeJS.ErrnoException>err).code !== "EEXIST") step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+          step.continue();
+        });
+      };
+
+      if (stats) {
+        fs.readlink(this.path, (err, currentTarget) => {
+          if (err)
+            step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+          else if (currentTarget !== target.path) {
+            step.context.reporter.diagnostic({ type: "error", msg: `file already exists and is a symbolic link to '${currentTarget}'`, path: this.path });
+            if (overwrite) {
+              fs.unlink(this.path, (err) => {
+                if (err) {
+                  step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+                  return step.continue();
+                }
+                create();
+              });
+              return;
+            }
+          }
+          step.continue();
+        });
+      }
+      else {
+        create();
+      }
     });
   }
 
