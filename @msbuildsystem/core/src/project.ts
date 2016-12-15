@@ -149,7 +149,7 @@ export class Project {
     if (this.definition!.is !== 'project')
       reporter.diagnostic({ type: 'error', msg: `the root element 'is' attribute must be 'project'`});
     this.targets = [];
-    this.environments = [];
+    this.environments = <EnvironmentElement[]>Array.from(Workspace.globalExports.values()).filter(e => e instanceof EnvironmentElement);
     this.tree = Element.load(reporter, this.definition!, new ProjectElement(this, this.definition!.name), {
       warningProbableMisuseOfKey: ["depth", "exports"],
       elementFactories: ["component", "group", "file", "target", "environment"]
