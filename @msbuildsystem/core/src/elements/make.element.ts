@@ -1,4 +1,4 @@
-import {Element, ProjectElement, Reporter, AttributePath, DelayedElement, DelayedQuery} from '../index.priv';
+import {Element, ProjectElement, Reporter, AttributePath, DelayedElement, DelayedQuery, Workspace} from '../index.priv';
 
 export class MakeJSElement extends Element {
   __parent: MakeJSElement;
@@ -19,7 +19,10 @@ export class MakeJSElement extends Element {
      && steps[2].length > 0
      && ((steps[3].length === 0) || (steps.length >= 6 && steps[4].length === 0))
     ) { // ::[env:]target::
-      ret.push(new DelayedQuery(steps, groups.join('+'), this));
+      if (Workspace.globalExports.has(steps[2]))
+        ret.push(Workspace.globalExports.get(steps[2])!);
+      else
+        ret.push(new DelayedQuery(steps, groups.join('+'), this));
       return true;
     }
     return super.__resolveElementsSteps(reporter, steps, groups, ret);
