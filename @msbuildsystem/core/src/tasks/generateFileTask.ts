@@ -1,5 +1,4 @@
 import {InOutTask, TaskName, Graph, File, Step} from '../index.priv';
-import {Hash} from 'crypto';
 
 export abstract class GenerateFileTask extends InOutTask {
   constructor(name: TaskName, graph: Graph, path: string) {
@@ -9,9 +8,11 @@ export abstract class GenerateFileTask extends InOutTask {
   abstract uniqueKeyInfo() : any;
   abstract generate() : Buffer;
 
-  uniqueKey(hash: Hash) {
-    hash.update(JSON.stringify({info: this.uniqueKeyInfo(), path: this.outputFiles[0].path}));
-    return true;
+  uniqueKey() {
+    return Object.assign(super.uniqueKey(), {
+      info: this.uniqueKeyInfo(),
+      path: this.outputFiles[0].path
+    });
   }
 
   isRunRequired(step: Step<{ runRequired?: boolean }>) {

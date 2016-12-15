@@ -2,7 +2,6 @@ import {Project, RootGraph, Reporter,
   AttributePath, AttributeTypes, TargetExportsElement, FileElement, ComponentElement,
   Task, Graph, TaskName, BuildTargetElement, File, util, GenerateFileTask
 } from './index.priv';
-import {Hash} from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
@@ -146,9 +145,8 @@ export class Target extends SelfBuildGraph<RootGraph> {
     return this.attributes.__path();
   }
 
-  uniqueKey(hash: Hash) : boolean {
-    hash.update(this.variant + "\t" + this.environment + "\t" + this.targetName);
-    return true;
+  uniqueKey() {
+    return { variant: this.variant, environment: this.environment, name: this.targetName };
   }
 
   storagePath(task: Task) {

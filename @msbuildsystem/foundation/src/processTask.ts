@@ -1,6 +1,5 @@
 import {Graph, TaskName, Step, StepWithData, File, AttributePath, InOutTask} from '@msbuildsystem/core';
 import {ProcessProvider, ProcessProviderConditions, ProcessProviderRequirement, ProcessProviders} from './index';
-import {Hash} from 'crypto';
 
 /** if the argument is an array, the content the array will be concatenated */
 export type Arg = string | (string|File)[];
@@ -43,13 +42,12 @@ export class ProcessTask extends InOutTask {
     this.args.unshift(...args);
   }
 
-  uniqueKey(hash: Hash) {
-    var args = this.flattenArgs();
-    for (var i = 0, len = args.length; i < len; i++) {
-      hash.update(args[i]);
-      hash.update(" ");
-    }
-    return true;
+  uniqueKey() {
+    return Object.assign(super.uniqueKey(), {
+      env: this.env,
+      cwd: this.cwd,
+      args: this.flattenArgs()
+    });
   }
 
   flattenArgs(provider?: ProcessProvider, args?: Arg[]) : string[] {

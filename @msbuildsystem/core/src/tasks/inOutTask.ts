@@ -5,7 +5,14 @@ export class InOutTask extends Task {
     super(name, graph);
   }
 
-   isRunRequired(step: Step<{ runRequired?: boolean }>) {
+  uniqueKey() {
+    return {
+      inputs: this.inputFiles.map(i => i.path),
+      outputs: this.outputFiles.map(i => i.path)
+    };
+  }
+
+  isRunRequired(step: Step<{ runRequired?: boolean }>) {
     if (this.inputFiles.length && this.outputFiles.length) {
       // Force creation of output file directories
       File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {

@@ -1,5 +1,5 @@
-import {Graph, Target, Step, File, BuildSession, Flux} from './index.priv';
-import {createHash, Hash} from 'crypto';
+import {Graph, Target, Step, File, BuildSession} from './index.priv';
+import {createHash} from 'crypto';
 
 export type TaskName = { type: string, name: string, [s: string]: string };
 
@@ -38,19 +38,21 @@ export class Task {
       graph.inputs.add(this);
   }
 
-  /** fill the hash with data that can identify the task and its settings accross sessions
-   * returns false if the task can't reuse previous run informations  */
-  uniqueKey(hash: Hash) : boolean {
-    return false;
+
+  uniqueKey() : any {
+    return undefined;
   }
 
   /** returns the unique identifier of the task, this identifier is valid accross sessions */
   id() : string | null {
     if (this.sessionKey === undefined) {
       this.sessionKey = null;
-      var shasum = createHash('sha1');
-      if (this.uniqueKey(shasum))
+      let data = this.uniqueKey();
+      if (data !== undefined) {
+        var shasum = createHash('sha1');
+        shasum.update(JSON.stringify(data)); // TODO: use a stable stringify
         this.sessionKey = (this.classname || this.constructor.name) + "-" + shasum.digest('hex');
+      }
     }
     return this.sessionKey;
   }
