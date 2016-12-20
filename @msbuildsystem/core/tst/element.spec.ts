@@ -1,5 +1,5 @@
 import {Reporter, AttributePath} from '@msbuildsystem/core';
-import {newProxyElement, DelayedElement} from '@msbuildsystem/core/src/element';
+import {newProxyElement, DelayedElement} from '@msbuildsystem/core/elements/delayed.element';
 import {assert} from 'chai';
 
 export function tests() {

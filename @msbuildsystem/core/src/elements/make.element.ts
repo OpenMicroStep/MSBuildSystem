@@ -1,19 +1,21 @@
-import {Element, ProjectElement, Reporter, AttributePath, DelayedElement, DelayedQuery, Workspace} from '../index.priv';
+import {
+  Element, GroupElement, ProjectElement, DelayedElement, TargetElement, DelayedTarget,
+  Reporter, AttributePath, DelayedQuery, Workspace} from '../index.priv';
 
 export class MakeJSElement extends Element {
   __parent: MakeJSElement;
   __absoluteFilepath() : string {
     return this.__parent!.__absoluteFilepath();
   }
-  __resolveValueInArray(reporter: Reporter, el, ret: any[], keepGroups: boolean, attrPath: AttributePath) {
+  __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
     if (el instanceof DelayedElement && !el.__parent) {
       el.__parent = this;
       ret.push(el);
     }
-    else super.__resolveValueInArray(reporter, el, ret, keepGroups, attrPath);
+    else super.__resolveValueInArray(reporter, el, ret, attrPath);
   }
 
-  __resolveElementsSteps(reporter: Reporter, steps: string[], groups: string[], ret: Element[]) : boolean {
+  __resolveElementsGroup(reporter: Reporter, steps: string[], tagsQuery: string | undefined, ret: Element[]) {
     if (steps.length >= 5
      && steps[1].length === 0
      && steps[2].length > 0
@@ -22,11 +24,20 @@ export class MakeJSElement extends Element {
       if (Workspace.globalExports.has(steps[2]))
         ret.push(Workspace.globalExports.get(steps[2])!);
       else
-        ret.push(new DelayedQuery(steps, groups.join('+'), this));
+        ret.push(new DelayedQuery(steps, tagsQuery, this));
       return true;
     }
-    return super.__resolveElementsSteps(reporter, steps, groups, ret);
+    return super.__resolveElementsGroup(reporter, steps, tagsQuery, ret);
   }
+
+  __resolveElementsTags(reporter: Reporter, el: Element, into: Element[], requiredTags: string[], rejectedTags: string[]) {
+    let els = el.is === 'group' ? (<GroupElement>el).elements || [] : [el];
+    for (el of els)
+      if (this.__resolveElementsTagsFilter(el, requiredTags, rejectedTags))
+        into.push(el instanceof TargetElement ? new DelayedTarget(el, this) : el);
+  }
+
+
 }
 export interface MakeJSElement {
   __root() : ProjectElement;

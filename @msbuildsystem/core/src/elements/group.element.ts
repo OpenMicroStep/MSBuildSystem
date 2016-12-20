@@ -1,8 +1,14 @@
-import {Element, declareSimpleElementFactory, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath, MakeJSElement} from '../index.priv';
+import {Element, ElementLoadContext, Project, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath, MakeJSElement, util} from '../index.priv';
 import *  as path from 'path';
 
-declareSimpleElementFactory('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => {
-  return new GroupElement('group', name, parent);
+Project.elementFactories.registerSimple('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement) => {
+  let group = new GroupElement('group', name, parent);
+  if ("path" in definition) {
+    let p = AttributeTypes.validateString(reporter, attrPath, definition['path']);
+    p = p && util.pathJoinIfRelative(parent.__absoluteFilepath(), p);
+    group.path = p;
+  }
+  return group;
 });
 export class GroupElement extends MakeJSElement {
   elements: ComponentElement[] = [];
@@ -13,8 +19,8 @@ export class GroupElement extends MakeJSElement {
     return this.path || this.__parent!.__absoluteFilepath();
   }
 
-  __resolve(reporter: Reporter) {
-    super.__resolve(reporter);
+  __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
+    super.__resolveWithPath(reporter, attrPath);
     var elements = <any[]>[];
     var type: string | undefined = undefined;
     var is: string | undefined = undefined;
@@ -24,17 +30,20 @@ export class GroupElement extends MakeJSElement {
         if (!(<GroupElement><any>el).__resolved)
           (<GroupElement><any>el).__resolve(reporter);
         var subs = (<GroupElement><any>el).elements;
-        for (var j = 0, jlen = subs.length; j < jlen; ++j)
+        attrPath.push('.elements[', '', ']');
+        for (var j = 0, jlen = subs.length; j < jlen; ++j) {
+          attrPath.set(j, -2);
           loop(subs[j]);
+        }
+        attrPath.pop(3);
         return;
       }
       if (type === undefined)
         type = typeof el;
 
       if (typeof el !== type) {
-        reporter.diagnostic({
+        attrPath.diagnostic(reporter, {
           type: 'error',
-          path: `${this.__path()}.elements`,
           msg:  `elements must be of the same type, expecting ${type}, got ${typeof el}`
         });
       }
@@ -43,9 +52,8 @@ export class GroupElement extends MakeJSElement {
           is = cis;
 
         if (is !== cis) {
-          reporter.diagnostic({
+          attrPath.diagnostic(reporter, {
             type: 'error',
-            path: `${this.__path()}.elements`,
             msg:  `elements must be of the same type, expecting ${is}, got ${cis}`
           });
         }
@@ -54,23 +62,17 @@ export class GroupElement extends MakeJSElement {
         }
       }
     };
+    attrPath.push('.elements[', '', ']');
     for (var i = 0, len = this.elements.length; i < len; i++) {
+      attrPath.set(i, -2);
       loop(this.elements[i]);
     }
+    attrPath.pop(3);
     this.elements = elements;
   }
 
-  __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    if (key === 'elements') {
-      this.__loadIfArray(reporter, value, this.elements, attrPath);
-    }
-    else if (key === 'path') {
-      this.path = AttributeTypes.validateString(reporter, attrPath, value);
-      if (this.path && !path.isAbsolute(this.path))
-        this.path = path.join(this.__parent!.__absoluteFilepath(), this.path);
-    }
-    else {
-      super.__loadReservedValue(reporter, key, value, attrPath);
-    }
+  __loadReservedValue(context: ElementLoadContext, key: string, value, attrPath: AttributePath) {
+    if (key !== 'path') // path is handled by the factory
+      super.__loadReservedValue(context, key, value, attrPath);
   }
 }

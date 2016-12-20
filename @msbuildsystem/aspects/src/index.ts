@@ -1,7 +1,7 @@
 import {
   resolver, FileElement,
   InOutTask, Step, Graph, File, Directory,
-  Element, ElementFactory, declareSimpleElementFactory,
+  Element, ElementFactory,
   Reporter, AttributePath, AttributeTypes
 } from '@msbuildsystem/core';
 import { JSTarget, JSCompilers, NPMInstallTask } from '@msbuildsystem/js';
@@ -11,7 +11,7 @@ import * as parse_interface from './parse_interface';
 import * as path from 'path';
 
 type Type = any;
-const elementFactories = new Map<string, ElementFactory>();
+const elementFactories = Element.createElementFactoriesProviderMap('aspects');
 
 class AspectRootElement extends Element {
   __classes: ClassElement[] = [];
@@ -48,25 +48,17 @@ function typeToTypescriptType(type: Type) : string {
   return "any";
 }
 
-declareSimpleElementFactory('class', (reporter, name, definition, attrPath, parent: AspectBaseElement) => {
+elementFactories.registerSimple('class', (reporter, name, definition, attrPath, parent: AspectBaseElement) => {
   let ret = new ClassElement('class', name, parent);
   parent.__root().__classes.push(ret);
   return ret;
-}, elementFactories);
+});
 class ClassElement extends Element {
-  superclass: ClassElement | null;
+  superclass: ClassElement | null = null;
   attributes: AttributeElement[] = [];
   categories: CategoryElement[] = [];
   farCategories: CategoryElement[] = [];
   aspects: AspectElement[] = [];
-
-  __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    if (key === 'attributes') this.__loadIfArray(reporter, value, this.attributes, attrPath);
-    else if (key === 'categories') this.__loadIfArray(reporter, value, this.categories, attrPath);
-    else if (key === 'farCategories') this.__loadIfArray(reporter, value, this.farCategories, attrPath);
-    else if (key === 'aspects') this.__loadIfArray(reporter, value, this.aspects, attrPath);
-    else super.__loadReservedValue(reporter, key, value, attrPath);
-  }
 
   __decl() {
     return `export class ${this.name} extends ${this.superclass ? this.superclass.name : "VersionedObject"} {\n${
@@ -79,9 +71,9 @@ class ClassElement extends Element {
   }
 }
 
-declareSimpleElementFactory('attribute', (reporter, name, definition, attrPath, parent) => {
+elementFactories.registerSimple('attribute', (reporter, name, definition, attrPath, parent) => {
   return new AttributeElement('attribute', name, parent);
-}, elementFactories);
+});
 class AttributeElement extends Element {
   type: Type;
 }
@@ -97,21 +89,15 @@ const farMethods = <((clazz: string, method: string, argument: string, ret: stri
   //  `farAsync(this: ${clazz}, method: '${method}', argument: ${argument}): (flux: Flux<{ envelop: Invocation<${clazz}, ${ret}> }>) => void;`
 ];
 
-declareSimpleElementFactory('category', (reporter, name, definition, attrPath, parent) => {
+elementFactories.registerSimple('category', (reporter, name, definition, attrPath, parent) => {
   return new CategoryElement('category', name, parent);
-}, elementFactories);
-declareSimpleElementFactory('farCategory', (reporter, name, definition, attrPath, parent) => {
+});
+elementFactories.registerSimple('farCategory', (reporter, name, definition, attrPath, parent) => {
   return new CategoryElement('farCategory', name, parent);
-}, elementFactories);
+});
 class CategoryElement extends Element {
   langages: string[] = [];
   methods: MethodElement[] = [];
-
-  __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    if (key === 'langages') this.langages = AttributeTypes.validateStringList(reporter, attrPath, value);
-    else if (key === 'methods') this.__loadIfArray(reporter, value, this.methods, attrPath);
-    else super.__loadReservedValue(reporter, key, value, attrPath);
-  }
 
   __decl(clazz: string, far: boolean) {
     return `export interface ${clazz} { // ${this.name}\n${
@@ -136,9 +122,9 @@ class CategoryElement extends Element {
   }
 }
 
-declareSimpleElementFactory('method', (reporter, name, definition, attrPath, parent) => {
+elementFactories.registerSimple('method', (reporter, name, definition, attrPath, parent) => {
   return new MethodElement('method', name, parent);
-}, elementFactories);
+});
 class MethodElement extends Element {
   type: { arguments: Type[], return: Type };
   __declArguments() {
@@ -152,18 +138,12 @@ class MethodElement extends Element {
   }
 }
 
-declareSimpleElementFactory('aspect', (reporter, name, definition, attrPath, parent) => {
+elementFactories.registerSimple('aspect', (reporter, name, definition, attrPath, parent) => {
   return new AspectElement('aspect', name, parent);
-}, elementFactories);
+});
 class AspectElement extends Element {
   categories: CategoryElement[] = [];
   farCategories: CategoryElement[] = [];
-
-  __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
-    if (key === 'categories') this.__loadIfArray(reporter, value, this.categories, attrPath);
-    else if (key === 'farCategories') this.__loadIfArray(reporter, value, this.farCategories, attrPath);
-    else super.__loadReservedValue(reporter, key, value, attrPath);
-  }
 
   __decl(clazz: ClassElement) {
     return `${clazz.__decl()}\n${this.categories.map(c => c.__decl(clazz.name, false)).join('\n')}\n${this.farCategories.map(c => c.__decl(clazz.name, true)).join('\n')}`;
@@ -194,10 +174,7 @@ export class ParseAspectInterfaceTask extends InOutTask {
       }
       else {
         let ret = parse_interface.interfaceParse(content);
-        let root = Element.load(step.context.reporter, ret, new AspectRootElement('root', this.src.name, null), {
-          warningProbableMisuseOfKey: [],
-          elementFactories: elementFactories
-        });
+        let root = Element.load(step.context.reporter, ret, new AspectRootElement('root', this.src.name, null), elementFactories);
         let aspects = <{cls: ClassElement, aspect: AspectElement }[]>[];
         root.__classes.forEach(cls => {
           aspects.push(...cls.aspects.filter(a => a.name === this.aspect).map(a => ({cls: cls, aspect: a})));

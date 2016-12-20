@@ -1,4 +1,4 @@
-import {Project, Reporter, BuildGraphOptions, RootGraph, Element, AttributeTypes, AttributePath, util, Directory, ElementFactory} from './index.priv';
+import {Project, Reporter, BuildGraphOptions, RootGraph, Element, AttributeTypes, AttributePath, util, Directory, TargetElement} from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -68,5 +68,11 @@ export class Workspace {
     this.projects.forEach((p) => sources.push(...p.targets.filter(t => t.name === name)));
     // TODO: resolve exports in .shared
     return sources;
+  }
+
+  targets() : TargetElement[] {
+    let r = <TargetElement[]>[];
+    this.projects.forEach(p => r.push(...p.targets));
+    return r;
   }
 }

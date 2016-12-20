@@ -1,10 +1,10 @@
-import {Task, Graph, RootGraph} from '@msbuildsystem/core';
+import {Task, Graph, RootGraph, Workspace} from '@msbuildsystem/core';
 import {assert} from 'chai';
 
 export function tests() {
 
 it("simple graph", function() {
-  var r = new RootGraph();
+  var r = new RootGraph(new Workspace());
   var g = new Graph({ name: "root", type: "test" }, r);
   var t1 = new Task({ name: 't1', type: "test" }, g);
   var t2 = new Task({ name: 't2', type: "test" }, g);

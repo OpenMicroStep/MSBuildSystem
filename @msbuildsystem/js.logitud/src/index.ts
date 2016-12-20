@@ -1,6 +1,6 @@
 import {EnvironmentElement, Workspace} from '@msbuildsystem/core';
 
-const logitud_typescript_angular = new EnvironmentElement("logitud.typescript.angular", Workspace.globalRoot, false);
+const logitud_typescript_angular = new EnvironmentElement("logitud.typescript.angular", Workspace.globalRoot);
 Object.assign(logitud_typescript_angular, {
   type: "javascript", compiler: "aspects",
   tsConfig: [{
@@ -41,7 +41,7 @@ Object.assign(logitud_typescript_angular, {
 });
 Workspace.globalExports.set(logitud_typescript_angular.name, logitud_typescript_angular);
 
-const logitud_typescript_node = new EnvironmentElement("logitud.typescript.node", Workspace.globalRoot, false);
+const logitud_typescript_node = new EnvironmentElement("logitud.typescript.node", Workspace.globalRoot);
 Object.assign(logitud_typescript_node, {
   type: "javascript", compiler: "aspects",
   tsConfig: [{

@@ -1,13 +1,12 @@
 import {
-  Element, MakeJSElement,
-  declareElementFactory, elementValidator,
-  AttributeTypes, AttributePath,
+  Element, ElementLoadContext, MakeJSElement,
+  AttributeTypes, AttributePath, Project,
   File, util, Reporter, MakeJS
 } from '../index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
 
-declareElementFactory('file', (reporter: Reporter, namespacename: string,
+Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement
 ) => {
   let name = namespacename || definition.name;
@@ -66,19 +65,19 @@ export class FileElement extends MakeJSElement {
     this.__file = file;
   }
 
-  __loadNamespace(reporter: Reporter, name: string, value, attrPath: AttributePath) {
-    attrPath.diagnostic(reporter, { type: 'error', msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
+  __loadNamespace(context: ElementLoadContext, name: string, value: MakeJS.Element, attrPath: AttributePath) {
+    attrPath.diagnostic(context.reporter, { type: 'error', msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
   }
 
-  __loadReservedValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
+  __loadReservedValue(context: ElementLoadContext, key: string, value, attrPath: AttributePath) {
     if (key !== 'tags') // name and tags are handled by instantiation
-      super.__loadReservedValue(reporter, key, value, attrPath);
+      super.__loadReservedValue(context, key, value, attrPath);
   }
 }
 export module FileElement {
-  export const validateFileElement = elementValidator('file', FileElement);
+  export const validate = Element.elementValidator('file', FileElement);
   export function validateFile(reporter: Reporter, path: AttributePath, value: any) {
-    if ((value = validateFileElement(reporter, path, value)) !== undefined && value.__file)
+    if ((value = validate(reporter, path, value)) !== undefined && value.__file)
       return <File>value.__file;
     return undefined;
   };

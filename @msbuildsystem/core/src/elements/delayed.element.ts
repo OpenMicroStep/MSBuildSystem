@@ -10,7 +10,7 @@ export class DelayedElement extends Element {
 }
 
 export class DelayedQuery extends DelayedElement {
-  constructor(public steps: string[], public tagsQuery: string, parent: Element | null) {
+  constructor(public steps: string[], public tagsQuery: string | undefined, parent: Element | null) {
     super(parent);
   }
   __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
@@ -28,7 +28,6 @@ export class DelayedQuery extends DelayedElement {
       });
     }
     else if (sources.length > 1) {
-      // TODO: do this check after project loaded
       attrPath.diagnostic(reporter, {
         type: "error",
         msg: `the target '${target}' is present multiple times in the workspace, this shouldn't happen`

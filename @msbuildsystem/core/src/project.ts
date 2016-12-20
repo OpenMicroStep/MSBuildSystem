@@ -1,5 +1,5 @@
 import {Workspace, AttributePath, Target, getTargetClass, util, Diagnostic,
-  TGraph, Task, Reporter, MakeJS,
+  TGraph, Task, Reporter, MakeJS, createElementFactoriesProviderMap, ProviderMap,
   Element, ProjectElement, BuildTargetElement, TargetElement, EnvironmentElement
 } from './index.priv';
 import * as path from 'path';
@@ -35,16 +35,20 @@ export class RootGraph extends TGraph<Target> {
   createTargets(reporter: Reporter, options: BuildGraphOptions, projects: Project[] = Array.from(this.workspace.projects.values())) {
     projects.forEach((project) => {
       let targets = project.targets;
-      let environments = project.environments;
       let variants = options.variants || ["debug"];
       if (options.targets)
         targets = targets.filter(c => options.targets!.indexOf(c.name) !== -1);
-      if (options.environments)
-        environments = environments.filter(c => options.environments!.indexOf(c.name) !== -1);
+
+      if (targets.length === 0) {
+        reporter.diagnostic({
+          type: "error",
+          msg: "no target where selected"
+        });
+      }
 
       // Phase 1: create targets graph
       targets.forEach(target => {
-        let targetEnvs = target.environments.filter(e => environments.indexOf(e) !== -1);
+        let targetEnvs = target.environments.filter(e => !options.environments || options.environments.indexOf(e.name) !== -1);
         targetEnvs.forEach(environment => {
           variants.forEach(variant => {
             this.createTarget(reporter, null, target, environment, variant);
@@ -119,9 +123,10 @@ export class Project {
   path: string;
   definition: MakeJS.Project | null;
   targets: TargetElement[];
-  environments: EnvironmentElement[];
   tree: ProjectElement;
   reporter: Reporter;
+
+  static elementFactories = createElementFactoriesProviderMap('project');
 
   constructor(workspace: Workspace, directory: string, name = "make.js") {
     this.workspace = workspace;
@@ -149,10 +154,23 @@ export class Project {
     if (this.definition!.is !== 'project')
       reporter.diagnostic({ type: 'error', msg: `the root element 'is' attribute must be 'project'`});
     this.targets = [];
-    this.environments = <EnvironmentElement[]>Array.from(Workspace.globalExports.values()).filter(e => e instanceof EnvironmentElement);
-    this.tree = Element.load(reporter, this.definition!, new ProjectElement(this, this.definition!.name), {
-      warningProbableMisuseOfKey: ["depth", "exports"],
-      elementFactories: ["component", "group", "file", "target", "environment"]
+    this.tree = Element.load(reporter, this.definition!, new ProjectElement(this, this.definition!.name), Project.elementFactories);
+    let allTargets = this.workspace.targets();
+    this.targets.forEach(target => {
+      if (target.environments.length === 0) {
+        reporter.diagnostic({
+          type: "error",
+          msg: "environments list is empty",
+          path: `${target.__path()}.environments`
+        });
+      }
+      if (allTargets.indexOf(target) !== allTargets.lastIndexOf(target)) {
+        reporter.diagnostic({
+          type: "error",
+          msg: `the target '${target}' is present multiple times in the workspace, this shouldn't happen`,
+          path: `${target.__path()}`
+        });
+      }
     });
   }
 
@@ -168,6 +186,7 @@ export class Project {
     return root;
   }
 }
+["components", "elements", "depth", "exports"].forEach(n => Project.elementFactories.warningProbableMisuseOfKey.add(n));
 
 export interface Run {
   name: string;
