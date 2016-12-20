@@ -11,14 +11,14 @@ export interface LinkerOptions {
   frameworkDirectories: Directory[];
 }
 
-export const validateLinkerOptions = AttributeTypes.mergedObjectListValidator<LinkerOptions, Target>([
-    { path: 'linker'              , validator: AttributeTypes.validateString    , default: undefined },
-    { path: 'linkFlags'           , validator: AttributeTypes.validateStringList, default: []   },
-    { path: 'libraries'           , validator: AttributeTypes.validateStringList, default: []   },
-    { path: 'archives'            , validator: AttributeTypes.validateStringList, default: []   },
-    { path: 'libDirectories'      , validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
-    { path: 'frameworkDirectories', validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
-]);
+export const validateLinkerOptions = AttributeTypes.mergedObjectListValidator<LinkerOptions, Target>({
+    'linker'              : { validator: AttributeTypes.validateString    , default: undefined },
+    'linkFlags'           : { validator: AttributeTypes.validateStringList, default: []   },
+    'libraries'           : { validator: AttributeTypes.validateStringList, default: []   },
+    'archives'            : { validator: AttributeTypes.validateStringList, default: []   },
+    'libDirectories'      : { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+    'frameworkDirectories': { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+});
 
 @declareTask({ type: "cxxlink" })
 export class LinkTask extends ProcessTask {

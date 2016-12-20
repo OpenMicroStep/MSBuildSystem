@@ -23,27 +23,27 @@ function superValidateList<T, A0> (
   }
 }
 
-function superFillDefaults<T, A0>(extensions: AttributeTypes.Extension<any, A0>[], into: T, a0: A0) : T {
-  for (var i = 0, len = extensions.length; i < len; i++) {
-    var ext = extensions[i];
-    into[ext.path] = ext.default;
+function superFillDefaults<T, A0>(extensions: AttributeTypes.Extensions<T, A0>, into: T, a0: A0) : T {
+  for (var path in extensions) {
+    var ext = extensions[path];
+    into[path] = ext.default;
   }
   return into;
 }
 
 function superFill<T, A0>(
   reporter: Reporter, path: AttributePath, attr: any, a0: A0,
-  into: T, extensions: AttributeTypes.Extension<any, A0>[]
+  into: T, extensions: AttributeTypes.Extensions<T, A0>
 ) : T {
   path.push('[', '', ']');
-  for (var i = 0, len = extensions.length; i < len; i++) {
-    var ext = extensions[i];
-    var v = attr[ext.path];
+  for (var k in extensions) {
+    var ext = extensions[k];
+    var v = attr[k];
     if (v !== undefined) {
-      path.set(ext.path, -2);
+      path.set(k, -2);
       v = ext.validator(reporter, path, v, a0);
     }
-    into[ext.path] = v !== undefined ? v : ext.default;
+    into[k] = v !== undefined ? v : ext.default;
   }
   path.pop(3);
   return into;
@@ -51,7 +51,7 @@ function superFill<T, A0>(
 
 function superValidateComplex<T, T2, A0>(
   reporter: Reporter, path: AttributePath, attr: any, a0: A0,
-  validator: AttributeTypes.Validator<T, A0>, extensions: AttributeTypes.Extension<any, A0>[],
+  validator: AttributeTypes.Validator<T, A0>, extensions: AttributeTypes.Extensions<T2, A0>,
   push: (keys: T[], value: T2) => void
 ) {
   let keys = <T[]>[];
@@ -81,8 +81,10 @@ export module AttributeTypes {
   export type ValidatorNU0<T> = (reporter: Reporter, path: AttributePath, value: any) => T;
   export type Reducer<T, R, C extends {}> = (reporter: Reporter, path: AttributePath, current: T, previous: R | undefined, context: C) => R;
   export type MapValue<T> = (reporter: Reporter, path: AttributePath, value: any, values: T[], ...args) => void;
-  export type Extension<T, A0> = { path: string, validator: AttributeTypes.Validator<T, A0>, default: T };
-  export type Extension0<T> = { path: string, validator: AttributeTypes.Validator0<T>, default: T };
+  export type Extension<T, A0> = { validator: AttributeTypes.Validator<T, A0>, default: T };
+  export type Extension0<T> = { validator: AttributeTypes.Validator0<T>, default: T };
+  export type Extensions<T, A0> = { [K in keyof T]: AttributeTypes.Extension<T[K], A0> };
+  export type Extensions0<T> = { [K in keyof T]: AttributeTypes.Extension0<T[K]> };
 
   export function validateStringValue(reporter: Reporter, path: AttributePath, value: any, expected: string) {
     if (typeof value !== "string")
@@ -183,9 +185,9 @@ export module AttributeTypes {
     };
   }
 
-  export function objectValidator<T>(extensions: Extension0<any>[]) : ValidatorNU0<T>;
-  export function objectValidator<T, A0>(extensions: Extension<any, A0>[]) : ValidatorNU<T, A0>;
-  export function objectValidator<T, A0>(extensions: Extension<any, A0>[]) {
+  export function objectValidator<T>(extensions: Extensions0<T>) : ValidatorNU0<T>;
+  export function objectValidator<T, A0>(extensions: Extensions<T, A0>) : ValidatorNU<T, A0>;
+  export function objectValidator<T, A0>(extensions: Extensions<T, A0>) {
     return function validateObject(reporter: Reporter, path: AttributePath, attr, a0: A0) : T {
       var ret = <T>{};
       if (typeof attr !== "object") {
@@ -199,9 +201,9 @@ export module AttributeTypes {
     };
   }
 
-  export function mapValidator<T, T2>(validator: AttributeTypes.Validator0<T>, extensions: Extension0<any>[]) : ValidatorNU0<Map<T, T2>>;
-  export function mapValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) : ValidatorNU<Map<T, T2>, A0>;
-  export function mapValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) {
+  export function mapValidator<T, T2>(validator: AttributeTypes.Validator0<T>, extensions: Extensions0<T2>) : ValidatorNU0<Map<T, T2>>;
+  export function mapValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extensions<T2, A0>) : ValidatorNU<Map<T, T2>, A0>;
+  export function mapValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extensions<T2, A0>) {
     return function validateMap(reporter: Reporter, path: AttributePath, attr, a0: A0) : Map<T, T2> {
       var ret = new Map<T, T2>();
       superValidateList(reporter, path, attr, a0, (reporter: Reporter, path: AttributePath, attr: any) => {
@@ -219,9 +221,9 @@ export module AttributeTypes {
     };
   }
 
-  export function groupValidator<T, T2>(validator: AttributeTypes.Validator0<T>, extensions: Extension0<any>[]) : ValidatorNU0<{values: T[], ext: T2}[]>;
-  export function groupValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) : ValidatorNU<{values: T[], ext: T2}[], A0>;
-  export function groupValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extension<any, A0>[]) {
+  export function groupValidator<T, T2>(validator: AttributeTypes.Validator0<T>, extensions: Extensions0<T2>) : ValidatorNU0<{values: T[], ext: T2}[]>;
+  export function groupValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extensions<T2, A0>) : ValidatorNU<{values: T[], ext: T2}[], A0>;
+  export function groupValidator<T, T2, A0>(validator: AttributeTypes.Validator<T, A0>, extensions: Extensions<T2, A0>) {
     return function validateGroup(reporter: Reporter, path: AttributePath, attr, a0: A0) : {values: T[], ext: T2}[] {
       var ret = <{values: T[], ext: T2}[]>[];
       var set = new Set<T>();
@@ -284,9 +286,9 @@ export module AttributeTypes {
     };
   }
 
-  export function mergedObjectListValidator<R>(extensions: Extension0<any>[]) : Validator0<R>;
-  export function mergedObjectListValidator<R, A0>(extensions: Extension<any, A0>[]) : Validator<R, A0>;
-  export function mergedObjectListValidator<R, A0>(extensions: Extension<any, A0>[]) {
+  export function mergedObjectListValidator<R>(extensions: Extensions0<R>) : Validator0<R>;
+  export function mergedObjectListValidator<R, A0>(extensions: Extensions<R, A0>) : Validator<R, A0>;
+  export function mergedObjectListValidator<R, A0>(extensions: Extensions<R, A0>) {
     return dynamicDefaultValueValidator(reducedListValidator(objectValidator(extensions), reduceByMergingObjects), (a0: A0) => {
       return superFillDefaults(extensions, {}, a0);
     });

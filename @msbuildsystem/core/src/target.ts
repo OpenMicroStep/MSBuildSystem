@@ -1,6 +1,6 @@
 import {Project, RootGraph, Reporter,
   AttributePath, AttributeTypes, TargetExportsElement, FileElement, ComponentElement,
-  Task, Graph, TaskName, BuildTargetElement, File, util, GenerateFileTask
+  Task, Graph, TaskName, BuildTargetElement, File, Directory, util, GenerateFileTask
 } from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs-extra';
@@ -202,7 +202,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
 }
 
 export namespace Target {
-  export function validateDirectory(reporter: Reporter, path: AttributePath, value: any, target: Target) {
+  export function validateDirectory(reporter: Reporter, path: AttributePath, value: any, target: Target) : Directory | undefined {
     if (typeof value === "string") {
       let v = AttributeTypes.validateString(reporter, path, value);
       if (v !== undefined) {
@@ -212,7 +212,7 @@ export namespace Target {
     }
     else if (value instanceof FileElement) {
       let f = value.__file;
-      return f.isDirectory ? f : f.directory();
+      return f.isDirectory ? f as Directory : f.directory();
     }
     else {
       path.diagnostic(reporter, { type: "warning", msg: "attribute must be a 'file' element or a string" });

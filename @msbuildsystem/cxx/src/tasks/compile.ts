@@ -13,18 +13,19 @@ export type CompilerOptions = {
   language: string | undefined;
   compiler: string | undefined;
   defines: string[];
-  flags: string[];
+  compileFlags: string[];
   includeDirectories: Directory[];
   frameworkDirectories: Directory[];
 }
-export const validateCompilerOptions = AttributeTypes.mergedObjectListValidator<CompilerOptions, Target>([
-    { path: 'language'            , validator: AttributeTypes.validateString, default: undefined },
-    { path: 'compiler'            , validator: AttributeTypes.validateString, default: undefined },
-    { path: 'defines'             , validator: AttributeTypes.validateStringList, default: [] },
-    { path: 'flags'               , validator: AttributeTypes.validateStringList, default: [] },
-    { path: 'includeDirectories'  , validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
-    { path: 'frameworkDirectories', validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
-]);
+export const compilerExtensions = {
+    'language'            : { validator: AttributeTypes.validateString, default: undefined },
+    'compiler'            : { validator: AttributeTypes.validateString, default: undefined },
+    'defines'             : { validator: AttributeTypes.validateStringList, default: [] },
+    'compileFlags'        : { validator: AttributeTypes.validateStringList, default: [] },
+    'includeDirectories'  : { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+    'frameworkDirectories': { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+};
+export const validateCompilerOptions = AttributeTypes.mergedObjectListValidator<CompilerOptions, Target>(compilerExtensions);
 
 @declareTask({ type: "cxxcompile" })
 export class CompileTask extends ProcessTask {
@@ -56,7 +57,7 @@ export class CompileTask extends ProcessTask {
         this.addFlags([['-F', dir]]);
       });
     }
-    this.addFlags(options.flags);
+    this.addFlags(options.compileFlags);
   }
 
   parseHeaderMap(step: StepWithData<{}, {}, { headers?: string[] }>) {

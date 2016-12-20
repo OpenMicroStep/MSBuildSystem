@@ -5,7 +5,7 @@ import {
 } from '@msbuildsystem/core';
 import {
   CXXSysroot, CXXSysroots,
-  CompilerOptions, validateCompilerOptions,
+  CompilerOptions, validateCompilerOptions, compilerExtensions,
   LinkerOptions, validateLinkerOptions
 } from './index.priv';
 
@@ -50,14 +50,6 @@ export function validateSysroot(reporter: Reporter, path: AttributePath, value: 
   }
   return undefined;
 }
-
-const compilerExtensions = <AttributeTypes.Extension<any, Target>[]>[
-  { path: 'language'          , validator: AttributeTypes.validateString, default: null },
-  { path: 'compiler'          , validator: AttributeTypes.validateString, default: null },
-  { path: 'defines'           , validator: AttributeTypes.validateStringList, default: [] },
-  { path: 'compileFlags'      , validator: AttributeTypes.validateStringList, default: [] },
-  { path: 'includeDirectories', validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
-];
 
 /**
  * Base target for C/C++ targets (library, framework, executable)

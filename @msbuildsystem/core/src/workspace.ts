@@ -13,9 +13,9 @@ interface WorkspaceData {
   projects: Directory[];
 }
 
-const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Workspace>([{
-  path: "projects", validator: AttributeTypes.validateDirectory, default: []
-}]);
+const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Workspace>({
+  projects: { validator: AttributeTypes.listValidator(AttributeTypes.validateDirectory), default: [] }
+});
 
 export class Workspace {
   static globalRoot = new Element('root', 'global', null);

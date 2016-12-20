@@ -86,10 +86,10 @@ export module FileElement {
   export type FileGroup = { values: File[], ext: { dest: string, expand: boolean } };
   export const validateFileGroup = AttributeTypes.groupValidator<File, { dest: string, expand: boolean }>(
     validateFile,
-    [
-      {path: "dest"  , validator: AttributeTypes.validateString , default: ""   },
-      {path: "expand", validator: AttributeTypes.validateBoolean, default: false}
-    ]
+    {
+      dest: { validator: AttributeTypes.validateString , default: ""   },
+      expand: { validator: AttributeTypes.validateBoolean, default: false }
+    }
   );
 }
 
