@@ -385,7 +385,7 @@ export class AttributePath {
     this.reset.apply(this, arguments);
   }
 
-  reset(...components: AttributePathComponent[]);
+  reset(...components: AttributePathComponent[]) : this;
   reset() {
     var length = arguments.length;
     this.components = [];
@@ -394,7 +394,7 @@ export class AttributePath {
     return this;
   }
 
-  push(...components: AttributePathComponent[]);
+  push(...components: AttributePathComponent[]) : this;
   push() {
     var length = arguments.length;
     for (var i = 0; i < length; i++)
@@ -402,21 +402,22 @@ export class AttributePath {
     return this;
   }
 
-  pop(nb: number = 1) {
+  pop(nb: number = 1) : this {
     while (--nb >= 0)
       this.components.pop();
     return this;
   }
 
-  rewrite(...components: AttributePathComponent[])
+  rewrite(...components: AttributePathComponent[]) : this
   rewrite() {
     var i = 0, len = arguments.length;
     var end = this.components.length - len;
     while (i < len)
       this.components[end++] = arguments[i++];
+    return this;
   }
 
-  set(attr: AttributePathComponent, at: number = -1) {
+  set(attr: AttributePathComponent, at: number = -1) : this {
     this.components[at < 0 ? this.components.length + at : at] = attr;
     return this;
   }
