@@ -20,8 +20,12 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   @resolver(AttributeTypes.validateMergedObjectList)
   npmInstall: { [s: string]: string } = {};
 
-  @resolver(AttributeTypes.validateStringList)
-  npmLink: string[] =  [];
+  @resolver(AttributeTypes.listValidator(AttributeTypes.objectValidator({
+    path: { validator: AttributeTypes.validateString, default: undefined },
+    name: { validator: AttributeTypes.validateString, default: undefined },
+    srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] }
+  })))
+  npmLink: { path: string, name: string, srcs: string[] }[] =  [];
 
   @resolver(Target.validateFile)
   tsMain: File | null = null;
@@ -36,8 +40,8 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     Object.keys(this.npmInstall).forEach(k => npmInstallOut.addPackage(k, this.npmInstall[k]));
     this.npmLink.forEach(l =>
       npmInstall.addDependency(new NPMLinkTask(this.graph,
-        File.getShared(path.join(this.graph.paths.output, l), true),
-        File.getShared(path.join(this.graph.paths.intermediates, l), true)
+        File.getShared(path.join(this.graph.paths.output, l.path), true),
+        File.getShared(path.join(this.graph.paths.intermediates, l.path), true)
       ))
     );
     this.graph.compiler.addDependency(npmInstall);
@@ -54,6 +58,41 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
       File.getShared(path.join(this.graph.paths.intermediates, "node_modules"), true),
       File.getShared(path.join(this.graph.packager.absoluteCompilationOutputDirectory(), "node_modules"), true)
     );
+  }
+
+
+
+  @generator
+  do_generate_tsconfig(step: Step<{}>) {
+    let dir = File.commonDirectoryPath(this.tsc.files);
+    let tsconfig = File.getShared(path.join(dir, 'tsconfig.json'));
+    tsconfig.ensureDir((err) => {
+      if (err) {
+        step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to create directory for writing file" });
+        step.continue();
+      }
+      else {
+        let target = this.target();
+        let intermediatesDirectory = target.paths.intermediates;
+        let options = Object.assign({}, this.tsConfig);
+        let paths = options.paths || (options.paths = {});
+        let baseUrl = options.baseUrl || (options.baseUrl = path.relative(target.project.directory, dir));
+        baseUrl = util.pathJoinIfRelative(target.project.directory, baseUrl);
+        this.npmLink.forEach(l =>
+          paths[l.name] = l.srcs
+        );
+        paths['*'] = [path.join(intermediatesDirectory, "/node_modules/*"), path.join(intermediatesDirectory, "/node_modules/@types/*")];
+        options.typeRoots = options.typeRoots || [];
+        options.typeRoots.push(path.join(intermediatesDirectory, "node_modules/@types"));
+        tsconfig.writeUtf8File(JSON.stringify({
+           compilerOptions: options,
+           files: this.tsc.files.map(f => f.relativePath(dir))
+        }, null, 2), (err) => {
+          if (err) step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to write file" });
+          step.continue();
+        });
+      }
+    });
   }
 }
 
@@ -83,11 +122,11 @@ export class TypescriptTask extends Task {
     let workspaceDir = target.project.workspace.directory;
     let sourceDirectory = target.project.directory;
     let intermediatesDirectory = target.paths.intermediates;
-    let isMapped = new RegExp(`^${util.escapeRegExp(intermediatesDirectory)}/(?!(${this.nonVirtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$))`);
+    let isMapped = new RegExp(`^${util.escapeRegExp(intermediatesDirectory)}/(?!(${this.nonVirtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$))`, 'i');
     let host = ts.createCompilerHost(options);
     function fromVirtualFs(p: string) {
       if (isMapped.test(p))
-        p = path.join(sourceDirectory, path.relative(intermediatesDirectory, p));
+        p = path.join(sourceDirectory, p.substring(intermediatesDirectory.length + 1));
       return p;
     }
     function toVirtualFs(p: string) {
@@ -101,7 +140,6 @@ export class TypescriptTask extends Task {
     let readFile = host.readFile;
     let directoryExists = host.directoryExists;
     let realpath = host.realpath;
-    // let trace = host.trace; if (trace) host.trace = (s) => (s.indexOf('@microstep/async') !== -1 && trace!(s));
     host.fileExists = (fileName: string) => fileExists(fromVirtualFs(fileName));
     host.readFile = (fileName: string) => readFile(fromVirtualFs(fileName));
     if (directoryExists)
@@ -154,26 +192,5 @@ export class TypescriptTask extends Task {
       this.emitTsDiagnostics(step.context.reporter, tsDiagnostics, host);
     }
     step.continue();
-  }
-
-  @generator
-  do_generate_tsconfig(step: Step<{}>) {
-    let dir = File.commonDirectoryPath(this.files);
-    let tsconfig = File.getShared(path.join(dir, 'tsconfig.json'));
-    tsconfig.ensureDir((err) => {
-      if (err) {
-        step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to create directory for writing file" });
-        step.continue();
-      }
-      else {
-        tsconfig.writeUtf8File(JSON.stringify({
-           compilerOptions: this.options,
-           files: this.files.map(f => f.relativePath(dir))
-        }, null, 2), (err) => {
-          if (err) step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to write file" });
-          step.continue();
-        });
-      }
-    });
   }
 }

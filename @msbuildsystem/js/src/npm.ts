@@ -1,6 +1,7 @@
 import {
   Reporter, SelfBuildGraph, resolver, generator, AttributeTypes, util,
-  declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory
+  declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory,
+  ComponentElement
 } from '@msbuildsystem/core';
 import {
   ProcessTask, LocalProcessProvider, ProcessProviders
@@ -36,12 +37,23 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   configureExports(reporter: Reporter) {
     super.configureExports(reporter);
     let exports = this.graph.exports;
-    exports["npmPackage"] = [{
-      "dependencies": {
-        [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
-      }
+    let npmLink = [{
+      path: exports.__filepath(this.absoluteCompilationOutputDirectory()),
+      name: this.graph.outputName,
+      srcs: this.graph.files.map(f => exports.__filepath(f.path))
     }];
-    exports["npmLink"] = [exports.__filepath(this.absoluteCompilationOutputDirectory())]; // npmLink
+    let deps = {
+      [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
+    };
+    exports["npmPackage"] = [{
+      "dependencies": deps
+    }];
+    exports["npmLink"] = npmLink;
+    exports["peerDependency="] = new ComponentElement('component', 'peerDependency', exports);
+    exports["peerDependency="]["npmPackage"] = [{
+      "peerDependencies": deps
+    }];
+    exports["peerDependency="]["npmLink"] = npmLink;
   }
 }
 
