@@ -38,6 +38,10 @@ export class JSTarget extends Target {
     }
   }
 
+  absoluteCopyFilesPath() {
+    return this.packager.absoluteCompilationOutputDirectory();
+  }
+
   configureExports(reporter: Reporter) {
     super.configureExports(reporter);
     this.compiler.configureExports(reporter);

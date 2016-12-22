@@ -20,6 +20,7 @@ export { Project, RootGraph } from './project';
 export { Workspace  } from './workspace';
 export * from './tasks/inOutTask';
 export * from './tasks/generateFileTask';
+export * from './tasks/copyTask';
 
 //import * as logger from './logger';
 import * as util    from './util'; export { util as util };

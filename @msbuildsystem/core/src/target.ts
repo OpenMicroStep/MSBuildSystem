@@ -1,4 +1,4 @@
-import {Project, RootGraph, Reporter,
+import {Project, RootGraph, Reporter, CopyTask,
   AttributePath, AttributeTypes, TargetExportsElement, FileElement, ComponentElement,
   Task, Graph, TaskName, BuildTargetElement, File, Directory, util, GenerateFileTask
 } from './index.priv';
@@ -102,6 +102,10 @@ export class Target extends SelfBuildGraph<RootGraph> {
   environment: string;
   targetName: string;
 
+  @resolver(FileElement.validateFileGroup)
+  copyFiles: FileElement.FileGroup[] = [];
+  taskCopyFiles?: CopyTask = undefined;
+
   @resolver(AttributeTypes.validateString)
   outputName: string;
 
@@ -141,6 +145,10 @@ export class Target extends SelfBuildGraph<RootGraph> {
     fs.ensureDirSync(this.paths.output);
   }
 
+  absoluteCopyFilesPath() {
+    return this.paths.output;
+  }
+
   __path() {
     return this.attributes.__path();
   }
@@ -171,6 +179,10 @@ export class Target extends SelfBuildGraph<RootGraph> {
 
   buildGraph(reporter: Reporter) {
     this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(), path.join(this.paths.shared, this.name.name + '.json'));
+    if (this.copyFiles.length) {
+      let copy = this.taskCopyFiles = new CopyTask("copy files", this);
+      copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());
+    }
   }
 
   addDependency(task: Target) {

@@ -1,5 +1,4 @@
-import {declareTarget, resolver, AttributeTypes, Reporter, FileElement, AttributePath} from '@msbuildsystem/core';
-import {CopyTask} from '@msbuildsystem/foundation';
+import {declareTarget, resolver, AttributeTypes, Reporter, FileElement, AttributePath, CopyTask} from '@msbuildsystem/core';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
 

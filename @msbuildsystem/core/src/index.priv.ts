@@ -11,7 +11,7 @@ export * from './task';
 export * from './graph';
 export * from './tasks/inOutTask';
 export * from './tasks/generateFileTask';
-export * from './target';
+export * from './tasks/copyTask';
 export * from './runner';
 export * from './provider';
 export * from './barrier';
@@ -29,3 +29,5 @@ export * from './elements/target.element';
 export * from './elements/targetexports.element';
 export * from './elements/target-env-variant.element';
 export * from './elements/project.element';
+
+export * from './target';

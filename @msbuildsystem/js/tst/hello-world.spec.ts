@@ -1,5 +1,4 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, TGraph} from '@msbuildsystem/core';
-import {CopyTask} from '@msbuildsystem/foundation';
+import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, TGraph, CopyTask} from '@msbuildsystem/core';
 import {JSTarget, DefaultJSCompiler, DefaultJSPackager} from '@msbuildsystem/js';
 import {assert} from 'chai';
 import * as path from 'path';

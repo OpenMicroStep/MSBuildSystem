@@ -1,9 +1,8 @@
 import {
-  AttributePath, Reporter,
+  AttributePath, Reporter, CopyTask,
   SelfBuildGraph, createBuildGraphProviderList
 } from '@msbuildsystem/core';
 import {JSTarget} from './index';
-import {CopyTask} from '@msbuildsystem/foundation';
 
 export type JSCompiler = SelfBuildGraph<JSTarget>;
 

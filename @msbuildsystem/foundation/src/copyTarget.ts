@@ -1,5 +1,4 @@
-import {declareTarget, Target, resolver, FileElement, Reporter, AttributeTypes} from '@msbuildsystem/core';
-import {CopyTask} from './index';
+import {declareTarget, Target, resolver, FileElement, Reporter, AttributeTypes, CopyTask} from '@msbuildsystem/core';
 import * as path from 'path';
 
 @declareTarget({ type: 'Copy' })
