@@ -210,4 +210,9 @@ export class Reporter {
     });
     return desc;
   }
+
+  aggregate(reporter: Reporter) {
+    this.failed = this.failed || reporter.failed;
+    this.diagnostics.push(...reporter.diagnostics);
+  }
 }

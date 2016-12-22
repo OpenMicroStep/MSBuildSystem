@@ -1,4 +1,5 @@
 import { ArgumentParser, ArgumentGroup } from 'argparse';
+import * as chalk from 'chalk';
 
 let parser = new ArgumentParser({
   prog: "msbuildsystem",
@@ -7,6 +8,8 @@ let parser = new ArgumentParser({
 });
 
 function addCommonArguments(parser: ArgumentGroup) {
+  parser.addArgument(['--color'  ], { dest: "color", help: "Force colors to be enabled", action: "storeTrue" });
+  parser.addArgument(['--debug'  ], { dest: "debug", help: "Debug output", action: "storeTrue" });
   parser.addArgument(['-p', '--project'  ], { dest: "projects", action: "append", help: "Path to the make.js file or directory, by default this is the current directory" });
   parser.addArgument(['-w', '--workspace'], { help: "Path to the workspace directory (ie. builddirectory)" });
   parser.addArgument(['--env'    ], { dest: "environments", action: "append", help: "Name of environments to consider, by default all environments are used" });
@@ -48,4 +51,6 @@ export const args: {
   targets: string[] | null;
   environments: string[] | null;
   variants: string[] | null;
+  color: boolean;
+  debug: boolean;
 } = parser.parseArgs();
