@@ -1,12 +1,10 @@
 import {
   resolver, FileElement,
   InOutTask, Step, Graph, File, Directory,
-  Element, ElementFactory,
-  Reporter, AttributePath, AttributeTypes
+  Element, Reporter, AttributeTypes
 } from '@msbuildsystem/core';
-import { JSTarget, JSCompilers, NPMInstallTask } from '@msbuildsystem/js';
-import { TypescriptCompiler, TypescriptTask } from '@msbuildsystem/js.typescript';
-import {Hash} from 'crypto';
+import { JSTarget, JSCompilers } from '@msbuildsystem/js';
+import { TypescriptCompiler } from '@msbuildsystem/js.typescript';
 import * as parse_interface from './parse_interface';
 import * as path from 'path';
 
@@ -61,13 +59,28 @@ class ClassElement extends Element {
   aspects: AspectElement[] = [];
 
   __decl() {
-    return `export class ${this.name} extends ${this.superclass ? this.superclass.name : "VersionedObject"} {\n${
-      this.attributes.map(attribute => `  ${attribute.name}: ${typeToTypescriptType(attribute.type)}\n`).join('')
-    }${
-      this.categories.map(category => category.__declCategory(this.name)).join('')
-    }${
-      this.farCategories.map(category => category.__declFarCategory(this.name)).join('')
-    }  static category(name: string, implementation: { [s: string]: (this: ${this.name}, ...args: any[]) => any }) {\n    VersionedObject.addCategory(${this.name}, name, implementation);\n  }\n}`;
+    return `
+export class ${this.name} extends ${(this.superclass && this.superclass.name) || "VersionedObject"} {
+${this.attributes.map(attribute => `  ${attribute.name}: ${typeToTypescriptType(attribute.type)}\n`).join('')}
+${this.categories.map(category => category.__declCategory(this.name)).join('')}
+${this.farCategories.map(category => category.__declFarCategory(this.name)).join('')}
+  static category(name: string, implementation: { [s: string]: (this: ${this.name}, ...args: any[]) => any }) {
+     VersionedObject.addCategory(${this.name}, name, implementation);
+  }
+  static readonly definition = ${JSON.stringify(this.__definition())};
+}`;
+  }
+
+  __definition() {
+    return {
+      is: this.is,
+      name: this.name,
+      version: 0,
+      attributes: this.attributes.map(a => a.__definition()),
+      categories: this.categories.map(c => c.__definition()),
+      farCategories: this.farCategories.map(c => c.__definition()),
+      aspects: this.aspects.map(a => a.__definition())
+    };
   }
 }
 
@@ -76,6 +89,14 @@ elementFactories.registerSimple('attribute', (reporter, name, definition, attrPa
 });
 class AttributeElement extends Element {
   type: Type;
+
+  __definition() {
+    return {
+      is: this.is,
+      name: this.name,
+      type: this.type
+    };
+  }
 }
 
 const farMethods = <((clazz: string, method: string, argument: string, ret: string) => string)[]>[
@@ -99,14 +120,14 @@ class CategoryElement extends Element {
   langages: string[] = [];
   methods: MethodElement[] = [];
 
-  __decl(clazz: string, far: boolean) {
+  __decl(clazz: string) {
     return `export interface ${clazz} { // ${this.name}\n${
-      far ? this.__declFarMethods(clazz) : this.__declMethods()
+      this.is === 'farCategory' ? this.__declFarMethods(clazz) : this.__declMethods()
     }}`;
   }
   __declCategory(clazz: string) {
     return `  static category(name: '${this.name}', implementation: {\n${
-      this.methods.map(method => `    ${method.name}: (this: ${clazz}${method.__declArguments()}) => ${method.__declReturn()}\n`).join('')
+      this.methods.map(method => `    ${method.name}: (this: ${clazz}${method.__declArguments().map(a => `, ${a}`).join('')}) => ${method.__declReturn()}\n`).join('')
     }  });\n`;
   }
   __declFarCategory(clazz: string) {
@@ -115,10 +136,18 @@ class CategoryElement extends Element {
     }  });\n`;
   }
   __declMethods() {
-    return this.methods.map(method => `  ${method.name}(${method.__declArguments().substring(2)}): ${method.__declReturn()}\n`).join('');
+    return this.methods.map(method => `  ${method.name}(${method.__declArguments().join(', ')}): ${method.__declReturn()}\n`).join('');
   }
   __declFarMethods(clazz: string) {
-    return this.methods.map(method => farMethods.map(f => `  ${f(clazz, method.name, method.__declArguments().substring(2) || "undefined", method.__declReturn())}\n`).join(''));
+    return this.methods.map(method => farMethods.map(f => `  ${f(clazz, method.name, method.__declFarArgument(), method.__declReturn())}\n`).join('')).join('');
+  }
+
+  __definition(){
+    return {
+      is: this.is,
+      name: this.name,
+      methods: this.methods.map(m => m.__definition())
+    };
   }
 }
 
@@ -127,14 +156,23 @@ elementFactories.registerSimple('method', (reporter, name, definition, attrPath,
 });
 class MethodElement extends Element {
   type: { arguments: Type[], return: Type };
-  __declArguments() {
-    return this.type.arguments.map((a, i) => `, arg${i}: ${typeToTypescriptType(a)}`).join('');
+  __declArguments() : string[] {
+    return this.type.arguments.map((a, i) => `arg${i}: ${typeToTypescriptType(a)}`);
   }
   __declFarArgument() {
-    return typeToTypescriptType(this.type.arguments[0]);
+    return this.type.arguments[0] ? typeToTypescriptType(this.type.arguments[0]) : "undefined";
   }
   __declReturn() {
     return typeToTypescriptType(this.type.return);
+  }
+
+  __definition() {
+    return {
+      is: this.is,
+      name: this.name,
+      argumentTypes: this.type.arguments,
+      returnType: this.type.return,
+    };
   }
 }
 
@@ -146,20 +184,31 @@ class AspectElement extends Element {
   farCategories: CategoryElement[] = [];
 
   __decl(clazz: ClassElement) {
-    return `${clazz.__decl()}\n${this.categories.map(c => c.__decl(clazz.name, false)).join('\n')}\n${this.farCategories.map(c => c.__decl(clazz.name, true)).join('\n')}`;
+    return `
+${this.categories.map(c => c.__decl(clazz.name)).join('\n')}
+${this.farCategories.map(c => c.__decl(clazz.name)).join('\n')}
+`;
+  }
+
+  __definition() {
+    return {
+      is: this.is,
+      name: this.name,
+      categories: this.categories.map(c => c.name),
+      farCategories: this.farCategories.map(c => c.name),
+    };
   }
 }
 
 export class ParseAspectInterfaceTask extends InOutTask {
-  constructor(graph: Graph, public src: File, public dest: Directory, public aspect: string) {
-    super({ type: "aspect parser", name: src.name }, graph, [src], []);
+  constructor(graph: Graph, public src: InterfaceFileGroup, public dest: Directory) {
+    super({ type: "aspect parser", name: "interfaces" }, graph, src.values, []);
   }
 
   uniqueKey() {
     return Object.assign(super.uniqueKey(), {
-      src: this.src.path,
       dest: this.dest.path,
-      aspect: this.aspect
+      ext: this.src.ext
     });
   }
   isRunRequired(step: Step<{ runRequired?: boolean }>) {
@@ -167,46 +216,78 @@ export class ParseAspectInterfaceTask extends InOutTask {
       step.continue();
   }
   run(step: Step<{}>) {
-    this.src.readUtf8File((err, content) => {
-      if (err) {
-        step.context.reporter.error(err);
-        step.continue();
-      }
-      else {
-        let ret = parse_interface.interfaceParse(content);
-        let root = Element.load(step.context.reporter, ret, new AspectRootElement('root', this.src.name, null), elementFactories);
-        let aspects = <{cls: ClassElement, aspect: AspectElement }[]>[];
-        root.__classes.forEach(cls => {
-          aspects.push(...cls.aspects.filter(a => a.name === this.aspect).map(a => ({cls: cls, aspect: a})));
+    let root = new AspectRootElement('root', 'root', null);
+    step.setFirstElements([
+      this.inputFiles.map(inputFile => (step: Step<{}>) => {
+        inputFile.readUtf8File((err, content) => {
+          if (err) {
+            step.context.reporter.error(err);
+            step.continue();
+          }
+          else {
+            let ret = parse_interface.interfaceParse(content);
+            Element.load(step.context.reporter, ret, root, elementFactories);
+            step.continue();
+          }
         });
-
-        step.setFirstElements([
-          (step: Step<{}>) => {
-            let dest = File.getShared(path.join(this.dest.path, `${this.src.name.substring(0, this.src.name.length - this.src.extension.length)}.json`));
-            dest.writeUtf8File(JSON.stringify(ret, null, 2), (err) => {
-              step.context.reporter.error(err);
-              step.continue();
-            });
-          },
-          (step: Step<{}>) => {
-            let dest = File.getShared(path.join(this.dest.path, `aspects.interfaces.ts`));
-            let r = `import {VersionedObject, FarImplementation, Invocation} from '@microstep/aspects';\n`;
-            r += aspects.map(i => i.aspect.__decl(i.cls)).join('\n\n');
+      }),
+      (step: Step<{}>) => {
+        let aspects = new Map<string, { cls: ClassElement, aspect: AspectElement}[]>();
+        root.__classes.forEach(cls => {
+          cls.aspects.forEach(aspect => {
+            let els = aspects.get(aspect.name);
+            if (!els)
+              aspects.set(aspect.name, els = []);
+            els.push({ cls: cls, aspect: aspect });
+          });
+        });
+        let elements = <((step: Step<{}>) => void)[]>[];
+        elements.push((step: Step<{}>) => {
+          let dest = File.getShared(path.join(this.dest.path, `aspects.interfaces.ts`));
+          let r = this.src.ext.customHeader || `import {controlCenter, VersionedObject, FarImplementation, Invocation} from '@microstep/aspects';`;
+          r += `\n${this.src.ext.header}\n`;
+          root.__classes.forEach(cls => {
+            r += cls.__decl();
+          });
+          dest.writeUtf8File(r, (err) => {
+            step.context.reporter.error(err);
+            step.continue();
+          });
+        });
+        aspects.forEach((els, name) => {
+          elements.push((step: Step<{}>) => {
+            let dest = File.getShared(path.join(this.dest.path, `aspect.${name}.interfaces.d.ts`));
+            let r = this.src.ext.customHeader || `import {controlCenter, VersionedObject, FarImplementation, Invocation} from '@microstep/aspects';`;
+            r += `\n${this.src.ext.header}\n`;
+            r += `import {${els.map(e => e.cls.name).join(', ')}} from './aspects.interfaces';\n`;
+            r += `declare module './aspects.interfaces' {\n`;
+            els.forEach(e => r += e.aspect.__decl(e.cls) + '\n');
+            r += `}\n`;
             dest.writeUtf8File(r, (err) => {
               step.context.reporter.error(err);
               step.continue();
             });
-          }
-        ]);
+          });
+        });
+        step.setFirstElements(elements);
         step.continue();
       }
-    });
+    ]);
+    step.continue();
   }
 
   clean(step) {
     // TODO
     step.continue();
   }
+}
+
+export type InterfaceFileGroup = {
+    values: File[];
+    ext: {
+        header: string;
+        customHeader: string;
+    };
 }
 
 @JSCompilers.declare(['aspects'])
@@ -216,8 +297,11 @@ export class AspectTypescriptCompiler extends TypescriptCompiler {
     this.name.name = "aspects";
   }
 
-  @resolver(AttributeTypes.listValidator(FileElement.validateFile))
-  interfaces: File[] = [];
+  @resolver(AttributeTypes.groupValidator<File, { header: string; customHeader: string; }>(FileElement.validateFile, {
+    header:       { validator: AttributeTypes.validateString, default: "" },
+    customHeader: { validator: AttributeTypes.validateString, default: "" }
+  }))
+  interfaces: InterfaceFileGroup[] = [];
 
   @resolver(AttributeTypes.validateString)
   aspect: string = "";
@@ -227,7 +311,7 @@ export class AspectTypescriptCompiler extends TypescriptCompiler {
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
     let dest = File.getShared(path.join(this.graph.paths.intermediates, 'generated'), true);
-    this.parsers = this.interfaces.map(iface => new ParseAspectInterfaceTask(this, iface, dest, this.aspect));
+    this.parsers = this.interfaces.map(i => new ParseAspectInterfaceTask(this, i, dest));
     this.parsers.forEach(p => this.tsc.addDependency(p));
   }
 }
