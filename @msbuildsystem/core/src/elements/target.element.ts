@@ -24,13 +24,13 @@ export class TargetElement extends ComponentElement {
 
   __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
     super.__resolveWithPath(reporter, attrPath);
-    this.__resolveEnvironments(reporter, this);
+    this.environments = this.__resolveEnvironments(reporter, this, []);
   }
 
-  __resolveEnvironments(reporter: Reporter, component: ComponentElement) {
+  __resolveEnvironments(reporter: Reporter, component: ComponentElement, into: EnvironmentElement[]) {
     let envs = component['environments'];
     if (envs)
-      this.__pushArray(reporter, this.environments, new AttributePath(component, '.environments'), EnvironmentElement.validate, envs);
+      this.__pushArray(reporter, into, new AttributePath(component, '.environments'), EnvironmentElement.validate, envs);
     if ("environmentsByEnvironment" in component) {
       reporter.diagnostic({
         type: "warning",
@@ -38,7 +38,8 @@ export class TargetElement extends ComponentElement {
         path: `${component.__path()}.environmentsByEnvironment`
       });
     }
-    component.components.forEach(c => c.is === 'component' && this.__resolveEnvironments(reporter, c));
+    component.components.forEach(c => c.is === 'component' && this.__resolveEnvironments(reporter, c, into));
+    return into;
   }
 
   __compatibleEnvironment(reporter: Reporter, environment: {name: string, compatibleEnvironments: string[]}) : EnvironmentElement | null {
