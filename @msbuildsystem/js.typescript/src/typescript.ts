@@ -1,4 +1,4 @@
-import { declareTask, Task, Reporter, SelfBuildGraph, Target, File, Step, resolver, AttributeTypes, util, generator } from '@msbuildsystem/core';
+import { declareTask, Task, Reporter, SelfBuildGraph, Target, File, Step, StepWithData, resolver, AttributeTypes, util, generator } from '@msbuildsystem/core';
 import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@msbuildsystem/js';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
@@ -50,7 +50,7 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     tsc.setOptions(this.tsConfig);
     tsc.setOptions({
       outDir: this.graph.packager.absoluteCompilationOutputDirectory(),
-      //rootDir: this.graph.paths.intermediates,
+      //rootDir: path.join(this.graph.paths.intermediates, this.tsConfig.rootDir),
       baseUrl: this.graph.paths.intermediates
     });
     this.tsc.options.paths = this.tsc.options.paths || {};
@@ -96,13 +96,24 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   }
 }
 
-export type CompilerHostWithVirtualFS = (ts.CompilerHost & { fromVirtualFs(p: string) : string, toVirtualFs(p: string) : string });
+export type CompilerHostWithVirtualFS = ts.CompilerHost & {
+  fromVirtualFs(p: string) : string,
+  toVirtualFs(p: string) : string,
+  isInVirtualFs(p: string) : boolean
+};
 
 @declareTask({ type: "typescript" })
 export class TypescriptTask extends Task {
   files: File[] = [];
   options: ts.CompilerOptions = {};
   nonVirtualPaths = ["generated", "node_modules"];
+
+  uniqueKey() {
+    return {
+      files: this.files.map(i => i.path),
+      options: this.options
+    };
+  }
 
   setOptions(options: ts.CompilerOptions) {
     this.options = Object.assign(this.options, options);
@@ -122,10 +133,10 @@ export class TypescriptTask extends Task {
     let workspaceDir = target.project.workspace.directory;
     let sourceDirectory = target.project.directory;
     let intermediatesDirectory = target.paths.intermediates;
-    let isMapped = new RegExp(`^${util.escapeRegExp(intermediatesDirectory)}/(?!(${this.nonVirtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$))`, 'i');
+    let isInVirtualFs = new RegExp(`^${util.escapeRegExp(intermediatesDirectory)}/(?!(${this.nonVirtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$))`, 'i');
     let host = ts.createCompilerHost(options);
     function fromVirtualFs(p: string) {
-      if (isMapped.test(p))
+      if (isInVirtualFs.test(p))
         p = path.join(sourceDirectory, p.substring(intermediatesDirectory.length + 1));
       return p;
     }
@@ -154,7 +165,7 @@ export class TypescriptTask extends Task {
     host.getDirectories = (path: string) =>
       getDirectories(fromVirtualFs(path)).map(d => toVirtualFs(d));
     host.getCurrentDirectory = () => intermediatesDirectory;
-    return Object.assign(host, { fromVirtualFs: fromVirtualFs, toVirtualFs: toVirtualFs });
+    return Object.assign(host, { fromVirtualFs: fromVirtualFs, toVirtualFs: toVirtualFs, isInVirtualFs: (p) => isInVirtualFs.test(p) });
   }
 
   emitTsDiagnostics(reporter: Reporter, tsDiagnostics: ts.Diagnostic[], host?: CompilerHostWithVirtualFS) {
@@ -180,14 +191,32 @@ export class TypescriptTask extends Task {
     });
   }
 
-  run(step: Step<{}>) {
-    let outputDirectory = this.target().paths.output;
+  isRunRequired(step: StepWithData<{ runRequired?: boolean }, {}, { sources?: string[] }>) {
+    if (step.context.sharedData.sources) {
+      File.ensure(step.context.sharedData.sources.map(h => File.getShared(h)), step.context.lastSuccessTime, {}, (err, required) => {
+        step.context.runRequired = !!(err || required);
+        step.continue();
+      });
+    }
+    else {
+      step.continue();
+    }
+  }
+
+  run(step: StepWithData<{}, {}, { sources?: string[] }>) {
+    let target = this.target();
+    let outputDirectory = target.paths.output;
     let o = ts.convertCompilerOptionsFromJson(this.options, outputDirectory);
     this.emitTsDiagnostics(step.context.reporter, o.errors);
     if (!step.context.reporter.failed) {
       let host = this.createCompilerHost(o.options);
       let program = ts.createProgram(this.files.map(f => host.toVirtualFs(f.path)), o.options, host);
+      let options = program.getCompilerOptions();
+      let commonSourceDirectory: string = (program as any).getCommonSourceDirectory();
+      options.mapRoot = commonSourceDirectory;
+      options.sourceRoot = host.fromVirtualFs(commonSourceDirectory);
       let emitResult = program.emit();
+      step.context.sharedData.sources = program.getSourceFiles().map(f => host.fromVirtualFs(f.path));
       let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
       this.emitTsDiagnostics(step.context.reporter, tsDiagnostics, host);
     }
