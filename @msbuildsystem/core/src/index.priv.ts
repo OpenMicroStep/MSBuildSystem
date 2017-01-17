@@ -1,10 +1,9 @@
-export { Async, Diagnostic, Flux } from '@msbuildsystem/shared';
+export { Async, Diagnostic, Flux, Reporter, Test, AttributePath, AttributeTypes } from '@msbuildsystem/shared';
 export { Loader  } from './loader';
 //import * as logger from './logger'; export { logger as logger };
 import * as util from './util'; export { util as util };
 import * as MakeJS from './make'; export { MakeJS as MakeJS };
 import * as BuildSession from './buildSession'; export { BuildSession as BuildSession };
-export * from './attributes';
 
 export * from './file';
 export * from './task';

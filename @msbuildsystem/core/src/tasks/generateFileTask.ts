@@ -10,25 +10,12 @@ export abstract class GenerateFileTask extends InOutTask {
 
   uniqueKey() {
     return Object.assign(super.uniqueKey(), {
-      info: this.uniqueKeyInfo(),
-      path: this.outputFiles[0].path
+      info: this.uniqueKeyInfo()
     });
   }
 
-  isRunRequired(step: Step<{ runRequired?: boolean }>) {
-    this.outputFiles[0].ensure(true, step.context.lastSuccessTime, (err, required) => {
-      step.context.runRequired = !!(err || required);
-      step.continue();
-    });
-  }
   run(step) {
     this.outputFiles[0].writeFile(this.generate(), (err) => {
-      step.context.reporter.error(err);
-      step.continue();
-    });
-  }
-  clean(step: Step<{}>) {
-    this.outputFiles[0].unlink((err) => {
       step.context.reporter.error(err);
       step.continue();
     });

@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import {util, Barrier, Step} from './index.priv';
+import {util, Barrier, Flux, Reporter, AttributePath, AttributeTypes} from './index.priv';
 
 export class File {
   public path: string;
@@ -117,36 +117,6 @@ export class File {
     });
   }
 
-  static buildList(root: string, ...args: Array<string | string[]>) {
-    var files = <string[]>[];
-    var len = args.length;
-    var paths = new Array(len);
-
-    function nextArg(i) {
-      if (i < len) {
-        var arg = args[i];
-        if (typeof arg === "string") {
-          paths[i] = arg;
-          nextArg(i + 1);
-        }
-        else if (Array.isArray(arg)) {
-          arg.forEach(function(arg) {
-            paths[i] = arg;
-            nextArg(i + 1);
-          });
-        }
-        else {
-          throw "arg must either be an array or a string";
-        }
-      } else {
-        files.push(util.pathJoinIfRelative(root, path.join(...paths)));
-      }
-    }
-    nextArg(0);
-
-    return files;
-  }
-
   static commonDirectory(files: File[]) : Directory {
     return <Directory>File.getShared(File.commonDirectoryPath(files), true);
   }
@@ -166,6 +136,20 @@ export class File {
       }
     }
     return commonPart;
+  }
+
+  static validateDirectory(reporter: Reporter, path: AttributePath, value: any, relative: { directory: string }) : Directory | undefined {
+    if (typeof value === "string") {
+      let v = AttributeTypes.validateString(reporter, path, value);
+      if (v !== undefined) {
+        v = util.pathJoinIfRelative(relative.directory, v);
+        return File.getShared(v, true);
+      }
+    }
+    else {
+      path.diagnostic(reporter, { type: "warning", msg: "attribute must be a relative path" });
+    }
+    return undefined;
   }
 
   readFile(cb: (err: Error, output: Buffer) => any) {
@@ -217,7 +201,7 @@ export class File {
     });
   }
 
-  writeSymlinkOf(step: Step<{}>, target: File, overwrite: boolean = false) {
+  writeSymlinkOf(step: Flux<{ reporter: Reporter }>, target: File, overwrite: boolean = false) {
     fs.lstat(this.path, (err, stats) => {
       if (stats && !stats.isSymbolicLink()) {
         step.context.reporter.diagnostic({ type: "error", msg: "file already exists and is not a symbolic link", path: this.path });
@@ -257,9 +241,11 @@ export class File {
     });
   }
 
-  unlink(cb: (err?: Error) => any) {
-    fs.unlink(this.path, function(err?) {
-      cb(err && (<NodeJS.ErrnoException>err).code !== "ENOENT" ? err : undefined);
+  unlink(step: Flux<{ reporter: Reporter }>) {
+    fs.unlink(this.path, (err?) => {
+      if (err && (<NodeJS.ErrnoException>err).code !== "ENOENT")
+        step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+      step.continue();
     });
   }
 

@@ -1,4 +1,4 @@
-import {Project, Reporter, BuildGraphOptions, RootGraph, Element, AttributeTypes, AttributePath, util, Directory, TargetElement} from './index.priv';
+import {Project, Reporter, BuildGraphOptions, RootGraph, Element, AttributeTypes, AttributePath, util, Directory, File, TargetElement} from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -14,7 +14,7 @@ interface WorkspaceData {
 }
 
 const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Workspace>({
-  projects: { validator: AttributeTypes.listValidator(AttributeTypes.validateDirectory), default: [] }
+  projects: { validator: AttributeTypes.listValidator(File.validateDirectory), default: [] }
 });
 
 export class Workspace {

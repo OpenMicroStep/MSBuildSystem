@@ -1,5 +1,5 @@
 import * as priv from './index.priv'; priv; // force loading of priv
-export { Async, Flux } from '@msbuildsystem/shared';
+export { Async, Flux, Reporter, Test, AttributePath, AttributeTypes } from '@msbuildsystem/shared';
 export { Loader  } from './loader';
 export { Element, ElementFactory } from './element';
 export { GroupElement } from './elements/group.element';
@@ -10,7 +10,6 @@ export { TargetElement } from './elements/target.element';
 export * from './file'      ;
 export * from './task'      ;
 export * from './graph'     ;
-export * from './attributes';
 export * from './target'    ;
 export * from './runner'    ;
 export * from './provider'  ;

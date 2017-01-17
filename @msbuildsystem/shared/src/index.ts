@@ -1,6 +1,11 @@
 export { Async, Flux } from '@microstep/async';
 import * as _util from './util';
-export var util = _util;
+export import util = _util;
 import * as _path from './path';
-export var path = _path;
-export { Diagnostic, diagnosticFromError } from './diagnostic';
+export import path = _path;
+export { Diagnostic } from './diagnostic';
+export * from './test';
+export * from './reporter';
+export * from './attribute-path';
+import * as _AttributeTypes from './attributes';
+export import AttributeTypes = _AttributeTypes;

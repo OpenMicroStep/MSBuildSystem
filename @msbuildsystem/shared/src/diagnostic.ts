@@ -23,36 +23,34 @@ export module Diagnostic {
     erow: number;
     ecol: number;
   };
-}
 
-
-var RX_STACK = /^\s*at(?:\s+(.+))?\s+\(?([^:]+):(\d+):(\d+)\)?$/;
-
-export function diagnosticFromError(error: Error, base?: Diagnostic) {
-  if (!base) {
-    base = {
-      type: "error",
-      msg: error.message
-    };
-  }
-  var stack = error.stack;
-  if (stack) {
-    var lines = stack.split("\n");
-    var notes: Diagnostic[] = [];
-    for (var i = 0, len = lines.length; i < len; i++) {
-      var line = lines[i];
-      var m = line.match(RX_STACK);
-      if (m) {
-        notes.push({
-          type: "note",
-          msg: m[1]  || "anonymous",
-          path: m[2],
-          row: parseInt(m[3]),
-          col: parseInt(m[4])
-        });
-      }
+  const RX_STACK = /^\s*at(?:\s+(.+))?\s+\(?([^:]+):(\d+):(\d+)\)?$/;
+  export function fromError(error: Error, base?: Diagnostic) {
+    if (!base) {
+      base = {
+        type: "error",
+        msg: error.message
+      };
     }
-    base.notes = notes;
+    var stack = error.stack;
+    if (stack) {
+      var lines = stack.split("\n");
+      var notes: Diagnostic[] = [];
+      for (var i = 0, len = lines.length; i < len; i++) {
+        var line = lines[i];
+        var m = line.match(RX_STACK);
+        if (m) {
+          notes.push({
+            type: "note",
+            msg: m[1]  || "anonymous",
+            path: m[2],
+            row: parseInt(m[3]),
+            col: parseInt(m[4])
+          });
+        }
+      }
+      base.notes = notes;
+    }
+    return base;
   }
-  return base;
 }

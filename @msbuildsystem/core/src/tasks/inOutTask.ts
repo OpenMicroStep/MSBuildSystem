@@ -35,18 +35,8 @@ export class InOutTask extends Task {
   }
 
   clean(step: Step<{}>) {
-    var barrier = new Barrier("Clear outputs", this.outputFiles.length);
-    this.outputFiles.forEach((file) => {
-      file.unlink((err) => {
-        step.context.reporter.log("unlink " + file.path + (err ? " failed" : "succeeded"));
-        if (err)
-          step.context.reporter.error(err);
-        barrier.dec();
-      });
-    });
-    barrier.endWith(() => {
-      step.continue();
-    });
+    step.setFirstElements(this.outputFiles.map(f => flux => f.unlink(flux)));
+    step.continue();
   }
 
   listOutputFiles(set: Set<File>) {
