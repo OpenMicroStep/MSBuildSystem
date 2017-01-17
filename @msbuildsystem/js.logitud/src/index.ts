@@ -10,6 +10,7 @@ Object.assign(logitud_typescript_angular, {
     "skipLibCheck": true,
     "moduleResolution": "node",
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "strictNullChecks": true,
     "noImplicitThis": true,
     "noImplicitReturns": true,
@@ -34,9 +35,9 @@ Object.assign(logitud_typescript_angular, {
     "zone.js": "^0.7.2",
 
     "@microstep/mstools": "^1.0.2",
-    "@microstep/async": "^0.1.0",
-    "@microstep/aspects": "^0.1.0",
-    "@microstep/aspects.xhr": "^0.1.0",
+    "@microstep/async": "^0.1.1",
+    "@microstep/aspects": "^0.1.3",
+    "@microstep/aspects.xhr": "^0.1.3",
   }]
 });
 Workspace.globalExports.set(logitud_typescript_angular.name, logitud_typescript_angular);
@@ -61,9 +62,9 @@ Object.assign(logitud_typescript_node, {
   npmInstall: [{
     "@microstep/mstools": "^1.0.2",
     "@microstep/async": "^0.1.0",
-    "@microstep/aspects": "^0.1.0",
-    "@microstep/aspects.express": "^0.1.0",
-    "@microstep/aspects.sequelize": "^0.1.0",
+    "@microstep/aspects": "^0.1.3",
+    "@microstep/aspects.express": "^0.1.3",
+    "@microstep/aspects.sequelize": "^0.1.3",
     "@types/node": "^4.0.30",
     "express": "^4.14.0",
     "body-parser": "^1.15.2",
