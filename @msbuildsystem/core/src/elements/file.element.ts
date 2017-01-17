@@ -13,11 +13,7 @@ Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: 
   let files: File[] = [];
   let list: FileElement[] = [];
   if (typeof name === "string" && name.indexOf('*') !== -1) {
-    name = new RegExp('^' +
-        util.escapeRegExp(name)
-        .replace(/\\\*/g, '[^/]+')
-        .replace(/\\\*\\\*/g, '.+') +
-        '$');
+    name = new RegExp(`^${util.escapeRegExp(name).replace(/\\\*\\\*/g, '.+').replace(/\\\*/g, '[^/]+')}$`);
   }
   if (typeof name === "object" && name instanceof RegExp) {
     let rx = name;
@@ -27,13 +23,11 @@ Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: 
   let absolutePath = parent.__absoluteFilepath();
   if (typeof name === "function") {
     let depth = (<MakeJS.File>definition).depth;
-    let relpath = path.relative(parent.__root().__project().directory, absolutePath);
-    loadElementFiles(reporter, absolutePath, relpath, name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
+    loadElementFiles(reporter, absolutePath, "", name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
     if (files.length === 0) {
       attrPath.diagnostic(reporter, {
         type: 'warning',
-        msg: `no file found`
-        + `('file' elements requires 'name' to be either a string, a regexp or a filter function)`
+        msg: `no matching file found`
       }, '.name');
     }
   }
@@ -61,7 +55,7 @@ export class FileElement extends MakeJSElement {
   __file: File;
 
   constructor(name: string | null, file: File, parent: Element, tags: string[]) {
-    super('file', name || file.name, parent, tags);
+    super('file', name || file.path, parent, tags);
     this.__file = file;
   }
 
