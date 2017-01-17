@@ -1,15 +1,13 @@
 import {Barrier} from '@msbuildsystem/core';
 import {assert} from 'chai';
 
-export function tests() {
-
-it("empty", function() {
+function empty() {
   var d = false;
   var b = new Barrier("empty");
   b.endWith(() => { d = true; });
-});
+}
 
-it("simple usage", function() {
+function simple_usage() {
   var d = false;
   var b = new Barrier("simple", 2);
   b.dec();
@@ -33,9 +31,9 @@ it("simple usage", function() {
   assert.isFalse(d);
   b.dec();
   assert.isTrue(d);
-});
+}
 
-it("dynamic usage", function() {
+function dynamic_usage() {
   var d = false;
   var b = new Barrier("simple", 0);
   b.inc();
@@ -58,6 +56,10 @@ it("dynamic usage", function() {
   assert.isFalse(d);
   b.dec();
   assert.isTrue(d);
-});
-
 }
+
+export const tests = [
+  { name: "empty"        , test: empty },
+  { name: "simple usage" , test: simple_usage },
+  { name: "dynamic usage", test: dynamic_usage },
+];

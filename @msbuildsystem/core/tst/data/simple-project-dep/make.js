@@ -21,6 +21,6 @@ module.exports =  {
     is: 'target',
     type: "Test",
     environments : ["=win envs"],
-    targets: ["=ATarget", "=::MSStd::"]
+    targets: ["ATarget", "MSStd"]
   }
 };

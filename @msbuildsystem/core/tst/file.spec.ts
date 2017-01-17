@@ -1,9 +1,7 @@
-import {File} from '@msbuildsystem/core';
+import {File, Flux} from '@msbuildsystem/core';
 import {assert} from 'chai';
 
-export function tests() {
-
-it("getShared", function() {
+function getShared() {
   var f1 = File.getShared(__dirname + "/data/simple-project/make.js");
   var f2 = File.getShared(__dirname + "/data/simple-project//make.js");
   var d1 = File.getShared(__dirname + "/data", true);
@@ -15,14 +13,17 @@ it("getShared", function() {
   assert.strictEqual(d1.name, 'data');
   assert.strictEqual(d1.isDirectory, true);
   assert.notEqual(f1, d1);
-});
-it("stats", function(done) {
+}
+function stats(f: Flux<any>) {
   var f1 = File.getShared(__dirname + "/data/simple-project/make.js");
   f1.stats(function(err, stats) {
      assert.strictEqual(err, null);
      assert.strictEqual(stats.isFile(), true);
-     done();
+     f.continue();
   });
-});
-
 }
+
+export const tests = [
+  { name: "getShared", test: getShared },
+  { name: "stats"    , test: stats     },
+];

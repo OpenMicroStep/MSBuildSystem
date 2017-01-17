@@ -2,7 +2,7 @@ module.exports =  {
   is: "project",
   name: "MySimpleProject",
   description: "This is a very simple c project example to test basic component features",
-  'files=': { is: "group", 
+  'files=': { is: "group",
     elements: [
       {is: 'file', name: "MSStdTime.c", tags:["CompileC"]},
       {is: 'file', name: "MSStdTime-win32.c"},
@@ -68,6 +68,6 @@ module.exports =  {
     is: 'target',
     type: "Test",
     environments : ["=all envs"],
-    targets: ["=MSStd"]
+    targets: ["MSStd"]
   }
 };

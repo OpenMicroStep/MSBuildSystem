@@ -1,9 +1,7 @@
 import {Task, Graph, RootGraph, Workspace} from '@msbuildsystem/core';
 import {assert} from 'chai';
 
-export function tests() {
-
-it("simple graph", function() {
+function simple_graph() {
   var r = new RootGraph(new Workspace());
   var g = new Graph({ name: "root", type: "test" }, r);
   var t1 = new Task({ name: 't1', type: "test" }, g);
@@ -20,6 +18,8 @@ it("simple graph", function() {
     return true;
   });
   assert.equal(g.findTask(true, t => t.name.name === t3.name.name), t3);
-});
-
 }
+
+export const tests = [
+  { name: "simple graph", test: simple_graph },
+];

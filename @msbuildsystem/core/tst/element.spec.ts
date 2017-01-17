@@ -2,9 +2,7 @@ import {Reporter, AttributePath} from '@msbuildsystem/core';
 import {newProxyElement, DelayedElement} from '@msbuildsystem/core/elements/delayed.element';
 import {assert} from 'chai';
 
-export function tests() {
-
-it("proxy element", function() {
+function proxy_element() {
   let $ = newProxyElement;
   let $1: any = $("tests");
   let $2: any = $1.absolutePath();
@@ -27,6 +25,8 @@ it("proxy element", function() {
     reporter: reporter,
     query: 'tests',
   }]);
-});
-
 }
+
+export const tests = [
+  { name: "proxy element", test: proxy_element },
+];

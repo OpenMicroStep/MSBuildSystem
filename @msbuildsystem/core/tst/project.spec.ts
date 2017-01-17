@@ -1,4 +1,4 @@
-import {Workspace, Project, Reporter, Target, declareTarget} from '@msbuildsystem/core';
+import {Workspace, Project, Reporter, Target, declareTarget, Flux} from '@msbuildsystem/core';
 import {assert} from 'chai';
 import * as path from 'path';
 
@@ -6,13 +6,15 @@ import * as path from 'path';
 export class TestTarget extends Target {
 }
 
-export function tests() {
+type Context = {
+  workspace: Workspace;
+  sharedProject: Project;
+}
 
-let workspace = new Workspace();
-let sharedProject: Project | null = null;
-it('load valid simple', () => {
+function load_valid_simple(f: Flux<Context>) {
+  let workspace = f.context.workspace = new Workspace();
   let projectPath = path.normalize(__dirname + "/data/simple-project/make.js");
-  let project = sharedProject = workspace.project(__dirname + "/data/simple-project");
+  let project = f.context.sharedProject = workspace.project(__dirname + "/data/simple-project");
   assert.equal(project.directory, path.normalize(__dirname + "/data/simple-project"));
   assert.equal(project.path, projectPath);
   assert.equal(project.definition!.name, 'MySimpleProject');
@@ -36,8 +38,9 @@ it('load valid simple', () => {
     { "category": "load", "type": "warning", "path": "MySimpleProject:files:mman:mman.c"                     , "msg": `file '${project.directory}/mman.c' not found`                 },
     { "category": "load", "type": "warning", "path": "MySimpleProject:files:mman:mman.h"                     , "msg": `file '${project.directory}/mman.h' not found`                 },
   ]);
-});
-it('load invalid', () => {
+  f.continue();
+}
+function load_invalid() {
   let workspace = new Workspace();
   let projectPath = path.normalize(__dirname + "/data/bad-project/make.js");
   let project = workspace.project(__dirname + "/data/bad-project");
@@ -71,16 +74,16 @@ it('load invalid', () => {
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:files:mman"                            , "msg": "conflict with an element defined with the same name: 'mman'"  },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:notanobject.is"                        , "msg": "'is' attribute must be a string"                              },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:nois.is"                               , "msg": "'is' attribute must be a string"                              },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements"                  , "msg": "elements must be of the same type, expecting not an element, got file"   },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files.elements"                       , "msg": "elements must be of the same type, expecting file, got not an element"   },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements"                  , "msg": "elements must be of the same type, expecting not an element, got file"   },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files.elements"                       , "msg": "elements must be of the same type, expecting file, got not an element"   },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:all envs.elements"                    , "msg": "elements must be of the same type, expecting environment, got component" },
+    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[1]"               , "msg": "elements must be of the same type, expecting not an element, got file"   },
+    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files.elements[14]"                   , "msg": "elements must be of the same type, expecting file, got not an element"   },
+    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[1]"               , "msg": "elements must be of the same type, expecting not an element, got file"   },
+    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files.elements[15].elements[0]"       , "msg": "elements must be of the same type, expecting file, got not an element"   },
+    { "category": "resolve", "type": "error", "path": "MyInvalidProject:all envs.elements[6]"                 , "msg": "elements must be of the same type, expecting environment, got component" },
   ]);
-});
-it('build graph', () => {
+}
+function build_graph(f: Flux<Context>) {
   let reporter = new Reporter();
-  let project = sharedProject!;
+  let project = f.context.sharedProject;
   let graph = project.buildGraph(reporter, {});
   let targetTasks = Array.from(graph.allTasks());
   assert.deepEqual(reporter.diagnostics, []);
@@ -125,11 +128,12 @@ it('build graph', () => {
   assert.sameMembers(msstd.environments.map(e => e.name), ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
-});
+  f.continue();
+}
 
-it('files', () => {
+function files(f: Flux<Context>) {
   let reporter = new Reporter();
-  let project = sharedProject!.tree;
+  let project = f.context.sharedProject.tree;
   assert.deepEqual(
     project.resolveElements(reporter, "files?CompileC").map(f => f.name),
     ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
@@ -145,9 +149,10 @@ it('files', () => {
   assert.deepEqual(
     project.resolveElements(reporter, "files:unix:backtrace").map(f => f.name),
     []);
-  assert.deepEqual(reporter.diagnostics, [{"type": "warning", "msg": "query 'files:unix:backtrace' refer to a group that can't be found, the group 'files:unix:backtrace' is ignored"}]);
-});
-it('components', () => {
+  assert.deepEqual(reporter.diagnostics, [{"type": "warning", "msg": "query 'files:unix:backtrace' refer to an element that can't be found, the group 'files:unix:backtrace' is ignored"}]);
+  f.continue();
+}
+function components(f: Flux<Context>) {
   function simplify(e) {
     var r: any = {};
     Object.assign(r, e);
@@ -155,7 +160,7 @@ it('components', () => {
     return r;
   }
   let reporter = new Reporter();
-  let project = sharedProject!.tree;
+  let project = f.context.sharedProject.tree;
   /*assert.deepEqual(
     project.resolveElements(reporter, "clang").map(simplify),
     [{ is: 'component', compiler: "clang", tags: ["clang"], mylist: ["v2"], components: [], componentsByEnvironment: {}, name: 'clang', __parent: 'MySimpleProject', __resolved: true }]);
@@ -171,12 +176,13 @@ it('components', () => {
     [{ is: 'environment', sysroot: "darwin:x86_64" , mylist: ["v2", "v1"], compiler: "clang", components: [], componentsByEnvironment: {}, tags: ["darwin", "x86_64"],
        name: 'darwin-x86_64', __parent: 'MySimpleProject', __resolved: true, compatibleEnvironments: [] }]);*/
   assert.deepEqual(reporter.diagnostics, []);
-});
+  f.continue();
+}
 
-it('with external dependencies', () => {
+function with_external_dependencies(f: Flux<Context>) {
   let projectPath = path.normalize(__dirname + "/data/simple-project-dep/make.js");
-  let project2 = workspace.project(__dirname + "/data/simple-project-dep");
-  let project = sharedProject!;
+  let project2 = f.context.workspace.project(__dirname + "/data/simple-project-dep");
+  let project = f.context.sharedProject;
   assert.equal(project2.directory, path.normalize(__dirname + "/data/simple-project-dep"));
   assert.equal(project2.path, projectPath);
   assert.equal(project2.definition!.name, 'MyDependencyToSimpleProject');
@@ -191,6 +197,14 @@ it('with external dependencies', () => {
     { type: 'target', name: 'MSStd', environment: 'msvc12-i386'  , variant: 'debug', project: project.path },
     { type: 'target', name: 'DependencyTestTarget', environment: 'msvc12-i386'  , variant: 'debug', project: project2.path }
   ]);
-});
-
+  f.continue();
 }
+
+export const tests = [
+  { name: 'load valid simple'         , test: load_valid_simple          },
+  { name: 'load invalid'              , test: load_invalid               },
+  { name: 'build graph'               , test: build_graph                },
+  { name: 'files'                     , test: files                      },
+  { name: 'components'                , test: components                 },
+  { name: 'with external dependencies', test: with_external_dependencies },
+];
