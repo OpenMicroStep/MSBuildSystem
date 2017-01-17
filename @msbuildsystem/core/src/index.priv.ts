@@ -26,7 +26,7 @@ export * from './elements/component.element';
 export * from './elements/file.element';
 export * from './elements/environment.element';
 export * from './elements/target.element';
-export * from './elements/targetexports.element';
+export * from './elements/target-exports.element';
 export * from './elements/target-env-variant.element';
 export * from './elements/project.element';
 

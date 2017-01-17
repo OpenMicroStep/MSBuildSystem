@@ -1,5 +1,5 @@
 import {
-  Element, GroupElement, ProjectElement, DelayedElement, TargetElement, DelayedTarget,
+  Element, GroupElement, ProjectElement, DelayedElement,
   Reporter, AttributePath, DelayedQuery, Workspace} from '../index.priv';
 
 export class MakeJSElement extends Element {
@@ -34,7 +34,7 @@ export class MakeJSElement extends Element {
     let els = el.is === 'group' ? (<GroupElement>el).elements || [] : [el];
     for (el of els)
       if (this.__resolveElementsTagsFilter(el, requiredTags, rejectedTags))
-        into.push(el instanceof TargetElement ? new DelayedTarget(el, this) : el);
+        into.push(el);
   }
 
 

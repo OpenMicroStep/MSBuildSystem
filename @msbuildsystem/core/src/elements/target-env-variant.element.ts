@@ -4,19 +4,11 @@ import {
 } from '../index.priv';
 
 const notInjectableKeys = /(^__)|([^\\]=$)|tags|elements/;
-const validateTargetList = AttributeTypes.listValidator<TargetElement | TargetExportsElement>(function (reporter: Reporter, path: AttributePath, value: any) {
-  value = Element.validateElement(reporter, path, value);
-  if (value !== undefined && (value instanceof TargetElement || value instanceof TargetExportsElement))
-    return value;
-  if (value !== undefined)
-    path.diagnostic(reporter, { type: "warning", msg: `attribute must be a 'target' element, got a ${value.is}`});
-  return undefined;
-});
 
 export class BuildTargetElement extends MakeJSElement {
   variant: string;
   environment: EnvironmentElement;
-  targets: TargetExportsElement[];
+  targets: string[];
   components: ComponentElement[];
   exports: ComponentElement[];
   type: string;
@@ -27,22 +19,28 @@ export class BuildTargetElement extends MakeJSElement {
 
   constructor(reporter: Reporter, root: RootGraph, target: TargetElement, environment: EnvironmentElement, variant: string) {
     super('build-target', target.name, target.__parent!); // the parent is the same as the target to have the same resolution behavior
+    // setup the is, variant and environment attributes
     this.is = 'build-target';
     this.variant = variant;
     this.environment = environment;
+    //
     this.targets = [];
     this.components = [];
     this.exports = [];
     this.__target = target;
     this.___root = root;
+    // inject target element attributes to itself
     this.__injectElements(reporter, [target]);
+    // inject the environment
     this.__injectElements(reporter, [this.environment]);
-    let at = new AttributePath(this);
+    // inject components tree
     let components = new Set<ComponentElement>();
     this.__injectComponents(reporter, this, components);
     this.components = Array.from(components);
-    this.__resolveTargets(reporter);
+
+    let at = new AttributePath(this, '');
     this.type = AttributeTypes.validateString(reporter, at.set('.type'), this.type) || "bad type";
+    this.targets = AttributeTypes.validateStringList(reporter, at.set('.targets'), this.targets) || [];
   }
 
   __injectElements(reporter: Reporter, elements: Element[]) {
@@ -124,21 +122,6 @@ export class BuildTargetElement extends MakeJSElement {
       for (var component of current.components)
         this.__injectComponents(reporter, component, injected);
     }
-  }
-
-  __resolveTargets(reporter: Reporter) {
-    let targets = validateTargetList(reporter, new AttributePath(this, '.targets'), this.targets || []);
-    this.targets = [];
-    targets.forEach(t => {
-      if (t instanceof TargetExportsElement) {
-        this.targets.push(t);
-      }
-      else {
-        let exports = this.__resolveDelayedExports(reporter, t, this.environment);
-        if (exports)
-          this.targets.push(exports);
-      }
-    });
   }
 
   __path() {

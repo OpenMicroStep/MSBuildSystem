@@ -139,7 +139,6 @@ export class Target extends SelfBuildGraph<RootGraph> {
       tasks        : path.join(build, "tasks")
     };
     this.exports = new TargetExportsElement(this, this.attributes.name);
-    this.attributes.targets.forEach(t => t.__target && this.addDependency(t.__target));
     fs.ensureDirSync(this.paths.tasks);
     fs.ensureDirSync(this.paths.intermediates);
     fs.ensureDirSync(this.paths.output);

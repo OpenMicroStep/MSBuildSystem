@@ -94,6 +94,36 @@ export class RootGraph extends TGraph<Target> {
       }
       else {
         task = new cls(this, buildTarget.__root().__project(), buildTarget);
+        if (task.attributes.targets.length) {
+          let p = new AttributePath(task, '.targets[', '', ']');
+          task.attributes.targets.forEach((targetName, i) => {
+            p.set(i , -1);
+            let depTargetElements = <TargetElement[]>this.workspace.resolveExports(targetName, buildTarget.environment.name, buildTarget.variant)
+              .filter(t => t instanceof TargetElement);
+            if (depTargetElements.length === 0) {
+              p.diagnostic(reporter, {
+                type: "error",
+                msg: `the target '${targetName}' is not present in the workspace`
+              });
+            }
+            else if (depTargetElements.length > 1) {
+              p.diagnostic(reporter, {
+                type: "error",
+                msg: `the target '${targetName}' is present multiple times in the workspace, this shouldn't happen`
+              });
+            }
+            else {
+              let depTargetElement = depTargetElements[0];
+              let compatibleEnv = depTargetElement.__compatibleEnvironment(reporter, environment);
+              if (compatibleEnv) {
+                let depTarget = this.createTarget(reporter, buildTarget, depTargetElement, compatibleEnv, buildTarget.variant);
+                if (depTarget) {
+                  task!.addDependency(depTarget);
+                }
+              }
+            }
+          });
+        }
       }
       reporter.transform.pop();
       if (task) {

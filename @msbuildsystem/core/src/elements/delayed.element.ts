@@ -48,21 +48,6 @@ export class DelayedQuery extends DelayedElement {
   }
 }
 
-export class DelayedTarget extends DelayedElement {
-  constructor(public target: TargetElement, parent: Element | null) {
-    super(parent);
-  }
-  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
-    let elements = <Element[]>[];
-    let targetElement: TargetElement = this.target;
-    let exports = buildTarget.__resolveDelayedExports(reporter, targetElement, buildTarget.environment);
-    if (exports) {
-      elements = [exports];
-    }
-    return elements;
-  }
-}
-
 type DelayedProxyOp = (reporter: Reporter, buildTarget: BuildTargetElement, parent: Element, map: (value) => any) => any;
 interface DelayedProxy extends DelayedElement {
   __chain: DelayedProxy | null;

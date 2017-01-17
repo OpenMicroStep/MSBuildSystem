@@ -26,7 +26,7 @@ export class TargetExportsElement extends ComponentElement {
   type: string;
 
   constructor(target: Target | null, name: string) {
-    super('target exports', name, null);
+    super('component', name, null);
     this.__target = target;
     this.__resolved = !!target;
   }
