@@ -3,11 +3,12 @@ import {
   Reporter, AttributeTypes, AttributePath, RootGraph
 } from '../index.priv';
 
-const notInjectableKeys = /(^__)|([^\\]=$)|tags|elements/;
+const notInjectableKeys = /(^__)|([^\\]=$)|tags|elements|environments/;
 
 export class BuildTargetElement extends MakeJSElement {
   variant: string;
   environment: EnvironmentElement;
+  environments: EnvironmentElement[];
   targets: string[];
   components: ComponentElement[];
   exports: ComponentElement[];
@@ -31,6 +32,7 @@ export class BuildTargetElement extends MakeJSElement {
     this.___root = root;
     // inject target element attributes to itself
     this.__injectElements(reporter, [target]);
+    this.environments = target.environments;
     // inject the environment
     this.__injectElements(reporter, [this.environment]);
     // inject components tree
