@@ -1,5 +1,5 @@
-import * as priv from './index.priv'; priv; // force loading of priv
-export { Async, Flux, Reporter, Test, AttributePath, AttributeTypes } from '@msbuildsystem/shared';
+import './index.priv'; // force loading of priv
+export * from '@msbuildsystem/shared';
 export { Loader  } from './loader';
 export { Element, ElementFactory } from './element';
 export { GroupElement } from './elements/group.element';
