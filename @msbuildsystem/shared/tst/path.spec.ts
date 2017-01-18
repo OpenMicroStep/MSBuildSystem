@@ -1,15 +1,11 @@
 import {path} from '@msbuildsystem/shared';
 import {assert} from 'chai';
 
-export function tests() {
-  describe('path', function() {
-
-it("basename", function() {
+function basename() {
   assert.equal(path.basename("test/abc.ext"), "abc.ext");
-});
-it("formatDuration", function() {
-  assert.equal(path.extname("test/abc.ext"), ".ext");
-});
-
-  });
 }
+function formatDuration() {
+  assert.equal(path.extname("test/abc.ext"), ".ext");
+}
+
+export const tests = { name: 'path', tests: [basename, formatDuration]};

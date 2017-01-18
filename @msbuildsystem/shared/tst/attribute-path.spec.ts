@@ -1,4 +1,4 @@
-import {AttributePath} from '@msbuildsystem/core';
+import {AttributePath} from '@msbuildsystem/shared';
 import {assert} from 'chai';
 
 function path_tracking() {
@@ -14,6 +14,6 @@ function path_tracking() {
   assert.strictEqual(p.reset('test', '.', 'test2').toString(), 'test.test2');
 }
 
-export const tests = [
-  { name: "path tracking", test: path_tracking }
-];
+export const tests = { name: 'attribute-path', tests: [
+  path_tracking
+]};

@@ -21,7 +21,7 @@ export function superValidateList<T, A0> (
   if (Array.isArray(attr)) {
     path.push("[", "", "]");
     for (var idx = 0, attrlen = attr.length; idx < attrlen; idx++) {
-      var value = validator(reporter, path.set(idx.toString(), -2), attr[idx], a0);
+      var value = validator(reporter, path.set(idx, -2), attr[idx], a0);
       if (value !== undefined)
         push(value);
     }
@@ -68,7 +68,7 @@ export function superValidateComplex<T, T2, A0>(
   if (typeof attr === "object" && attr.value) { // complex object
     path.push('.value');
     superValidateList(reporter, path, attr.value, a0, validator, keys.push.bind(keys));
-    path.pop(2);
+    path.pop();
     superFill(reporter, path, attr, a0, value, extensions);
   }
   else if ((attr = validator(reporter, path, attr, a0))) { // directly the object
@@ -95,7 +95,7 @@ export function validateStringValue(reporter: Reporter, path: AttributePath, val
 
 export function validateObject(reporter: Reporter, path: AttributePath, value: any) : { [s: string]: any } | undefined {
   if (typeof value !== "object")
-    path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof value}`});
+    path.diagnostic(reporter, { type: "warning", msg: `attribute must be an object, got ${typeof value}`});
   else
     return value;
   return undefined;
@@ -106,7 +106,7 @@ export function validateArray(reporter: Reporter, path: AttributePath, value: an
     path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
   else
     return value;
-  return undefined;
+  return [];
 }
 export function validateString(reporter: Reporter, path: AttributePath, value: any) {
   if (typeof value !== "string")
