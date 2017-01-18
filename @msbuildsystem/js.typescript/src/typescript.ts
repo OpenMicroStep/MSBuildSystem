@@ -199,6 +199,7 @@ export class TypescriptTask extends Task {
       });
     }
     else {
+      step.context.runRequired = true;
       step.continue();
     }
   }
