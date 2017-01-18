@@ -36,18 +36,19 @@ export function printDiagnostic(d: Diagnostic) : string {
   return ret;
 }
 
-export function printReport(reporter: Reporter, prefix: string, action = "load") {
+export function printReport(reporter: Reporter, prefix: string, action: string, duration?: string) {
+  duration = duration ? ` (${duration})` : "";
   if (reporter.diagnostics.length) {
     console.info('');
     console.info(reporter.diagnostics.map(printDiagnostic).join('\n'));
     console.info('');
     if (reporter.failed)
-      console.info(`${prefix} failed to ${action}: ${reporter.diagnostics.length} issues${stats(reporter.diagnostics)}`);
+      console.info(`${prefix} failed to ${action}: ${reporter.diagnostics.length} issues${stats(reporter.diagnostics)}${duration}`);
     else
-      console.info(`${prefix} ${action}: ${reporter.diagnostics.length} issues${stats(reporter.diagnostics)}`);
+      console.info(`${prefix} ${action}: ${reporter.diagnostics.length} issues${stats(reporter.diagnostics)}${duration}`);
   }
   else {
-    console.info(`${prefix} ${action} without issues`);
+    console.info(`${prefix} ${action} without issues${duration}`);
   }
   return !reporter.failed;
 }

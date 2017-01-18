@@ -9,27 +9,30 @@ if (args.workspace)
 args.projects = args.projects ? args.projects.map(p => util.pathJoinIfRelative(cwd, p)) : [util.pathJoinIfRelative(cwd, "")];
 if (args.command === "run" && args.action)
   args.command = args.action;
+//console.info("Arguments", args);
 
 (chalk as any).enabled = !!args.color;
 Loader.loadModules();
 console.info("Modules:", Array.from(Loader.modules.values()).map(m => m.name).join(', '));
 let workspace = new Workspace(args.workspace || undefined);
-let projects = args.projects.map(p => workspace.project(p));
+let results = true;
+let projects = args.projects.map(p => {
+  let perf = util.performanceCounter("short");
+  let project = workspace.project(p);
+  results = results && printReport(project.reporter, 'Project', 'load', perf());
+  return project;
+});
 console.info(`Workspace: ${workspace.directory}`);
 console.info(`Projects: ${projects.map(p => p.path).join(', ')}`);
-let results = true;
-projects.forEach(p => {
-  var r = printReport(p.reporter, 'Project');
-  results = results && r;
-});
 if (results) {
   let reporter = new Reporter();
+  let perf = util.performanceCounter("short");
   let graph = workspace.buildGraph(reporter, {
     environments: args.environments || undefined,
     variants: args.variants || undefined,
     targets: args.targets || undefined
   });
-  if (printReport(reporter, 'Build graph')) {
+  if (printReport(reporter, 'Build graph', 'load', perf())) {
     let reporter = new Reporter();
     let runner = new Runner(graph, args.command, { ide: args.ide });
     if (args.debug) {
@@ -55,10 +58,11 @@ if (results) {
         reporter.aggregate(context.reporter);
       });
     }
+    let perf = util.performanceCounter("short");
     Async.run(null, [
       Async.bind(runner, runner.run),
       (p) => {
-        printReport(reporter, 'Build', 'run');
+        printReport(reporter, 'Build', 'run', perf());
         process.exit(p.context.failed ? 1 : 0);
       }
     ]);
