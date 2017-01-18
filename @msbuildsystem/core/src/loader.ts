@@ -12,25 +12,22 @@ export namespace Loader {
     testModule: Test<any> | undefined = undefined;
     constructor(public path: string, public name: string, public exports: any) {}
 
-    test() {
+    test(): Test<any> {
       if (this.testModule === undefined) {
         this.testModule = { name: this.name, tests: [] };
         try {
           Object.assign(this.testModule, require(`${this.path}.tests`));
-        } catch (e) {
-          console.info("No test found for " + this.name, e && e.message);
-        }
+        } catch (e) {}
       }
-      if (this.testModule) {
-        Test.run(this.testModule);
-      }
+      return this.testModule || { name: this.name, tests: [] };
     }
   }
 
   export const modules = new Map<string, Module>();
 
-  export function testModules() {
-    modules.forEach(m => m.test());
+  export function testModules(flux: Flux<any>) {
+    let test = { name: "@msbuildsystem", tests: Array.from(modules.values()).map(m => m.test()) };
+    Test.run(flux, test);
   }
 
   export function loadModules(at?: string, filter: (moduleName: string, path: string) => boolean = (n) => !Loader.isTestModule(n)) {
