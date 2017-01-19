@@ -64,7 +64,8 @@ module.exports= {
     npmInstall: [{
       "@types/chai": "^3.4.29",
       "@types/mocha": "^2.2.28",
-      "@types/node": "^4.0.30"
+      "@types/node": "^4.0.30",
+      "@microstep/tests": "^0.1.0"
     }],
     npmPackage: [{
       "dependencies": {

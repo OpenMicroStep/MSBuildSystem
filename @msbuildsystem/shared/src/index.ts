@@ -4,7 +4,6 @@ export import util = _util;
 import * as _path from './path';
 export import path = _path;
 export { Diagnostic } from './diagnostic';
-export * from './test';
 export * from './reporter';
 export * from './attribute-path';
 export * from './provider';
