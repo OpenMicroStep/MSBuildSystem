@@ -1,10 +1,6 @@
 Définition d'un projet (`project`)
 ==================================
 
-> TODO: project.workspace: string // nom du workspace par défaut auquel le projet appartient
-
-> Long terme: définir les prérequis pour le buildsystem (ie. cxx, clang, gcc, typescript, ...) + npm extensions ?
-
 Ce document présente les concepts essentiels à la définition d'un projet.
 
 Un projet est défini dans un fichier `make.js`.  
@@ -69,7 +65,7 @@ Un **espace de travail** (`workspace`) est le regroupement d'un ensemble de proj
 Le projet est défini en termes d'éléments.
 
 Un élément contient toujours une propriété `is` qui désigne le type de l'élément (par exemple `project`, `component`, `target`, etc.). Selon le type de l'élément, certaines propriétés auront des significations particulières.  
-Les propriétés spécifiques de chaque élément sont décrites de manière exhaustive dans le document xxxx.
+Les propriétés spécifiques de chaque élément sont décrites de manière exhaustive dans la documentation associé à chaque élément.
 
 Un élément a généralement un nom. Celui-ci est indispensable lorsqu'il s'agit par exemple d'un nom de fichier ou d'un objectif. Il permet aussi de faire référence à cet élément dans un autre élément.  
 Il peut cependant arriver que le nommage d'un élément n'ait aucune utilité (par exemple, un composant terminal défini directement dans un objectif). Dans ce cas, il est autorisé de ne pas nommer l'élément.
@@ -587,7 +583,7 @@ Un objectif est par définition toujours exporté par un projet.
 
 L'export se déclare au niveau de chaque objectif comme pour les fichiers et les composants avec les propriétés `exports` et `exportsByEnvironment`.
 Le comportement de `exports` et `exportsByEnvironment` est équivalent à `components` et `componentsByEnvironment`, c'est à dire que l'objectif exporté est utilisable comme un composant.
-Ce composant est aussi enrichi automatiquement par l'objectif de compilation qui le génère.
+Un composant nommé `auto` est crée automatiquement par l'objectif de compilation et est injecter dans la liste `exports`.
 
 Dès lors, pour accéder à ces éléments depuis un autre projet (toujours au sein du même espace de travail), il suffit d'utiliser la syntaxe `::[env:]target::[component]`, où:
 
@@ -632,11 +628,16 @@ Le fichier d'export de l'exemple précédent donnera:
 
 ~~~js
 {
-  is: "export",
+  is: "component",
+  name: "shared",
+  'auto=': {
+    is: "component"
+  },
   'posix component=': {
     is: "component",
     ...
   },
+  components: ['=auto', '=posix component']
 }
 ~~~
 

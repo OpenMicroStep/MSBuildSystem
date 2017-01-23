@@ -2,7 +2,7 @@ before_script:
  - npm set registry $NPM_REGISTRY
 
 build:
-  image: node:4
+  image: node:6
   stage: build
   script:
    - npm install -q -g @msbuildsystem/cli
@@ -15,7 +15,7 @@ build:
      - dist/
 
 test:
-  image: node:4
+  image: node:6
   stage: test
   dependencies:
    - build

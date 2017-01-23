@@ -7,6 +7,8 @@ import socketio = require('socket.io');
 import crypto = require('crypto');
 app.use(express.static(__dirname + '/../'));
 
+BuildSystem.core.Async.run(null, (p) => { (new BuildSystem.Provider.ProviderClient("ws://10.211.55.16:2346")).init(p); });
+
 var server = app.listen(3000, "127.0.0.1", function () {
   var host = server.address().address;
   var port = server.address().port;

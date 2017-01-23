@@ -101,3 +101,6 @@ Un compteur est mis à disposition, il commence à `n + 1` et lorsqu'il atteint 
  - `dec`: décrémente le compteur si la barrière n'est pas ouverte
  - `endWith`: définition l'action à exécuter lorsque le compteur atteint 0 et décrémente le compteur
 
+## Compilation
+
+Le buildsystem est capable de se compiler lui-même (bootstrap). 

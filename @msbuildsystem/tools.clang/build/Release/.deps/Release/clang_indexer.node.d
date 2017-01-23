@@ -1,0 +1,1 @@
+cmd_Release/clang_indexer.node := c++ -bundle -stdlib=libc++ -undefined dynamic_lookup -Wl,-no_pie -Wl,-search_paths_first -mmacosx-version-min=10.7 -arch x86_64 -L./Release  -o Release/clang_indexer.node Release/obj.target/clang_indexer/addon.o /Users/vincentrouille/Dev/MicroStep/llvm/build-release/lib/libclang.dylib -Wl,-rpath ./

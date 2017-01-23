@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@types/argparse": "^1.0.30",
+    "@types/chalk": "^0.4.31",
+    "argparse": "^1.0.9",
+    "chalk": "^1.1.3",
     "fs-extra": "^0.30.0",
     "source-map-support": "^0.4.0"
   },

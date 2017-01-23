@@ -26,8 +26,10 @@ export class LocalProcessProvider extends ProcessProvider {
         step.context.reporter.diagnostic({ type: "error", msg: `process terminated with signal ${signal}` });
       else if (code !== 0)
         step.context.reporter.diagnostic({ type: "error", msg: `process terminated with exit code: ${code}` });
-      if (out)
+      if (out) {
+        step.context.reporter.log(`${this.bin} ${args.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ')}\n`);
         step.context.reporter.log(out);
+      }
       step.continue();
     });
   }
@@ -49,7 +51,7 @@ function run(
     stdio: ['ignore', 'pipe', 'pipe'],
     cwd: cwd
   };
-  if (env) {
+  if (env && Object.keys(env).length) {
     var pathKey = "PATH";
     options.env = {};
     for (var i in baseEnv) {

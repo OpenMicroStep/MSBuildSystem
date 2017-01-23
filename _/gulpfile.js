@@ -25,10 +25,10 @@ gulp.task('buildsystem:copy-test-data', function() {
 gulp.task('buildsystem:build', ['buildsystem:tsc', 'buildsystem:packages', 'buildsystem:copy-test-data']);
 
 gulp.task('buildsystem:tests', ['buildsystem:build'], function(cb) {
-    exec('./node_modules/.bin/mocha --inline-diffs --colors test-buildsystem.js', cb);
+    exec('./node_modules/.bin/mocha --colors test-buildsystem.js', cb);
 });
 gulp.task('buildsystem:debug', ['buildsystem:tsc', 'buildsystem:copy-test-data'], function(cb) {
-    exec('./node_modules/.bin/mocha --inline-diffs --nolazy --debug-brk --colors test-buildsystem.js', cb);
+    exec('./node_modules/.bin/mocha --nolazy --debug-brk --colors test-buildsystem.js', cb);
 });
 gulp.task('buildsystem:perf', ['buildsystem:tsc', 'buildsystem:copy-test-data'], function(cb) {
     exec('./node_modules/.bin/mocha --slow 10 --prof --inline-diffs --colors test-buildsystem.js', cb);

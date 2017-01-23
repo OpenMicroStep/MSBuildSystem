@@ -32,6 +32,9 @@ generate.addArgument(['ide'], {
   defaultValue: "terminal"
 });
 
+let modules = subs.addParser('modules', { help: "manage buildystem modules", addHelp: true });
+modules.addArgument(['action'], { choices: ['install', 'remove'] , help: "Modules to add or remove" });
+modules.addArgument(['modules'], { help: "Modules to add or remove", action: "append" });
 let make = subs.addParser('build', { help: "run the build action", addHelp: true });
 addCommonArguments(make);
 let clean = subs.addParser('clean', { help: "run the clean action", addHelp: true });
@@ -47,10 +50,11 @@ export const args: {
   action?: string;
   ide?: string;
   workspace: string | null;
-  projects: string[] | null;
+  projects: string[];
   targets: string[] | null;
   environments: string[] | null;
   variants: string[] | null;
   color: boolean;
   debug: boolean;
+  modules: string[];
 } = parser.parseArgs();

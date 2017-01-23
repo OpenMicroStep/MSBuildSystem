@@ -32,6 +32,9 @@ module.exports = function (grunt) {
       buildsystem : {
         out : "<%= config.out %>/buildsystem",
       },
+      tests: {
+        buildsystem : { out: "<%= config.out %>/tests/buildsystem" },
+      }
     },
 
     /////
@@ -84,9 +87,6 @@ module.exports = function (grunt) {
     // Typescript Compilation
     ts: {
       options: {
-        noLib: true,
-        target: 'es5',
-        sourceMap: true,
         compiler: './node_modules/typescript/bin/tsc'
       },
       ide: {
@@ -94,13 +94,6 @@ module.exports = function (grunt) {
         dest: '<%= config.ide.client.out %>/js',
         options: {
           module: 'amd',
-        }
-      },
-      nodejs: {
-        src: ["typings/node.d.ts", '../buildsystem/**/*.ts', '../ide/server/**/*.ts'],
-        dest: '<%= config.out %>',
-        options: {
-          module: 'commonjs',
         }
       }
     },
@@ -110,6 +103,14 @@ module.exports = function (grunt) {
     /////
     // Copy dependencies
     copy: {
+      'buildsystem/tests': {
+        files: [{
+          expand: true,
+          src: ['buildsystem/*.tests/data/**'],
+          cwd: '../',
+          dest: '<%= config.out %>'
+        }]
+      },
       ide: {
         files: [{
           expand: true,
@@ -247,6 +248,12 @@ module.exports = function (grunt) {
         }
       }
     },
+
+    jasmine_nodejs: {
+      buildsystem: {
+        specs: ['out/tests/buildsystem/**.js']
+      }
+    },
     //
     /////
 
@@ -281,6 +288,9 @@ module.exports = function (grunt) {
         command: 'electron --expose-gc out/ide/electron/main.js',
         options: { async: true }
       },
+      "buildsystem/tsc"  : { command: './node_modules/.bin/tsc -p ../buildsystem/tsconfig.json' },
+      "buildsystem/mocha": { command: './node_modules/.bin/mocha  --inline-diffs  --colors out/buildsystem/tests.js' },
+      "buildsystem/mocha-debug": { command: './node_modules/.bin/mocha --debug-brk out/buildsystem/tests.js' }
     }
   });
 
@@ -309,8 +319,23 @@ module.exports = function (grunt) {
   grunt.loadNpmTasks('grunt-surround');
   grunt.loadNpmTasks('grunt-electron');
   grunt.loadNpmTasks('grunt-concurrent');
+  grunt.loadNpmTasks('grunt-jasmine-nodejs');
 
-  grunt.registerTask('default', ['ide']);
+  grunt.registerTask('default', ['buildsystem', 'ide']);
+
+  grunt.registerTask('buildsystem', [
+    'shell:buildsystem/tsc'
+  ]);
+  grunt.registerTask('buildsystem/tests', [
+    'buildsystem',
+    'copy:buildsystem/tests',
+    'shell:buildsystem/mocha'
+  ]);
+  grunt.registerTask('buildsystem/tests-debug', [
+    'buildsystem',
+    'copy:buildsystem/tests',
+    'shell:buildsystem/mocha-debug'
+  ]);
 
   grunt.registerTask('package', [
     'ide-release',
@@ -322,9 +347,6 @@ module.exports = function (grunt) {
     'electron-modules',
     'shell:electron-modules',
     'electron:osx',
-  ]);
-  grunt.registerTask('buildsystem', [
-    'ts:nodejs', // JS
   ]);
   grunt.registerTask('ide', [
     'surround:bootstrap',
