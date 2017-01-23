@@ -25,6 +25,7 @@ test:
    - mstests dist/node/debug/node_modules/@msbuildsystem/{shared,core}.tests/index.js
 
 publish:
+  image: node:6
   stage: deploy
   script:
     - echo -e "$NPM_USER\n$NPM_PASS\n$NPM_EMAIL" | npm login
