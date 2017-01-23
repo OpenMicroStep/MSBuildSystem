@@ -23,3 +23,22 @@ test:
   script:
    - npm install -q -g @microstep/tests
    - mstests dist/node/debug/node_modules/@msbuildsystem/{shared,core}.tests/index.js
+
+publish:
+  stage: deploy
+  script:
+    - echo -e "$NPM_USER\n$NPM_PASS\n$NPM_EMAIL" | npm login
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/shared
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/core
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/cli
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/foundation
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/js
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/js.typescript
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/aspects
+    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/js.logitud
+  dependencies:
+   - build
+  only:
+    - master
+  when: manual
+  environment: production
