@@ -35,7 +35,7 @@ module.exports= {
     compiler: "typescript",
     environments: ["=node"],
     npmPackage: [{
-      "version": "0.1.4",
+      "version": "0.1.7",
       "main": "index.js",
       "typings": "index.d.ts"
     }],
@@ -122,7 +122,7 @@ module.exports= {
     'cli=': {
       is: "target",
       outputName: '@msbuildsystem/cli',
-      components: ['=base', '=::core::peerDependency'],
+      components: ['=base', '=::core::'],
       targets: ['core'],
       files: ['=files:cli'],
       //tsConfig: [{ traceResolution: true }],
