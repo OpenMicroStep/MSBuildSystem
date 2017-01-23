@@ -2,7 +2,7 @@ node_modules/
 _/typings
 _/.*
 _/out
-sysroots/
+/sysroots/
 *.msvc12/
 _/bootstrap**
 tsconfig.json
