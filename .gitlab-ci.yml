@@ -6,7 +6,8 @@ build:
   stage: build
   script:
    - npm install -q -g @msbuildsystem/cli
-   - msbuildsystem modules install @msbuildsystem/js.typescript typescript
+   - msbuildsystem modules install @msbuildsystem/js.typescript
+   - msbuildsystem modules install typescript
    - msbuildsystem build -p @msbuildsystem/ -w bootstrap/
    - node bootstrap/node/debug/node_modules/@msbuildsystem/cli/index.js build -p @msbuildsystem/ -w dist/
   artifacts:
