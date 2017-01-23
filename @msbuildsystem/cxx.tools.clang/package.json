@@ -9,7 +9,10 @@
   "scripts": {
     "postinstall": "node install.js"
   },
+  "gypfile": true,
   "dependencies": {
-    "download": "^5.0.2"
+    "download": "^5.0.2",
+    "bindings": "~1.2.1",
+    "nan": "^2.0.0"
   }
 }
