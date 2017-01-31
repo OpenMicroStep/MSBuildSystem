@@ -4,5 +4,6 @@ _/.*
 _/out
 /sysroots/
 *.msvc12/
-_/bootstrap**
+bootstrap**/
 tsconfig.json
+build/

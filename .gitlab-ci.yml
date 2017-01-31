@@ -8,8 +8,9 @@ build:
    - npm install -q -g @msbuildsystem/cli
    - msbuildsystem modules install @msbuildsystem/js.typescript
    - msbuildsystem modules install typescript
-   - msbuildsystem build -p @msbuildsystem/ -w bootstrap/
-   - node bootstrap/node/debug/node_modules/@msbuildsystem/cli/index.js build -p @msbuildsystem/ -w dist/
+   - msbuildsystem build -p @msbuildsystem/ -w bootstrap1/
+   - node bootstrap1/node/debug/node_modules/@msbuildsystem/cli/index.js build -p @msbuildsystem/ -w bootstrap2/
+   - node bootstrap2/node/debug/node_modules/@msbuildsystem/cli/index.js build -p @msbuildsystem/ -w dist/
   artifacts:
     expire_in: 31d
     paths:
@@ -29,14 +30,14 @@ publish:
   stage: deploy
   script:
     - echo -e "$NPM_USER\n$NPM_PASS\n$NPM_EMAIL" | npm login
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/shared
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/core
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/cli
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/foundation
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/js
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/js.typescript
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/aspects
-    - npm publish bootstrap/node/debug/node_modules/@msbuildsystem/js.logitud
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/shared
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/core
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/cli
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/foundation
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/js
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/js.typescript
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/aspects
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/js.logitud
   dependencies:
    - build
   only:
