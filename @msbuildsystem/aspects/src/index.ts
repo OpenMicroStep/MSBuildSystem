@@ -21,27 +21,30 @@ interface AspectBaseElement {
   __root() : AspectRootElement;
 }
 
-function typeToTypescriptType(type: Type) : string {
+function appendUndefined(type: string, allowUndefined: boolean) {
+  return allowUndefined ? `${type} | undefined` : type;
+}
+function typeToTypescriptType(type: Type, allowUndefined = true) : string {
   if (typeof type === "string") {
     switch (type) {
       case 'any':        return "any";
-      case 'integer':    return "number";
-      case 'decimal':    return "number";
-      case 'date':       return "Date";
-      case 'string':     return "string";
-      case 'array':      return "any[]";
-      case 'dictionary': return "{ [k: string]: any }";
-      case 'object':     return "Object";
-      case 'identifier': return "(string | number)";
+      case 'integer':    return appendUndefined("number", allowUndefined);
+      case 'decimal':    return appendUndefined("number", allowUndefined);
+      case 'date':       return appendUndefined("Date", allowUndefined);
+      case 'string':     return appendUndefined("string", allowUndefined);
+      case 'array':      return appendUndefined("any[]", allowUndefined);
+      case 'dictionary': return appendUndefined("{ [k: string]: any }", allowUndefined);
+      case 'object':     return appendUndefined("Object", allowUndefined);
+      case 'identifier': return appendUndefined("string | number", allowUndefined);
       case 'localdate':  return "any";
     }
     return type;
   }
   else if (Array.isArray(type)) {
-    return `${typeToTypescriptType(type[2])}[]`;
+    return appendUndefined(`${typeToTypescriptType(type[2])}[]`, allowUndefined);
   }
   else if (typeof type === "object") {
-    return `{${Object.keys(type).map(k => `${k}: ${typeToTypescriptType(type[k])}`).join(', ')}}`;
+    return `{${Object.keys(type).map(k => `${k === '*' ? '[k: string]' : `${k}?`}: ${typeToTypescriptType(type[k], false)}`).join(', ')}}`;
   }
   return "any";
 }
