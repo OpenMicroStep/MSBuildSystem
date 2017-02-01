@@ -6,6 +6,12 @@ The whole execution state is stored by the runner, the graph is left untouched.
 It allow selecting multiple branches of the graph to limit the executed set of tasks.   
 The `root` task is always enabled.
 
+There is two way to execute an action: `run` and `runWithMapReduce`.
+
+The map/reduce way is usefull for creating tools around the build graph (ie. generating ide files, autocompletion, ...).
+This approach allow to write tool easilly without creating heavy synchronous by design workload on the build graph.
+In the long run, big build graph could be shared accross multiple workers and the map/reduce work could then be dispatched with ease.
+
 Methods
 -------
 
@@ -24,6 +30,13 @@ Remove from enabled branches contained by `task` and it to `enabled` list.
 #### `run(p: Flux<RunnerContext>)`
 
 Execute `action` on the selected part of the graph.
+
+#### `runWithMapReduce<V, K>(p: Flux<RunnerContext>, provider: TaskDoMapReduce<V, K>)`
+
+Execute `action` on the selected part of the graph.
+Upon the execution of the action, if the property `value` of the task context is not _undefined_, this value will be mapped then reduced.
+If the provider supply a `run` method, it will be executed in a task like context for each reduced value.
+If the provider property `returnValues` is _true_, then the list of reduced values will be returned in the `values` property of the flux context.
 
 #### `on(event: "taskend", listener: (ctx: StepContext<any, any>) => void) : this`
 

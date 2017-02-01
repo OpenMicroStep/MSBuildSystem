@@ -3,6 +3,10 @@ import {Task, Graph, TGraph, BuildSession, Async, Reporter, Flux, Diagnostic} fr
 import * as os from 'os';
 
 export type RunnerContext = { runner: Runner, failed: boolean };
+export type ReduceStepContext = {
+  runner: Runner,
+  reporter: Reporter,
+}
 export type StepContext<DATA, SHARED> = {
   runner: Runner,
   execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext<any, any>>) => void),
@@ -33,11 +37,8 @@ export type StepWithData<T, DATA, SHARED> = Flux<StepContext<DATA, SHARED> & T>;
 export var maxConcurrentTasks: number = 1; //os.cpus().length;
 var nbTaskRunning: number = 0;
 var waitingTasks: (() => void)[] = [];
-function takeTaskSlot(step: Step<{}>) {
-  if (step.context.task instanceof TGraph) {
-    step.continue();
-  }
-  else if (nbTaskRunning < maxConcurrentTasks || maxConcurrentTasks === 0) {
+function takeTaskSlot(step: Flux<{}>) {
+  if (nbTaskRunning < maxConcurrentTasks || maxConcurrentTasks === 0) {
     nbTaskRunning++;
     step.continue();
   }
@@ -49,12 +50,10 @@ function takeTaskSlot(step: Step<{}>) {
   }
 }
 
-function giveTaskSlot(step: Step<{}>) {
-  if (!(step.context.task instanceof TGraph)) {
-    nbTaskRunning--;
-    if (waitingTasks.length > 0)
-      waitingTasks.shift()!();
-  }
+function giveTaskSlot(step: Flux<{}>) {
+  nbTaskRunning--;
+  if (waitingTasks.length > 0)
+    waitingTasks.shift()!();
   step.continue();
 }
 
@@ -98,7 +97,20 @@ function execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext
     lastRunStartTime: 0,
     lastRunEndTime: 0,
     lastSuccessTime: 0
-  }, [takeTaskSlot, start, task.do.bind(task), end, giveTaskSlot, lastAction]);
+  }, task instanceof TGraph
+    ? [start, task.do.bind(task), end, lastAction]
+    : [takeTaskSlot, start, task.do.bind(task), end, giveTaskSlot, lastAction]);
+}
+
+function executeMapReduceRun<V>(p: Flux<RunnerContext>, run: (step: Flux<ReduceStepContext>, value: V) => void, value: V) {
+  Async.run<ReduceStepContext>({
+    runner: p.context.runner,
+    reporter: new Reporter()
+  }, [takeTaskSlot, f => run(f, value), giveTaskSlot, (flux) => {
+    p.context.failed = p.context.failed || flux.context.reporter.failed;
+    flux.continue();
+    p.continue();
+  }]);
 }
 
 function isChildOf(parent: Task, task: Task) {
@@ -151,6 +163,37 @@ export class Runner extends EventEmitter {
       p.continue();
     }
   }
+
+  runWithMapReduce<V, K>(p: Flux<RunnerContext & { values?: V[] }>, provider: TaskDoMapReduce<V, K>) {
+    let map = provider.map;
+    let reduce = provider.reduce;
+    let run = provider.run;
+    let returnValues = provider.returnValues;
+    let naiveMapStorage = new Map<K, V[]>();
+    let mapCallback = (ctx) => {
+      let value = ctx.value;
+      if (value !== undefined) {
+        let k = map(value);
+        let values = naiveMapStorage.get(k);
+        if (!values)
+          naiveMapStorage.set(k, values = []);
+        values.push(value);
+      }
+    };
+    p.setFirstElements((f) => {
+      this.removeListener('taskend', mapCallback);
+      let reducedValues = <V[]>[];
+      let reporter = new Reporter();
+      naiveMapStorage.forEach( values => reducedValues.push(reduce(reporter, values)) );
+      if (run && reducedValues.length)
+        f.setFirstElements([reducedValues.map(v => f => executeMapReduceRun(f, run!, v))]);
+      if (returnValues)
+        f.context.values = reducedValues;
+      f.continue();
+    });
+    this.on('taskend', mapCallback);
+    this.run(p);
+  }
 }
 
 export interface Runner {
@@ -159,3 +202,10 @@ export interface Runner {
   on(event: "taskbegin", listener: (ctx: StepContext<any, any>) => void) : this;
   on(event: "taskend", listener: (ctx: StepContext<any, any>) => void) : this;
 }
+
+export type TaskDoMapReduce<V, K> = {
+  map: (context: V) => K;
+  reduce: (reporter: Reporter, contexts: V[]) => V;
+  run?: (step: Flux<ReduceStepContext>, value: V) => void;
+  returnValues: boolean
+};
