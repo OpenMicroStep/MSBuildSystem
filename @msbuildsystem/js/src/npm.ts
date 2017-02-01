@@ -1,5 +1,5 @@
 import {
-  Reporter, SelfBuildGraph, resolver, generator, AttributeTypes, util,
+  Reporter, SelfBuildGraph, resolver, Task, AttributeTypes, util,
   declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory,
   ComponentElement
 } from '@msbuildsystem/core';
@@ -127,7 +127,6 @@ export class NPMInstallTask extends NPMTask {
     this.addFlags([name + '@' + version]);
   }
 
-  @generator
   do_generate_npm(step: Step<{}>) {
     let link = File.getShared(path.join(this.target().project.directory, 'node_modules'), true);
     let target = File.getShared(path.join(this.cwd, 'node_modules'), true);

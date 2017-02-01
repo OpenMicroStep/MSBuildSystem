@@ -1,4 +1,4 @@
-import { Loader, Workspace, Reporter, util, Runner, Async } from '@msbuildsystem/core';
+import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce } from '@msbuildsystem/core';
 import { printDiagnostic, printReport } from './common';
 import { args } from './args';
 import { npm } from './modules';
@@ -70,13 +70,22 @@ function handle_run() {
         });
       }
       let perf = util.performanceCounter("short");
-      Async.run(null, [
-        Async.bind(runner, runner.run),
-        (p) => {
-          printReport(reporter, 'Build', 'run', perf());
-          process.exit(p.context.failed ? 1 : 0);
-        }
-      ]);
+      let provider: TaskDoMapReduce<any, any> | undefined = undefined;
+      let ok = true;
+      if (args.command === "generate") {
+        let reporter = new Reporter();
+        provider = Task.generators.validate(reporter, new AttributePath('ide'), args.ide);
+        ok = !!(provider && printReport(reporter, 'Find generator', 'load'));
+      }
+      if (ok) {
+        Async.run<RunnerContext>(null, [
+          f => provider ? runner.runWithMapReduce(f, provider) : runner.run(f),
+          (p) => {
+            printReport(reporter, 'Build', 'run', perf());
+            process.exit(p.context.failed ? 1 : 0);
+          }
+        ]);
+      }
     }
   }
 }

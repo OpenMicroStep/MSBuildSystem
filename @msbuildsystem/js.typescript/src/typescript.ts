@@ -1,4 +1,8 @@
-import { declareTask, Task, Reporter, SelfBuildGraph, Target, File, Step, StepWithData, resolver, AttributeTypes, util, generator } from '@msbuildsystem/core';
+import {
+  declareTask, Task, Reporter, SelfBuildGraph, Target, File,
+  Flux, Step, StepWithData, ReduceStepContext,
+  resolver, AttributeTypes, AttributePath, util
+} from '@msbuildsystem/core';
 import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@msbuildsystem/js';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
@@ -59,42 +63,31 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
       File.getShared(path.join(this.graph.packager.absoluteCompilationOutputDirectory(), "node_modules"), true)
     );
   }
+}
 
-
-
-  @generator
-  do_generate_tsconfig(step: Step<{}>) {
-    let dir = File.commonDirectoryPath(this.tsc.files);
-    let tsconfig = File.getShared(path.join(dir, 'tsconfig.json'));
-    tsconfig.ensureDir((err) => {
-      if (err) {
-        step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to create directory for writing file" });
-        step.continue();
-      }
-      else {
-        let target = this.target();
-        let intermediatesDirectory = target.paths.intermediates;
-        let options = Object.assign({}, this.tsConfig);
-        let paths = options.paths || (options.paths = {});
-        let baseUrl = options.baseUrl || (options.baseUrl = path.relative(target.project.directory, dir));
-        baseUrl = util.pathJoinIfRelative(target.project.directory, baseUrl);
-        this.npmLink.forEach(l =>
-          paths[l.name] = l.srcs
-        );
-        paths['*'] = [path.join(intermediatesDirectory, "/node_modules/*"), path.join(intermediatesDirectory, "/node_modules/@types/*")];
-        options.typeRoots = options.typeRoots || [];
-        options.typeRoots.push(path.join(intermediatesDirectory, "node_modules/@types"));
-        tsconfig.writeUtf8File(JSON.stringify({
-           compilerOptions: options,
-           files: this.tsc.files.map(f => f.relativePath(dir))
-        }, null, 2), (err) => {
-          if (err) step.context.reporter.error(err, { type: "error", path: tsconfig.path, msg: "unable to write file" });
-          step.continue();
-        });
-      }
+export type TSConfigValue = {
+  tsconfig: File,
+  compilerOptions: ts.CompilerOptions,
+  files: string[]
+};
+Task.generators.register(['tsconfig'], {
+  returnValues: false,
+  map: (v: TSConfigValue) => v.tsconfig,
+  reduce: (reporter: Reporter, values: TSConfigValue[]) : TSConfigValue => ({
+    tsconfig: values[0].tsconfig,
+    compilerOptions: AttributeTypes.validateMergedObjectList(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) || {},
+    files: ([] as string[]).concat(...values.map(v => v.files))
+  }),
+  run(f: Flux<ReduceStepContext>, value: TSConfigValue) {
+    value.tsconfig.writeUtf8File(JSON.stringify({
+        compilerOptions: value.compilerOptions,
+        files: value.files
+    }, null, 2), (err) => {
+      if (err) f.context.reporter.error(err, { type: "error", path: value.tsconfig.path, msg: "unable to write file" });
+      f.continue();
     });
   }
-}
+});
 
 export type CompilerHostWithVirtualFS = ts.CompilerHost & {
   fromVirtualFs(p: string) : string,
@@ -217,6 +210,29 @@ export class TypescriptTask extends Task {
       let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
       this.emitTsDiagnostics(step.context.reporter, tsDiagnostics, host);
     }
+    step.continue();
+  }
+
+  do_generate_tsconfig(step: Step<{ value: TSConfigValue }>) {
+    let dir = File.commonDirectoryPath(this.files);
+    let tsconfig = File.getShared(path.join(dir, 'tsconfig.json'));
+    let target = this.target();
+    let intermediatesDirectory = target.paths.intermediates;
+    let options = Object.assign({}, this.options);
+    let paths = options.paths || (options.paths = {});
+    let baseUrl = options.baseUrl || (options.baseUrl = path.relative(target.project.directory, dir));
+    baseUrl = util.pathJoinIfRelative(target.project.directory, baseUrl);
+    /*this.npmLink.forEach(l =>
+      paths[l.name] = l.srcs
+    );*/
+    paths['*'] = [path.join(intermediatesDirectory, "/node_modules/*"), path.join(intermediatesDirectory, "/node_modules/@types/*")];
+    options.typeRoots = options.typeRoots || [];
+    options.typeRoots.push(path.join(intermediatesDirectory, "node_modules/@types"));
+    step.context.value = {
+      tsconfig: tsconfig,
+      compilerOptions: options,
+      files: this.files.map(f => f.relativePath(dir))
+    };
     step.continue();
   }
 }

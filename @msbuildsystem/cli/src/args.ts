@@ -27,9 +27,7 @@ let generate = subs.addParser('generate', {
 });
 addCommonArguments(generate);
 generate.addArgument(['ide'], {
-  help: "Tool to target for generation",
-  choices: ["terminal", "xcode", "vscode", "sublimetext"],
-  defaultValue: "terminal"
+  help: "Tool to target for generation"
 });
 
 let modules = subs.addParser('modules', { help: "manage buildystem modules", addHelp: true });
