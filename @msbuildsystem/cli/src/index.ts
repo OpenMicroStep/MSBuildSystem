@@ -1,8 +1,16 @@
+let boot_t0 = process.hrtime();
 import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce } from '@msbuildsystem/core';
 import { printDiagnostic, printReport } from './common';
 import { args } from './args';
 import { npm } from './modules';
 import * as chalk from 'chalk';
+
+let boot_t1 = process.hrtime(boot_t0);
+console.info("Boot time: ", (() => {
+    var ns = boot_t1[0] * 1e9 + boot_t1[1];
+    var ms = (ns / 1e6);
+    return util.formatDuration(ms, { format: "short" });
+})());
 
 const cwd = process.cwd();
 if (args.workspace)
@@ -23,8 +31,9 @@ else {
 }
 
 function handle_run() {
+  let perf = util.performanceCounter("short");
   Loader.loadModules();
-  console.info("Modules:", Array.from(Loader.modules.values()).map(m => m.name).join(', '));
+  console.info("Modules [%s] loaded in %s", Array.from(Loader.modules.values()).map(m => m.name).join(', '), perf());
   let workspace = new Workspace(args.workspace || undefined);
   let results = true;
   let projects = args.projects.map(p => {
