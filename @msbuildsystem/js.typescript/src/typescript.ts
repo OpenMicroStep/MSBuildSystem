@@ -106,7 +106,7 @@ export type CompilerHostWithVirtualFS = ts.CompilerHost & {
 export class TypescriptTask extends Task {
   files: File[] = [];
   options: ts.CompilerOptions = {};
-  nonVirtualPaths = ["generated", "node_modules"];
+  virtualPaths = ["generated", "node_modules"];
 
   uniqueKey() {
     return {
