@@ -2,18 +2,18 @@ import {Reporter, AttributePath, Diagnostic} from "./index";
 
 export interface ProviderList<CSTOR, C> {
   list: CSTOR[];
-  register: (constructor: CSTOR) => void;
-  unregister: (constructor: CSTOR) => void;
-  find: (conditions: C) => CSTOR[];
-  validate: (reporter: Reporter, path: AttributePath, value: any) => CSTOR | undefined;
+  register(constructor: CSTOR) : void;
+  unregister(constructor: CSTOR) : void;
+  find(conditions: C) : CSTOR[];
+  validate(reporter: Reporter, path: AttributePath, value: any) : CSTOR | undefined;
 }
 
 export interface ProviderMap<T> {
   map: Map<string, T>;
-  register: (name: string[], constructor: T) => void;
-  unregister: (name: string[]) => void;
-  find: (name: string) => T | undefined;
-  validate: (reporter: Reporter, path: AttributePath, value: any) => T | undefined;
+  register(name: string[], constructor: T) : void;
+  unregister(name: string[]) : void;
+  find(name: string) : T | undefined;
+  validate(reporter: Reporter, path: AttributePath, value: any) : T | undefined;
 }
 
 export function createProviderList<
@@ -88,36 +88,30 @@ export function createCachedProviderList<
 
 export function createProviderMap<T>(type: string) : ProviderMap<T> {
   let map = new Map<string, T>();
-  function register(names: string[], constructor: T) {
-    for (let name of names)
-      map.set(name, constructor);
-  }
-  function unregister(names: string[]) {
-    for (let name of names)
-      map.delete(name);
-  }
-  function find(name: string) {
-    return map.get(name);
-  }
-  function validate(reporter: Reporter, path: AttributePath, value: string) : T | undefined {
-    let v = find(value);
-    if (v === undefined)
-      path.diagnostic(reporter, {
-        type: "error",
-        msg: `unable to find ${type}`,
-        notes: [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
-          .concat(Array.from(map.keys()).map(k => (<Diagnostic>{
-            type: "note",
-            msg: `found: ${k}`
-          })))
-      });
-    return v;
-  }
   return {
     map: map,
-    register: register,
-    unregister: unregister,
-    find: find,
-    validate: validate
+    register(names: string[], constructor: T) {
+      for (let name of names)
+        map.set(name, constructor);
+    },
+    unregister(names: string[]) {
+      for (let name of names)
+        map.delete(name);
+    },
+    find(name: string) { return map.get(name); },
+    validate(reporter: Reporter, path: AttributePath, value: string) : T | undefined {
+      let v = map.get(value);
+      if (v === undefined)
+        path.diagnostic(reporter, {
+          type: "error",
+          msg: `unable to find ${type}`,
+          notes: [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
+            .concat(Array.from(map.keys()).map(k => (<Diagnostic>{
+              type: "note",
+              msg: `found: ${k}`
+            })))
+        });
+      return v;
+    }
   };
 }
