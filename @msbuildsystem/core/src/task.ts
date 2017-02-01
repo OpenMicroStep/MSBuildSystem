@@ -1,28 +1,20 @@
-import {Graph, Target, Step, File, BuildSession} from './index.priv';
+import {
+  Graph, Target, Step, File, BuildSession, TaskDoMapReduce,
+  createProviderMap, ProviderMap, Reporter, AttributePath
+} from './index.priv';
 import {createHash} from 'crypto';
 
 export type TaskName = { type: string, name: string, [s: string]: string };
 
-export var taskClasses = new Map<string, typeof Task>();
 export function declareTask(options: { type: string }) {
   return function (constructor: { new (...args) : Task, prototype: typeof Task.prototype }) {
     constructor.prototype.classname = options.type;
-    taskClasses.set(options.type, constructor);
   };
 }
 
-export function getTask(type: string) : typeof Task | undefined {
-  return taskClasses.get(type);
-}
-
-export function generator(prototype: typeof Task.prototype, propertyKey: string, descriptor: TypedPropertyDescriptor<(this: string, step: Step<any>) => void>) {
-  if (!prototype.hasOwnProperty('generators'))
-    prototype.generators = prototype.generators ? prototype.generators.slice() : [];
-  prototype.generators.push(propertyKey.replace(/^do_generate_/, ''));
-}
-
 export class Task {
-  generators: string[];
+  static generators = createProviderMap<TaskDoMapReduce<any, any>>('generator');
+
   dependencies: Set<Task> = new Set<Task>();
   requiredBy: Set<Task> = new Set<Task>();
   name: TaskName;
@@ -30,6 +22,7 @@ export class Task {
   private sessionKey: string | undefined | null;
 
   classname: string; // on the prototype, see registerClass
+
   constructor(name: TaskName, graph: Graph) {
     this.name = name;
     this.graph = graph;
@@ -37,7 +30,6 @@ export class Task {
     if (graph)
       graph.inputs.add(this);
   }
-
 
   uniqueKey() : any {
     return undefined;
@@ -207,12 +199,13 @@ export class Task {
     step.continue();
   }
 
-  do_generate(step: Step<{}>) {
+  do_generate(step: Step<{ value?: any }>) {
     let what = step.context.runner.options['ide'];
-    let generators = this.generators.filter(g => !what || g === what);
-    let els = generators.map(g => ((p: Step<any>) => { this[`do_generate_${g}`](p); }));
-    step.setFirstElements(els);
-    step.continue();
+    let method = `do_generate_${what}`;
+    if (typeof this[method] === "function")
+      this[method](step);
+    else
+      step.continue();
   }
 
   toString() {

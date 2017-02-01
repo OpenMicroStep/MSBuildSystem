@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 function requiredAbsolutePath(directory: string) {
-  directory = path.normalize(directory);
+  directory = path.normalize(directory.replace(/(\/|\\)+$/, ''));
   if (!path.isAbsolute(directory))
     throw "'directory' must be absolute (directory=" + directory + ")";
   return directory;
