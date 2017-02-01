@@ -47,7 +47,7 @@ module.exports= {
       "strictNullChecks": true,
       "noImplicitThis": true,
       "noImplicitReturns": true,
-      "inlineSourceMap": true,
+      "sourceMap": true,
       //"lib": ["es6"],
       "types": ["node"]
     }],

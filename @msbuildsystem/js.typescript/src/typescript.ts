@@ -133,16 +133,16 @@ export class TypescriptTask extends Task {
     let workspaceDir = target.project.workspace.directory;
     let sourceDirectory = target.project.directory;
     let intermediatesDirectory = target.paths.intermediates;
-    let isInVirtualFs = new RegExp(`^${util.escapeRegExp(intermediatesDirectory)}/(?!(${this.nonVirtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$))`, 'i');
+    let isInVirtualFs = new RegExp(`^${util.escapeRegExp(sourceDirectory)}/(${this.virtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$)`, 'i');
     let host = ts.createCompilerHost(options);
     function fromVirtualFs(p: string) {
       if (isInVirtualFs.test(p))
-        p = path.join(sourceDirectory, p.substring(intermediatesDirectory.length + 1));
+        p = path.join(intermediatesDirectory, p.substring(sourceDirectory.length + 1));
       return p;
     }
     function toVirtualFs(p: string) {
-      if (p.startsWith(sourceDirectory) && !p.startsWith(workspaceDir))
-        p = path.join(intermediatesDirectory, path.relative(sourceDirectory, p));
+      if (p.startsWith(intermediatesDirectory) && !p.startsWith(workspaceDir))
+        p = path.join(sourceDirectory, path.relative(intermediatesDirectory, p));
       return p;
     }
     let getDirectories = host.getDirectories;
@@ -164,7 +164,7 @@ export class TypescriptTask extends Task {
     };
     host.getDirectories = (path: string) =>
       getDirectories(fromVirtualFs(path)).map(d => toVirtualFs(d));
-    host.getCurrentDirectory = () => intermediatesDirectory;
+    host.getCurrentDirectory = () => sourceDirectory;
     return Object.assign(host, { fromVirtualFs: fromVirtualFs, toVirtualFs: toVirtualFs, isInVirtualFs: (p) => isInVirtualFs.test(p) });
   }
 
@@ -212,10 +212,6 @@ export class TypescriptTask extends Task {
     if (!step.context.reporter.failed) {
       let host = this.createCompilerHost(o.options);
       let program = ts.createProgram(this.files.map(f => host.toVirtualFs(f.path)), o.options, host);
-      let options = program.getCompilerOptions();
-      let commonSourceDirectory: string = (program as any).getCommonSourceDirectory();
-      options.mapRoot = commonSourceDirectory;
-      options.sourceRoot = host.fromVirtualFs(commonSourceDirectory);
       let emitResult = program.emit();
       step.context.sharedData.sources = program.getSourceFiles().map(f => host.fromVirtualFs(f.path));
       let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
