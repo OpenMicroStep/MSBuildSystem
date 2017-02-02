@@ -1,4 +1,4 @@
-import {Reporter, AttributePath, Diagnostic} from "./index";
+import {Reporter, AttributePath, Diagnostic, util} from "./index";
 
 export interface ProviderList<CSTOR, C> {
   list: CSTOR[];
@@ -72,15 +72,18 @@ export function createCachedProviderList<
   C extends { [s: string]: any }
   >(type: string) {
   return Object.assign(createProviderList<CSTOR, C>(type), {
-    isOutOfDate: true,
     loadCost: 0,
-    safeLoadIfOutOfDate(this: ProviderList<CSTOR, C> & { isOutOfDate: boolean }, name: string, loader: () => CSTOR | undefined) {
-      if (this.isOutOfDate) {
+    loaded: new Map<string, CSTOR | undefined>(),
+    safeLoadIfOutOfDate(this: ProviderList<CSTOR, C> & { loaded: Map<string, CSTOR | undefined>, loadCost: number }, name: string, loader: () => CSTOR | undefined) {
+      if (!this.loaded.has(name)) {
+        let t0 = util.now();
         try {
           let p = loader();
+          this.loaded.set(name, p);
           if (p)
             this.register(p);
         } catch (e) {}
+        this.loadCost += util.now() - t0;
       }
     }
   });
