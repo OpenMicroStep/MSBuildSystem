@@ -50,7 +50,7 @@ export function createProviderList<
       path.diagnostic(reporter, {
         type: "error",
         msg: `multiple ${type}s found`,
-        notes: [<Diagnostic>{ type: "note", msg: `while looking for sysroot: ${value}` }]
+        notes: [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
           .concat(list.map(s => (<Diagnostic>{
             type: "note",
             msg: `found: ${s.name}`
