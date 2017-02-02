@@ -134,7 +134,7 @@ export class TypescriptTask extends Task {
       return p;
     }
     function toVirtualFs(p: string) {
-      if (p.startsWith(intermediatesDirectory) && !p.startsWith(workspaceDir))
+      if (p.startsWith(intermediatesDirectory))
         p = path.join(sourceDirectory, path.relative(intermediatesDirectory, p));
       return p;
     }
