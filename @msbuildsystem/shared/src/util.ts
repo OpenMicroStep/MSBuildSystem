@@ -123,3 +123,30 @@ var byteUnits = [
 export function formatSize(sizeInBytes, options?: { format?: 'short' | 'long', units?: number }) {
   return formatUnits(sizeInBytes, byteUnits, options);
 }
+
+export const now: () => number = (function() {
+  if (typeof performance === "undefined") {
+    if (typeof process === "object" && typeof process.hrtime === "function") {
+      return function now_hrtime() {
+        let t = process.hrtime();
+        return (t[0] * 1e9 + t[1]) / 1e6;
+      };
+    }
+    else {
+      return Date.now;
+    }
+  }
+  else {
+    return performance.now;
+  }
+})();
+
+export function performanceCounter(format: "long" | "short") : () => string;
+export function performanceCounter() : () => number;
+export function performanceCounter(format?: "long" | "short") : () => number | string {
+  let t0 = now();
+  return function() {
+    var ms = now() - t0;
+    return format ? formatDuration(ms, { format: format }) : ms;
+  };
+}
