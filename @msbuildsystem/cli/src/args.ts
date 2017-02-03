@@ -1,9 +1,9 @@
 import { ArgumentParser, ArgumentGroup } from 'argparse';
 import * as chalk from 'chalk';
-
+const pkg = require('./package.json');
 let parser = new ArgumentParser({
   prog: "msbuildsystem",
-  version: '0.0.1',
+  version: pkg.version,
   addHelp: true
 });
 
@@ -32,7 +32,7 @@ generate.addArgument(['ide'], {
 
 let modules = subs.addParser('modules', { help: "manage buildystem modules", addHelp: true });
 modules.addArgument(['action'], { choices: ['install', 'remove'] , help: "Modules to add or remove" });
-modules.addArgument(['modules'], { help: "Modules to add or remove", action: "append" });
+modules.addArgument(['modules'], { help: "Modules to add or remove", metavar: 'MODULE', nargs: '+' });
 let make = subs.addParser('build', { help: "run the build action", addHelp: true });
 addCommonArguments(make);
 let clean = subs.addParser('clean', { help: "run the clean action", addHelp: true });
