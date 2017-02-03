@@ -65,6 +65,7 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   }
 }
 
+const validator = AttributeTypes.reducedListValidator(AttributeTypes.validateObject, AttributeTypes.createReduceByMergingObjects({ allowMultipleValues: false }));
 export type TSConfigValue = {
   tsconfig: File,
   compilerOptions: ts.CompilerOptions,
@@ -75,8 +76,8 @@ Task.generators.register(['tsconfig'], {
   map: (v: TSConfigValue) => v.tsconfig,
   reduce: (reporter: Reporter, values: TSConfigValue[]) : TSConfigValue => ({
     tsconfig: values[0].tsconfig,
-    compilerOptions: AttributeTypes.validateMergedObjectList(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) || {},
-    files: ([] as string[]).concat(...values.map(v => v.files))
+    compilerOptions: validator(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) || {},
+    files: Array.from(new Set(([] as string[]).concat(...values.map(v => v.files))))
   }),
   run(f: Flux<ReduceStepContext>, value: TSConfigValue) {
     value.tsconfig.writeUtf8File(JSON.stringify({
@@ -123,7 +124,6 @@ export class TypescriptTask extends Task {
   // we have to create a custom compiler host to fix out of src directory limitations
   createCompilerHost(options: ts.CompilerOptions) : CompilerHostWithVirtualFS {
     let target = this.target();
-    let workspaceDir = target.project.workspace.directory;
     let sourceDirectory = target.project.directory;
     let intermediatesDirectory = target.paths.intermediates;
     let isInVirtualFs = new RegExp(`^${util.escapeRegExp(sourceDirectory)}/(${this.virtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$)`, 'i');
@@ -228,6 +228,9 @@ export class TypescriptTask extends Task {
     paths['*'] = [path.join(intermediatesDirectory, "/node_modules/*"), path.join(intermediatesDirectory, "/node_modules/@types/*")];
     options.typeRoots = options.typeRoots || [];
     options.typeRoots.push(path.join(intermediatesDirectory, "node_modules/@types"));
+    options.rootDirs = options.rootDirs || [];
+    options.rootDirs.push(target.project.directory);
+    options.rootDirs.push(intermediatesDirectory);
     step.context.value = {
       tsconfig: tsconfig,
       compilerOptions: options,
