@@ -24,7 +24,7 @@ interface AspectBaseElement {
 function appendUndefined(type: string, allowUndefined: boolean) {
   return allowUndefined ? `${type} | undefined` : type;
 }
-function typeToTypescriptType(type: Type, allowUndefined = true) : string {
+function typeToTypescriptType(type: Type, allowUndefined) : string {
   if (typeof type === "string") {
     switch (type) {
       case 'any':        return "any";
@@ -41,7 +41,7 @@ function typeToTypescriptType(type: Type, allowUndefined = true) : string {
     return type;
   }
   else if (Array.isArray(type)) {
-    return appendUndefined(`${typeToTypescriptType(type[2])}[]`, allowUndefined);
+    return appendUndefined(`${typeToTypescriptType(type[2], false)}[]`, allowUndefined);
   }
   else if (typeof type === "object") {
     return `{${Object.keys(type).map(k => `${k === '*' ? '[k: string]' : `${k}?`}: ${typeToTypescriptType(type[k], false)}`).join(', ')}}`;
@@ -64,7 +64,7 @@ class ClassElement extends Element {
   __decl() {
     return `
 export class ${this.name} extends ${(this.superclass && this.superclass.name) || "VersionedObject"} {
-${this.attributes.map(attribute => `  ${attribute.name}: ${typeToTypescriptType(attribute.type)}\n`).join('')}
+${this.attributes.map(attribute => `  ${attribute.name}: ${typeToTypescriptType(attribute.type, true)}\n`).join('')}
 ${this.categories.map(category => category.__declCategory(this.name)).join('')}
 ${this.farCategories.map(category => category.__declFarCategory(this.name)).join('')}
   static category(name: string, implementation: { [s: string]: (this: ${this.name}, ...args: any[]) => any }) {
@@ -160,13 +160,13 @@ elementFactories.registerSimple('method', (reporter, name, definition, attrPath,
 class MethodElement extends Element {
   type: { arguments: Type[], return: Type };
   __declArguments() : string[] {
-    return this.type.arguments.map((a, i) => `arg${i}: ${typeToTypescriptType(a)}`);
+    return this.type.arguments.map((a, i) => `arg${i}: ${typeToTypescriptType(a, false)}`);
   }
   __declFarArgument() {
-    return this.type.arguments[0] ? typeToTypescriptType(this.type.arguments[0]) : "undefined";
+    return this.type.arguments[0] ? typeToTypescriptType(this.type.arguments[0], false) : "undefined";
   }
   __declReturn() {
-    return typeToTypescriptType(this.type.return);
+    return typeToTypescriptType(this.type.return, false);
   }
 
   __definition() {
