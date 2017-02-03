@@ -267,63 +267,66 @@ export function reducedListValidator<T, R, C, A0>(validator: Validator<T, A0>, r
   };
 }
 
+export function createReduceByMergingObjects({ allowMultipleValues }) {
+  return function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: { [s: string]: any }, previous: { [s: string]: any } | undefined,
+    context: { keysWithSimpleValue?: Set<string>, subContexts?: Map<Object, Object> }) : { [s: string]: any } {
+    if (previous === undefined)
+      previous = {};
+    if (!context.keysWithSimpleValue)
+      context.keysWithSimpleValue = new Set();
+    path.push('.', '');
+    for (var key in current) {
+      var cvalue = previous[key];
+      var dvalue = current[key];
+      var cvalueIsArr = cvalue ? Array.isArray(cvalue) : false;
+      var dvalueIsArr = dvalue ? Array.isArray(dvalue) : false;
+      var cvalueIsObj = typeof cvalue === "object";
+      var dvalueIsObj = typeof dvalue === "object";
+      if (cvalue === dvalue) {}
+      else if (cvalue !== undefined && (cvalueIsArr !== dvalueIsArr || cvalueIsObj !== dvalueIsObj)) {
+        path.set(key).diagnostic(reporter, {
+          type: "warning",
+          msg: `attribute value is incoherent for merging, attribute is ignored`
+        });
+      }
+      else if (dvalueIsArr) {
+        if (!cvalue)
+          cvalue = previous[key] = [];
+        cvalue.push(...(allowMultipleValues ? dvalue : dvalue.filter(v => cvalue.indexOf(v) === -1)));
+      }
+      else if (dvalueIsObj) {
+        if (!cvalue)
+          cvalue = previous[key] = {};
+        if (!context.subContexts)
+          context.subContexts = new Map();
+        let subcontext = context.subContexts.get(cvalue);
+        if (!subcontext)
+          context.subContexts.set(cvalue, subcontext = {});
+        reduceByMergingObjects(reporter, path, dvalue, cvalue, subcontext);
+      }
+      else if (context.keysWithSimpleValue.has(key)) {
+        path.set(key).diagnostic(reporter, {
+          type: "warning",
+          msg: `attribute value is incoherent for injection, attribute is removed`
+        });
+      }
+      else if (cvalue === undefined) {
+        context.keysWithSimpleValue.add(key);
+        previous[key] = dvalue;
+      }
+    }
+    path.pop(2);
+    return previous;
+  };
+}
+export const reduceByMergingObjects = createReduceByMergingObjects({ allowMultipleValues: true });
+
 export function mergedObjectListValidator<R>(extensions: Extensions0<R>) : Validator0<R>;
 export function mergedObjectListValidator<R, A0>(extensions: Extensions<R, A0>) : Validator<R, A0>;
 export function mergedObjectListValidator<R, A0>(extensions: Extensions<R, A0>) {
   return dynamicDefaultValueValidator(reducedListValidator(objectValidator(extensions), reduceByMergingObjects), (a0: A0) => {
     return superFillDefaults(extensions, {}, a0);
   });
-}
-
-export function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: { [s: string]: any }, previous: { [s: string]: any } | undefined,
-  context: { keysWithSimpleValue?: Set<string>, subContexts?: Map<Object, Object> }) : { [s: string]: any } {
-  if (previous === undefined)
-    previous = {};
-  if (!context.keysWithSimpleValue)
-    context.keysWithSimpleValue = new Set();
-  path.push('.', '');
-  for (var key in current) {
-    var cvalue = previous[key];
-    var dvalue = current[key];
-    var cvalueIsArr = cvalue ? Array.isArray(cvalue) : false;
-    var dvalueIsArr = dvalue ? Array.isArray(dvalue) : false;
-    var cvalueIsObj = typeof cvalue === "object";
-    var dvalueIsObj = typeof dvalue === "object";
-    if (cvalue === dvalue) {}
-    else if (cvalue !== undefined && (cvalueIsArr !== dvalueIsArr || cvalueIsObj !== dvalueIsObj)) {
-      path.set(key).diagnostic(reporter, {
-        type: "warning",
-        msg: `attribute value is incoherent for merging, attribute is ignored`
-      });
-    }
-    else if (dvalueIsArr) {
-      if (!cvalue)
-        cvalue = previous[key] = [];
-      cvalue.push(...dvalue);
-    }
-    else if (dvalueIsObj) {
-      if (!cvalue)
-        cvalue = previous[key] = {};
-      if (!context.subContexts)
-        context.subContexts = new Map();
-      let subcontext = context.subContexts.get(cvalue);
-      if (!subcontext)
-        context.subContexts.set(cvalue, subcontext = {});
-      reduceByMergingObjects(reporter, path, dvalue, cvalue, subcontext);
-    }
-    else if (context.keysWithSimpleValue.has(key)) {
-      path.set(key).diagnostic(reporter, {
-        type: "warning",
-        msg: `attribute value is incoherent for injection, attribute is removed`
-      });
-    }
-    else if (cvalue === undefined) {
-      context.keysWithSimpleValue.add(key);
-      previous[key] = dvalue;
-    }
-  }
-  path.pop(2);
-  return previous;
 }
 
 export const validateStringList = listValidator(validateString);
