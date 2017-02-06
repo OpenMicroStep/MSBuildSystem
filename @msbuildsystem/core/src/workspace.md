@@ -13,6 +13,11 @@ Organisation of a workspace (relative to workspace directory)
 
 ## Methods
 
+#### `static createTemporary() : Workspace & { destroy() : void }`
+
+Create a temporary workspace that will be destroyed once node exit or if destroy() is called.
+The temporary workspace is created in the os temporary directory.
+
 #### `project(directory: string): Project`
 
 Get the loaded project in the given directory.

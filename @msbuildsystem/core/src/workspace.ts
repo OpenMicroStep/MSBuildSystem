@@ -1,6 +1,8 @@
 import {Project, Reporter, BuildGraphOptions, RootGraph, Element, AttributeTypes, AttributePath, util, Directory, File, TargetElement} from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as fs_extra from 'fs-extra';
+import * as os from 'os';
 
 function requiredAbsolutePath(directory: string) {
   directory = path.normalize(directory.replace(/(\/|\\)+$/, ''));
@@ -23,6 +25,19 @@ export class Workspace {
   projects = new Map<string, Project>();
   path: string;
   reporter: Reporter;
+
+  static createTemporary() : Workspace & { destroy() : void } {
+    let f = fs.mkdtempSync(path.join(os.tmpdir() , 'msworkspace-'));
+    let alive = true;
+    function destroy() {
+      if (alive)
+        fs_extra.removeSync(f);
+      alive = false;
+    }
+    let w = Object.assign(new Workspace(f), { destroy: destroy });
+    process.on('exit', destroy);
+    return w;
+  }
 
   constructor(public directory: string = '/opt/microstep') {
     directory = requiredAbsolutePath(directory);
