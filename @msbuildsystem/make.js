@@ -26,7 +26,7 @@ module.exports= {
     'js=' :              moduleFiles('js'),
     'typescript=':       moduleFiles('js.typescript'),
     'js.logitud=':       { is: 'group', elements: [{ is: 'file', name: "js.logitud/src/index.ts"    }] },
-    'aspects=':          { is: 'group', elements: [{ is: 'file', name: "aspects/src/index.ts"       }] },
+    'aspects=':          moduleFiles('aspects'),
   },
   'node=': { is: "environment", packager: "npm" /* generate to node_modules/${target.outputName} */ },
   'base=': {
@@ -212,8 +212,16 @@ module.exports= {
       outputName: '@msbuildsystem/aspects',
       components: ['=base', '=::core::', '=::typescript::', '=::js::'],
       targets: ['core', 'typescript'],
-      files: ['=files:aspects']
-    }
+      files: ['=files:aspects:src ? tsc']
+    },
+    'aspects tests=': {
+      is: 'target',
+      outputName: '@msbuildsystem/aspects.tests',
+      components: ['=base tests', '=::core::', '=::aspects::'],
+      targets: ['aspects'],
+      files: ['=files:aspects:tst ? tsc'],
+      copyFiles: [{value: ['=files:aspects:tst ? rsc'], dest: 'data/', expand: true }]
+    },
   },
   /* WIP
   'tests=': {

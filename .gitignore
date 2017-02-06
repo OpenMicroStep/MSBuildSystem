@@ -6,4 +6,4 @@ _/out
 *.msvc12/
 bootstrap**/
 tsconfig.json
-build/
+dist/

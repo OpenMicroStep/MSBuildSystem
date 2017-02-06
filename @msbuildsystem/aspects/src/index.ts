@@ -62,16 +62,33 @@ class ClassElement extends Element {
   aspects: AspectElement[] = [];
 
   __decl() {
-    return `
-export class ${this.name} extends ${(this.superclass && this.superclass.name) || "VersionedObject"} {
+    let parent = (this.superclass && this.superclass.name) || "VersionedObject";
+    let cats = this.categories.concat(this.farCategories);
+    return `export interface ${this.name}Constructor<C extends ${this.name}> extends ${parent}Constructor<C> {${
+  cats.map(category => `\n  category(name: '${category.name}', implementation: ${this.name}.ImplCategories.${category.name}<${this.name}>);`).join('')}
+}
+export interface ${this.name} extends ${parent} {
 ${this.attributes.map(attribute => `  ${attribute.name}: ${typeToTypescriptType(attribute.type, true)}\n`).join('')}
-${this.categories.map(category => category.__declCategory(this.name)).join('')}
-${this.farCategories.map(category => category.__declFarCategory(this.name)).join('')}
-  static category(name: string, implementation: { [s: string]: (this: ${this.name}, ...args: any[]) => any }) {
-     VersionedObject.addCategory(${this.name}, name, implementation);
+}
+const definition = ${JSON.stringify(this.__definition(), null, 2)};
+export const ${this.name}: ${this.name}Constructor<${this.name}> = VersionedObject.extends(${parent}, definition);
+
+export namespace ${this.name} {
+  export namespace Categories {${
+    this.categories.map(category => category.__decl(this.name)).join('')}${
+    this.farCategories.map(category => category.__decl(this.name)).join('')}
   }
-  static readonly definition = ${JSON.stringify(this.__definition())};
-}`;
+  export namespace ImplCategories {${
+    this.categories.map(category => category.__declImpl(this.name)).join('')}${
+    this.farCategories.map(category => category.__declImpl(this.name)).join('')}
+  }
+  export namespace Aspects {
+    ${this.aspects.map(aspect => `export type ${aspect.name} = ${
+      aspect.categories.concat(aspect.farCategories).map(c => `Categories.${c.name}`).join(' & ')
+    };`).join('\n    ')}
+  }
+}
+`;
   }
 
   __definition() {
@@ -124,25 +141,26 @@ class CategoryElement extends Element {
   methods: MethodElement[] = [];
 
   __decl(clazz: string) {
-    return `export interface ${clazz} { // ${this.name}\n${
-      this.is === 'farCategory' ? this.__declFarMethods(clazz) : this.__declMethods()
-    }}`;
+    return `
+    export interface ${this.name} extends ${clazz} {
+${this.is === 'farCategory' ? this.__declFarMethods(clazz) : this.__declMethods()}    }`;
   }
-  __declCategory(clazz: string) {
-    return `  static category(name: '${this.name}', implementation: {\n${
-      this.methods.map(method => `    ${method.name}: (this: ${clazz}${method.__declArguments().map(a => `, ${a}`).join('')}) => ${method.__declReturn()}\n`).join('')
-    }  });\n`;
-  }
-  __declFarCategory(clazz: string) {
-    return `  static category(name: '${this.name}', implementation: {\n${
-      this.methods.map(method => `    ${method.name}: FarImplementation<${clazz}, ${method.__declFarArgument()}, ${method.__declReturn()}>\n`).join('')
-    }  });\n`;
+  __declImpl(clazz: string) {
+    return `
+    export interface ${this.name}<C extends ${clazz}> extends ${clazz} {
+${this.is === 'farCategory' ? this.__declImplFarMethods('C') : this.__declImplMethods('C')}    }`;
   }
   __declMethods() {
-    return this.methods.map(method => `  ${method.name}(${method.__declArguments().join(', ')}): ${method.__declReturn()}\n`).join('');
+    return this.methods.map(method => `      ${method.name}(${method.__declArguments().join(', ')}): ${method.__declReturn()};\n`).join('');
   }
   __declFarMethods(clazz: string) {
-    return this.methods.map(method => farMethods.map(f => `  ${f(clazz, method.name, method.__declFarArgument(), method.__declReturn())}\n`).join('')).join('');
+    return this.methods.map(method => farMethods.map(f => `      ${f(clazz, method.name, method.__declFarArgument(), method.__declReturn())}\n`).join('')).join('');
+  }
+  __declImplMethods(clazz: string) {
+    return this.methods.map(method => `      ${method.name}: (this: ${clazz}${method.__declArguments().map(a => `, ${a}`).join('')}) => ${method.__declReturn()};\n`).join('');
+  }
+  __declImplFarMethods(clazz: string) {
+    return this.methods.map(method => `      ${method.name}: FarImplementation<${clazz}, ${method.__declFarArgument()}, ${method.__declReturn()}>;\n`).join('');
   }
 
   __definition(){
@@ -186,13 +204,6 @@ class AspectElement extends Element {
   categories: CategoryElement[] = [];
   farCategories: CategoryElement[] = [];
 
-  __decl(clazz: ClassElement) {
-    return `
-${this.categories.map(c => c.__decl(clazz.name)).join('\n')}
-${this.farCategories.map(c => c.__decl(clazz.name)).join('\n')}
-`;
-  }
-
   __definition() {
     return {
       is: this.is,
@@ -235,45 +246,16 @@ export class ParseAspectInterfaceTask extends InOutTask {
         });
       }),
       (step: Step<{}>) => {
-        let aspects = new Map<string, { cls: ClassElement, aspect: AspectElement}[]>();
+        let dest = File.getShared(path.join(this.dest.path, `aspects.interfaces.ts`));
+        let r = this.src.ext.customHeader || `import {VersionedObject, VersionedObjectConstructor, FarImplementation, Invocation} from '@microstep/aspects';`;
+        r += `\n${this.src.ext.header}\n`;
         root.__classes.forEach(cls => {
-          cls.aspects.forEach(aspect => {
-            let els = aspects.get(aspect.name);
-            if (!els)
-              aspects.set(aspect.name, els = []);
-            els.push({ cls: cls, aspect: aspect });
-          });
+          r += cls.__decl();
         });
-        let elements = <((step: Step<{}>) => void)[]>[];
-        elements.push((step: Step<{}>) => {
-          let dest = File.getShared(path.join(this.dest.path, `aspects.interfaces.ts`));
-          let r = this.src.ext.customHeader || `import {controlCenter, VersionedObject, FarImplementation, Invocation} from '@microstep/aspects';`;
-          r += `\n${this.src.ext.header}\n`;
-          root.__classes.forEach(cls => {
-            r += cls.__decl();
-          });
-          dest.writeUtf8File(r, (err) => {
-            step.context.reporter.error(err);
-            step.continue();
-          });
+        dest.writeUtf8File(r, (err) => {
+          step.context.reporter.error(err);
+          step.continue();
         });
-        aspects.forEach((els, name) => {
-          elements.push((step: Step<{}>) => {
-            let dest = File.getShared(path.join(this.dest.path, `aspect.${name}.interfaces.d.ts`));
-            let r = this.src.ext.customHeader || `import {controlCenter, VersionedObject, FarImplementation, Invocation} from '@microstep/aspects';`;
-            r += `\n${this.src.ext.header}\n`;
-            r += `import {${els.map(e => e.cls.name).join(', ')}} from './aspects.interfaces';\n`;
-            r += `declare module './aspects.interfaces' {\n`;
-            els.forEach(e => r += e.aspect.__decl(e.cls) + '\n');
-            r += `}\n`;
-            dest.writeUtf8File(r, (err) => {
-              step.context.reporter.error(err);
-              step.continue();
-            });
-          });
-        });
-        step.setFirstElements(elements);
-        step.continue();
       }
     ]);
     step.continue();
