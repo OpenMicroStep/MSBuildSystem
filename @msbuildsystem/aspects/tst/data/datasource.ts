@@ -1,17 +1,37 @@
-import {VersionedObject, VersionedObjectConstructor, FarImplementation, Invocation} from '@microstep/aspects';
+import {ControlCenter, VersionedObject, VersionedObjectConstructor, FarImplementation, Invocation} from '@microstep/aspects';
 
 export interface DataSourceConstructor<C extends DataSource> extends VersionedObjectConstructor<C> {
+  parent: VersionedObjectConstructor<VersionedObject>;
+
   category(name: 'local', implementation: DataSource.ImplCategories.local<DataSource>);
   category(name: 'client_', implementation: DataSource.ImplCategories.client_<DataSource>);
   category(name: 'server_', implementation: DataSource.ImplCategories.server_<DataSource>);
   category(name: 'safe', implementation: DataSource.ImplCategories.safe<DataSource>);
   category(name: 'raw', implementation: DataSource.ImplCategories.raw<DataSource>);
   category(name: 'implementation', implementation: DataSource.ImplCategories.implementation<DataSource>);
+
+  installAspect(on: ControlCenter, name: 'client'): { new(): DataSource.Aspects.client };
+  installAspect(on: ControlCenter, name: 'server'): { new(): DataSource.Aspects.server };
+  installAspect(on: ControlCenter, name: 'impl'): { new(): DataSource.Aspects.impl };
+
+  __c(name: 'local'): DataSource.Categories.local;
+  __c(name: 'client_'): DataSource.Categories.client_;
+  __c(name: 'server_'): DataSource.Categories.server_;
+  __c(name: 'safe'): DataSource.Categories.safe;
+  __c(name: 'raw'): DataSource.Categories.raw;
+  __c(name: 'implementation'): DataSource.Categories.implementation;
+  __c(name: string): DataSource;
+  __i<T extends DataSource>(name: 'local'): DataSource.ImplCategories.local<T>;
+  __i<T extends DataSource>(name: 'client_'): DataSource.ImplCategories.client_<T>;
+  __i<T extends DataSource>(name: 'server_'): DataSource.ImplCategories.server_<T>;
+  __i<T extends DataSource>(name: 'safe'): DataSource.ImplCategories.safe<T>;
+  __i<T extends DataSource>(name: 'raw'): DataSource.ImplCategories.raw<T>;
+  __i<T extends DataSource>(name: 'implementation'): DataSource.ImplCategories.implementation<T>;
+  __i<T extends DataSource>(name: string): {};
 }
 export interface DataSource extends VersionedObject {
-
 }
-const definition = {
+export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSource>>(VersionedObject, {
   "is": "class",
   "name": "DataSource",
   "version": 0,
@@ -374,15 +394,14 @@ const definition = {
       "farCategories": []
     }
   ]
-};
-export const DataSource: DataSourceConstructor<DataSource> = VersionedObject.extends(VersionedObject, definition);
+});
 
 export namespace DataSource {
   export namespace Categories {
-    export interface local extends DataSource {
+    export type local = DataSource & {
       filter(arg0: VersionedObject[], arg1: { [k: string]: any }): VersionedObject[];
     }
-    export interface client_ extends DataSource {
+    export type client_ = DataSource & {
       farCallback(this: DataSource, method: 'query', argument: { [k: string]: any }, callback: (envelop: Invocation<DataSource, {[k: string]: VersionedObject[]}>) => void);
       farEvent(this: DataSource, method: 'query', argument: { [k: string]: any }, eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'query', argument: { [k: string]: any }): Promise<Invocation<DataSource, {[k: string]: VersionedObject[]}>>;
@@ -393,7 +412,7 @@ export namespace DataSource {
       farEvent(this: DataSource, method: 'save', argument: VersionedObject[], eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'save', argument: VersionedObject[]): Promise<Invocation<DataSource, VersionedObject[]>>;
     }
-    export interface server_ extends DataSource {
+    export type server_ = DataSource & {
       farCallback(this: DataSource, method: 'distantQuery', argument: { [k: string]: any }, callback: (envelop: Invocation<DataSource, {[k: string]: VersionedObject[]}>) => void);
       farEvent(this: DataSource, method: 'distantQuery', argument: { [k: string]: any }, eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'distantQuery', argument: { [k: string]: any }): Promise<Invocation<DataSource, {[k: string]: VersionedObject[]}>>;
@@ -404,7 +423,7 @@ export namespace DataSource {
       farEvent(this: DataSource, method: 'distantSave', argument: VersionedObject[], eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'distantSave', argument: VersionedObject[]): Promise<Invocation<DataSource, VersionedObject[]>>;
     }
-    export interface safe extends DataSource {
+    export type safe = DataSource & {
       farCallback(this: DataSource, method: 'safeQuery', argument: { [k: string]: any }, callback: (envelop: Invocation<DataSource, {[k: string]: VersionedObject[]}>) => void);
       farEvent(this: DataSource, method: 'safeQuery', argument: { [k: string]: any }, eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'safeQuery', argument: { [k: string]: any }): Promise<Invocation<DataSource, {[k: string]: VersionedObject[]}>>;
@@ -415,7 +434,7 @@ export namespace DataSource {
       farEvent(this: DataSource, method: 'safeSave', argument: VersionedObject[], eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'safeSave', argument: VersionedObject[]): Promise<Invocation<DataSource, VersionedObject[]>>;
     }
-    export interface raw extends DataSource {
+    export type raw = DataSource & {
       farCallback(this: DataSource, method: 'rawQuery', argument: { [k: string]: any }, callback: (envelop: Invocation<DataSource, {[k: string]: VersionedObject[]}>) => void);
       farEvent(this: DataSource, method: 'rawQuery', argument: { [k: string]: any }, eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'rawQuery', argument: { [k: string]: any }): Promise<Invocation<DataSource, {[k: string]: VersionedObject[]}>>;
@@ -426,7 +445,7 @@ export namespace DataSource {
       farEvent(this: DataSource, method: 'rawSave', argument: VersionedObject[], eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'rawSave', argument: VersionedObject[]): Promise<Invocation<DataSource, VersionedObject[]>>;
     }
-    export interface implementation extends DataSource {
+    export type implementation = DataSource & {
       farCallback(this: DataSource, method: 'implQuery', argument: ObjectSet[], callback: (envelop: Invocation<DataSource, {[k: string]: VersionedObject[]}>) => void);
       farEvent(this: DataSource, method: 'implQuery', argument: ObjectSet[], eventName: string, onObject?: Object);
       farPromise(this: DataSource, method: 'implQuery', argument: ObjectSet[]): Promise<Invocation<DataSource, {[k: string]: VersionedObject[]}>>;
@@ -439,30 +458,30 @@ export namespace DataSource {
     }
   }
   export namespace ImplCategories {
-    export interface local<C extends DataSource> extends DataSource {
+    export type local<C extends DataSource> = {
       filter: (this: C, arg0: VersionedObject[], arg1: { [k: string]: any }) => VersionedObject[];
     }
-    export interface client_<C extends DataSource> extends DataSource {
+    export type client_<C extends DataSource> = {
       query: FarImplementation<C, { [k: string]: any }, {[k: string]: VersionedObject[]}>;
       load: FarImplementation<C, {objects?: VersionedObject[], scope?: string[]}, VersionedObject[]>;
       save: FarImplementation<C, VersionedObject[], VersionedObject[]>;
     }
-    export interface server_<C extends DataSource> extends DataSource {
+    export type server_<C extends DataSource> = {
       distantQuery: FarImplementation<C, { [k: string]: any }, {[k: string]: VersionedObject[]}>;
       distantLoad: FarImplementation<C, {objects?: VersionedObject[], scope?: string[]}, VersionedObject[]>;
       distantSave: FarImplementation<C, VersionedObject[], VersionedObject[]>;
     }
-    export interface safe<C extends DataSource> extends DataSource {
+    export type safe<C extends DataSource> = {
       safeQuery: FarImplementation<C, { [k: string]: any }, {[k: string]: VersionedObject[]}>;
       safeLoad: FarImplementation<C, {objects?: VersionedObject[], scope?: string[]}, VersionedObject[]>;
       safeSave: FarImplementation<C, VersionedObject[], VersionedObject[]>;
     }
-    export interface raw<C extends DataSource> extends DataSource {
+    export type raw<C extends DataSource> = {
       rawQuery: FarImplementation<C, { [k: string]: any }, {[k: string]: VersionedObject[]}>;
       rawLoad: FarImplementation<C, {objects?: VersionedObject[], scope?: string[]}, VersionedObject[]>;
       rawSave: FarImplementation<C, VersionedObject[], VersionedObject[]>;
     }
-    export interface implementation<C extends DataSource> extends DataSource {
+    export type implementation<C extends DataSource> = {
       implQuery: FarImplementation<C, ObjectSet[], {[k: string]: VersionedObject[]}>;
       implLoad: FarImplementation<C, {objects?: VersionedObject[], scope?: string[]}, VersionedObject[]>;
       implSave: FarImplementation<C, VersionedObject[], VersionedObject[]>;

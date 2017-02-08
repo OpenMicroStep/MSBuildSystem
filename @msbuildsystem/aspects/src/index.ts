@@ -55,32 +55,43 @@ elementFactories.registerSimple('class', (reporter, name, definition, attrPath, 
   return ret;
 });
 class ClassElement extends Element {
-  superclass: ClassElement | null = null;
+  superclass: string = "VersionedObject";
   attributes: AttributeElement[] = [];
   categories: CategoryElement[] = [];
   farCategories: CategoryElement[] = [];
   aspects: AspectElement[] = [];
 
   __decl() {
-    let parent = (this.superclass && this.superclass.name) || "VersionedObject";
+    let parent = this.superclass;
     let cats = this.categories.concat(this.farCategories);
-    return `export interface ${this.name}Constructor<C extends ${this.name}> extends ${parent}Constructor<C> {${
-  cats.map(category => `\n  category(name: '${category.name}', implementation: ${this.name}.ImplCategories.${category.name}<${this.name}>);`).join('')}
+    let workaround = '';
+    if (parent !== "VersionedObject") {
+      workaround = `${this.categories.map(category => `\n${category.__const(this)}`).join('')}${
+                      this.farCategories.map(category => `\n${category.__const(this)}`).join('')}${
+                      this.categories.map(category => `\n${category.__constImpl(this)}`).join('')}${
+                      this.farCategories.map(category => `\n${category.__constImpl(this)}`).join('')}`;
+    }
+    return `export interface ${this.name}Constructor<C extends ${this.name}> extends VersionedObjectConstructor<C> {
+  parent: ${parent}Constructor<${parent}>;
+${cats.map(category => `\n  category(name: '${category.name}', implementation: ${this.name}.ImplCategories.${category.name}<${this.name}>);`).join('')}
+${this.aspects.map(aspect => `\n  installAspect(on: ControlCenter, name: '${aspect.name}'): { new(): ${this.name}.Aspects.${aspect.name} };`).join('')}
+${cats.map(category => `\n  __c(name: '${category.name}'): ${this.name}.Categories.${category.name};`).join('')}
+  __c(name: string): ${this.name};${
+  cats.map(category => `\n  __i<T extends ${this.name}>(name: '${category.name}'): ${this.name}.ImplCategories.${category.name}<T>;`).join('')}
+  __i<T extends ${this.name}>(name: string): {};
 }
 export interface ${this.name} extends ${parent} {
-${this.attributes.map(attribute => `  ${attribute.name}: ${typeToTypescriptType(attribute.type, true)}\n`).join('')}
-}
-const definition = ${JSON.stringify(this.__definition(), null, 2)};
-export const ${this.name}: ${this.name}Constructor<${this.name}> = VersionedObject.extends(${parent}, definition);
-
+${this.attributes.map(attribute => `  ${attribute.name}: ${typeToTypescriptType(attribute.type, true)};\n`).join('')}}
+export const ${this.name} = VersionedObject.extends<${this.name}Constructor<${this.name}>>(${parent}, ${JSON.stringify(this.__definition(), null, 2)});
+${workaround}
 export namespace ${this.name} {
   export namespace Categories {${
-    this.categories.map(category => category.__decl(this.name)).join('')}${
-    this.farCategories.map(category => category.__decl(this.name)).join('')}
+    this.categories.map(category => category.__decl(this, !!workaround)).join('')}${
+    this.farCategories.map(category => category.__decl(this, !!workaround)).join('')}
   }
   export namespace ImplCategories {${
-    this.categories.map(category => category.__declImpl(this.name)).join('')}${
-    this.farCategories.map(category => category.__declImpl(this.name)).join('')}
+    this.categories.map(category => category.__declImpl(this, !!workaround)).join('')}${
+    this.farCategories.map(category => category.__declImpl(this, !!workaround)).join('')}
   }
   export namespace Aspects {
     ${this.aspects.map(aspect => `export type ${aspect.name} = ${
@@ -140,14 +151,26 @@ class CategoryElement extends Element {
   langages: string[] = [];
   methods: MethodElement[] = [];
 
-  __decl(clazz: string) {
-    return `
-    export interface ${this.name} extends ${clazz} {
-${this.is === 'farCategory' ? this.__declFarMethods(clazz) : this.__declMethods()}    }`;
+  __constName(clazz: ClassElement) {
+    return `__${clazz.name}_Categories_${this.name}`;
   }
-  __declImpl(clazz: string) {
+  __constNameImpl(clazz: ClassElement) {
+    return `__${clazz.name}_ImplCategories_${this.name}`;
+  }
+  __const(clazz: ClassElement) {
+    return `export const ${this.__constName(clazz)} = ${clazz.superclass}.__c('${this.name}');`;
+  }
+  __constImpl(clazz: ClassElement) {
+    return `export const ${this.__constNameImpl(clazz)} = ${clazz.superclass}.__i<${clazz.name}>('${this.name}');`;
+  }
+  __decl(clazz: ClassElement, workaround: boolean) {
     return `
-    export interface ${this.name}<C extends ${clazz}> extends ${clazz} {
+    export type ${this.name} = ${clazz.name} & ${workaround ? `typeof ${this.__constName(clazz)} & ` : ''}{
+${this.is === 'farCategory' ? this.__declFarMethods(clazz.name) : this.__declMethods()}    }`;
+  }
+  __declImpl(clazz: ClassElement, workaround: boolean) {
+    return `
+    export type ${this.name}<C extends ${clazz.name}> = ${workaround ? `typeof ${this.__constNameImpl(clazz)} & ` : ''}{
 ${this.is === 'farCategory' ? this.__declImplFarMethods('C') : this.__declImplMethods('C')}    }`;
   }
   __declMethods() {
@@ -247,7 +270,7 @@ export class ParseAspectInterfaceTask extends InOutTask {
       }),
       (step: Step<{}>) => {
         let dest = File.getShared(path.join(this.dest.path, `aspects.interfaces.ts`));
-        let r = this.src.ext.customHeader || `import {VersionedObject, VersionedObjectConstructor, FarImplementation, Invocation} from '@microstep/aspects';`;
+        let r = this.src.ext.customHeader || `import {ControlCenter, VersionedObject, VersionedObjectConstructor, FarImplementation, Invocation} from '@microstep/aspects';`;
         r += `\n${this.src.ext.header}\n`;
         root.__classes.forEach(cls => {
           r += cls.__decl();
