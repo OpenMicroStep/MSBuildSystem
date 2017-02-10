@@ -53,7 +53,7 @@ export class BuildTargetElement extends MakeJSElement {
         let cvalue = this[key];
         let dvalue = depcomponent[key];
         let byenv = key.endsWith("ByEnvironment");
-        at.set(key, -2);
+        at.set(key);
         if (byenv) {
           let cFinalKey = key.substring(0, key.length - "ByEnvironment".length);
           let cFinalValue = this[cFinalKey];
@@ -101,11 +101,13 @@ export class BuildTargetElement extends MakeJSElement {
             mergeArrays(reporter, this, at, cvalue, dvalue);
           }
           else if (keysWithSimpleValue.has(key)) {
-            at.diagnostic(reporter, {
-              type: "warning",
-              msg: `attribute value is incoherent for injection into ${this.__path()}, attribute is removed`
-            });
-            delete this[key];
+            if (cvalue !== dvalue) {
+              at.diagnostic(reporter, {
+                type: "warning",
+                msg: `attribute value is incoherent for injection into ${this.__path()}, attribute is removed`
+              });
+              delete this[key];
+            }
           }
           else if (cvalue === undefined) {
             keysWithSimpleValue.add(key);
