@@ -46,3 +46,22 @@ publish:
     - master
   when: manual
   environment: production
+
+auto_publish:
+  image: node:6-alpine
+  stage: deploy
+  script:
+    - echo "$NPM_AUTH" >> ~/.npmrc
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/shared
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/core
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/cli
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/foundation
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/js
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/js.typescript
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/aspects
+    - npm publish dist/node/debug/node_modules/@msbuildsystem/js.logitud
+  dependencies:
+   - build
+  only:
+    - tags
+  environment: production
