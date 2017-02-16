@@ -23,13 +23,14 @@ test:
    - build
   script:
    - npm install -q -g @microstep/tests
-   - mstests dist/node/debug/node_modules/@msbuildsystem/{shared,core}.tests/index.js
+   - mstests -c dist/node/debug/node_modules/@msbuildsystem/shared.tests/index.js
+                dist/node/debug/node_modules/@msbuildsystem/core.tests/index.js
 
 publish:
   image: node:6-alpine
   stage: deploy
   script:
-    - echo -e "$NPM_USER\n$NPM_PASS\n$NPM_EMAIL" | npm login
+    - echo "$NPM_AUTH" >> ~/.npmrc
     - npm publish dist/node/debug/node_modules/@msbuildsystem/shared
     - npm publish dist/node/debug/node_modules/@msbuildsystem/core
     - npm publish dist/node/debug/node_modules/@msbuildsystem/cli
