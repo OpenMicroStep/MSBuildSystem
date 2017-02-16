@@ -188,6 +188,11 @@ module.exports= {
       targets: ['core', 'foundation', 'js'],
       components: ['=base', '=::foundation::', '=::js::', '=::core::'],
       files: ['=files:typescript:src ? tsc'],
+      npmPackage: [{
+        "dependencies": {
+          "typescript": "^2.1.6",
+        }
+      }],
       npmInstall: [{
         "typescript": "^2.1.6",
       }]
