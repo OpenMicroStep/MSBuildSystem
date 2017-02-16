@@ -189,7 +189,7 @@ module.exports= {
       components: ['=base', '=::foundation::', '=::js::', '=::core::'],
       files: ['=files:typescript:src ? tsc'],
       npmInstall: [{
-        "typescript": "^2.1.4",
+        "typescript": "^2.1.6",
       }]
     },
     'typescript tests=': {
