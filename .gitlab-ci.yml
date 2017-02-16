@@ -7,7 +7,6 @@ build:
   script:
    - npm install -q -g @msbuildsystem/cli
    - msbuildsystem modules install @msbuildsystem/js.typescript
-   - msbuildsystem modules install typescript
    - msbuildsystem build -p @msbuildsystem/ -w bootstrap1/
    - node bootstrap1/node/debug/node_modules/@msbuildsystem/cli/index.js build -p @msbuildsystem/ -w bootstrap2/
    - node bootstrap2/node/debug/node_modules/@msbuildsystem/cli/index.js build -p @msbuildsystem/ -w dist/
