@@ -121,21 +121,22 @@ export class File {
     return <Directory>File.getShared(File.commonDirectoryPath(files), true);
   }
   static commonDirectoryPath(files: File[]) : string {
-    var k, klen, i, len, file: File;
-    var commonPart = "";
-    for (i = 0, len = files.length; i < len; i++) {
-      file = files[i];
-      var dirPath = file.isDirectory ? file.path : path.dirname(file.path);
+    let commonPart: string[] | undefined;
+    for (let i = 0, len = files.length; i < len; i++) {
+      let file = files[i];
+      let components = file.components();
+      let componentsToConsider = file.isDirectory ? components.length : components.length - 1;
       if (!commonPart) {
-        commonPart = dirPath;
+        commonPart = components.slice(0, componentsToConsider);
       }
-      else if (dirPath !== commonPart) {
-        for (k = 0, klen = Math.min(dirPath.length, commonPart.length); k < klen && dirPath[k] === commonPart[k]; k++)
-          ;
-        commonPart = commonPart.substring(0, k);
+      else {
+        let k = 0, klen = Math.min(commonPart.length, componentsToConsider);
+        while (k < klen && commonPart[k] === components[k])
+          k++;
+        commonPart.length = k;
       }
     }
-    return commonPart;
+    return commonPart ? commonPart.join('/') : "";
   }
 
   static validateDirectory(reporter: Reporter, path: AttributePath, value: any, relative: { directory: string }) : Directory | undefined {
@@ -150,6 +151,10 @@ export class File {
       path.diagnostic(reporter, { type: "warning", msg: "attribute must be a relative path" });
     }
     return undefined;
+  }
+
+  components() : string[] {
+    return this.path.split(/[/\\]+/);
   }
 
   readFile(cb: (err: Error, output: Buffer) => any) {

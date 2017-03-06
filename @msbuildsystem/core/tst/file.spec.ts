@@ -22,8 +22,32 @@ function stats(f: Flux<any>) {
      f.continue();
   });
 }
+function commonDirectoryPath() {
+  assert.strictEqual(File.commonDirectoryPath([
+    File.getShared("/data/simple-project/a.js"),
+    File.getShared("/data/simple-project/b.js"),
+  ]), "/data/simple-project");
+  assert.strictEqual(File.commonDirectoryPath([
+    File.getShared("/data/simple-project/sa/a.js"),
+    File.getShared("/data/simple-project/sb/a.js"),
+  ]), "/data/simple-project");
+  assert.strictEqual(File.commonDirectoryPath([
+    File.getShared("/data/simple-project/a.js"),
+    File.getShared("/data/simple-project/b.js"),
+    File.getShared("/data/simple-project/sa/a.js"),
+    File.getShared("/data/simple-project/sb/a.js"),
+  ]), "/data/simple-project");
+  assert.strictEqual(File.commonDirectoryPath([
+    File.getShared("/data/simple-project2/a.js"),
+    File.getShared("/data/simple-project1/b.js"),
+    File.getShared("/data/simple-project/sa/a.js"),
+    File.getShared("/data/simple-project/sb/a.js"),
+  ]), "/data");
+  assert.strictEqual(File.commonDirectoryPath([]), "");
+}
 
 export const tests = [
-  { name: "getShared", test: getShared },
-  { name: "stats"    , test: stats     },
+  getShared,
+  stats,
+  commonDirectoryPath,
 ];
