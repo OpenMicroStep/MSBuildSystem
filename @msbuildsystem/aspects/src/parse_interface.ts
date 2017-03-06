@@ -64,7 +64,7 @@ export function interfaceParseCont(pool: Flux<{ error?: string, response: any }>
 // Si erreur, retourne {is:error, errors:[{line,index,err}], result:r}
 export function interfaceParse(source: string) {
   var text: string,
-    ch: string | undefined,     // The current character ch = text[at-1]
+    ch: string,     // The current character ch = text[at-1]
     at: number, lg: number,  // The index of the next character and the lg of the text
     line: number,   // le numéro de la ligne
     atline: number, // l'index du premier caractère de la ligne
@@ -77,7 +77,7 @@ export function interfaceParse(source: string) {
   // return the empty string.
   function _next(c?: string) {
     if (c && ch !== c) _error('_next: character expected: ' + c + ', received: ' + ch);
-    ch = at < lg ? text[at] : undefined;
+    ch = at < lg ? text[at] : "";
     at += 1;
     return ch;
   }

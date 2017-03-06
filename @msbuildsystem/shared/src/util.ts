@@ -78,7 +78,7 @@ export function pad(num, mask) {
   return (mask + num).slice(-Math.max(mask.length, (num + "").length));
 }
 
-export function formatUnits(value: number, definition: {v?: number}[], options?: { format?: 'short' | 'long', units?: number }) : string {
+export function formatUnits(value: number, definition: {v: number}[], options?: { format?: 'short' | 'long', units?: number }) : string {
   var steps, i, len, v, n, d, c;
   var format = options && options.format || 'long';
   var units = options && options.units || 0;
