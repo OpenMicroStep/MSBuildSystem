@@ -9,19 +9,22 @@ Il est destiné aux développeurs qui souhaite ajouter ou modifier les fonctiona
  - __Graphe de compilation__: Définitions des tâches et de leurs dépendances
    - `Task`: Une tâche
    - `Graph`: Une tâche contant un sous graphe de tâches
-   - `Target`: Une tâche définissant objectif de compilation et les sous-tâches nécéssaire à sa réalisation
- - __Élements__: Définition d'un projet et ces éléments
-   - `Element`: La classe de base de tout élément,
+   - `SelfBuildGraph`: Une tâche (Target ou sous-tâche d'une Target) qui est responsable de la construction de son sous-graphe
+   - `Target`: Une tâche définissant un objectif de compilation et les sous-tâches nécéssaire à sa réalisation
+ - __Élements__: Définition d'un projet et ses éléments
+   - `Element`: La classe de base de tout élément
+   - `MakeJSElement`: La classe de base de tout élément d'un make.js
    - `FileElement`: Un élément représentant un unique fichier,
-   - `DelayedElement`: Un élément dont la résolution est retardée jusqu'au dernier moment (après la fusion entre _target_, _environment_ et _variant_).
+   - `DelayedElement`: Un élément dont la résolution est retardée jusqu'au dernier moment.
    - `ComponentElement`, `GroupElement`, `EnvironmentElement`, `TargetElement`: Les classes correspondants au types d'éléments _component_, _group_, _environment_, _target_
    - `BuildTargetElement`: L'élément résultant de la fusion entre _target_, _environment_ et _variant_ qui sert à la configuration d'une target.
  - __Résolution des attributs__: Analyse des éléments permettant de configurer les objectifs de compilation
-   - `AttributeResolver`: Résolution des attributs d'un éléments (liste, _*ByEnv_, extensions, ...)
-   - `AttributeTypes`: Validation de la forme d'un attribut
+   - `PropertyResolver`: Résolution et validation d'un attribut de `BuildTargetElement` pour `SelfBuildGraph`
+   - `AttributeTypes`: Validation de forme
+   - `AttributePath`: Tracking du parcours de validation
  - __Exécution__: Exécution de tout ou de parties du graphe de compilation
    - `Runner`: Exécuteur
-   - `Step`: Flux async étendu associé à chaque tâche lors de l'exécution
+   - `Step`: Context de flux async étendu associé à chaque tâche lors de l'exécution
    - `BuildSession`: Gestionnaire des données de chaque tâche (chargement, sauvegarde)
    - `Provider`: Fournisseur d'un service (qu'il soit local ou distant)
  - __Gestion des fichiers__: Partage de tous les liens vers des fichiers et/ou dossiers (`File`)
@@ -47,10 +50,11 @@ Le graphe est composé de noeuds (classe `Task`) qui ont pour attributs:
 Cela permet de décrire une hiérachie de tâches et les pré-requis d'exécution de ces tâches. 
 L'approche hiérarchique permet de simplifier l'expression des dépendances entre les tâches et permet l'exécution partielle du graphe de compilation (un seul objectif par exemple, ce qui correspond à une branche de l'arbre des graphes).
 
-Un objectif est un noeud `Target` qui étend la classe `SelfGraph`.
-Les noeuds `SelfGraph` ont la particularité de générer eux-mêmes leurs noeuds enfants.
+Un objectif est un noeud `Target` qui étend la classe `SelfBuildGraph`.
+Les noeuds `SelfBuildGraph` ont la particularité de générer eux-mêmes leurs noeuds enfants.
 
-L'exécution du graphe est effectué par la classe `Runner`.  
+L'exécution du graphe est effectué par la classe `Runner`. Une instance de `Runner` égal une exécution du graphe sur l'action et les options données dans le `Runner`.
+
 Chaque tache implémente la méthode `do(step: Runner.Step)`, cette méthode prend en paramètre un flux **Async** dont le context possède les informations suivantes :
 
  - `runner: Runner` : l'objet responsable de l'exécution du graphe
@@ -70,12 +74,15 @@ L'exécution d'une tache est lié à deux flux d'informations différents géré
 ### Génération du graphe de compilation
 
  1. Execution du script du project (make.js) dans une VM javascript dédié et récupération de la définition du projet (`Project.reload`)
- 2. Analyse récursive de façons à instancier les éléments sans résoudre les liens entres les éléments (`Project.loadDefinition`)
- 3. Résolution des liens entre les éléments et des groupes (`Project.loadDefinition`)
- 4. Création des objectifs de compilation (targets) et analyse des éléments pour configurer les targets.
+ 2. Analyse et résolution de la définition du projet en un graphe d'éléments (`Project.loadDefinition`)
+   1. Analyse récursive de façons à instancier les éléments sans résoudre les liens entres les éléments (`Element.__load`)
+   2. Résolution des liens entre les éléments et des groupes (`Element.__resolve`)
+ 3. Création des objectifs de compilation (targets) et analyse des éléments pour configurer les targets.
     (`Project.buildGraph`)   
-    La création des objectifs de compilation implique la fusion entre les éléments `target`, `environment` et `variant` puis la résolution des éléments restant (`DelayedElement` pour les targets externes).
-  5. Création des sous-tâches pour toutes les targets (`Target.doConfigure`)
+    La création des objectifs de compilation implique la fusion entre les éléments `target`, `environment` et `variant` (voir `BuildTargetElement`).
+  5. Chargement des attributs des targets (`Target.configure`)
+  6. Création de l'exports des targets (`Target.configureExports`)
+  7. Génération de toutes les sous-tâches du graph (`RootGraph.buildGraph`)
 
 ### Liens entre éléments et tâches
 
@@ -88,19 +95,3 @@ Ces liens sont résolues dans l'ordre de déclaration lors de l'exécution de `c
 
 Toutes les propriétés et méthodes non publiques sont préfixés par `__`.
 
-### Instanciation (`__load`)
-
-## Barrier
-
-Une barrière (`Barrier`) est un objet qui permet d'attendre plusieurs évenements avant de passer à la suite.   
-Bien que async permet de résoudre ce problème, `Barrier` est bien plus léger pour résoudre ce problème précis.
-
-Un compteur est mis à disposition, il commence à `n + 1` et lorsqu'il atteint `0` la barrière s'ouvre. Une fois ouverte, aucune action n'est possible.
-
- - `inc`: incrémente le compteur si la barrière n'est pas ouverte
- - `dec`: décrémente le compteur si la barrière n'est pas ouverte
- - `endWith`: définition l'action à exécuter lorsque le compteur atteint 0 et décrémente le compteur
-
-## Compilation
-
-Le buildsystem est capable de se compiler lui-même (bootstrap). 
