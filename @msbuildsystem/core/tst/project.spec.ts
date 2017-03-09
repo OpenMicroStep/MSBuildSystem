@@ -161,20 +161,59 @@ function components(f: Flux<Context>) {
   }
   let reporter = new Reporter();
   let project = f.context.sharedProject.tree;
-  /*assert.deepEqual(
+  assert.deepEqual(
     project.resolveElements(reporter, "clang").map(simplify),
     [{ is: 'component', compiler: "clang", tags: ["clang"], mylist: ["v2"], components: [], componentsByEnvironment: {}, name: 'clang', __parent: 'MySimpleProject', __resolved: true }]);
   assert.deepEqual(
     project.resolveElements(reporter, "all envs").map(e => e.name),
     ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
   assert.deepEqual(
-    project.resolveElements(reporter, "darwin-i386").map(simplify),
-    [{ is: 'environment', sysroot: "darwin:i386" , mylist: ["v2"], compiler: "clang", components: [], componentsByEnvironment: {}, tags: ["darwin", "i386"],
-       name: 'darwin-i386', __parent: 'MySimpleProject', __resolved: true, compatibleEnvironments: [] }]);
+    project.resolveElements(reporter, "darwin-i386").map(e => e.toJSON()),
+    [
+      {
+        is: 'environment',
+        sysroot: "darwin:i386",
+        components: [
+          {
+            is: "component",
+            name: "clang",
+            components: [],
+            componentsByEnvironment: {},
+            mylist: ["v2"],
+            compiler: "clang",
+            tags: ["clang"]
+          }
+        ],
+        componentsByEnvironment: {},
+        tags: ["darwin", "i386"],
+        name: 'darwin-i386',
+        compatibleEnvironments: []
+      }
+    ]);
   assert.deepEqual(
-    project.resolveElements(reporter, "darwin-x86_64").map(simplify),
-    [{ is: 'environment', sysroot: "darwin:x86_64" , mylist: ["v2", "v1"], compiler: "clang", components: [], componentsByEnvironment: {}, tags: ["darwin", "x86_64"],
-       name: 'darwin-x86_64', __parent: 'MySimpleProject', __resolved: true, compatibleEnvironments: [] }]);*/
+    project.resolveElements(reporter, "darwin-x86_64").map(e => e.toJSON()),
+    [
+      {
+        is: 'environment',
+        sysroot: "darwin:x86_64",
+        components: [
+          {
+            is: "component",
+            name: "clang",
+            components: [],
+            componentsByEnvironment: {},
+            mylist: ["v2"],
+            compiler: "clang",
+            tags: ["clang"]
+          }
+        ],
+        componentsByEnvironment: {},
+        mylist: ["v1"],
+        tags: ["darwin", "x86_64"],
+        name: 'darwin-x86_64',
+        compatibleEnvironments: []
+      }
+    ]);
   assert.deepEqual(reporter.diagnostics, []);
   f.continue();
 }
