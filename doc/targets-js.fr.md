@@ -2,8 +2,6 @@
 
 ## JSTarget
 
-### Attributs permettant et/ou définit par le kit de compilation
-
 #### `compiler?`
 
 Le système de compilation à utiliser.
@@ -38,7 +36,7 @@ Le contenu du fichier `package.json`.
 
 ## TypescriptCompiler
 
-Packager nommé `npm` compatible avec l'objectif de compilation `JSTarget`.
+Compilateur nommé `typescript`, `ts` compatible avec l'objectif de compilation `JSTarget`.
 
 #### `tsConfig`
 
