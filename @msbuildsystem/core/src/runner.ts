@@ -34,7 +34,7 @@ export type StepData<DATA> = DATA & {
 export type Step<T> = Flux<StepContext<{}, {}> & T>;
 export type StepWithData<T, DATA, SHARED> = Flux<StepContext<DATA, SHARED> & T>;
 
-export var maxConcurrentTasks: number = 1; //os.cpus().length;
+export var maxConcurrentTasks: number = os.cpus().length;
 var nbTaskRunning: number = 0;
 var waitingTasks: (() => void)[] = [];
 function takeTaskSlot(step: Flux<{}>) {
