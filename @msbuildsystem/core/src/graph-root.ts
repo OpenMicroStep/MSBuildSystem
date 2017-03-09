@@ -1,14 +1,7 @@
-import {Workspace, Project, Target, AttributePath, getTargetClass,  Diagnostic,
+import {Workspace, Project, Target, AttributePath, getTargetClass, transformWithCategory,
   TGraph, Task, Reporter, BuildGraphOptions,
   BuildTargetElement, TargetElement, EnvironmentElement
 } from './index.priv';
-
-export function transformWithCategory(category: string) {
-  return function setDiagCategory(diagnostic: Diagnostic) {
-    diagnostic.category = category;
-    return diagnostic;
-  };
-}
 
 export class RootGraph extends TGraph<Target> {
   buildTargetElements: BuildTargetElement[] = [];

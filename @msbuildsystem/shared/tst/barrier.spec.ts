@@ -1,4 +1,4 @@
-import {Barrier} from '@msbuildsystem/core';
+import {Barrier} from '@msbuildsystem/shared';
 import {assert} from 'chai';
 
 function empty() {
@@ -58,8 +58,8 @@ function dynamic_usage() {
   assert.isTrue(d);
 }
 
-export const tests = [
+export const tests = { name: "barrier", tests: [
   { name: "empty"        , test: empty },
   { name: "simple usage" , test: simple_usage },
   { name: "dynamic usage", test: dynamic_usage },
-];
+]};

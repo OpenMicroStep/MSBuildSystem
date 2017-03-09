@@ -1,6 +1,13 @@
 import {Diagnostic} from './index';
 import {format} from 'util';
 
+export function transformWithCategory(category: string) {
+  return function setDiagCategory(diagnostic: Diagnostic) {
+    diagnostic.category = category;
+    return diagnostic;
+  };
+}
+
 export class Reporter {
   /** raw logs */
   logs: string = "";

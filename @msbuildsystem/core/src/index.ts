@@ -1,7 +1,6 @@
 import './index.priv'; // force loading of priv
 export * from '@msbuildsystem/shared';
 export { Loader  } from './loader';
-export { Element, ElementFactory } from './element';
 export { GroupElement } from './elements/group.element';
 export { ComponentElement } from './elements/component.element';
 export { FileElement } from './elements/file.element';
@@ -13,7 +12,6 @@ export * from './graph'     ;
 export * from './target'    ;
 export * from './runner'    ;
 export * from './provider'  ;
-export * from './barrier'   ;
 export { Diagnostic } from '@msbuildsystem/shared';
 export { Project } from './project';
 export { RootGraph } from './graph-root';

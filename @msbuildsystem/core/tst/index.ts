@@ -1,4 +1,3 @@
-import {tests as barrier_tests} from './barrier.spec';
 import {tests as util_tests} from './util.spec';
 import {tests as file_tests} from './file.spec';
 import {tests as graph_tests} from './graph.spec';
@@ -8,7 +7,6 @@ import {Test} from '@microstep/tests';
 
 export const name = 'core';
 export const tests = <Test<any>[]>[
-  { name: 'barrier'   , tests: barrier_tests    },
   { name: 'util'      , tests: util_tests       },
   { name: 'file'      , tests: file_tests       },
   { name: 'graph'     , tests: graph_tests      },

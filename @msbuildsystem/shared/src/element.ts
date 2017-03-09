@@ -1,11 +1,19 @@
-import {Reporter, AttributePath, AttributeTypes, util, createProviderMap, ProviderMap,
-  MakeJS, Diagnostic, transformWithCategory
-} from './index.priv';
+import {
+  Reporter, AttributePath, AttributeTypes,
+  util, createProviderMap, ProviderMap,
+  Diagnostic, transformWithCategory
+} from './index';
+
+export interface ElementDefinition {
+  is: string;
+  name?: any;
+  [s: string]: any;
+}
 
 export type ElementFactory = (reporter: Reporter, name: string | undefined,
-  definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName: boolean) => Element[];
+  definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName: boolean) => Element[];
 export type SimpleElementFactory = (reporter: Reporter, name: string,
-  definition: MakeJS.Element, attrPath: AttributePath, parent: Element) => Element;
+  definition: ElementDefinition, attrPath: AttributePath, parent: Element) => Element;
 export type ElementFactoriesProviderMap = ProviderMap<ElementFactory> & {
   registerSimple(name: string, factory: SimpleElementFactory),
   warningProbableMisuseOfKey: Set<string>,
@@ -20,7 +28,7 @@ export function createElementFactoriesProviderMap(name: string) : ElementFactori
   function registerSimple(name: string, factory: SimpleElementFactory) {
     p.register([name], function simpleElementFactory(
       reporter: Reporter, name: string | undefined,
-      definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName
+      definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName
     ) : Element[] {
       name = handleSimpleElementName(reporter, name, definition.name, attrPath, allowNoName);
       return name !== undefined ? [factory(reporter, name, definition, attrPath, parent)] : [];
@@ -68,7 +76,7 @@ export class Element {
     this.tags = tags;
   }
 
-  static load<T extends Element>(reporter: Reporter, definition: MakeJS.Element, root: T, elementFactoriesProviderMap: ElementFactoriesProviderMap) {
+  static load<T extends Element>(reporter: Reporter, definition: ElementDefinition, root: T, elementFactoriesProviderMap: ElementFactoriesProviderMap) {
     let context = {
       elementFactoriesProviderMap: elementFactoriesProviderMap,
       reporter: reporter
@@ -82,7 +90,7 @@ export class Element {
     return root;
   }
 
-  static instantiate(context: ElementLoadContext, name: string | undefined, definition: MakeJS.Element, attrPath: AttributePath, parent: Element, allowNoName = false) : Element[] {
+  static instantiate(context: ElementLoadContext, name: string | undefined, definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName = false) : Element[] {
     var is = definition.is;
     var error: string | undefined;
     if (typeof is !== 'string')
@@ -105,7 +113,7 @@ export class Element {
 
   ///////////////////
   // Load definitions
-  __load(context: ElementLoadContext, definition: MakeJS.Element, attrPath: AttributePath) {
+  __load(context: ElementLoadContext, definition: ElementDefinition, attrPath: AttributePath) {
     attrPath.push('', '');
     for (var k in definition) {
       var v = definition[k];
@@ -183,7 +191,7 @@ export class Element {
   }
   __loadObjectInArray<T>(context: ElementLoadContext, object: {[s: string]: any}, into: T[], attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
     if ("is" in object) {
-      var subs = Element.instantiate(context, undefined, <MakeJS.Element>object, attrPath, this, true);
+      var subs = Element.instantiate(context, undefined, <ElementDefinition>object, attrPath, this, true);
       for (var j = 0, jlen = subs.length; j < jlen; ++j) {
         var sub = subs[j];
         if (sub && sub.name) {
@@ -199,7 +207,7 @@ export class Element {
       this.__push(context.reporter, into, attrPath, validator, this.__loadObject(context, object, {}, attrPath));
     }
   }
-  __loadNamespace(context: ElementLoadContext, name: string, value: MakeJS.Element, attrPath: AttributePath) {
+  __loadNamespace(context: ElementLoadContext, name: string, value: ElementDefinition, attrPath: AttributePath) {
     var els = Element.instantiate(context, name, value, attrPath, this);
     if (els.length > 1)
       attrPath.diagnostic(context.reporter, { type: 'warning', msg: `element has been expanded to a multiple elements and can't be referenced` });

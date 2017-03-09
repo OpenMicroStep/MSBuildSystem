@@ -13,8 +13,6 @@ export * from './tasks/generateFileTask';
 export * from './tasks/copyTask';
 export * from './runner';
 export * from './provider';
-export * from './barrier';
-export * from './element';
 export * from './graph-root';
 export * from './project';
 export * from './workspace';
