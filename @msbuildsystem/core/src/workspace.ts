@@ -22,32 +22,41 @@ const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Wor
 export class Workspace {
   static globalRoot = new Element('root', 'global', null);
   static globalExports = new Map<string, Element>();
+  directory: string;
   projects = new Map<string, Project>();
   path: string;
   reporter: Reporter;
 
-  static createTemporary() : Workspace & { destroy() : void } {
+  static createTemporary() : Workspace {
     let f = fs.mkdtempSync(path.join(os.tmpdir() , 'msworkspace-'));
-    let alive = true;
-    function destroy() {
-      if (alive)
-        fs_extra.removeSync(f);
-      alive = false;
-    }
-    let w = Object.assign(new Workspace(f), { destroy: destroy });
-    process.on('exit', destroy);
+    let w = new Workspace(f);
+    process.on('exit', () => w.clear());
     return w;
   }
 
-  constructor(public directory: string = '/opt/microstep') {
-    directory = requiredAbsolutePath(directory);
+  static pendingResolutionDirectory = '/7a151994-fab1-4390-859c-bf7bd9aa65f4';
+  constructor(directory: string = Workspace.pendingResolutionDirectory) {
+    this.directory = requiredAbsolutePath(directory);
     this.reporter = new Reporter();
-    this.path = path.join(directory, 'workspace.json');
-    try {
-      let data = JSON.parse(fs.readFileSync(this.path, 'utf8'));
-      let validatedData = workspaceDataValidator(this.reporter, new AttributePath(this.path), data, this);
-      validatedData.projects.forEach(d => this.project(d.path));
-    } catch (e) {}
+    this.path = path.join(this.directory, 'workspace.json');
+    if (!this.isDirectoryPendingResolution()) {
+      try {
+        let data = JSON.parse(fs.readFileSync(this.path, 'utf8'));
+        let validatedData = workspaceDataValidator(this.reporter, new AttributePath(this.path), data, this);
+        validatedData.projects.forEach(d => this.project(d.path));
+      } catch (e) {}
+    }
+  }
+
+  isDirectoryPendingResolution() {
+    return this.directory === Workspace.pendingResolutionDirectory;
+  }
+
+  fixDirectoryPendingResolution(directory: string) {
+    if (this.isDirectoryPendingResolution()) {
+      this.directory = `/opt/microstep/${directory}`;
+      this.path = path.join(this.directory, 'workspace.json');
+    }
   }
 
   project(directory: string) : Project {
@@ -64,11 +73,26 @@ export class Workspace {
   }
 
   save() {
+    if (this.isDirectoryPendingResolution())
+      throw new Error(`cannot save: workspace directory isn't defined`);
     let data = { projects: Array.from(this.projects.keys()).map(d => util.pathRelativeToBase(this.directory, d)) };
     fs.writeFileSync(this.path, JSON.stringify(data, null, 2), 'utf8');
   }
 
+  clear() {
+    if (this.isDirectoryPendingResolution())
+      throw new Error(`cannot clear: workspace directory isn't defined`);
+    this.projects = new Map<string, Project>();
+    try {
+      fs_extra.removeSync(this.directory);
+    } catch (e) {
+      // TODO: Log a warning to the logger ?
+    }
+  }
+
   buildGraph(reporter: Reporter, options: BuildGraphOptions) : RootGraph {
+    if (this.isDirectoryPendingResolution())
+      throw new Error(`cannot buildGraph: workspace directory isn't defined`);
     let root = new RootGraph(this);
     root.createTargets(reporter, options);
     if (!reporter.failed)

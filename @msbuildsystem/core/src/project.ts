@@ -37,6 +37,9 @@ export class Project {
       m.load(this.path);
       this.definition = <MakeJS.Project>m.exports;
       this.definition.name = this.definition.name || "Unnamed project";
+      this.workspace.fixDirectoryPendingResolution(this.definition.name);
+      if (this.directory === this.workspace.directory)
+        this.reporter.diagnostic({ type: "warning", msg: "it's highly recommended to not use the project folder as workspace folder" });
       this.loadDefinition(this.reporter);
     } catch (e) {
       this.reporter.error(e);
