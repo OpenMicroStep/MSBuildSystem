@@ -38,8 +38,4 @@ export class TargetExportsElement extends ComponentElement {
   __path() {
     return this.__target ? `${this.__target.__path()}.exports` : `not implemented yet`;
   }
-
-  __serialize() {
-    return serialize(this);
-  }
 }

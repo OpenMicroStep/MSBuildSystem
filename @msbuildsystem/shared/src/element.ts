@@ -435,6 +435,29 @@ export class Element {
     }
     return ret;
   }
+
+  toJSON() {
+    return serialize(this);
+  }
+}
+
+function serialize(element: Element) {
+  if (typeof element === "object") {
+    if (Array.isArray(element)) {
+      return element.slice(0).map(e => serialize(e));
+    }
+    else {
+      let k, v, copy = {};
+      for (k in element) {
+        if (!k.startsWith("__")) {
+          v = element[k];
+          copy[k] = serialize(v);
+        }
+      }
+      return copy;
+    }
+  }
+  return element;
 }
 
 export namespace Element {

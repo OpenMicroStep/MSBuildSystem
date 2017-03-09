@@ -177,7 +177,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   }
 
   buildGraph(reporter: Reporter) {
-    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(), path.join(this.paths.shared, this.name.name + '.json'));
+    this.exportsTask = new Target.GenerateExports(this, this.exports.toJSON(), path.join(this.paths.shared, this.name.name + '.json'));
     if (this.copyFiles.length) {
       let copy = this.taskCopyFiles = new CopyTask("copy files", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());
