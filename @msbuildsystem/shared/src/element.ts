@@ -60,7 +60,7 @@ function handleSimpleElementName(reporter: Reporter, namespaceName: string | und
 
 export class Element {
   __parent: Element | null;
-  __resolved: boolean;
+  protected __resolved: boolean;
   is: string;
   name: string;
   tags: string[];
@@ -262,16 +262,17 @@ export class Element {
   ///////////////////
   // Resolve elements
   __resolve(reporter: Reporter) {
-    this.__resolved = true;
-    this.__resolveWithPath(reporter, new AttributePath(this));
+    if (!this.__resolved) {
+      this.__resolved = true;
+      this.__resolveWithPath(reporter, new AttributePath(this));
+    }
   }
   __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
     this.__resolveValuesInObject(reporter, this, this, attrPath);
   }
   __resolveValueForKey(reporter: Reporter, v, k: string, attrPath: AttributePath) {
     if (k[k.length - 1] === "=") {
-      if (!(<Element>v).__resolved)
-        (<Element>v).__resolve(reporter);
+      (v as Element).__resolve(reporter);
     }
     else if (Array.isArray(v)) {
       this[k] = this.__resolveValuesInArray(reporter, v, attrPath);
@@ -294,8 +295,7 @@ export class Element {
       if (Array.isArray(value))
         return this.__resolveValuesInArray(reporter, value, attrPath);
       if (value instanceof Element) {
-        if (!value.__resolved)
-          value.__resolve(reporter);
+        value.__resolve(reporter);
         return value;
       }
       return this.__resolveValuesInObject(reporter, value, {}, attrPath);
@@ -422,8 +422,7 @@ export class Element {
         }
 
         if (el) {
-          if (!el.__resolved)
-            el.__resolve(reporter);
+          el.__resolve(reporter);
           this.__resolveElementsTags(reporter, el, ret, requiredTags, rejectedTags);
         }
         else {

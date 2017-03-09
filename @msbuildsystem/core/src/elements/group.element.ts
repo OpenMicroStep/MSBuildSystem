@@ -27,9 +27,8 @@ export class GroupElement extends MakeJSElement {
     var loop = (el) => {
       var cis = el instanceof Element ? el.is : "not an element";
       if (cis === 'group') {
-        if (!(<GroupElement><any>el).__resolved)
-          (<GroupElement><any>el).__resolve(reporter);
-        var subs = (<GroupElement><any>el).elements;
+        (el as GroupElement).__resolve(reporter);
+        var subs = (el as GroupElement).elements;
         attrPath.push('.elements[', '', ']');
         for (var j = 0, jlen = subs.length; j < jlen; ++j) {
           attrPath.set(j, -2);
