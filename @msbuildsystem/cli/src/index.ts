@@ -1,9 +1,11 @@
 let boot_t0 = process.hrtime();
-import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce } from '@msbuildsystem/core';
+import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, TGraph } from '@msbuildsystem/core';
 import { printDiagnostic, printReport } from './common';
 import { args } from './args';
 import { npm } from './modules';
 import * as chalk from 'chalk';
+import * as readline from 'readline';
+import * as tty from 'tty';
 
 let boot_t1 = process.hrtime(boot_t0);
 console.info("Boot time: ", (() => {
@@ -11,6 +13,38 @@ console.info("Boot time: ", (() => {
     var ms = (ns / 1e6);
     return util.formatDuration(ms, { format: "short" });
 })());
+
+
+function stallDetector(limit: number) : { longest: number, last: number, mean(): number, stalls: number[], count: number, stop() : void } {
+  let ret = {
+    longest: 0,
+    last: 0,
+    mean() {
+      return ret.count > 0 ? ret.sum / ret.count : 0;
+    },
+    sum: 0,
+    count: 0,
+    stalls: [] as number[],
+    stop: stop
+  };
+  let t0 = util.now();
+  let immediate = setImmediate(function tick() {
+    let t = util.now();
+    let dt = t - t0;
+    ret.last = dt;
+    if (dt > limit)
+      ret.stalls.push(dt);
+    ret.longest = Math.max(ret.longest, dt);
+    ret.sum += dt;
+    ret.count++;
+    t0 = t;
+    immediate = setImmediate(tick);
+  });
+  function stop() {
+    clearImmediate(immediate);
+  }
+  return ret;
+}
 
 const cwd = process.cwd();
 if (args.workspace)
@@ -55,6 +89,7 @@ function handle_run() {
     if (printReport(reporter, 'Build graph', 'load', perf())) {
       let reporter = new Reporter();
       let runner = new Runner(graph, args.command, { ide: args.ide });
+      let perf = util.performanceCounter("short");
       if (args.debug) {
         runner.on("taskbegin", (context) => {
           console.info("BEGIN  ", context.task.graph && context.task.target().__path(), context.task.name);
@@ -78,7 +113,55 @@ function handle_run() {
           reporter.aggregate(context.reporter);
         });
       }
-      let perf = util.performanceCounter("short");
+      if (!args.debug && process.stderr.isTTY /* args.progressbar */) {
+        let stderr = process.stderr as tty.WriteStream;
+        let tasks = new Set<Task>();
+        let nblines = 0;
+        let count = 0;
+        let done = 0;
+        let stalls = stallDetector(100);
+        for (let task of runner.iterator(true))
+          if (!(task instanceof TGraph))
+            ++count;
+        function writelines(lines: string[]) {
+          if (nblines > 0)
+            readline.moveCursor(stderr, 0, -nblines);
+          let i = 0;
+          for (; i < lines.length; i++) {
+            readline.clearLine(stderr, 0);
+            stderr.write(`\r${lines[i]}\n`);
+          }
+          nblines = lines.length;
+        }
+
+        let progressbar = /*throttle(100, */(() => {
+          let width = (stderr.columns -  20);
+          let progress = `   ${Math.floor(done * 100 / count)}`.slice(-3);
+          let partdone = Math.floor(done * width / count);
+          writelines([
+            `Progression: [${"-".repeat(partdone)}${" ".repeat(width - partdone)}] ${progress}%`,
+            `Elapsed: ${perf()}, Stalls: ${stalls.stalls.length === 0 ? 'none' : stalls.stalls.map(dt => util.formatDuration(dt, { format: "short" })).join(', ')}`,
+            tasks.size > 0 ? `Active tasks (${tasks.size}): ${Array.from(tasks.values()).map(t => `${t.target()} > ${t}`).join(" & ")}` : `Done`,
+          ]);
+        });
+        runner.on("taskbegin", (context) => {
+          if (!(context.task instanceof TGraph)) {
+            tasks.add(context.task);
+            progressbar();
+          }
+        });
+        runner.on("taskend", (context) => {
+          if (!(context.task instanceof TGraph)) {
+            ++done;
+            tasks.delete(context.task);
+            progressbar();
+          }
+          if (context.task === graph) {
+            progressbar/*.now*/();
+            stalls.stop();
+          }
+        });
+      }
       let provider: TaskDoMapReduce<any, any> | undefined = undefined;
       let ok = true;
       if (args.command === "generate") {

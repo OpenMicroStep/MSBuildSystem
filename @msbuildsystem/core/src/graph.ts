@@ -50,6 +50,26 @@ export class TGraph<T extends Task> extends Task {
     }
   }
 
+  *iterator(deep = true) : IterableIterator<Task> {
+    var tasks = new Set<Task>();
+    function* iterate(inputs: Iterable<Task>) {
+      for (let input of inputs) {
+        if (!tasks.has(input)) {
+          tasks.add(input);
+          yield input;
+          if (deep && input instanceof TGraph)
+            yield *iterate(input.inputs);
+        }
+      }
+      for (let input of inputs) {
+        yield *iterate(input.requiredBy);
+      }
+    }
+    if (deep)
+      yield this;
+    yield* iterate(this.inputs);
+  }
+
   iterate(deep: false, shouldIContinue?: (task: T) => boolean);
   iterate(deep: boolean, shouldIContinue?: (task: Task) => boolean);
   iterate(deep: boolean, shouldIContinue?: (task: Task) => boolean) {

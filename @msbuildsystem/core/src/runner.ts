@@ -153,6 +153,24 @@ export class Runner extends EventEmitter {
     }
   }
 
+  *[Symbol.iterator]() {
+    yield* this.iterator(true);
+  }
+
+  *iterator(deep = true) : IterableIterator<Task> {
+    function *iterate(task: Task) : IterableIterator<Task> {
+      if (task instanceof TGraph)
+        yield* task.iterator(true);
+      else
+        yield task;
+    }
+    if (this.enabled.size === 0)
+      yield* iterate(this.root);
+    else
+      for (let task of this.enabled)
+        yield* iterate(task);
+  }
+
   run(p: Flux<RunnerContext>) {
     p.context.runner = this;
     if (this.enabled.size === 0) {
