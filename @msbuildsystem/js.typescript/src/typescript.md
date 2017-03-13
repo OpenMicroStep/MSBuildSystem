@@ -1,4 +1,4 @@
-# TypescriptCompiler
+# TypescriptCompiler
 
 #### `buildGraph(reporter: Reporter)`
 
