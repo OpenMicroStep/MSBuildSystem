@@ -34,13 +34,14 @@ Packager nommé `npm` compatible avec l'objectif de compilation `JSTarget`.
 
 Le contenu du fichier `package.json`.
 
+
 ## TypescriptCompiler
 
 Compilateur nommé `typescript`, `ts` compatible avec l'objectif de compilation `JSTarget`.
 
-#### `tsConfig`
+#### `tsConfig: dictionary`
 
-Options de compilation typescript.
+Options de compilation typescript (voir: https://www.typescriptlang.org/docs/handbook/compiler-options.html).
 
 #### `npmInstall`
 

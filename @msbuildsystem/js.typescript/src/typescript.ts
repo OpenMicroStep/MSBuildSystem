@@ -36,29 +36,32 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
 
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
-    let npmInstall = new NPMInstallTask(this.graph, this.graph.paths.intermediates);
-    let npmInstallOut = new NPMInstallTask(this.graph, this.graph.paths.output);
-    Object.keys(this.npmInstall).forEach(k => npmInstall.addPackage(k, this.npmInstall[k]));
-    Object.keys(this.npmInstall).forEach(k => npmInstallOut.addPackage(k, this.npmInstall[k]));
-    this.npmLink.forEach(l =>
-      npmInstall.addDependency(new NPMLinkTask(this.graph,
-        File.getShared(path.join(this.graph.paths.output, l.path), true),
-        File.getShared(path.join(this.graph.paths.intermediates, l.path), true)
-      ))
-    );
-    this.graph.compiler.addDependency(npmInstall);
+
+    let npmInstallForBuild = new NPMInstallTask(this, this.graph.paths.intermediates);
+    let npmInstallForOutput = new NPMInstallTask(this, this.graph.packager.absoluteCompilationOutputDirectory());
     let tsc = this.tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
+    tsc.addDependency(npmInstallForBuild);
+
     tsc.addFiles(this.graph.files);
     tsc.setOptions(this.tsConfig);
     tsc.setOptions({
       outDir: this.graph.packager.absoluteCompilationOutputDirectory(),
-      //rootDir: path.join(this.graph.paths.intermediates, this.tsConfig.rootDir),
       baseUrl: this.graph.paths.intermediates
     });
     this.tsc.options.paths = this.tsc.options.paths || {};
-    new NPMLinkTask(this.graph,
-      File.getShared(path.join(this.graph.paths.intermediates, "node_modules"), true),
-      File.getShared(path.join(this.graph.packager.absoluteCompilationOutputDirectory(), "node_modules"), true)
+
+    // (cwd intermediates & output) npm install
+    Object.keys(this.npmInstall).forEach(k => {
+      npmInstallForBuild.addPackage(k, this.npmInstall[k]);
+      npmInstallForOutput.addPackage(k, this.npmInstall[k]);
+    });
+
+    // npm link local dependencies (most of the times this is defined by dependencies that are npm targets)
+    this.npmLink.forEach(l =>
+      npmInstallForBuild.addDependency(new NPMLinkTask(this,
+        File.getShared(path.join(this.graph.paths.output, l.path), true),
+        File.getShared(path.join(this.graph.paths.intermediates, l.path), true)
+      ))
     );
   }
 }
