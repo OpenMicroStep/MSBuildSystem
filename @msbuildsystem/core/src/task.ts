@@ -3,7 +3,6 @@ import {
   createProviderMap, ProviderMap, Reporter, AttributePath
 } from './index.priv';
 import {createHash} from 'crypto';
-import * as path from 'path';
 
 export type TaskName = { type: string, name: string, [s: string]: string };
 
@@ -52,8 +51,8 @@ export class Task {
 
   /** returns the unique and reusable accross session data storage of this task */
   getStorage() : BuildSession.BuildSession {
-    let id = this.id();
-    return id ? new BuildSession.FastJSONDatabase(path.join(this.target().paths.tasks, id)) : BuildSession.noop;
+    var p = this.storagePath(this);
+    return p ? new BuildSession.FastJSONDatabase(p) : BuildSession.noop;
   }
 
   /** returns the target that contains this task */
@@ -64,6 +63,11 @@ export class Task {
     if (!task)
       throw new Error("logic error: this task has no target associated");
     return task;
+  }
+
+  /** returns the absolute data storage path of the given task */
+  storagePath(task: Task) : string | undefined {
+    return this.graph && this.graph.storagePath(task);
   }
 
   addDependencies(tasks: Task[]) {

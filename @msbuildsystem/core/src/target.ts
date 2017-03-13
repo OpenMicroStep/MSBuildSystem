@@ -156,6 +156,11 @@ export class Target extends SelfBuildGraph<RootGraph> {
     return { variant: this.variant, environment: this.environment, name: this.targetName };
   }
 
+  storagePath(task: Task) {
+    var id = task.id();
+    return id ? path.join(this.paths.tasks, id) : undefined;
+  }
+
   configure(reporter: Reporter, path: AttributePath) {
     this.resolve(reporter, this, path);
     configureResolver.resolve(reporter, this, this, path);
