@@ -3,14 +3,12 @@ import {
   Flux, Step, StepWithData, ReduceStepContext,
   resolver, AttributeTypes, AttributePath, util
 } from '@msbuildsystem/core';
+import { safeSpawnProcess } from '@msbuildsystem/foundation';
 import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@msbuildsystem/js';
+import { InputData, OutputData } from './worker';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
-
-const mapCategory = new Map<ts.DiagnosticCategory, 'warning' | 'error' | 'note'>();
-mapCategory.set(ts.DiagnosticCategory.Warning, 'warning');
-mapCategory.set(ts.DiagnosticCategory.Error, 'error');
-mapCategory.set(ts.DiagnosticCategory.Message, 'note');
+import * as child_process from 'child_process';
 
 @JSCompilers.declare(['typescript', 'ts'])
 export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
@@ -90,12 +88,6 @@ Task.generators.register(['tsconfig'], {
   }
 });
 
-export type CompilerHostWithVirtualFS = ts.CompilerHost & {
-  fromVirtualFs(p: string) : string,
-  toVirtualFs(p: string) : string,
-  isInVirtualFs(p: string) : boolean
-};
-
 @declareTask({ type: "typescript" })
 export class TypescriptTask extends Task {
   files: File[] = [];
@@ -117,75 +109,10 @@ export class TypescriptTask extends Task {
     this.files.push(...files);
   }
 
-  // TODO: incremental build
   // TODO: clean output
-  // TODO: async run (slower startup with tsc or create and use a worker API)
-
-  // we have to create a custom compiler host to fix out of src directory limitations
-  createCompilerHost(options: ts.CompilerOptions) : CompilerHostWithVirtualFS {
-    let target = this.target();
-    let sourceDirectory = target.project.directory;
-    let intermediatesDirectory = target.paths.intermediates;
-    let isInVirtualFs = new RegExp(`^${util.escapeRegExp(sourceDirectory)}/(${this.virtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$)`, 'i');
-    let host = ts.createCompilerHost(options);
-    function fromVirtualFs(p: string) {
-      if (isInVirtualFs.test(p))
-        p = path.join(intermediatesDirectory, p.substring(sourceDirectory.length + 1));
-      return p;
-    }
-    function toVirtualFs(p: string) {
-      if (p.startsWith(intermediatesDirectory))
-        p = path.join(sourceDirectory, path.relative(intermediatesDirectory, p));
-      return p;
-    }
-    let getDirectories = host.getDirectories;
-    let getSourceFile = host.getSourceFile;
-    let fileExists = host.fileExists;
-    let readFile = host.readFile;
-    let directoryExists = host.directoryExists;
-    let realpath = host.realpath;
-    host.fileExists = (fileName: string) => fileExists(fromVirtualFs(fileName));
-    host.readFile = (fileName: string) => readFile(fromVirtualFs(fileName));
-    if (directoryExists)
-      host.directoryExists = (directoryName: string) => directoryExists!(fromVirtualFs(directoryName));
-    if (realpath)
-      host.realpath = (path: string) => toVirtualFs(realpath!(fromVirtualFs(path)));
-    host.getSourceFile = (fileName: string, languageVersion: ts.ScriptTarget, onError?: (message: string) => void) => {
-      let file = getSourceFile(fromVirtualFs(fileName), languageVersion, onError);
-      if (file) file.fileName = toVirtualFs(file.fileName);
-      return file;
-    };
-    host.getDirectories = (path: string) =>
-      getDirectories(fromVirtualFs(path)).map(d => toVirtualFs(d));
-    host.getCurrentDirectory = () => sourceDirectory;
-    return Object.assign(host, { fromVirtualFs: fromVirtualFs, toVirtualFs: toVirtualFs, isInVirtualFs: (p) => isInVirtualFs.test(p) });
-  }
-
-  emitTsDiagnostics(reporter: Reporter, tsDiagnostics: ts.Diagnostic[], host?: CompilerHostWithVirtualFS) {
-    tsDiagnostics.forEach(diagnostic => {
-        if (diagnostic.file) {
-          let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-          reporter.diagnostic({
-            type: mapCategory.get(diagnostic.category)!,
-            col: character + 1,
-            row: line + 1,
-            msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-            path: host ? host.fromVirtualFs(diagnostic.file.path) : diagnostic.file.path
-            // , diagnostic.code ?
-          });
-        }
-        else {
-          reporter.diagnostic({
-            type: mapCategory.get(diagnostic.category)!,
-            msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-            // , diagnostic.code ?
-          });
-        }
-    });
-  }
 
   isRunRequired(step: StepWithData<{ runRequired?: boolean }, {}, { sources?: string[] }>) {
-    if (step.context.sharedData.sources) {
+    if (step.context.sharedData.sources && step.context.sharedData.sources.length) {
       File.ensure(step.context.sharedData.sources.map(h => File.getShared(h)), step.context.lastSuccessTime, {}, (err, required) => {
         step.context.runRequired = !!(err || required);
         step.continue();
@@ -198,19 +125,40 @@ export class TypescriptTask extends Task {
   }
 
   run(step: StepWithData<{}, {}, { sources?: string[] }>) {
+    let done = false;
+    let process = safeSpawnProcess(path.join(__dirname, 'worker.js'), [], undefined, {}, (err, code, signal, out) => {
+      if (err)
+        step.context.reporter.error(err);
+      else if (signal)
+        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with signal ${signal}` });
+      else if (code !== 0)
+        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with exit code: ${code}` });
+      if (out) {
+        step.context.reporter.log(out);
+      }
+      if (!done) {
+        done = true;
+        step.continue();
+      }
+    }, 'fork');
     let target = this.target();
-    let outputDirectory = target.paths.output;
-    let o = ts.convertCompilerOptionsFromJson(this.options, outputDirectory);
-    this.emitTsDiagnostics(step.context.reporter, o.errors);
-    if (!step.context.reporter.failed) {
-      let host = this.createCompilerHost(o.options);
-      let program = ts.createProgram(this.files.map(f => host.toVirtualFs(f.path)), o.options, host);
-      let emitResult = program.emit();
-      step.context.sharedData.sources = program.getSourceFiles().map(f => host.fromVirtualFs(f.path));
-      let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
-      this.emitTsDiagnostics(step.context.reporter, tsDiagnostics, host);
-    }
-    step.continue();
+    process.on('message', (message: OutputData) => {
+      for (let d of message.diagnostics)
+        step.context.reporter.diagnostic(d);
+      step.context.sharedData.sources = message.sources;
+      if (!done) {
+        done = true;
+        step.continue();
+      }
+    });
+    process.send({
+      files: this.files.map(f => f.path),
+      intermediatesDirectory: target.paths.intermediates,
+      sourceDirectory: target.project.directory,
+      outputDirectory: target.paths.output,
+      options: this.options,
+      virtualPaths: this.virtualPaths,
+    } as InputData);
   }
 
   do_generate_tsconfig(step: Step<{ value: TSConfigValue }>) {

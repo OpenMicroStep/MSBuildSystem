@@ -34,23 +34,29 @@ export class LocalProcessProvider extends ProcessProvider {
     });
   }
   run(bin: string, args: string[], cwd: string | undefined, env: {[s: string]: string}, cb: (err: Error, code: number, signal: string, out: string) => void) {
-    run(this.bin, args, cwd, env, cb);
+    safeSpawnProcess(this.bin, args, cwd, env, cb);
   }
 }
 
 const baseEnv = process.env;
-function run(
+
+export function safeSpawnProcess(
   command: string,
   args: string[],
   cwd: string | undefined,
   env: {[s: string]: string},
-  callback: (err: Error | null, code: number, signal: string, out: string) => any
+  callback: (err: Error | null, code: number, signal: string, out: string) => any,
+  method: 'spawn' | 'fork' = 'spawn'
 ) {
   var options: any = {
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
+    //stdio: ['ignore', 'pipe', 'pipe'],
     cwd: cwd
   };
+  if (method === 'fork') {
+    //options.stdio.push('ipc');
+    options.execArgv = [];
+  }
   if (env && Object.keys(env).length) {
     var pathKey = "PATH";
     options.env = {};
@@ -71,7 +77,7 @@ function run(
       }
     }
   }
-  var process = child_process.spawn(command, args, options);
+  var process: child_process.ChildProcess = (child_process[method] as any)(command, args, options);
   var out = "";
   var exited = false;
 
@@ -103,4 +109,5 @@ function run(
     err = new Error("could not create child_process object");
     exithandler(-1, null);
   }
+  return process;
 }
