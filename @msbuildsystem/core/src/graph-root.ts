@@ -125,10 +125,6 @@ export class RootGraph extends TGraph<Target> {
   }
 
   id() {
-    return "root";
-  }
-
-  storagePath(task: Task) {
     return null;
   }
 }

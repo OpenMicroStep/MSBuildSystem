@@ -136,7 +136,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
       shared       : path.join(this.project.workspace.directory, '.shared', env_variant),
       build        : build,
       intermediates: path.join(build, "intermediates", this.targetName),
-      tasks        : path.join(build, "tasks")
+      tasks        : path.join(build, "tasks", this.targetName)
     };
     this.exports = new TargetExportsElement(this, this.attributes.name);
     fs.ensureDirSync(this.paths.tasks);
@@ -154,11 +154,6 @@ export class Target extends SelfBuildGraph<RootGraph> {
 
   uniqueKey() {
     return { variant: this.variant, environment: this.environment, name: this.targetName };
-  }
-
-  storagePath(task: Task) {
-    var id = task.id();
-    return id ? this.paths.tasks + '/' + id : null;
   }
 
   configure(reporter: Reporter, path: AttributePath) {
