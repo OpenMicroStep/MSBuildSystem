@@ -145,7 +145,7 @@ export class Task {
   }
 
   isDoRequired(step: Step<{ runRequired?: boolean }>) {
-    if (step.context.runner.action === "build")
+    if (step.context.runner.action === "build" && step.context.lastSuccessTime > 0)
       this.isRunRequired(step);
     else {
       step.context.runRequired = true;
