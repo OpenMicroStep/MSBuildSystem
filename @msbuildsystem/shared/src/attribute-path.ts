@@ -58,9 +58,14 @@ export class AttributePath {
     return this.components.map(c => typeof c === "object" ? c.__path() : c).join('');
   }
 
+  toJSON() {
+    return this.toString();
+  }
+
   diagnostic(reporter: Reporter, d: Diagnostic, ...components: AttributePathComponent[]) {
     this.push(...components);
-    d.path = this.toString() + (d.path || "");
+    if (this.components.length)
+      d.path = this.toString() + (d.path || "");
     this.pop(components.length);
     reporter.diagnostic(d);
   }
