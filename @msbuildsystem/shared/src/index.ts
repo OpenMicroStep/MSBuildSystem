@@ -9,5 +9,6 @@ export * from './attribute-path';
 export * from './provider';
 export * from './barrier';
 export * from './element';
+export * from './parser';
 import * as _AttributeTypes from './attributes';
 export import AttributeTypes = _AttributeTypes;
