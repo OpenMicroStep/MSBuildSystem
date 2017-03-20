@@ -1,5 +1,5 @@
 import {
-  Element, GroupElement, ProjectElement, DelayedElement,
+  Element, ProjectElement, DelayedElement,
   Reporter, AttributePath, DelayedQuery, Workspace} from '../index.priv';
 
 export class MakeJSElement extends Element {
@@ -15,29 +15,22 @@ export class MakeJSElement extends Element {
     else super.__resolveValueInArray(reporter, el, ret, attrPath);
   }
 
-  __resolveElementsGroup(reporter: Reporter, steps: string[], tagsQuery: string | undefined, ret: Element[]) {
+  __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], tags: Element.Tags, attrPath: AttributePath) {
     if (steps.length >= 5
      && steps[1].length === 0
      && steps[2].length > 0
      && ((steps[3].length === 0) || (steps.length >= 6 && steps[4].length === 0))
     ) { // ::[env:]target::
-      if (Workspace.globalExports.has(steps[2]))
-        ret.push(Workspace.globalExports.get(steps[2])!);
-      else
-        ret.push(new DelayedQuery(steps, tagsQuery, this));
-      return true;
+      let gel = Workspace.globalExports.get(steps[2]);
+      if (gel && gel.__passTags(tags))
+        into.push(gel);
+      else if (!gel)
+        into.push(new DelayedQuery(steps, tags, this));
     }
-    return super.__resolveElementsGroup(reporter, steps, tagsQuery, ret);
+    else {
+      super.__resolveElementsGroup(reporter, into, steps, tags, attrPath);
+    }
   }
-
-  __resolveElementsTags(reporter: Reporter, el: Element, into: Element[], requiredTags: string[], rejectedTags: string[]) {
-    let els = el.is === 'group' ? (<GroupElement>el).elements || [] : [el];
-    for (el of els)
-      if (this.__resolveElementsTagsFilter(el, requiredTags, rejectedTags))
-        into.push(el);
-  }
-
-
 }
 export interface MakeJSElement {
   __root() : ProjectElement;

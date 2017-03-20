@@ -58,6 +58,12 @@ Returns the root element.
 
 Returns the path to this element relative to the root element path.
 
-#### `resolveElements(reporter: Reporter, query: string)`
+#### `resolveElements(reporter: Reporter, query: string) : Element[]`
 
 Find matching _query_ elements. Any lookup error are reported into _reporter_.
+
+Queries have the form: `[group0 [+ groupX]*] [? tag0 [+ tagX]*]`.
+The empty query resolves to no element at all.
+
+The actual of the query is done by `__parseQuery` and the final resolution by `__resolveElementsGroup`.
+

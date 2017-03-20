@@ -1,7 +1,7 @@
 import {
   Reporter, AttributePath, AttributeTypes,
   util, createProviderMap, ProviderMap,
-  Diagnostic, transformWithCategory
+  Diagnostic, transformWithCategory, Parser
 } from './index';
 
 export interface ElementDefinition {
@@ -49,10 +49,7 @@ function handleSimpleElementName(reporter: Reporter, namespaceName: string | und
     else
       namespaceName = "";
   }
-  else if (namespaceName === definitionName) {
-    attrPath.diagnostic(reporter, { type: 'warning', msg: `'name' attribute is already defined by the namespace` });
-  }
-  else if (typeof definitionName === 'string') {
+  else if (typeof definitionName === 'string' && namespaceName !== definitionName) {
     attrPath.diagnostic(reporter, { type: 'error', msg: `'name' attribute is already defined by the namespace with a different value` });
   }
   return namespaceName;
@@ -155,10 +152,17 @@ export class Element {
       this.__loadObject(context, object, into, attrPath, validator);
   }
   __loadObject<T>(context: ElementLoadContext, object: {[s: string]: any}, into: {[s: string]: T}, attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
+    if ("is" in object) {
+      var subs = Element.instantiate(context, undefined, <ElementDefinition>object, attrPath, this, true);
+      if (subs.length !== 1)
+        attrPath.diagnostic(context.reporter, { type: 'error', msg: `definition of multiple elements were only one was expected` });
+      else
+        return subs[0];
+    }
+
     attrPath.push('.', '');
     for (var k in object) {
-      var v = object[k];
-      attrPath.set(k);
+      var v = this.__loadValue(context, object[k], attrPath.set(k));
       if (context.elementFactoriesProviderMap.warningProbableMisuseOfKey.has(k)) {
         attrPath.diagnostic(context.reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for some elements` });
       }
@@ -240,7 +244,7 @@ export class Element {
       }
     }
     else {
-      this[key] = value;
+      this[key] = this.__loadValue(context, value, attrPath);
     }
   }
   __push<T>(reporter: Reporter, into: T[], attrPath: AttributePath, validator: AttributeTypes.Validator<T, Element> | undefined, value) {
@@ -313,7 +317,7 @@ export class Element {
   __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
     if (typeof el === "string") {
       if (el[0] === "=") {
-        ret.push(...this.__resolveElementsPriv(reporter, el.substring(1), attrPath));
+        this.__resolveElements(reporter, ret, el.substring(1), attrPath);
         return;
       }
       else if (el[0] === "\\" && el[1] === "=") {
@@ -345,95 +349,91 @@ export class Element {
     return p;
   }
 
-  resolveElements(reporter: Reporter, query: string) {
-    return this.__resolveElementsPriv(reporter, query, undefined);
+  resolveElements(reporter: Reporter, query: string) : Element[] {
+    let ret: Element[] = [];
+    this.__resolveElements(reporter, ret, query, undefined);
+    return ret;
   }
 
-  __resolveElementsGroup(reporter: Reporter, steps: string[], tagsQuery: string | undefined, ret: Element[]) : Element | undefined | true {
-    return undefined;
-  }
-
-  __resolveElementsTagsFilter(e: Element, requiredTags: string[], rejectedTags: string[]): boolean {
-    let requiredTagsLen = requiredTags.length;
-    let rejectedTagsLen = rejectedTags.length;
+  __passTags(tags: Element.Tags) : boolean {
+    let requiredTagsLen = tags.requiredTags.length;
+    let rejectedTagsLen = tags.rejectedTags.length;
     let i: number;
-    let ok = ((e.tags && e.tags.length) || 0) >= requiredTagsLen;
+    let ok = ((this.tags && this.tags.length) || 0) >= requiredTagsLen;
     for (i = 0; ok && i < requiredTagsLen; ++i)
-      ok = e.tags.indexOf(requiredTags[i]) !== -1;
+      ok = this.tags.indexOf(tags.requiredTags[i]) !== -1;
     for (i = 0; ok && i < rejectedTagsLen; ++i)
-      ok = e.tags.indexOf(rejectedTags[i]) === -1;
+      ok = this.tags.indexOf(tags.rejectedTags[i]) === -1;
     return ok;
   }
 
-  __resolveElementsTags(reporter: Reporter, el: Element, into: Element[], requiredTags: string[], rejectedTags: string[]) {
-    if (this.__resolveElementsTagsFilter(el, requiredTags, rejectedTags))
-      into.push(el);
+  __parseQuery(reporter: Reporter, into: Element[], parser: Parser, attrPath: AttributePath) {
+    parser.skip(Parser.isAnySpaceChar);
+    let groups = parser.ch !== '?' ? this.__parseGroups(reporter, parser, attrPath) : [];
+    let tags = parser.test('?') ? this.__parseTags(reporter, parser, attrPath) : { requiredTags: [], rejectedTags: [] };
+    for (let group of groups)
+      this.__resolveElementsGroup(reporter, into, group, tags, attrPath);
+    parser.skip(Parser.isAnySpaceChar);
+    if (!parser.atEnd())
+       attrPath.diagnostic(reporter, {
+          type: 'error',
+          msg:  `syntax error, the query can't be fully parsed`
+        });
+  }
+  __parseGroups(reporter: Reporter, parser: Parser, attrPath: AttributePath) : string[][] {
+    let groups: string[][] = [];
+    do {
+      groups.push(parser.while(ch => ch !== '+' && ch !== '?', 1).split(':').map(g => g.trim()));
+    } while (parser.test('+'));
+    return groups;
+  }
+  __parseTags(reporter: Reporter, parser: Parser, attrPath: AttributePath) : Element.Tags {
+    let ret: Element.Tags = { requiredTags: [], rejectedTags: [] };
+    do {
+      if (parser.test('!')) {
+        parser.skip(Parser.isAnySpaceChar);
+        ret.rejectedTags.push(parser.while(ch => ch !== '+', 1).trim());
+      }
+      else {
+        ret.requiredTags.push(parser.while(ch => ch !== '+', 1).trim());
+      }
+    } while (parser.test('+'));
+    return ret;
   }
 
-  __resolveElementsPriv(reporter: Reporter, query: string, attrPath: AttributePath | undefined) : Element[] {
-    let ret: Element[] = [];
-    let sides = query.split("?");
-    let groups = sides[0].split("+");
-    let requiredTags = <string[]>[];
-    let rejectedTags = <string[]>[];
-    if (sides[1]) {
-      sides[1].split("+").forEach(t => {
-        t = t.trim();
-        let isNeg = t[0] === '!';
-        if (isNeg)
-          t = t.replace(/^!\s*/, "");
-        if (t.length === 0) {
-          reportDiagnostic(reporter, attrPath, {
+  __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], tags: Element.Tags, attrPath: AttributePath) {
+    let el: Element = this;
+    for (let i = 0; el && i < steps.length; i++) {
+      let step = steps[i];
+      if (step.length === 0) {
+        if (steps.length > 1)
+          attrPath.diagnostic(reporter, {
             type: "warning",
-            msg: `query '${query}' is invalid, one the tags is an empty string, the tag '${t}' is ignored`
+            msg: `one the groups is an empty string, the group '${steps.join(':')}' is ignored`,
           });
-        }
-        else
-          (isNeg ? rejectedTags : requiredTags).push(t);
-      });
-    }
-    for (let group of groups) {
-      let steps = group.split(':').map(s => s.trim());
-      let rel = this.__resolveElementsGroup(reporter, steps, sides[1], ret);
-      if (rel !== true) {
-        let el = <Element | undefined>rel;
-        if (!el) {
-          el = this;
-          for (let i = 0, len = steps.length; el && i < len; ++i) {
-            let step = steps[i];
-            if (step.length === 0) {
-              if (steps.length > 1)
-                reportDiagnostic(reporter, attrPath, {
-                  type: "warning",
-                  msg: `query '${query}' is invalid, one the groups is an empty string, the group '${group}' is ignored`,
-                });
-              break;
-            }
-            let stepeq = step + "=";
-            let found = el[stepeq];
-            if (i === 0) {
-              while (!found && el.__parent) {
-                el = el.__parent;
-                found = el[stepeq];
-              }
-            }
-            el = found;
-          }
-        }
-
-        if (el) {
-          el.__resolve(reporter);
-          this.__resolveElementsTags(reporter, el, ret, requiredTags, rejectedTags);
-        }
-        else {
-          reportDiagnostic(reporter, attrPath, {
-            type: "warning",
-            msg: `query '${query}' refer to an element that can't be found, the group '${group}' is ignored`,
-          });
+        break;
+      }
+      let stepeq = step + "=";
+      let found = el[stepeq];
+      if (i === 0) {
+        while (!found && el.__parent) {
+          el = el.__parent;
+          found = el[stepeq];
         }
       }
+      el = found;
     }
-    return ret;
+    if (el && el.__passTags(tags))
+      el.__resolveInto(reporter, into);
+  }
+  __resolveInto(reporter: Reporter, into: Element[]) {
+    this.__resolve(reporter);
+    into.push(this);
+  }
+
+  __resolveElements(reporter: Reporter, into: Element[], query: string, attrPath: AttributePath | undefined = new AttributePath()) {
+    let parser = new Parser(reporter, query);
+    this.__parseQuery(reporter, into, parser, attrPath);
   }
 
   toJSON() {
@@ -461,6 +461,82 @@ function serialize(element: Element) {
 }
 
 export namespace Element {
+  export type Tags = { requiredTags: string[], rejectedTags: string[] };
+  export function rebuildQuery(steps: string[][], tags: Element.Tags) {
+    let ret = steps.map(s => s.join(':')).join(' + ');
+    if (tags.rejectedTags.length || tags.requiredTags.length)
+      ret += ' ? ' + tags.requiredTags.concat(tags.rejectedTags.map(t => `!${t}`)).join(' + ');
+    return ret;
+  }
+
+  export interface GroupElement extends Element {
+     elements: Element[];
+  };
+  export function DynGroupElement<C extends { new(...args): Element }>(parentClass: C) : ({
+    new (...args: any[]): GroupElement;
+    prototype: GroupElement;
+  } & C) {
+    return class GroupElement extends parentClass {
+      elements: Element[] = [];
+
+      __resolveInto(reporter: Reporter, into: Element[]) {
+        this.__resolve(reporter);
+        into.push(...this.elements);
+      }
+
+      __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
+        super.__resolveWithPath(reporter, attrPath);
+        var elements = <any[]>[];
+        var type: string | undefined = undefined;
+        var is: string | undefined = undefined;
+        var loop = (el) => {
+          var cis = el instanceof Element ? el.is : "not an element";
+          if (cis === 'group') {
+            (el as GroupElement).__resolve(reporter);
+            var subs = (el as GroupElement).elements;
+            attrPath.push('.elements[', '', ']');
+            for (var j = 0, jlen = subs.length; j < jlen; ++j) {
+              attrPath.set(j, -2);
+              loop(subs[j]);
+            }
+            attrPath.pop(3);
+            return;
+          }
+          if (type === undefined)
+            type = typeof el;
+
+          if (typeof el !== type) {
+            attrPath.diagnostic(reporter, {
+              type: 'error',
+              msg:  `elements must be of the same type, expecting ${type}, got ${typeof el}`
+            });
+          }
+          else {
+            if (is === undefined)
+              is = cis;
+
+            if (is !== cis) {
+              attrPath.diagnostic(reporter, {
+                type: 'error',
+                msg:  `elements must be of the same type, expecting ${is}, got ${cis}`
+              });
+            }
+            else {
+              elements.push(el);
+            }
+          }
+        };
+        attrPath.push('.elements[', '', ']');
+        for (var i = 0, len = this.elements.length; i < len; i++) {
+          attrPath.set(i, -2);
+          loop(this.elements[i]);
+        }
+        attrPath.pop(3);
+        this.elements = elements;
+      }
+    };
+  }
+
   export function validateElement(reporter: Reporter, path: AttributePath, value: any) {
     if (!(value instanceof Element))
       path.diagnostic(reporter, { type: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
@@ -490,10 +566,4 @@ export namespace Element {
       return undefined;
     };
   }
-}
-
-function reportDiagnostic(reporter: Reporter, attrPath: AttributePath | undefined, diagnostic: Diagnostic) {
-  if (attrPath)
-    diagnostic.path = attrPath.toString();
-  reporter.diagnostic(diagnostic);
 }

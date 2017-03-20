@@ -10,7 +10,7 @@ export class DelayedElement extends Element {
 }
 
 export class DelayedQuery extends DelayedElement {
-  constructor(public steps: string[], public tagsQuery: string | undefined, parent: Element | null) {
+  constructor(public steps: string[], public tagsQuery: Element.Tags, parent: Element | null) {
     super(parent);
   }
   __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
@@ -24,7 +24,7 @@ export class DelayedQuery extends DelayedElement {
     if (sources.length === 0) {
       attrPath.diagnostic(reporter, {
         type: "error",
-        msg: `query '${this.steps.join(':')}${this.tagsQuery ? "?" + this.tagsQuery : ""}' is invalid, the target '${target}' is not present in the workspace`
+        msg: `query '${Element.rebuildQuery([this.steps], this.tagsQuery)}' is invalid, the target '${target}' is not present in the workspace`
       });
     }
     else if (sources.length > 1) {
@@ -39,10 +39,8 @@ export class DelayedQuery extends DelayedElement {
         let envStr = env ? { name: env, compatibleEnvironments: [] } : buildTarget.environment;
         source = buildTarget.__resolveDelayedExports(reporter, source, envStr);
       }
-      if (source) {
-        let p = `${this.steps.slice(size).join(':')}${this.tagsQuery ? "?" + this.tagsQuery : ""}`;
-        elements = source.resolveElements(reporter, p);
-      }
+      if (source)
+        source.__resolveElementsGroup(reporter, elements, this.steps.slice(size), this.tagsQuery, attrPath);
     }
     return elements;
   }
