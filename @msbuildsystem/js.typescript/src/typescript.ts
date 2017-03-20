@@ -38,7 +38,6 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     super.buildGraph(reporter);
 
     let npmInstallForBuild = new NPMInstallTask(this, this.graph.paths.intermediates);
-    let npmInstallForOutput = new NPMInstallTask(this, this.graph.packager.absoluteCompilationOutputDirectory());
     let tsc = this.tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addDependency(npmInstallForBuild);
 
@@ -51,10 +50,7 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     this.tsc.options.paths = this.tsc.options.paths || {};
 
     // (cwd intermediates & output) npm install
-    Object.keys(this.npmInstall).forEach(k => {
-      npmInstallForBuild.addPackage(k, this.npmInstall[k]);
-      npmInstallForOutput.addPackage(k, this.npmInstall[k]);
-    });
+    Object.keys(this.npmInstall).forEach(k => npmInstallForBuild.addPackage(k, this.npmInstall[k]));
 
     // npm link local dependencies (most of the times this is defined by dependencies that are npm targets)
     this.npmLink.forEach(l =>

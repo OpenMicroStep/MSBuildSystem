@@ -21,6 +21,7 @@ export class JSTarget extends Target {
 
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
+    this.packager.addDependency(this.compiler);
     this.compiler.buildGraph(reporter);
     this.packager.buildGraph(reporter);
   }

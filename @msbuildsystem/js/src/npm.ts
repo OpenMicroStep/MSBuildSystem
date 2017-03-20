@@ -20,6 +20,13 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   @resolver(AttributeTypes.validateMergedObjectList)
   npmPackage: NPMPackage = <NPMPackage>{};
 
+  @resolver(AttributeTypes.listValidator(AttributeTypes.objectValidator({
+    path: { validator: AttributeTypes.validateString, default: undefined },
+    name: { validator: AttributeTypes.validateString, default: undefined },
+    srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] }
+  })))
+  npmLink: { path: string, name: string, srcs: string[] }[] =  [];
+
   absoluteModulesOutputDirectory() : string {
     return path.join(this.graph.paths.output, 'node_modules');
   }
@@ -31,7 +38,23 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
     this.npmPackage.name = this.graph.outputName;
-    new NPMGeneratePackage(this, this.npmPackage, path.join(this.absoluteCompilationOutputDirectory(), 'package.json'));
+    let createPkgJson = new NPMGeneratePackage(this, this.npmPackage, path.join(this.absoluteCompilationOutputDirectory(), 'package.json'));
+    let npmInstall = new NPMInstallTask(this, this.absoluteCompilationOutputDirectory());
+    npmInstall.addDependency(createPkgJson);
+    let dependencies = this.npmPackage.dependencies || {};
+    for (let link of this.npmLink) {
+      let linktask = new NPMLinkTask(this,
+        File.getShared(path.join(this.graph.paths.output, link.path), true),
+        File.getShared(path.join(this.absoluteCompilationOutputDirectory(), link.path), true)
+      );
+      linktask.addDependency(createPkgJson);
+      npmInstall.addDependency(linktask);
+    }
+    let ignoreDependencies = new Set<string>(this.npmLink.map(n => n.name));
+    for (let key of Object.keys(dependencies)) {
+      if (!ignoreDependencies.has(key))
+        npmInstall.addPackage(key, dependencies[key]);
+    }
   }
 
   configureExports(reporter: Reporter) {
@@ -45,15 +68,14 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
     let deps = {
       [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
     };
-    exports["npmPackage"] = [{
-      "dependencies": deps
-    }];
-    exports["npmLink"] = npmLink;
-    exports["peerDependency="] = new ComponentElement('component', 'peerDependency', exports);
-    exports["peerDependency="]["npmPackage"] = [{
-      "peerDependencies": deps
-    }];
-    exports["peerDependency="]["npmLink"] = npmLink;
+    Object.assign(exports, {
+      npmPackage: [{ dependencies: deps }],
+      npmLink: npmLink,
+      "peerDependency=": Object.assign(new ComponentElement('component', 'peerDependency', exports), {
+        npmPackage: [{ peerDependencies: deps }],
+        npmLink: npmLink,
+      })
+    });
   }
 }
 
