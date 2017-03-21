@@ -218,10 +218,6 @@ module.exports= {
       components: ['=base', '=::core::', '=::typescript::', '=::js::'],
       targets: ['core', 'typescript'],
       files: ['=files:aspects:src ? tsc'],
-      npmInstall: [{
-        "markdown-it": "^8.3.1",
-        "@types/markdown-it": "^0.0.2",
-      }]
     },
     'aspects tests=': {
       is: 'target',

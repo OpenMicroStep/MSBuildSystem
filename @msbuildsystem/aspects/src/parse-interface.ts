@@ -40,7 +40,6 @@ Description de la classe              Person=: {
                                       }
 */
 import {Reporter, Parser} from '@msbuildsystem/core';
-import * as MarkdownIt from 'markdown-it';
 
 type Rule<T, P> = { rx?: RegExp, subs: string[], parser?: (parser: Parser) => T, gen?: (v: T, parent: P) => void };
 const rules: { [s: string]: Rule<any, any> } = {
@@ -103,27 +102,25 @@ function aspectRuleCategories(is: string) : Rule<string[], Element.Aspect> {
   };
 }
 
+
 export function parseInterface(reporter: Reporter, data: string) : object {
-  let md = new MarkdownIt();
-  let tokens = md.parse(data, {});
+  let parser = new Parser(reporter, data);
   let output = {};
   let offset = 0;
   let first = true;
+  let headerLevel: number;
   let stack = [{ rules: [rules.class], output: output }];
-  let level = 0;
-  for (let token of tokens) {
-    if (token.type === 'heading_open')
-      level = +token.tag.substring(1);
-    else if (token.type === 'heading_close')
-      level = 0;
-    if (level > 0 && token.content) {
-      let o = stack[first ? 0 : level + offset];
+  do {
+    if ((headerLevel = parser.skip(ch => ch === '#')) > 0) { // parse header
+      parser.skip(Parser.isSpaceChar);
+      let content = parser.while(ch => ch !== '\n', 0).trim();
+      let o = stack[first ? 0 : headerLevel + offset];
       for (let rule of o.rules) {
-        if (!rule.rx || rule.rx.test(token.content)) {
+        if (!rule.rx || rule.rx.test(content)) {
           let sub = { rules: rule.subs.map(r => rules[r]), output: o.output };
           let ok = true;
           if (rule.parser) {
-            let parser = new Parser(new Reporter(), token.content);
+            let parser = new Parser(new Reporter(), content);
             sub.output = rule.parser(parser);
             ok = parser.reporter.diagnostics.length === 0;
             reporter.aggregate(parser.reporter);
@@ -132,16 +129,17 @@ export function parseInterface(reporter: Reporter, data: string) : object {
             if (rule.gen)
               rule.gen(sub.output, o.output);
             if (first) {
-              offset = - level;
+              offset = - headerLevel;
               first = false;
             }
-            stack[level + offset + 1] = sub;
+            stack[headerLevel + offset + 1] = sub;
             break;
           }
         }
       }
     }
-  }
+    parser.skip(ch => ch !== '\n'); // Go to next line
+  } while (parser.test('\n'));
   return output;
 }
 
