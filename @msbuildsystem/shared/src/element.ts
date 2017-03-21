@@ -402,7 +402,7 @@ export class Element {
   }
 
   __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], tags: Element.Tags, attrPath: AttributePath) {
-    let el: Element = this;
+    let el: Element | undefined = this;
     for (let i = 0; el && i < steps.length; i++) {
       let step = steps[i];
       if (step.length === 0) {
@@ -423,12 +423,20 @@ export class Element {
       }
       el = found;
     }
-    if (el && el.__passTags(tags))
-      el.__resolveInto(reporter, into);
+    if (!el) {
+      attrPath.diagnostic(reporter, {
+        type: "warning",
+        msg: `query '${Element.rebuildQuery([steps], tags)}' refer to an element that can't be found, the group '${steps.join(':')}' is ignored`,
+      });
+    }
+    else
+      el.__resolveElementsGroupIfTags(reporter, into, tags);
   }
-  __resolveInto(reporter: Reporter, into: Element[]) {
-    this.__resolve(reporter);
-    into.push(this);
+  __resolveElementsGroupIfTags(reporter: Reporter, into: Element[], tags: Element.Tags) {
+    if (this.__passTags(tags)) {
+      this.__resolve(reporter);
+      into.push(this);
+    }
   }
 
   __resolveElements(reporter: Reporter, into: Element[], query: string, attrPath: AttributePath | undefined = new AttributePath()) {
@@ -479,9 +487,10 @@ export namespace Element {
     return class GroupElement extends parentClass {
       elements: Element[] = [];
 
-      __resolveInto(reporter: Reporter, into: Element[]) {
+      __resolveElementsGroupIfTags(reporter: Reporter, into: Element[], tags: Element.Tags) {
         this.__resolve(reporter);
-        into.push(...this.elements);
+        for (let el of this.elements)
+          el.__resolveElementsGroupIfTags(reporter, into, tags);
       }
 
       __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
