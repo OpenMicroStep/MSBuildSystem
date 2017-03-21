@@ -25,7 +25,6 @@ module.exports= {
     'cxx=':              moduleFiles('cxx'),
     'js=' :              moduleFiles('js'),
     'typescript=':       moduleFiles('js.typescript'),
-    'js.logitud=':       { is: 'group', elements: [{ is: 'file', name: "js.logitud/src/index.ts"    }] },
     'aspects=':          moduleFiles('aspects'),
   },
   'node=': { is: "environment", packager: "npm" /* generate to node_modules/${target.outputName} */ },
@@ -204,13 +203,6 @@ module.exports= {
       targets: ['typescript'],
       files: ['=files:typescript:tst ? tsc'],
       copyFiles: [{value: ['=files:typescript:tst ? rsc'], dest: 'data/hello-world', expand: true }]
-    },
-    'js.logitud=': {
-      is: 'target',
-      outputName: '@msbuildsystem/js.logitud',
-      components: ['=base', '=::core::', '=::js::'],
-      targets: ['core', 'js'],
-      files: ['=files:js.logitud']
     },
     'aspects=': {
       is: 'target',
