@@ -69,7 +69,8 @@ Object.assign(logitud_typescript_node, {
     "express": "^4.14.0",
     "body-parser": "^1.15.2",
     "@types/express": "^4.0.34",
-    "express-serve-static-core": "^0.1.1"
+    "express-serve-static-core": "^0.1.1",
+    "source-map-support": "^0.4.11",
   }],
 });
 Workspace.globalExports.set(logitud_typescript_node.name, logitud_typescript_node);
