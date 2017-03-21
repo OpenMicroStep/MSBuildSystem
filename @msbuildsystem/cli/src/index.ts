@@ -78,6 +78,7 @@ function handle_run() {
   });
   console.info(`Workspace: ${workspace.directory}`);
   console.info(`Projects: ${projects.map(p => p.path).join(', ')}`);
+  workspace.save();
   if (results) {
     let reporter = new Reporter();
     let perf = util.performanceCounter("short");
