@@ -76,7 +76,7 @@ export class Workspace {
     if (this.isDirectoryPendingResolution())
       throw new Error(`cannot save: workspace directory isn't defined`);
     let data = { projects: Array.from(this.projects.keys()).map(d => util.pathRelativeToBase(this.directory, d)) };
-    fs.writeFileSync(this.path, JSON.stringify(data, null, 2), 'utf8');
+    (fs_extra as any).outputFileSync(this.path, JSON.stringify(data, null, 2), 'utf8');
   }
 
   clear() {
