@@ -148,7 +148,7 @@ namespace Element {
     { is: 'type', type: 'primitive', name: string } |
     { is: 'type', type: 'class', name: string } |
     { is: 'type', type: 'array', itemType: Type, min: number, max: number | "*" } |
-    { is: 'type', type: 'set', itemType: Type } |
+    { is: 'type', type: 'set', itemType: Type , min: number, max: number | "*"} |
     { is: 'type', type: 'dictionary', properties: { [s: string]: Type } };
   export type Class = {
     is: 'class',
@@ -312,7 +312,8 @@ function parseQuotedString(parser: Parser, quote = `"`) {
 const primitiveTypes = new Set(['any', 'integer', 'decimal', 'date', 'localdate', 'string', 'array', 'dictionary', 'identifier', 'object']);
 function parseType(parser: Parser) : Element.Type {
   let ret: Element.Type;
-  if (parser.test('[')) {
+  let type: string;
+  if ((type = parser.test('[') || parser.test('<'))) {
     parser.skip(Parser.isAnySpaceChar);
     let min = +parser.while(Parser.isNumberChar, 1);
     parser.skip(Parser.isAnySpaceChar);
@@ -322,9 +323,9 @@ function parseType(parser: Parser) : Element.Type {
     parser.skip(Parser.isAnySpaceChar);
     parser.consume(',');
     parser.skip(Parser.isAnySpaceChar);
-    ret = { is: 'type', type: 'array', min: min, max: max, itemType: parseType(parser) };
+    ret = { is: 'type', type: type === '[' ? 'array' : 'set', min: min, max: max, itemType: parseType(parser) } as Element.Type;
     parser.skip(Parser.isAnySpaceChar);
-    parser.consume(']');
+    parser.consume(type === '[' ? ']' : '>');
   }
   else if (parser.test('{')) {
     let properties = {};
@@ -340,12 +341,7 @@ function parseType(parser: Parser) : Element.Type {
     } while (parser.test(','));
     parser.consume('}');
   }
-  else if (parser.test('<')) {
-    parser.skip(Parser.isAnySpaceChar);
-    ret = { is: 'type', type: 'set', itemType: parseType(parser) };
-    parser.skip(Parser.isAnySpaceChar);
-    parser.consume('>');
-  }
+
   else {
     let name = parseName(parser);
     if (primitiveTypes.has(name))
