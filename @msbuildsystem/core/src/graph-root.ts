@@ -83,7 +83,7 @@ export class RootGraph extends TGraph<Target> {
         if (task.attributes.targets.length) {
           let p = new AttributePath(task, '.targets[', '', ']');
           task.attributes.targets.forEach((targetName, i) => {
-            p.set(i , -1);
+            p.set(i , -2);
             let depTargetElements = <TargetElement[]>this.workspace.resolveExports(targetName, buildTarget.environment.name, buildTarget.variant)
               .filter(t => t instanceof TargetElement);
             if (depTargetElements.length === 0) {
