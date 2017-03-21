@@ -129,7 +129,7 @@ function handle_run() {
           let i = 0;
           for (; i < lines.length; i++) {
             readline.clearLine(stderr, 0);
-            stderr.write(`\r${lines[i]}\n`);
+            stderr.write(`\r${lines[i].substring(0, stderr.columns)}\n`);
           }
           nblines = lines.length;
         }
