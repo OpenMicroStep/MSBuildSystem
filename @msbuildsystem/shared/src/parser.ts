@@ -11,14 +11,13 @@ export class Parser {
   constructor(reporter: Reporter, source: (() => string) | string) {
     this.reporter = reporter;
     if (typeof source === 'string') {
-      let pos = 0;
-      this.source = () => source[++pos];
-      this.ch = source[0];
+      let pos = -1;
+      this.source = () => source[++pos] || '';
     }
     else {
       this.source = source;
-      this.ch = source();
     }
+    this.ch = this.source() ;
   }
   static isNumberChar(ch: string) {
     return '0' <= ch && ch <= '9';
@@ -44,14 +43,13 @@ export class Parser {
   }
 
   next() : string {
-    this.ch = this.source();
-    if (this.ch) {
-      if (Parser.isLineChar(this.ch)) {
-        this.line++;
-        this.atline = this.at;
-      }
-      this.at++;
+    if (Parser.isLineChar(this.ch)) {
+      this.line++;
+      this.atline = this.at + 1;
     }
+    this.ch = this.source();
+    if (this.ch)
+      this.at++;
     return this.ch;
   }
 
