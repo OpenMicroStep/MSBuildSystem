@@ -499,7 +499,15 @@ export namespace Element {
         var type: string | undefined = undefined;
         var is: string | undefined = undefined;
         var loop = (el) => {
-          var cis = el instanceof Element ? el.is : "not an element";
+          if (!(el instanceof Element)) {
+            attrPath.diagnostic(reporter, {
+              type: 'error',
+              msg:  `expecting an element, got ${typeof el}`
+            });
+            return;
+          }
+
+          var cis = el.is;
           if (cis === 'group') {
             (el as GroupElement).__resolve(reporter);
             var subs = (el as GroupElement).elements;

@@ -74,10 +74,8 @@ function load_invalid() {
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:files:mman"                            , "msg": "conflict with an element defined with the same name: 'mman'"  },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:notanobject.is"                        , "msg": "'is' attribute must be a string"                              },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:nois.is"                               , "msg": "'is' attribute must be a string"                              },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[1]"               , "msg": "elements must be of the same type, expecting not an element, got file"   },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files.elements[14]"                   , "msg": "elements must be of the same type, expecting file, got not an element"   },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[1]"               , "msg": "elements must be of the same type, expecting not an element, got file"   },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files.elements[15].elements[0]"       , "msg": "elements must be of the same type, expecting file, got not an element"   },
+    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[0]"               , "msg": "expecting an element, got object"                             }, // MyInvalidProject:files.elements[14]
+    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[0]"               , "msg": "expecting an element, got object"                             }, // MyInvalidProject:files.elements[15]
     { "category": "resolve", "type": "error", "path": "MyInvalidProject:all envs.elements[6]"                 , "msg": "elements must be of the same type, expecting environment, got component" },
   ]);
 }
