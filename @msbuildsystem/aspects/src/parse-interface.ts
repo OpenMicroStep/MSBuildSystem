@@ -57,19 +57,19 @@ const rules: { [s: string]: Rule<any, any> } = {
   "attribute": {
     parser: parseAttribute,
     subs: [],
-    gen: (attribute, parent) => { parent["attributes="].elements.push(attribute); parent.attributes.push(`=attributes:${attribute.name}`); }
+    gen: aspectRuleGen("attributes", "attributes"),
   } as Rule<Element.Attribute, Element.Class>,
   "category": {
     rx: /^\s*category\s+/,
     parser: parseCategory,
     subs: ["method"],
-    gen: (category, parent) => { parent["categories="].elements.push(category); parent.categories.push(`=categories:${category.name}`); }
+    gen: aspectRuleGen("categories", "categories"),
   } as Rule<Element.Category, Element.Class>,
   "farCategory": {
     rx: /^\s*farCategory\s+/,
     parser: parseFarCategory,
     subs: ["method"],
-    gen: (category, parent) => { parent["categories="].elements.push(category); parent.farCategories.push(`=categories:${category.name}`); }
+    gen: aspectRuleGen("categories", "farCategories"),
   } as Rule<Element.FarCategory, Element.Class>,
   "method": {
     subs: [],
@@ -79,12 +79,18 @@ const rules: { [s: string]: Rule<any, any> } = {
   "aspect": {
     subs: ["categories", "farCategories"],
     parser: parseAspect,
-    gen: (aspect, parent) => { parent["aspects="].elements.push(aspect); parent.aspects.push(`=aspects:${aspect.name}`); }
+    gen: aspectRuleGen("aspects", "aspects"),
   } as Rule<Element.Aspect, Element.Class>,
   "categories": aspectRuleCategories("categories"),
   "farCategories": aspectRuleCategories("farCategories"),
 };
 
+function aspectRuleGen(namespace: string, attr: string) {
+  return function(el, parent) {
+    parent[`${namespace}=`][`${el.name}=`] = el;
+    parent[attr].push(`=${namespace}:${el.name}`);
+  };
+}
 function aspectRuleCategories(is: string) : Rule<string[], Element.Aspect> {
   return {
     rx: new RegExp(`^\\s*${is}\\s*:`),
@@ -92,7 +98,7 @@ function aspectRuleCategories(is: string) : Rule<string[], Element.Aspect> {
     subs: [],
     gen: (categories: string[], parent: Element.Aspect) => {
       for (let category of categories)
-        parent[is].push(`=${category}`);
+        parent[is].push(`=categories:${category}`);
     }
   };
 }
@@ -149,7 +155,7 @@ namespace Element {
   export type Class = {
     is: 'class',
     name: string,
-    subclass?: string,
+    superclass?: string,
 
     "attributes=": { is: "group", elements: Attribute[] },
     attributes: string[],
@@ -273,15 +279,14 @@ function parseClass(parser: Parser) : Element.Class {
   let ret: Element.Class = {
     is: 'class',
     name: name,
-    subclass: undefined,
     "attributes=": { is: 'group', elements: [] }, attributes: [],
     "categories=": { is: 'group', elements: [] }, categories: [], farCategories: [],
     "aspects=": { is: 'group', elements: [] }, aspects: [],
   };
   parser.skip(Parser.isAnySpaceChar);
-  if (parser.ch === ':') {
+  if (parser.test(':')) {
     parser.skip(Parser.isAnySpaceChar);
-    ret.subclass = parseName(parser);
+    ret.superclass = parseName(parser);
     parser.skip(Parser.isAnySpaceChar);
   }
   return ret;

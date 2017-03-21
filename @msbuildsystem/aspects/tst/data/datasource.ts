@@ -45,18 +45,41 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "is": "method",
           "name": "filter",
           "argumentTypes": [
-            [
-              "0",
-              "*",
-              "VersionedObject"
-            ],
-            "dictionary"
+            {
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "itemType": {
+                "is": "type",
+                "name": "VersionedObject",
+                "tags": [],
+                "type": "class"
+              },
+              "type": "array",
+              "min": 0,
+              "max": "*"
+            },
+            {
+              "is": "type",
+              "name": "dictionary",
+              "tags": [],
+              "type": "primitive"
+            }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         }
       ]
     }
@@ -70,14 +93,34 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "is": "method",
           "name": "query",
           "argumentTypes": [
-            "dictionary"
+            {
+              "is": "type",
+              "name": "dictionary",
+              "tags": [],
+              "type": "primitive"
+            }
           ],
           "returnType": {
-            "*": [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "properties": {
+              "*": {
+                "is": "type",
+                "name": "",
+                "tags": [],
+                "itemType": {
+                  "is": "type",
+                  "name": "VersionedObject",
+                  "tags": [],
+                  "type": "class"
+                },
+                "type": "array",
+                "min": 0,
+                "max": "*"
+              }
+            },
+            "type": "dictionary"
           }
         },
         {
@@ -85,39 +128,90 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "name": "load",
           "argumentTypes": [
             {
-              "objects": [
-                "0",
-                "*",
-                "VersionedObject"
-              ],
-              "scope": [
-                "0",
-                "*",
-                "string"
-              ]
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "properties": {
+                "objects": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "VersionedObject",
+                    "tags": [],
+                    "type": "class"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                },
+                "scope": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "string",
+                    "tags": [],
+                    "type": "primitive"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                }
+              },
+              "type": "dictionary"
             }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         },
         {
           "is": "method",
           "name": "save",
           "argumentTypes": [
-            [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            {
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "itemType": {
+                "is": "type",
+                "name": "VersionedObject",
+                "tags": [],
+                "type": "class"
+              },
+              "type": "array",
+              "min": 0,
+              "max": "*"
+            }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         }
       ]
     },
@@ -129,14 +223,34 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "is": "method",
           "name": "distantQuery",
           "argumentTypes": [
-            "dictionary"
+            {
+              "is": "type",
+              "name": "dictionary",
+              "tags": [],
+              "type": "primitive"
+            }
           ],
           "returnType": {
-            "*": [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "properties": {
+              "*": {
+                "is": "type",
+                "name": "",
+                "tags": [],
+                "itemType": {
+                  "is": "type",
+                  "name": "VersionedObject",
+                  "tags": [],
+                  "type": "class"
+                },
+                "type": "array",
+                "min": 0,
+                "max": "*"
+              }
+            },
+            "type": "dictionary"
           }
         },
         {
@@ -144,39 +258,90 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "name": "distantLoad",
           "argumentTypes": [
             {
-              "objects": [
-                "0",
-                "*",
-                "VersionedObject"
-              ],
-              "scope": [
-                "0",
-                "*",
-                "string"
-              ]
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "properties": {
+                "objects": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "VersionedObject",
+                    "tags": [],
+                    "type": "class"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                },
+                "scope": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "string",
+                    "tags": [],
+                    "type": "primitive"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                }
+              },
+              "type": "dictionary"
             }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         },
         {
           "is": "method",
           "name": "distantSave",
           "argumentTypes": [
-            [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            {
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "itemType": {
+                "is": "type",
+                "name": "VersionedObject",
+                "tags": [],
+                "type": "class"
+              },
+              "type": "array",
+              "min": 0,
+              "max": "*"
+            }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         }
       ]
     },
@@ -188,14 +353,34 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "is": "method",
           "name": "safeQuery",
           "argumentTypes": [
-            "dictionary"
+            {
+              "is": "type",
+              "name": "dictionary",
+              "tags": [],
+              "type": "primitive"
+            }
           ],
           "returnType": {
-            "*": [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "properties": {
+              "*": {
+                "is": "type",
+                "name": "",
+                "tags": [],
+                "itemType": {
+                  "is": "type",
+                  "name": "VersionedObject",
+                  "tags": [],
+                  "type": "class"
+                },
+                "type": "array",
+                "min": 0,
+                "max": "*"
+              }
+            },
+            "type": "dictionary"
           }
         },
         {
@@ -203,39 +388,90 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "name": "safeLoad",
           "argumentTypes": [
             {
-              "objects": [
-                "0",
-                "*",
-                "VersionedObject"
-              ],
-              "scope": [
-                "0",
-                "*",
-                "string"
-              ]
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "properties": {
+                "objects": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "VersionedObject",
+                    "tags": [],
+                    "type": "class"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                },
+                "scope": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "string",
+                    "tags": [],
+                    "type": "primitive"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                }
+              },
+              "type": "dictionary"
             }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         },
         {
           "is": "method",
           "name": "safeSave",
           "argumentTypes": [
-            [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            {
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "itemType": {
+                "is": "type",
+                "name": "VersionedObject",
+                "tags": [],
+                "type": "class"
+              },
+              "type": "array",
+              "min": 0,
+              "max": "*"
+            }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         }
       ]
     },
@@ -247,14 +483,34 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "is": "method",
           "name": "rawQuery",
           "argumentTypes": [
-            "dictionary"
+            {
+              "is": "type",
+              "name": "dictionary",
+              "tags": [],
+              "type": "primitive"
+            }
           ],
           "returnType": {
-            "*": [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "properties": {
+              "*": {
+                "is": "type",
+                "name": "",
+                "tags": [],
+                "itemType": {
+                  "is": "type",
+                  "name": "VersionedObject",
+                  "tags": [],
+                  "type": "class"
+                },
+                "type": "array",
+                "min": 0,
+                "max": "*"
+              }
+            },
+            "type": "dictionary"
           }
         },
         {
@@ -262,39 +518,90 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "name": "rawLoad",
           "argumentTypes": [
             {
-              "objects": [
-                "0",
-                "*",
-                "VersionedObject"
-              ],
-              "scope": [
-                "0",
-                "*",
-                "string"
-              ]
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "properties": {
+                "objects": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "VersionedObject",
+                    "tags": [],
+                    "type": "class"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                },
+                "scope": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "string",
+                    "tags": [],
+                    "type": "primitive"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                }
+              },
+              "type": "dictionary"
             }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         },
         {
           "is": "method",
           "name": "rawSave",
           "argumentTypes": [
-            [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            {
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "itemType": {
+                "is": "type",
+                "name": "VersionedObject",
+                "tags": [],
+                "type": "class"
+              },
+              "type": "array",
+              "min": 0,
+              "max": "*"
+            }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         }
       ]
     },
@@ -306,18 +613,42 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "is": "method",
           "name": "implQuery",
           "argumentTypes": [
-            [
-              "0",
-              "*",
-              "ObjectSet"
-            ]
+            {
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "itemType": {
+                "is": "type",
+                "name": "ObjectSet",
+                "tags": [],
+                "type": "class"
+              },
+              "type": "array",
+              "min": 0,
+              "max": "*"
+            }
           ],
           "returnType": {
-            "*": [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "properties": {
+              "*": {
+                "is": "type",
+                "name": "",
+                "tags": [],
+                "itemType": {
+                  "is": "type",
+                  "name": "VersionedObject",
+                  "tags": [],
+                  "type": "class"
+                },
+                "type": "array",
+                "min": 0,
+                "max": "*"
+              }
+            },
+            "type": "dictionary"
           }
         },
         {
@@ -325,39 +656,90 @@ export const DataSource = VersionedObject.extends<DataSourceConstructor<DataSour
           "name": "implLoad",
           "argumentTypes": [
             {
-              "objects": [
-                "0",
-                "*",
-                "VersionedObject"
-              ],
-              "scope": [
-                "0",
-                "*",
-                "string"
-              ]
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "properties": {
+                "objects": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "VersionedObject",
+                    "tags": [],
+                    "type": "class"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                },
+                "scope": {
+                  "is": "type",
+                  "name": "",
+                  "tags": [],
+                  "itemType": {
+                    "is": "type",
+                    "name": "string",
+                    "tags": [],
+                    "type": "primitive"
+                  },
+                  "type": "array",
+                  "min": 0,
+                  "max": "*"
+                }
+              },
+              "type": "dictionary"
             }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         },
         {
           "is": "method",
           "name": "implSave",
           "argumentTypes": [
-            [
-              "0",
-              "*",
-              "VersionedObject"
-            ]
+            {
+              "is": "type",
+              "name": "",
+              "tags": [],
+              "itemType": {
+                "is": "type",
+                "name": "VersionedObject",
+                "tags": [],
+                "type": "class"
+              },
+              "type": "array",
+              "min": 0,
+              "max": "*"
+            }
           ],
-          "returnType": [
-            "0",
-            "*",
-            "VersionedObject"
-          ]
+          "returnType": {
+            "is": "type",
+            "name": "",
+            "tags": [],
+            "itemType": {
+              "is": "type",
+              "name": "VersionedObject",
+              "tags": [],
+              "type": "class"
+            },
+            "type": "array",
+            "min": 0,
+            "max": "*"
+          }
         }
       ]
     }

@@ -2,6 +2,11 @@ import { Element, AttributePath, ElementDefinition, ProviderMap, Reporter } from
 
 export const elementFactories = Element.createElementFactoriesProviderMap('aspects');
 
+export const GroupElement = Element.DynGroupElement(Element);
+elementFactories.registerSimple('group', (reporter: Reporter, name: string, definition: ElementDefinition, attrPath: AttributePath, parent: Element) => {
+  return new GroupElement('group', name, parent);
+});
+
 export class AspectBaseElement extends Element {
 
 }

@@ -23,7 +23,12 @@ export const Resource = VersionedObject.extends<ResourceConstructor<Resource>>(V
     {
       "is": "attribute",
       "name": "_name",
-      "type": "string"
+      "type": {
+        "is": "type",
+        "name": "string",
+        "tags": [],
+        "type": "primitive"
+      }
     }
   ],
   "categories": [
@@ -35,7 +40,12 @@ export const Resource = VersionedObject.extends<ResourceConstructor<Resource>>(V
           "is": "method",
           "name": "name",
           "argumentTypes": [],
-          "returnType": "string"
+          "returnType": {
+            "is": "type",
+            "name": "string",
+            "tags": [],
+            "type": "primitive"
+          }
         }
       ]
     }
@@ -94,7 +104,12 @@ export const Car = VersionedObject.extends<CarConstructor<Car>>(Resource, {
     {
       "is": "attribute",
       "name": "_model",
-      "type": "string"
+      "type": {
+        "is": "type",
+        "name": "string",
+        "tags": [],
+        "type": "primitive"
+      }
     }
   ],
   "categories": [
@@ -106,7 +121,12 @@ export const Car = VersionedObject.extends<CarConstructor<Car>>(Resource, {
           "is": "method",
           "name": "model",
           "argumentTypes": [],
-          "returnType": "string"
+          "returnType": {
+            "is": "type",
+            "name": "string",
+            "tags": [],
+            "type": "primitive"
+          }
         }
       ]
     },
@@ -118,7 +138,12 @@ export const Car = VersionedObject.extends<CarConstructor<Car>>(Resource, {
           "is": "method",
           "name": "model2",
           "argumentTypes": [],
-          "returnType": "string"
+          "returnType": {
+            "is": "type",
+            "name": "string",
+            "tags": [],
+            "type": "primitive"
+          }
         }
       ]
     }
