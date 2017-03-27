@@ -78,51 +78,77 @@ export function pad(num, mask) {
   return (mask + num).slice(-Math.max(mask.length, (num + "").length));
 }
 
-export function formatUnits(value: number, definition: {v: number}[], options?: { format?: 'short' | 'long', units?: number }) : string {
-  var steps, i, len, v, n, d, c;
-  var format = options && options.format || 'long';
-  var units = options && options.units || 0;
-  if (units <= 0)
-    units = definition.length;
-  n = Math.round(value);
-  steps = [];
-  for (i = 0, len = definition.length - 1; i < len && n >= (v = definition[i].v); i++) {
-    d = Math.floor(n / v);
-    c = n - d * v;
-    if (c > 0)
-      steps.push(c + definition[i][format]);
-    n = d;
+const durationInNs = {
+  mult        : [1e-6        , 1            , 1000    , 60000   , 3600000, 24 * 3600000],
+  shortLabels : ["ns"        , "ms"         , "s"     , "m"     , "h"    , "d"         ],
+  longLabels  : ["nanosecond", "millisecond", "second", "minute", "hour" , "day"       ],
+};
+const durationInMs = {
+  mult        : [1            , 1000    , 60000   , 3600000, 24 * 3600000],
+  shortLabels : ["ms"         , "s"     , "m"     , "h"    , "d"         ],
+  longLabels  : ["millisecond", "second", "minute", "hour" , "day"       ],
+};
+const sizeInByte = {
+  mult        : [1        , 1024 ** 1 , 1024 ** 2 , 1024 ** 3 , 1024 ** 4 ],
+  shortLabels : ['B'      , 'KB'      , 'MB'      , 'GB'      , 'TB'      ],
+  longLabels  : ['byte'   , 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'],
+};
+export class UnitFormatter {
+  constructor(private units: { mult: number[], shortLabels: string[], longLabels: string[] }) {}
+
+  static split(value: number, units: number[]) {
+    let i = 0, len = units.length - 1, posValue = Math.abs(value);
+    let steps = new Array<number>(units.length);
+    for (; i < len; i++)
+      steps[i] = Math.floor((posValue % units[i + 1]) / units[i]);
+    steps[i] = Math.floor(posValue / units[i]) * (value < 0 || value === -0 ? -1 : +1);
+    return steps;
   }
-  if (n > 0)
-    steps.push(n + definition[i][format]);
-  var ret = "";
-  units = Math.max(0, steps.length - units);
-  for (i = steps.length; i > units; )
-    ret += (ret.length ? " " : "") + steps[--i];
-  return ret;
-}
 
-var durationUnits = [
-  {v: 1000, short: 'ms', long: ' milliseconds'},
-  {v:   60, short: 's' , long: ' seconds'},
-  {v:   60, short: 'm' , long: ' minutes'},
-  {v:   24, short: 'h' , long: ' hours'},
-  {v:    0, short: 'd' , long: ' days'},
-];
-export function formatDuration(durationInMs: number, options?: { format?: 'short' | 'long', units?: number }) : string {
-  return formatUnits(durationInMs, durationUnits, options);
+  components(value: number) : number[] {
+    return UnitFormatter.split(value, this.units.mult);
+  }
+  short(value: number) {
+    return this.components(value).reduceRight((pv, cv, ci) => cv ? `${pv && pv + ' '}${cv}${this.units.shortLabels[ci]}` : pv, "");
+  }
+  long(value: number) {
+    return this.components(value).reduceRight((pv, cv, ci) => cv ? `${pv && pv + ' '}${cv} ${this.units.longLabels[ci]}${cv > 1 ? 's' : ''}` : pv, "");
+  }
+  simplifiedComponents(value: number, keep: number) : number[] {
+    let ret = UnitFormatter.split(value, this.units.mult);
+    let kept = 0;
+    ret.reduceRight((pv, cv, ci) => {
+      if (kept < keep && (cv > 0 || kept > 0))
+        kept++;
+      else if (kept === keep && pv.length > ci + 1) {
+        if (cv >= 0.5 * this.units.mult[ci + 1] / this.units.mult[ci])
+          pv[ci + 1]++;
+        pv[ci] = 0;
+        kept++;
+      }
+      else if (kept > keep) {
+        pv[ci] = 0;
+      }
+      return pv;
+    }, ret);
+    return ret;
+  }
+  simplifiedShort(value: number, keep: number) {
+    return this.simplifiedComponents(value, keep).reduceRight((pv, cv, ci) => cv ? `${pv && pv + ' '}${cv}${this.units.shortLabels[ci]}` : pv, "");
+  }
+  simplifiedLong(value: number, keep: number) {
+    return this.simplifiedComponents(value, keep).reduceRight((pv, cv, ci) => cv ? `${pv && pv + ' '}${cv} ${this.units.longLabels[ci]}${cv > 1 ? 's' : ''}` : pv, "");
+  }
 }
-
-var byteUnits = [
-  {v: 1024, short: 'B' , long: ' bytes'},
-  {v: 1024, short: 'KB', long: ' kilobytes'},
-  {v: 1024, short: 'MB', long: ' megabytes'},
-  {v: 1024, short: 'GB', long: ' gigabytes'},
-  {v: 1024, short: 'TB', long: ' terabytes'}
-];
-export function formatSize(sizeInBytes, options?: { format?: 'short' | 'long', units?: number }) {
-  return formatUnits(sizeInBytes, byteUnits, options);
-}
+export const Formatter = {
+  duration: {
+    nanosecond: new UnitFormatter(durationInNs),
+    millisecond: new UnitFormatter(durationInMs),
+  },
+  size: {
+    byte: new UnitFormatter(sizeInByte),
+  },
+};
 
 export const now: () => number = (function() {
   if (typeof performance === "undefined") {
@@ -147,6 +173,6 @@ export function performanceCounter(format?: "long" | "short") : () => number | s
   let t0 = now();
   return function() {
     var ms = now() - t0;
-    return format ? formatDuration(ms, { format: format }) : ms;
+    return format ? Formatter.duration.millisecond[format](ms) : ms;
   };
 }

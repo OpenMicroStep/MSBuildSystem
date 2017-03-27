@@ -2,20 +2,25 @@ import {util, Flux} from '@msbuildsystem/shared';
 import {assert} from 'chai';
 
 function formatSize() {
-  assert.equal(util.formatSize(10), "10 bytes");
-  assert.equal(util.formatSize(1024 * 1024), "1 megabytes");
-  assert.equal(util.formatSize(1025 * 1024), "1 megabytes 1 kilobytes");
-  assert.equal(util.formatSize(1025 * 1024, { format: 'short', units: 1 }), "1MB");
-  assert.equal(util.formatSize(2047 * 1024, { format: 'short', units: 1 }), "1MB");
-  assert.equal(util.formatSize(2048 * 1024), "2 megabytes");
-  assert.equal(util.formatSize(2048 * 1024, { format: 'short' }), "2MB");
-  assert.equal(util.formatSize(2049 * 1024, { format: 'short', units: 2 }), "2MB 1KB");
+  assert.equal(util.Formatter.size.byte.long(10), "10 bytes");
+  assert.equal(util.Formatter.size.byte.long(1024 * 1024), "1 megabyte");
+  assert.equal(util.Formatter.size.byte.long(1025 * 1024), "1 megabyte 1 kilobyte");
+  assert.equal(util.Formatter.size.byte.short(1025 * 1024), "1MB 1KB");
+  assert.equal(util.Formatter.size.byte.short(2047 * 1024), "1MB 1023KB");
+  assert.equal(util.Formatter.size.byte.short(1025 * 1024), "1MB 1KB");
+  assert.equal(util.Formatter.size.byte.long(2048 * 1024), "2 megabytes");
+  assert.equal(util.Formatter.size.byte.short(2049 * 1024), "2MB 1KB");
+  assert.equal(util.Formatter.size.byte.simplifiedLong(2049 * 1024, 1), "2 megabytes");
+  assert.equal(util.Formatter.size.byte.simplifiedLong((2048 + 512) * 1024, 1), "3 megabytes");
+  assert.equal(util.Formatter.size.byte.simplifiedLong((2048 + 511) * 1024, 1), "2 megabytes");
+  assert.equal(util.Formatter.size.byte.simplifiedLong((2048 + 511) * 1024, 2), "2 megabytes 511 kilobytes");
+  assert.equal(util.Formatter.size.byte.simplifiedShort(2049 * 1024, 1), "2MB");
 }
 function formatDuration() {
-  assert.equal(util.formatDuration(1), "1 milliseconds");
-  assert.equal(util.formatDuration(1, { format: 'short' }), "1ms");
-  assert.equal(util.formatDuration(1000), "1 seconds");
-  assert.equal(util.formatDuration(1000, { format: 'short' }), "1s");
+  assert.equal(util.Formatter.duration.millisecond.long(1), "1 millisecond");
+  assert.equal(util.Formatter.duration.millisecond.short(1), "1ms");
+  assert.equal(util.Formatter.duration.millisecond.long(1000), "1 second");
+  assert.equal(util.Formatter.duration.millisecond.short(1000), "1s");
 }
 function escapeRegExp() {
   assert.equal(util.escapeRegExp("test"), "test");
