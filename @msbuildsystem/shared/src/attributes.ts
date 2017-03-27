@@ -234,26 +234,6 @@ export function setValidator<T, A0>(validator: Validator<T, A0>) {
   };
 }
 
-export function byEnvListValidator<T>(validator: Validator0<T>) : ValidatorNU0<{ [s: string]: T[] }>;
-export function byEnvListValidator<T, A0>(validator: Validator<T, A0>) : ValidatorNU<{ [s: string]: T[] }, A0>;
-export function byEnvListValidator<T, A0>(validator: Validator<T, A0>) {
-  return function validateByEnvList(reporter: Reporter, path: AttributePath, attr, a0: A0) : { [s: string]: T[] } {
-    var ret: { [s: string]: T[] } = {};
-    if (typeof attr === "object") {
-      path.push("[", "", "]");
-      for (var k in attr) {
-        var list = ret[k] = [];
-        superValidateList(reporter, path.set(k, -2), attr[k], a0, validator, list.push.bind(list));
-      }
-      path.pop(3);
-    }
-    else {
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
-    }
-    return ret;
-  };
-}
-
 export function reducedListValidator<T, R, C>(validator: Validator0<T>, reduce: Reducer<T, R, C>) : Validator0<R>;
 export function reducedListValidator<T, R, C, A0>(validator: Validator<T, A0>, reduce: Reducer<T, R, C>) : Validator<R, A0>;
 export function reducedListValidator<T, R, C, A0>(validator: Validator<T, A0>, reduce: Reducer<T, R, C>) {
