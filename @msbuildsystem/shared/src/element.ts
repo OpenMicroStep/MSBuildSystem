@@ -61,7 +61,6 @@ export class Element {
   is: string;
   name: string;
   tags: string[];
-  [s: string]: any;
 
   static createElementFactoriesProviderMap = createElementFactoriesProviderMap;
 
