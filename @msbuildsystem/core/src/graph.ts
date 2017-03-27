@@ -1,7 +1,7 @@
 import {Task, TaskName, File, Step, Barrier} from './index.priv';
 
-export class TGraph<T extends Task> extends Task {
-  constructor(name: TaskName, graph: Graph, public inputs: Set<T> = new Set<T>()) {
+export class Graph extends Task {
+  constructor(name: TaskName, graph: Graph, public inputs: Set<Task> = new Set<Task>()) {
     super(name, graph);
   }
 
@@ -57,7 +57,7 @@ export class TGraph<T extends Task> extends Task {
         if (!tasks.has(input)) {
           tasks.add(input);
           yield input;
-          if (deep && input instanceof TGraph)
+          if (deep && input instanceof Graph)
             yield *iterate(input.inputs);
         }
       }
@@ -70,8 +70,6 @@ export class TGraph<T extends Task> extends Task {
     yield* iterate(this.inputs);
   }
 
-  iterate(deep: false, shouldIContinue?: (task: T) => boolean);
-  iterate(deep: boolean, shouldIContinue?: (task: Task) => boolean);
   iterate(deep: boolean, shouldIContinue?: (task: Task) => boolean) {
     var tasks = new Set<Task>();
     var end = false;
@@ -102,15 +100,10 @@ export class TGraph<T extends Task> extends Task {
     });
   }
 
-  allTasks() : Set<T>;
-  allTasks(deep: false) : Set<T>;
-  allTasks(deep: boolean) : Set<Task>;
   allTasks(deep: boolean = false) : Set<Task> {
     return this.iterate(deep);
   }
 
-  findTask(deep: false, predicate: (task: Task) => boolean) : T | null;
-  findTask(deep: true, predicate: (task: Task) => boolean) : Task | null;
   findTask(deep: boolean, predicate: (task: Task) => boolean) : Task | null {
     var task: Task | null = null;
     var ret = predicate(this);
@@ -148,8 +141,4 @@ export class TGraph<T extends Task> extends Task {
     console.timeEnd("description");
     return desc;
   }
-}
-
-export class Graph extends TGraph<Task> {
-
 }

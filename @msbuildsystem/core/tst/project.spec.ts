@@ -105,7 +105,7 @@ function build_graph(f: Flux<Context>) {
     { type: 'target', name: 'anotherLib', environment: 'msvc12-i386'  , variant: 'debug', project: project.path },
     { type: 'target', name: 'anotherLib', environment: 'msvc12-x86_64', variant: 'debug', project: project.path }
   ]);
-  let msstd: any = graph.findTask(false, (t: Target) => t.name.name === "MSStd" && t.name.environment === 'darwin-i386')!.attributes;
+  let msstd: any = (graph.findTask(false, (t: Target) => t.name.name === "MSStd" && t.name.environment === 'darwin-i386') as Target).attributes;
   assert.strictEqual(msstd.is, 'build-target');
   assert.strictEqual(msstd.name, 'MSStd');
   assert.strictEqual(msstd.type, 'Test');
@@ -116,7 +116,7 @@ function build_graph(f: Flux<Context>) {
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
 
-  msstd = graph.findTask(false, (t: Target) => t.name.name === "MSStd_static" && t.name.environment === 'darwin-i386')!.attributes;
+  msstd = (graph.findTask(false, (t: Target) => t.name.name === "MSStd_static" && t.name.environment === 'darwin-i386') as Target).attributes;
   assert.strictEqual(msstd.is, 'build-target');
   assert.strictEqual(msstd.name, 'MSStd_static');
   assert.strictEqual(msstd.type, 'Test');

@@ -1,4 +1,4 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, Async, Task, TGraph} from '@msbuildsystem/core';
+import {Workspace, Project, Runner, RootGraph, Reporter, Async, Task, Graph} from '@msbuildsystem/core';
 import {CXXExecutable, CompileClangTask, LinkLibToolTask, CXXDarwinSysroot} from '@msbuildsystem/cxx';
 import {assert} from 'chai';
 import * as path from 'path';

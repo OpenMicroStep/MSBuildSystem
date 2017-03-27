@@ -1,4 +1,4 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, TGraph, Flux} from '@msbuildsystem/core';
+import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, Graph, Flux} from '@msbuildsystem/core';
 import {JSTarget, DefaultJSPackager} from '@msbuildsystem/js';
 import {TypescriptCompiler, TypescriptTask} from '@msbuildsystem/js.typescript';
 import {assert} from 'chai';
@@ -32,7 +32,7 @@ function graph(f: Flux<Context>) {
     return Object.assign(
       {"constructor": t.constructor},
       t.name,
-      t instanceof TGraph && { "children":  Array.from(t.allTasks(false)).map(info) }
+      t instanceof Graph && { "children":  Array.from(t.allTasks(false)).map(info) }
     );
   }
   let tree = targets.map(info);

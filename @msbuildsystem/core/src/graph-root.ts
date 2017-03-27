@@ -1,9 +1,9 @@
 import {Workspace, Project, Target, AttributePath, getTargetClass, transformWithCategory,
-  TGraph, Task, Reporter, BuildGraphOptions,
+  Graph, Task, Reporter, BuildGraphOptions,
   BuildTargetElement, TargetElement, EnvironmentElement
 } from './index.priv';
 
-export class RootGraph extends TGraph<Target> {
+export class RootGraph extends Graph {
   buildTargetElements: BuildTargetElement[] = [];
   constructor(public workspace: Workspace) {
     super({ name: "Root", type: "root", workspace: workspace.directory }, null!);

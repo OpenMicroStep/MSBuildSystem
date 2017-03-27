@@ -1,5 +1,5 @@
 let boot_t0 = process.hrtime();
-import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, TGraph } from '@msbuildsystem/core';
+import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph } from '@msbuildsystem/core';
 import { printReport, ReporterPrinter, mkReport, Report } from './common';
 import { args } from './args';
 import { npm } from './modules';
@@ -130,7 +130,7 @@ function handle_run() {
         });
       }
       runner.on("taskend", (context) => {
-        if (!(context.task instanceof TGraph))
+        if (!(context.task instanceof Graph))
           printer.push(mkReport(`${context.task.graph && context.task.target().__path()} ${context.task}`, context.reporter, context.lastRunEndTime - context.lastRunStartTime));
       });
       if (!args.debug && process.stderr.isTTY /* args.progressbar */) {
@@ -141,7 +141,7 @@ function handle_run() {
         let done = 0;
         let stalls = stallDetector(100);
         for (let task of runner.iterator(true))
-          if (!(task instanceof TGraph))
+          if (!(task instanceof Graph))
             ++count;
         function writelines(lines: string[]) {
           if (nblines > 0)
@@ -166,13 +166,13 @@ function handle_run() {
           ]);
         });
         runner.on("taskbegin", (context) => {
-          if (!(context.task instanceof TGraph)) {
+          if (!(context.task instanceof Graph)) {
             tasks.add(context.task);
             progressbar();
           }
         });
         runner.on("taskend", (context) => {
-          if (!(context.task instanceof TGraph)) {
+          if (!(context.task instanceof Graph)) {
             ++done;
             tasks.delete(context.task);
             progressbar();

@@ -1,5 +1,5 @@
 import {EventEmitter} from 'events';
-import {Task, Graph, TGraph, BuildSession, Async, Reporter, Flux, Diagnostic} from './index.priv';
+import {Task, Graph, BuildSession, Async, Reporter, Flux, Diagnostic} from './index.priv';
 import * as os from 'os';
 
 export type RunnerContext = { runner: Runner, failed: boolean };
@@ -97,7 +97,7 @@ function execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext
     lastRunStartTime: 0,
     lastRunEndTime: 0,
     lastSuccessTime: 0
-  }, task instanceof TGraph
+  }, task instanceof Graph
     ? [start, task.do.bind(task), end, lastAction]
     : [takeTaskSlot, start, task.do.bind(task), end, giveTaskSlot, lastAction]);
 }
@@ -159,7 +159,7 @@ export class Runner extends EventEmitter {
 
   *iterator(deep = true) : IterableIterator<Task> {
     function *iterate(task: Task) : IterableIterator<Task> {
-      if (task instanceof TGraph)
+      if (task instanceof Graph)
         yield* task.iterator(true);
       else
         yield task;
