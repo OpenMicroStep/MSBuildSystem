@@ -76,7 +76,7 @@ function end(flux: Flux<StepContext<{}, {}>>) {
   ctx.data.diagnostics = ctx.reporter.diagnostics;
   ctx.data.lastRunEndTime = ctx.lastRunEndTime = Date.now();
   ctx.data.lastRunStartTime = ctx.lastRunStartTime;
-  ctx.data.lastSuccessTime = ctx.lastSuccessTime = ctx.reporter.failed ? 0 : ctx.data.lastRunEndTime;
+  ctx.data.lastSuccessTime = ctx.lastSuccessTime = ctx.reporter.failed ? 0 : ctx.lastRunStartTime;
   ctx.storage.set(ctx.runner.action, ctx.data);
   ctx.storage.set("SHARED", ctx.sharedData);
   ctx.storage.save(() => {
