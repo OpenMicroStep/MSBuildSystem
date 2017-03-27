@@ -1,6 +1,6 @@
 let boot_t0 = process.hrtime();
 import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, TGraph } from '@msbuildsystem/core';
-import { printDiagnostic, printReport } from './common';
+import { printReport, ReporterPrinter, mkReport, Report } from './common';
 import { args } from './args';
 import { npm } from './modules';
 import * as chalk from 'chalk';
@@ -11,9 +11,30 @@ let boot_t1 = process.hrtime(boot_t0);
 console.info("Boot time: ", (() => {
     var ns = boot_t1[0] * 1e9 + boot_t1[1];
     var ms = (ns / 1e6);
-    return util.formatDuration(ms, { format: "short" });
+    return util.Formatter.duration.millisecond.short(ms);
 })());
 
+function throttle(ms: number, fn: () => void) : (() => void) & { now() : void } {
+  let last = Number.MIN_SAFE_INTEGER;
+  let timer: NodeJS.Timer | undefined = undefined;
+  function callnow() {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    last = util.now();
+    fn();
+  }
+  return Object.assign(function throttled() {
+    let delta = util.now() - last;
+    if (delta >= ms)
+      callnow();
+    else if (!timer)
+      timer = setTimeout(callnow, ms - delta);
+  }, {
+    now: callnow
+  });
+}
 
 function stallDetector(limit: number) : { longest: number, last: number, mean(): number, stalls: number[], count: number, stop() : void } {
   let ret = {
@@ -71,9 +92,9 @@ function handle_run() {
   let workspace = new Workspace(args.workspace || undefined);
   let results = true;
   let projects = args.projects.map(p => {
-    let perf = util.performanceCounter("short");
+    let perf = util.performanceCounter();
     let project = workspace.project(p);
-    results = results && printReport(project.reporter, 'Project', 'load', perf());
+    results = results && printReport(`Project ${p} load`, project.reporter, perf());
     return project;
   });
   console.info(`Workspace: ${workspace.directory}`);
@@ -81,25 +102,24 @@ function handle_run() {
   workspace.save();
   if (results) {
     let reporter = new Reporter();
-    let perf = util.performanceCounter("short");
+    let perf = util.performanceCounter();
     let graph = workspace.buildGraph(reporter, {
       environments: args.environments || undefined,
       variants: args.variants || undefined,
       targets: args.targets || undefined
     });
-    if (printReport(reporter, 'Build graph', 'load', perf())) {
-      let reporter = new Reporter();
+    if (printReport('Build graph create', reporter, perf())) {
       let runner = new Runner(graph, args.command, { ide: args.ide });
-      let perf = util.performanceCounter("short");
+      let perf = util.performanceCounter();
+      let printer = new ReporterPrinter();
       if (args.debug) {
         runner.on("taskbegin", (context) => {
           console.info("BEGIN  ", context.task.graph && context.task.target().__path(), context.task.name);
         });
         runner.on("taskend", (context) => {
-          reporter.aggregate(context.reporter);
           if (context.reporter.diagnostics.length) {
             console.info("DIAGS ∨");
-            console.info(context.reporter.diagnostics.map(printDiagnostic).join('\n'));
+            console.info(context.reporter.diagnostics.map(ReporterPrinter.formatDiagnostic).join('\n'));
             console.info("LOGS  ∨");
             console.info(context.reporter.logs);
             console.info("END   ∧", context.task.graph && context.task.target().__path(), context.task.name, (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
@@ -109,11 +129,10 @@ function handle_run() {
           }
         });
       }
-      else {
-        runner.on("taskend", (context) => {
-          reporter.aggregate(context.reporter);
-        });
-      }
+      runner.on("taskend", (context) => {
+        if (!(context.task instanceof TGraph))
+          printer.push(mkReport(`${context.task.graph && context.task.target().__path()} ${context.task}`, context.reporter, context.lastRunEndTime - context.lastRunStartTime));
+      });
       if (!args.debug && process.stderr.isTTY /* args.progressbar */) {
         let stderr = process.stderr as tty.WriteStream;
         let tasks = new Set<Task>();
@@ -139,9 +158,10 @@ function handle_run() {
           let width = (stderr.columns -  20);
           let progress = `   ${Math.floor(done * 100 / count)}`.slice(-3);
           let partdone = Math.floor(done * width / count);
+          let stallsTxt = stalls.stalls.length === 0 ? 'none' : stalls.stalls.map(dt => util.Formatter.duration.millisecond.short(dt)).join(', ');
           writelines([
             `Progression: [${"-".repeat(partdone)}${" ".repeat(width - partdone)}] ${progress}%`,
-            `Elapsed: ${perf()}, Stalls: ${stalls.stalls.length === 0 ? 'none' : stalls.stalls.map(dt => util.formatDuration(dt, { format: "short" })).join(', ')}`,
+            `Elapsed: ${util.Formatter.duration.millisecond.short(perf())}, Stalls: ${stallsTxt}, Issues: ${ReporterPrinter.formatStats(printer.report.stats) || "none"}`,
             tasks.size > 0 ? `Active tasks (${tasks.size}): ${Array.from(tasks.values()).map(t => `${t.target()} > ${t}`).join(" & ")}` : `Done`,
           ]);
         });
@@ -168,13 +188,13 @@ function handle_run() {
       if (args.command === "generate") {
         let reporter = new Reporter();
         provider = Task.generators.validate(reporter, new AttributePath('ide'), args.ide);
-        ok = !!(provider && printReport(reporter, 'Find generator', 'load'));
+        ok = !!(provider && printReport('Find generator', reporter));
       }
       if (ok) {
         Async.run<RunnerContext>(null, [
           f => provider ? runner.runWithMapReduce(f, provider) : runner.run(f),
           (p) => {
-            printReport(reporter, 'Build', 'run', perf());
+            console.log(printer.formatReports('Build', perf()));
             process.exit(p.context.failed ? 1 : 0);
           }
         ]);
