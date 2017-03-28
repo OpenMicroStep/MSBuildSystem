@@ -42,10 +42,10 @@ export class CXXLibrary extends CXXTarget {
 
   configureExports(reporter: Reporter) {
     super.configureExports(reporter);
-    let exports = this.exports;
+    let exports = this.exports.__createGeneratedComponent('library');
     let linkerOptions = {};
-    linkerOptions[this.linkType === CXXLinkType.STATIC ? "archives" : "libraries"] = [exports.__filepath(this.sysroot.linkFinalPath())];
-    exports["compilerOptions"] = [{ includeDirectories: [exports.__filepath(this.absolutePublicHeadersBasePath())] }];
+    linkerOptions[this.linkType === CXXLinkType.STATIC ? "archives" : "libraries"] = [this.exportsPath(this.sysroot.linkFinalPath())];
+    exports["compilerOptions"] = [{ includeDirectories: [this.exportsPath(this.absolutePublicHeadersBasePath())] }];
     exports["linkerOptions"] = [linkerOptions];
   }
 }

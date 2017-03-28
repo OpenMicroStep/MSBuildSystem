@@ -1,9 +1,8 @@
 import {
-  Element, DelayedElement, ComponentElement, EnvironmentElement, MakeJSElement, TargetExportsElement, TargetElement,
+  ComponentElement, EnvironmentElement, MakeJSElement, TargetElement, TargetExportsElement,
   Reporter, AttributeTypes, AttributePath, RootGraph
 } from '../index.priv';
-
-const notInjectableKeys = /(^__)|([^\\]=$)|tags|elements|environments/;
+import {injectElements} from './injection';
 
 export class BuildTargetElement extends MakeJSElement {
   variant: string;
@@ -31,98 +30,25 @@ export class BuildTargetElement extends MakeJSElement {
     this.__target = target;
     this.___root = root;
     // inject target element attributes to itself
-    this.__injectElements(reporter, [target]);
+    let at = new AttributePath(this, '');
+    injectElements(reporter, [target], this, at, this);
     this.environments = target.environments;
     // inject the environment
-    this.__injectElements(reporter, [this.environment]);
+    injectElements(reporter, [this.environment], this, at, this);
     // inject components tree
     let components = new Set<ComponentElement>();
     this.__injectComponents(reporter, this, components);
     this.components = Array.from(components);
 
-    let at = new AttributePath(this, '');
     this.type = AttributeTypes.validateString(reporter, at.set('.type'), this.type) || "bad type";
     this.targets = AttributeTypes.validateStringList(reporter, at.set('.targets'), this.targets) || [];
-  }
-
-  __injectElements(reporter: Reporter, elements: Element[]) {
-    let keysWithSimpleValue = new Set<string>();
-    for (let depcomponent of elements) {
-      let at = new AttributePath(depcomponent, '.', '');
-      for (let key in depcomponent) { if (notInjectableKeys.test(key)) continue;
-        let cvalue = this[key];
-        let dvalue = depcomponent[key];
-        let byenv = key.endsWith("ByEnvironment");
-        at.set(key);
-        if (byenv) {
-          let cFinalKey = key.substring(0, key.length - "ByEnvironment".length);
-          let cFinalValue = this[cFinalKey];
-          if (cFinalValue !== undefined && !Array.isArray(cFinalValue)) {
-            at.diagnostic(reporter, {
-              type: "warning",
-              msg: `attribute value is incoherent for injection into ${this.__path()}, '${cFinalKey}' must be an array, attribute is ignored`
-            });
-          }
-          else {
-            if (cFinalValue === undefined)
-              cFinalValue = this[cFinalKey] = [];
-            at.push('[', '', ']');
-            for (var query in dvalue) {
-              var envs = this.resolveElements(reporter, query);
-              if (envs.indexOf(this.environment) !== -1) {
-                var v = dvalue[query];
-                at.set(query, -2);
-                if (Array.isArray(v)) {
-                  mergeArrays(reporter, this, at, cFinalValue, v);
-                }
-                else {
-                  at.diagnostic(reporter, {
-                    type: "warning",
-                    msg: "attribute must contain an array"
-                  });
-                }
-              }
-            }
-            at.pop(3);
-          }
-        }
-        else {
-          let cvalueIsArr = cvalue ? Array.isArray(cvalue) : false;
-          let dvalueIsArr = dvalue ? Array.isArray(dvalue) : false;
-          if (cvalue !== undefined && cvalueIsArr !== dvalueIsArr) {
-            at.diagnostic(reporter, {
-              type: "warning",
-              msg: `attribute value is incoherent for injection into ${this.__path()}, attribute is ignored`
-            });
-          }
-          else if (dvalueIsArr) {
-            if (!cvalue)
-              cvalue = this[key] = [];
-            mergeArrays(reporter, this, at, cvalue, dvalue);
-          }
-          else if (keysWithSimpleValue.has(key)) {
-            if (cvalue !== dvalue) {
-              at.diagnostic(reporter, {
-                type: "warning",
-                msg: `attribute value is incoherent for injection into ${this.__path()}, attribute is removed`
-              });
-              delete this[key];
-            }
-          }
-          else if (cvalue === undefined) {
-            keysWithSimpleValue.add(key);
-            this[key] = dvalue;
-          }
-        }
-      }
-    }
   }
 
   __injectComponents(reporter: Reporter, current: { components: ComponentElement[] }, injected: Set<ComponentElement>) {
     if (current !== this)
       injected.add(<ComponentElement>current);
     if (current.components) {
-      this.__injectElements(reporter, current.components);
+      injectElements(reporter, current.components, this, new AttributePath(this), this);
       for (var component of current.components)
         this.__injectComponents(reporter, component, injected);
     }
@@ -141,16 +67,4 @@ export class BuildTargetElement extends MakeJSElement {
     }
     return null;
   }
-}
-
-function mergeArrays(reporter: Reporter, buildTarget: BuildTargetElement, at: AttributePath, into: any[], from: any[]) {
-  at.push('[', '', ']');
-  for (var i = 0, len = from.length; i < len; i++) {
-    var c = from[i];
-    if (c instanceof DelayedElement)
-      into.push(...<ComponentElement[]>c.__delayedResolve(reporter, buildTarget, at.set(i, -2)));
-    else
-      into.push(c);
-  }
-  at.pop(3);
 }

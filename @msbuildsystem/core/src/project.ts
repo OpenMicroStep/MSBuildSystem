@@ -82,7 +82,7 @@ export class Project {
     return root;
   }
 }
-["components", "elements", "depth", "exports"].forEach(n => Project.elementFactories.warningProbableMisuseOfKey.add(n));
+["components", "elements", "depth"].forEach(n => Project.elementFactories.warningProbableMisuseOfKey.add(n));
 
 export interface Run {
   name: string;

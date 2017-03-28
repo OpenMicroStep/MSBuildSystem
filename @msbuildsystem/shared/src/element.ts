@@ -64,6 +64,16 @@ export class Element {
 
   static createElementFactoriesProviderMap = createElementFactoriesProviderMap;
 
+  static isNamespace(value: string) : boolean { return typeof value === 'string' && value.endsWith('='); }
+  static name2namespace(name: string) { return name + '='; }
+  static namespace2name(namespace: string) { return namespace.substring(0, namespace.length - 1); }
+
+  static isReference(value: string) : boolean { return typeof value === 'string' && value.startsWith('='); }
+  static reference2query(name: string) { return name.substring(1); }
+  static isReserved(value: string) : boolean {
+    return typeof value === 'string' && value.startsWith('__');
+  }
+
   constructor(is: string, name: string, parent: Element | null, tags: string[] = []) {
     this.__parent = parent;
     this.__resolved = false;
@@ -113,11 +123,20 @@ export class Element {
     attrPath.push('', '');
     for (var k in definition) {
       var v = definition[k];
-      if (k[k.length - 1] === "=") {
-        // namespace definition
-        var n = k.substring(0, k.length - 1);
+      if (Element.isNamespace(k)) {
+        var n = Element.namespace2name(k);
         attrPath.rewrite(':', n);
-        this.__loadNamespace(context, n, v, attrPath);
+        if (Element.isReference(v)) {
+          this.__loadNamespace(context, n, [v], attrPath);
+        }
+        else if (typeof v === 'object') {
+          // namespace definition
+          var els = Element.instantiate(context, n, v, attrPath, this);
+          this.__loadNamespace(context, n, els, attrPath);
+        }
+        else {
+          attrPath.diagnostic(context.reporter, { type: 'error', msg: `an element definition or reference was expected` });
+        }
       }
       else if (k in this) {
         // reserved property
@@ -198,7 +217,7 @@ export class Element {
       for (var j = 0, jlen = subs.length; j < jlen; ++j) {
         var sub = subs[j];
         if (sub && sub.name) {
-          var k = sub.name + "=";
+          var k = Element.name2namespace(sub.name);
           if (k in this)
             attrPath.diagnostic(context.reporter, { type: 'error', msg: `conflict with an element defined with the same name: '${sub.name}'` });
           this[k] = sub;
@@ -210,14 +229,13 @@ export class Element {
       this.__push(context.reporter, into, attrPath, validator, this.__loadObject(context, object, {}, attrPath));
     }
   }
-  __loadNamespace(context: ElementLoadContext, name: string, value: ElementDefinition, attrPath: AttributePath) {
-    var els = Element.instantiate(context, name, value, attrPath, this);
+  __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
     if (els.length > 1)
       attrPath.diagnostic(context.reporter, { type: 'warning', msg: `element has been expanded to a multiple elements and can't be referenced` });
     if (els.length === 1) {
-      name += '=';
+      name = Element.name2namespace(name);
       if (name in this)
-        attrPath.diagnostic(context.reporter, { type: 'error', msg:  `conflict with an element defined with the same name: '${name.substring(0, name.length - 1)}'` });
+        attrPath.diagnostic(context.reporter, { type: 'error', msg:  `conflict with an element defined with the same name: '${Element.namespace2name(name)}'` });
       this[name] = els[0];
     }
   }
@@ -274,7 +292,7 @@ export class Element {
     this.__resolveValuesInObject(reporter, this, this, attrPath);
   }
   __resolveValueForKey(reporter: Reporter, v, k: string, attrPath: AttributePath) {
-    if (k[k.length - 1] === "=") {
+    if (Element.isNamespace(k)) {
       (v as Element).__resolve(reporter);
     }
     else if (Array.isArray(v)) {
@@ -286,14 +304,14 @@ export class Element {
   }
   __resolveValuesInObject(reporter: Reporter, object: { [s: string]: any}, into: { [s: string]: any}, attrPath: AttributePath) : { [s: string]: any[]} {
     attrPath.push('.', '');
-    for (var key in object) { if (key[0] === '_' && key[1] === '_') continue;
+    for (var key in object) { if (Element.isReserved(key)) continue;
       var v = object[key];
-      into[key] = this.__resolveAnyValue(reporter, v, attrPath.set(key));
+      into[key] = this.__resolveAnyValue(reporter, key, v, attrPath.set(key));
     }
     attrPath.pop(2);
     return into;
   }
-  __resolveAnyValue(reporter: Reporter, value, attrPath: AttributePath) {
+  __resolveAnyValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
     if (typeof value === "object") {
       if (Array.isArray(value))
         return this.__resolveValuesInArray(reporter, value, attrPath);
@@ -302,6 +320,17 @@ export class Element {
         return value;
       }
       return this.__resolveValuesInObject(reporter, value, {}, attrPath);
+    }
+    else if (Element.isReference(value)) {
+      let ret: Element[] = [];
+      this.__resolveElements(reporter, ret, Element.reference2query(value), attrPath);
+      if (ret.length > 1)
+        attrPath.diagnostic(reporter, { type: 'warning', msg: `can't reference multiple elements here` });
+      else if (ret.length === 0)
+        attrPath.diagnostic(reporter, { type: 'warning', msg: `must reference at least one element` });
+      if (Element.isNamespace(key) && ret.length === 1 && ret[0].name && ret[0].name !== Element.namespace2name(key))
+        attrPath.diagnostic(reporter, { type: 'warning', msg: `element alias must have the same name` });
+      return ret[0];
     }
     return value;
   }
@@ -314,22 +343,10 @@ export class Element {
     return ret;
   }
   __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
-    if (typeof el === "string") {
-      if (el[0] === "=") {
-        this.__resolveElements(reporter, ret, el.substring(1), attrPath);
-        return;
-      }
-      else if (el[0] === "\\" && el[1] === "=") {
-        el = el.substring(1);
-      }
-    }
-    else if (typeof el === "object" && typeof el.value === "object" && Array.isArray(el.value)) {
-      // resolve complex values
-      attrPath.push('.value');
-      el.value = this.__resolveValuesInArray(reporter, el.value, attrPath);
-      attrPath.pop();
-    }
-    ret.push(el);
+    if (Element.isReference(el))
+      this.__resolveElements(reporter, ret, Element.reference2query(el), attrPath);
+    else
+      ret.push(this.__resolveAnyValue(reporter, '', el, attrPath));
   }
   // Resolve elements
   ///////////////////
@@ -412,10 +429,10 @@ export class Element {
           });
         break;
       }
-      let stepeq = step + "=";
+      let stepeq = Element.name2namespace(step);
       let found = el[stepeq];
       if (i === 0) {
-        while (!found && el.__parent) {
+        while (typeof found !== 'object' && el.__parent) {
           el = el.__parent;
           found = el[stepeq];
         }
@@ -451,12 +468,12 @@ export class Element {
 function serialize(element: Element) {
   if (typeof element === "object") {
     if (Array.isArray(element)) {
-      return element.slice(0).map(e => serialize(e));
+      return element.map(e => serialize(e));
     }
     else {
       let k, v, copy = {};
       for (k in element) {
-        if (!k.startsWith("__")) {
+        if (!Element.isReserved(k)) {
           v = element[k];
           copy[k] = serialize(v);
         }

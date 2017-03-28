@@ -167,17 +167,15 @@ export class Target extends SelfBuildGraph<RootGraph> {
   }
 
   configureExports(reporter: Reporter) {
-    let components = <ComponentElement[]>[];
-    this.attributes.exports.forEach(c => {
-      if (c.name)
-        this.exports[`${c.name}=`] = c;
-      if (c.is === 'component')
-        components.push(c);
-    });
+    this.exports.components.push(...this.attributes.exports);
+  }
+
+  exportsPath(absolutePath: string) {
+    return util.pathRelativeToBase(this.paths.output, absolutePath);
   }
 
   buildGraph(reporter: Reporter) {
-    this.exportsTask = new Target.GenerateExports(this, this.exports.toJSON(), path.join(this.paths.shared, this.name.name + '.json'));
+    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(reporter), path.join(this.paths.shared, this.name.name + '.json'));
     if (this.copyFiles.length) {
       let copy = this.taskCopyFiles = new CopyTask("copy files", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());

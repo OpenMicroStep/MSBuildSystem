@@ -72,7 +72,7 @@ function load_invalid() {
     { "category": "load", "type": "note"   , "path": "MyInvalidProject:files:mman.elements[0].tags"           , "msg": "'tags' could be misused, this key has special meaning for some elements" },
     { "category": "load", "type": "warning", "path": "MyInvalidProject:files:mman:mman.h"                     , "msg": `file '${project.directory}/mman.h' not found`                 },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:files:mman"                            , "msg": "conflict with an element defined with the same name: 'mman'"  },
-    { "category": "load", "type": "error"  , "path": "MyInvalidProject:notanobject.is"                        , "msg": "'is' attribute must be a string"                              },
+    { "category": "load", "type": "error"  , "path": "MyInvalidProject:notanobject"                           , "msg": "an element definition or reference was expected"              },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:nois.is"                               , "msg": "'is' attribute must be a string"                              },
     { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[0]"               , "msg": "expecting an element, got object"                             }, // MyInvalidProject:files.elements[14]
     { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[0]"               , "msg": "expecting an element, got object"                             }, // MyInvalidProject:files.elements[15]
@@ -105,7 +105,8 @@ function build_graph(f: Flux<Context>) {
     { type: 'target', name: 'anotherLib', environment: 'msvc12-i386'  , variant: 'debug', project: project.path },
     { type: 'target', name: 'anotherLib', environment: 'msvc12-x86_64', variant: 'debug', project: project.path }
   ]);
-  let msstd: any = (graph.findTask(false, (t: Target) => t.name.name === "MSStd" && t.name.environment === 'darwin-i386') as Target).attributes;
+  let target = (graph.findTask(false, (t: Target) => t.name.name === "MSStd" && t.name.environment === 'darwin-i386') as Target);
+  let msstd: any = target.attributes;
   assert.strictEqual(msstd.is, 'build-target');
   assert.strictEqual(msstd.name, 'MSStd');
   assert.strictEqual(msstd.type, 'Test');
@@ -115,8 +116,27 @@ function build_graph(f: Flux<Context>) {
   assert.sameMembers(msstd.environments.map(e => e.name), ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
+  assert.deepEqual(target.exports.__serialize(reporter), {
+    "is": "component", "name": "MSStd", "tags": [],
+    "components": [
+      {
+        "is": "component", "name": "generated", "tags": [], "components": [],
+      },
+      {
+        "is": "component", "name": "", "tags": [], "components": [],
+        "clang=": {
+          "is": "component", "name": "clang", "tags": ["clang"],
+          "compiler": "clang",
+          "components": [],
+          "mylist": ["v2"],
+        },
+      },
+    ],
+  });
+  assert.deepEqual(reporter.diagnostics, []);
 
-  msstd = (graph.findTask(false, (t: Target) => t.name.name === "MSStd_static" && t.name.environment === 'darwin-i386') as Target).attributes;
+  target = (graph.findTask(false, (t: Target) => t.name.name === "MSStd_static" && t.name.environment === 'darwin-i386') as Target);
+  msstd = target.attributes;
   assert.strictEqual(msstd.is, 'build-target');
   assert.strictEqual(msstd.name, 'MSStd_static');
   assert.strictEqual(msstd.type, 'Test');
@@ -126,6 +146,24 @@ function build_graph(f: Flux<Context>) {
   assert.sameMembers(msstd.environments.map(e => e.name), ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
+  assert.deepEqual(target.exports.__serialize(reporter), {
+    "is": "component", "name": "MSStd_static", "tags": [],
+    "components": [
+      {
+        "is": "component", "name": "generated", "tags": [], "components": [],
+      },
+      {
+        "is": "component", "name": "", "tags": [], "components": [],
+        "clang=": {
+          "is": "component", "name": "clang", "tags": ["clang"],
+          "compiler": "clang",
+          "components": [],
+          "mylist": ["v2"],
+        },
+      },
+    ],
+  });
+  assert.deepEqual(reporter.diagnostics, []);
   f.continue();
 }
 

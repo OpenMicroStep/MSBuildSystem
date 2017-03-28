@@ -59,11 +59,11 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
 
   configureExports(reporter: Reporter) {
     super.configureExports(reporter);
-    let exports = this.graph.exports;
+    let exports = this.graph.exports.__createGeneratedComponent('npm');
     let npmLink = [{
-      path: exports.__filepath(this.absoluteCompilationOutputDirectory()),
+      path: this.graph.exportsPath(this.absoluteCompilationOutputDirectory()),
       name: this.graph.outputName,
-      srcs: this.graph.files.map(f => exports.__filepath(f.path))
+      srcs: this.graph.files.map(f => this.graph.exportsPath(f.path))
     }];
     let deps = {
       [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
