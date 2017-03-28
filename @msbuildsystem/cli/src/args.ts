@@ -10,6 +10,7 @@ let parser = new ArgumentParser({
 function addCommonArguments(parser: ArgumentGroup) {
   parser.addArgument(['--color'  ], { dest: "color", help: "Force colors to be enabled", action: "storeTrue" });
   parser.addArgument(['--debug'  ], { dest: "debug", help: "Debug output", action: "storeTrue" });
+  parser.addArgument(['--full'   ], { dest: "full" , help: "Perform complete non incremental build", action: "storeTrue" });
   parser.addArgument(['-p', '--project'  ], { dest: "projects", action: "append", help: "Path to the make.js file or directory, by default this is the current directory" });
   parser.addArgument(['-w', '--workspace'], { help: "Path to the workspace directory (ie. builddirectory)" });
   parser.addArgument(['--env'    ], { dest: "environments", action: "append", help: "Name of environments to consider, by default all environments are used" });
@@ -54,5 +55,6 @@ export const args: {
   variants: string[] | null;
   color: boolean;
   debug: boolean;
+  full: boolean;
   modules: string[];
 } = parser.parseArgs();

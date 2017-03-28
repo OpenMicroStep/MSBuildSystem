@@ -109,7 +109,7 @@ function handle_run() {
       targets: args.targets || undefined
     });
     if (printReport('Build graph create', reporter, perf())) {
-      let runner = new Runner(graph, args.command, { ide: args.ide });
+      let runner = new Runner(graph, args.command, { ide: args.ide, full: args.full });
       let perf = util.performanceCounter();
       let printer = new ReporterPrinter();
       if (args.debug) {
