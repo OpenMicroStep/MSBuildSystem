@@ -195,10 +195,10 @@ function handle_run() {
           f => provider ? runner.runWithMapReduce(f, provider) : runner.run(f),
           (p) => {
             console.log(printer.formatReports('Build', perf()));
-            process.exit(p.context.failed ? 1 : 0);
+            process.exit(p.context.failed ? 4 : 0);
           }
         ]);
-      }
-    }
-  }
+      }  else process.exit(3);
+    } else process.exit(2);
+  } else process.exit(1);
 }
