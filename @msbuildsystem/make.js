@@ -25,7 +25,6 @@ module.exports= {
     'cxx=':              moduleFiles('cxx'),
     'js=' :              moduleFiles('js'),
     'typescript=':       moduleFiles('js.typescript'),
-    'aspects=':          moduleFiles('aspects'),
   },
   'node=': { is: "environment", packager: "npm" /* generate to node_modules/${target.outputName} */ },
   'base=': {
