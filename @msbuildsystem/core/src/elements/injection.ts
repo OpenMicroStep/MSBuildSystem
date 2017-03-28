@@ -40,12 +40,12 @@ export function injectElements(
         else {
           if (cFinalValue === undefined)
             cFinalValue = into[cFinalKey] = [];
-          at.push('[', '', ']');
+          at.pushArray();
           for (var query in dvalue) {
             var envs = buildTarget.resolveElements(reporter, query);
             if (envs.indexOf(buildTarget.environment) !== -1) {
               var v = mapValue(at, key, dvalue[query]);
-              at.set(query, -2);
+              at.setArrayKey(query);
               if (Array.isArray(v)) {
                 mergeArrays(reporter, buildTarget, at, cFinalValue, v);
               }
@@ -57,7 +57,7 @@ export function injectElements(
               }
             }
           }
-          at.pop(3);
+          at.popArray();
         }
       }
       else {
@@ -94,13 +94,13 @@ export function injectElements(
 }
 
 function mergeArrays(reporter: Reporter, buildTarget: BuildTargetElement, at: AttributePath, into: any[], from: any[]) {
-  at.push('[', '', ']');
+  at.pushArray();
   for (var i = 0, len = from.length; i < len; i++) {
     var c = from[i];
     if (c instanceof DelayedElement)
-      into.push(...<ComponentElement[]>c.__delayedResolve(reporter, buildTarget, at.set(i, -2)));
+      into.push(...<ComponentElement[]>c.__delayedResolve(reporter, buildTarget, at.setArrayKey(i)));
     else
       into.push(c);
   }
-  at.pop(3);
+  at.popArray();
 }

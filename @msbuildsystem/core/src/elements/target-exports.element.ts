@@ -39,9 +39,9 @@ function serialize(reporter: Reporter, at: AttributePath, target: Target, elemen
   if (typeof element === "object") {
     let ret: any;
     if (Array.isArray(element)) {
-      at.push('[', '', ']');
-      ret = element.map((e, idx) => serialize(reporter, at.set(idx, -2), target, e));
-      at.pop(3);
+      at.pushArray();
+      ret = element.map((e, idx) => serialize(reporter, at.setArrayKey(idx), target, e));
+      at.popArray();
     }
     else if (element instanceof Element) {
       injectElements(reporter, [element], ret = {}, at, target.attributes, keyMap, (at, key, value) => {

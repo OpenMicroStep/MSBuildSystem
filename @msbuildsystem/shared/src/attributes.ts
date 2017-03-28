@@ -19,13 +19,13 @@ export function superValidateList<T, A0> (
   validator: Validator<T, A0>, push: (T) => void
 ) {
   if (Array.isArray(attr)) {
-    path.push("[", "", "]");
+    path.pushArray();
     for (var idx = 0, attrlen = attr.length; idx < attrlen; idx++) {
-      var value = validator(reporter, path.set(idx, -2), attr[idx], a0);
+      var value = validator(reporter, path.setArrayKey(idx), attr[idx], a0);
       if (value !== undefined)
         push(value);
     }
-    path.pop(3);
+    path.popArray();
   }
   else {
     path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
@@ -44,17 +44,17 @@ export function superFill<T, A0>(
   reporter: Reporter, path: AttributePath, attr: any, a0: A0,
   into: T, extensions: Extensions<T, A0>
 ) : T {
-  path.push('[', '', ']');
+  path.pushArray();
   for (var k in extensions) {
     var ext = extensions[k];
     var v = attr[k];
     if (v !== undefined) {
-      path.set(k, -2);
+      path.setArrayKey(k);
       v = ext.validator(reporter, path, v, a0);
     }
     into[k] = v !== undefined ? v : ext.default;
   }
-  path.pop(3);
+  path.popArray();
   return into;
 }
 

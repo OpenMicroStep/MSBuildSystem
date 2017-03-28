@@ -194,21 +194,21 @@ export class Element {
       this.__loadArray(context, values, into, attrPath, validator);
   }
   __loadArray<T>(context: ElementLoadContext, values: any[], into: T[], attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
-    attrPath.push('[', '', ']');
+    attrPath.pushArray();
     for (var i = 0, len = values.length; i < len; ++i) {
       var v = values[i];
       if (typeof v === "object") {
-        attrPath.set(i, -2);
+        attrPath.setArrayKey(i);
         if (Array.isArray(v))
           this.__push(context.reporter, into, attrPath, validator, this.__loadArray(context, v, <any[]>[], attrPath));
         else
-          this.__loadObjectInArray(context, v, into, attrPath.set(i, -2));
+          this.__loadObjectInArray(context, v, into, attrPath);
       }
       else {
         this.__push(context.reporter, into, attrPath, validator, v);
       }
     }
-    attrPath.pop(3);
+    attrPath.popArray();
     return into;
   }
   __loadObjectInArray<T>(context: ElementLoadContext, object: {[s: string]: any}, into: T[], attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
@@ -269,13 +269,13 @@ export class Element {
       into.push(value);
   }
   __pushArray<T>(reporter: Reporter, into: T[], attrPath: AttributePath, validator: AttributeTypes.Validator<T, Element> | undefined, values: any[]) {
-    attrPath.push('[', '', ']');
+    attrPath.pushArray();
     for (var i = 0, len = values.length; i < len; i++) {
       var value = values[i];
       if (!validator || (value = validator(reporter, attrPath.set(i, -1), value, this)) !== undefined)
         into.push(value);
     }
-    attrPath.pop(3);
+    attrPath.popArray();
   }
   // Load definitions
   ///////////////////
@@ -336,10 +336,10 @@ export class Element {
   }
   __resolveValuesInArray(reporter: Reporter, values: any[], attrPath: AttributePath) : any[] {
     var ret: any[] = [];
-    attrPath.push('[', '', ']');
+    attrPath.pushArray();
     for (var i = 0, len = values.length; i < len; ++i)
-      this.__resolveValueInArray(reporter, values[i], ret, attrPath.set(i, -2));
-    attrPath.pop(3);
+      this.__resolveValueInArray(reporter, values[i], ret, attrPath.setArrayKey(i));
+    attrPath.popArray();
     return ret;
   }
   __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
@@ -529,7 +529,7 @@ export namespace Element {
             var subs = (el as GroupElement).elements;
             attrPath.push('.elements[', '', ']');
             for (var j = 0, jlen = subs.length; j < jlen; ++j) {
-              attrPath.set(j, -2);
+              attrPath.setArrayKey(j);
               loop(subs[j]);
             }
             attrPath.pop(3);
@@ -561,7 +561,7 @@ export namespace Element {
         };
         attrPath.push('.elements[', '', ']');
         for (var i = 0, len = this.elements.length; i < len; i++) {
-          attrPath.set(i, -2);
+          attrPath.setArrayKey(i);
           loop(this.elements[i]);
         }
         attrPath.pop(3);

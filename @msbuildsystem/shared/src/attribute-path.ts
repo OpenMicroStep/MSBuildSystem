@@ -48,6 +48,19 @@ export class AttributePath {
     return this;
   }
 
+  pushArray() : this {
+    this.push('[', '', ']');
+    return this;
+  }
+  setArrayKey(index: number | string) : this {
+    this.set(index, -2);
+    return this;
+  }
+  popArray() : this {
+    this.pop(3);
+    return this;
+  }
+
   copy() {
     var cpy = new AttributePath();
     cpy.components = this.components.slice(0);

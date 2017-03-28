@@ -7,9 +7,9 @@ function path_tracking() {
   assert.strictEqual(p.push("root").toString(), 'root');
   assert.strictEqual(p.push(":sub").toString(), 'root:sub');
   assert.strictEqual(p.copy().push(".sub2").toString(), 'root:sub.sub2');
-  assert.strictEqual(p.push('[', '', ']').toString(), 'root:sub[]');
-  assert.strictEqual(p.set(2, -2).toString(), 'root:sub[2]');
-  assert.strictEqual(p.pop(3).toString(), 'root:sub');
+  assert.strictEqual(p.pushArray().toString(), 'root:sub[]');
+  assert.strictEqual(p.setArrayKey(2).toString(), 'root:sub[2]');
+  assert.strictEqual(p.popArray().toString(), 'root:sub');
   assert.strictEqual(p.pop().toString(), 'root');
   assert.strictEqual(p.reset('test', '.', 'test2').toString(), 'test.test2');
 }

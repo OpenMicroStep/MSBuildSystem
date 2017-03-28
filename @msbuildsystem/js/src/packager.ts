@@ -7,14 +7,14 @@ import {JSTarget} from './index';
 
 export function validatePackages(reporter: Reporter, path: AttributePath, value: any) : { [s: string]: any } | undefined {
   if ((value = AttributeTypes.validateObject(reporter, path, value)) !== undefined) {
-    path.push('[', '', ']');
+    path.pushArray();
     var ret = {};
     for (var k in value) {
-      var r = AttributeTypes.validateString(reporter, path.set(k, -2), value[k]);
+      var r = AttributeTypes.validateString(reporter, path.setArrayKey(k), value[k]);
       if (r !== undefined)
         ret[k] = r;
     }
-    path.pop(3);
+    path.popArray();
     value = ret;
   }
   return value;
