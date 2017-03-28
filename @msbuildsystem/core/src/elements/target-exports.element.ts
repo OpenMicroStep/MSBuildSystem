@@ -1,12 +1,11 @@
 import {
-  util, ComponentElement, Target, EnvironmentElement, Element, Reporter, AttributePath
+  ComponentElement, Target, Element, Reporter, AttributePath
 } from '../index.priv';
-import {injectElements, defaultKeyMap} from './injection';
+import {injectElements} from './injection';
 
 export class TargetExportsElement extends ComponentElement {
   __target: Target;
   __generated: ComponentElement;
-  type: string;
 
   constructor(target: Target, name: string) {
     super('component', name, null);
@@ -17,7 +16,7 @@ export class TargetExportsElement extends ComponentElement {
   }
 
   __createGeneratedComponent(name: string) {
-    let component = new ComponentElement('component', 'generated', this.__generated);
+    let component = new ComponentElement('component', name, this.__generated);
     this.__generated.components.push(component);
     return component;
   }

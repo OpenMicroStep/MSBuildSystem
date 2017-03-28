@@ -87,6 +87,10 @@ module.exports= {
           "fs-extra": "^0.30.0",
           "source-map-support": "^0.4.0"
         }
+      }],
+      exports: [{ is: 'component', name: 'cfg',
+        "module=": { is: 'component', components: ['=base']       },
+        "tests=" : { is: 'component', components: ['=base tests'] },
       }]
     },
     'core tests=': {
