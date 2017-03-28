@@ -24,7 +24,6 @@ test:
    - npm install -q -g @microstep/tests
    - mstests -c dist/node/debug/node_modules/@msbuildsystem/shared.tests/index.js
                 dist/node/debug/node_modules/@msbuildsystem/core.tests/index.js
-                dist/node/debug/node_modules/@msbuildsystem/aspects.tests/index.js
 
 publish:
   image: node:6-alpine
@@ -37,8 +36,6 @@ publish:
     - npm publish dist/node/debug/node_modules/@msbuildsystem/foundation
     - npm publish dist/node/debug/node_modules/@msbuildsystem/js
     - npm publish dist/node/debug/node_modules/@msbuildsystem/js.typescript
-    - npm publish dist/node/debug/node_modules/@msbuildsystem/aspects
-    - npm publish dist/node/debug/node_modules/@msbuildsystem/js.logitud
   dependencies:
    - build
   only:
@@ -57,8 +54,6 @@ auto_publish:
     - npm publish dist/node/debug/node_modules/@msbuildsystem/foundation
     - npm publish dist/node/debug/node_modules/@msbuildsystem/js
     - npm publish dist/node/debug/node_modules/@msbuildsystem/js.typescript
-    - npm publish dist/node/debug/node_modules/@msbuildsystem/aspects
-    - npm publish dist/node/debug/node_modules/@msbuildsystem/js.logitud
   dependencies:
    - build
   only:

@@ -208,21 +208,6 @@ module.exports= {
       files: ['=files:typescript:tst ? tsc'],
       copyFiles: [{value: ['=files:typescript:tst ? rsc'], dest: 'data/hello-world', expand: true }]
     },
-    'aspects=': {
-      is: 'target',
-      outputName: '@msbuildsystem/aspects',
-      components: ['=base', '=::core::', '=::typescript::', '=::js::'],
-      targets: ['core', 'typescript'],
-      files: ['=files:aspects:src ? tsc'],
-    },
-    'aspects tests=': {
-      is: 'target',
-      outputName: '@msbuildsystem/aspects.tests',
-      components: ['=base tests', '=::core::', '=::aspects::'],
-      targets: ['aspects'],
-      files: ['=files:aspects:tst ? tsc'],
-      copyFiles: [{value: ['=files:aspects:tst ? rsc'], dest: 'data/', expand: true }]
-    },
   },
   /* WIP
   'tests=': {
