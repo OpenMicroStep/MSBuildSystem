@@ -13,7 +13,7 @@ export interface ElementDefinition {
 export type ElementFactory = (reporter: Reporter, name: string | undefined,
   definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName: boolean) => Element[];
 export type SimpleElementFactory = (reporter: Reporter, name: string,
-  definition: ElementDefinition, attrPath: AttributePath, parent: Element) => Element;
+  definition: ElementDefinition, attrPath: AttributePath, parent: Element) => Element | undefined;
 export type ElementFactoriesProviderMap = ProviderMap<ElementFactory> & {
   registerSimple(name: string, factory: SimpleElementFactory),
   warningProbableMisuseOfKey: Set<string>,
@@ -31,7 +31,8 @@ export function createElementFactoriesProviderMap(name: string) : ElementFactori
       definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName
     ) : Element[] {
       name = handleSimpleElementName(reporter, name, definition.name, attrPath, allowNoName);
-      return name !== undefined ? [factory(reporter, name, definition, attrPath, parent)] : [];
+      let el = name !== undefined ? factory(reporter, name, definition, attrPath, parent) : undefined;
+      return el ? [el] : [];
     });
   }
   return Object.assign(p, {

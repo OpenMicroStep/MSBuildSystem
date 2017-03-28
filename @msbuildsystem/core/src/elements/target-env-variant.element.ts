@@ -1,5 +1,5 @@
 import {
-  ComponentElement, EnvironmentElement, MakeJSElement, TargetElement, TargetExportsElement,
+  ComponentElement, EnvironmentElement, MakeJSElement, TargetElement, BuildTargetExportsElement,
   Reporter, AttributeTypes, AttributePath, RootGraph
 } from '../index.priv';
 import {injectElements} from './injection';
@@ -56,15 +56,5 @@ export class BuildTargetElement extends MakeJSElement {
 
   __path() {
     return `${super.__path()}{${this.variant}/${this.environment.name}}`;
-  }
-
-  __resolveDelayedExports(reporter: Reporter, target: TargetElement, environment: {name: string, compatibleEnvironments: string[]}) {
-    let compatibleEnv = target.__compatibleEnvironment(reporter, environment);
-    if (compatibleEnv) {
-      let realTarget = this.___root.createTarget(reporter, this, target, compatibleEnv, this.variant);
-      if (realTarget)
-        return realTarget.exports;
-    }
-    return null;
   }
 }

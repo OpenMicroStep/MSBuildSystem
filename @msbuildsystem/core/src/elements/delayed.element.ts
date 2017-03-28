@@ -10,39 +10,21 @@ export class DelayedElement extends Element {
 }
 
 export class DelayedQuery extends DelayedElement {
-  constructor(public steps: string[], public tagsQuery: Element.Tags, parent: Element | null) {
+  constructor(public gsteps: string[], public steps: string[], public tagsQuery: Element.Tags, parent: Element | null) {
     super(parent);
   }
-  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, attrPath: AttributePath) : Element[] {
-    let env = this.steps[3].length > 0 ? this.steps[2] : null;
-    let target = this.steps[env ? 3 : 2];
-    const size = env ? 5 : 4;
-    let project = (<ProjectElement>this.__root()).__project();
-    let workspace = project.workspace;
-    let sources = workspace.resolveExports(target, buildTarget.environment.name, buildTarget.variant);
-    let elements = <Element[]>[];
+  __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, at: AttributePath) : Element[] {
+    let ret: Element[] = [];
+    let sources = buildTarget.___root.resolveExports(reporter, at, buildTarget, this.gsteps);
     if (sources.length === 0) {
-      attrPath.diagnostic(reporter, {
+      at.diagnostic(reporter, {
         type: "error",
-        msg: `query '${Element.rebuildQuery([this.steps], this.tagsQuery)}' is invalid, the target '${target}' is not present in the workspace`
+        msg: `query '::${this.gsteps.join(':')}::${Element.rebuildQuery([this.steps], this.tagsQuery)}' is invalid, the external element wasn't found`
       });
     }
-    else if (sources.length > 1) {
-      attrPath.diagnostic(reporter, {
-        type: "error",
-        msg: `the target '${target}' is present multiple times in the workspace, this shouldn't happen`
-      });
-    }
-    else {
-      let source: Element | null = sources[0];
-      if (source instanceof TargetElement) {
-        let envStr = env ? { name: env, compatibleEnvironments: [] } : buildTarget.environment;
-        source = buildTarget.__resolveDelayedExports(reporter, source, envStr);
-      }
-      if (source)
-        source.__resolveElementsGroup(reporter, elements, this.steps.slice(size), this.tagsQuery, attrPath);
-    }
-    return elements;
+    for (let group of sources)
+      group.__resolveElementsGroup(reporter, ret, this.steps, this.tagsQuery, at);
+    return ret;
   }
 }
 

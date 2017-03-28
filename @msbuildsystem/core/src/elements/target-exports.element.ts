@@ -1,18 +1,47 @@
 import {
-  ComponentElement, Target, Element, Reporter, AttributePath
+  ComponentElement, Target, Element, Reporter, AttributePath, AttributeTypes, MakeJS, Project
 } from '../index.priv';
 import {injectElements} from './injection';
 
+function createExportsComponent(reporter: Reporter, name: string,
+  definition: MakeJS.Element, attrPath: AttributePath, parent: Element
+) {
+  let env = AttributeTypes.validateString(reporter, attrPath, definition.environment);
+  let variant = AttributeTypes.validateString(reporter, attrPath, definition.variant);
+  return env && variant ? new TargetExportsElement('component', name, env, variant) : undefined;
+}
+Project.elementExportsFactories.registerSimple('target-exports', createExportsComponent);
 export class TargetExportsElement extends ComponentElement {
+  __target: Target | null;
+  __generated: ComponentElement;
+  environment: string;
+  variant: string;
+
+  constructor(is: string, name: string, environment: string, variant: string) {
+    super(is, name, null);
+    this.environment = environment;
+    this.variant = variant;
+  }
+
+  __path() {
+    return `${this.name}{${this.variant}/${this.environment}}.exports`;
+  }
+}
+
+export class BuildTargetExportsElement extends TargetExportsElement {
   __target: Target;
   __generated: ComponentElement;
 
   constructor(target: Target, name: string) {
-    super('component', name, null);
+    super('target-exports', name, target.environment, target.variant);
     this.__generated = new ComponentElement('component', 'generated', this);
     this.__target = target;
     this.__resolved = !!target;
     this.components.push(this.__generated);
+  }
+
+  __resolve(reporter: Reporter) {
+    throw new Error(`__resolve is disabled for BuildTargetExportsElement`);
   }
 
   __createGeneratedComponent(name: string) {
@@ -21,14 +50,11 @@ export class TargetExportsElement extends ComponentElement {
     return component;
   }
 
-  __path() {
-    return this.__target ? `${this.__target.__path()}.exports` : `not implemented yet`;
-  }
-
   __serialize(reporter: Reporter) {
     return serialize(reporter, new AttributePath(this), this.__target, this);
   }
 }
+
 function keyMap(key: string) {
   if (key === 'environments')
     return 'components';

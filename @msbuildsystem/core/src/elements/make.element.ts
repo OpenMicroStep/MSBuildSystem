@@ -16,16 +16,25 @@ export class MakeJSElement extends Element {
   }
 
   __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], tags: Element.Tags, attrPath: AttributePath) {
-    if (steps.length >= 5
-     && steps[1].length === 0
-     && steps[2].length > 0
-     && ((steps[3].length === 0) || (steps.length >= 6 && steps[4].length === 0))
-    ) { // ::[env:]target::
-      let gel = Workspace.globalExports.get(steps[2]);
-      if (gel && gel.__passTags(tags))
-        into.push(gel);
-      else if (!gel)
-        into.push(new DelayedQuery(steps, tags, this));
+    if (steps.length >= 5 && steps[0].length === 0 && steps[1].length === 0 && steps[2].length > 0) { // ^::.+
+      let i = 3;
+      while (i < steps.length && steps[i].length > 0)
+        i++;
+      if (i + 1 >= steps.length)
+        attrPath.diagnostic(reporter, {
+          type: "error",
+          msg: "invalid external group syntax, missing closing '::'"
+        });
+      else {
+        let gsteps = steps.slice(2, i);
+        let gel: Element | undefined = undefined;
+        if (gsteps.length === 1)
+          gel = Workspace.globalExports.get(gsteps[0]);
+        if (gel && gel.__passTags(tags))
+          into.push(gel);
+        else if (!gel)
+          into.push(new DelayedQuery(gsteps, steps.slice(i + 1), tags, this));
+      }
     }
     else {
       super.__resolveElementsGroup(reporter, into, steps, tags, attrPath);

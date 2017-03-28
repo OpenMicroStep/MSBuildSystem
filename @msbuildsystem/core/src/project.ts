@@ -20,6 +20,7 @@ export class Project {
   reporter: Reporter;
 
   static elementFactories = createElementFactoriesProviderMap('project');
+  static elementExportsFactories = createElementFactoriesProviderMap('project exports');
 
   constructor(workspace: Workspace, directory: string, name = "make.js") {
     this.workspace = workspace;

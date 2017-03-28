@@ -100,13 +100,17 @@ export class Workspace {
     return root;
   }
 
-  resolveExports(name: string, environmentName: string, variantName: string) : Element[] {
-    let sources = <Element[]>[];
-    if (Workspace.globalExports.has(name))
-      sources.push(Workspace.globalExports.get(name)!);
-    this.projects.forEach((p) => sources.push(...p.targets.filter(t => t.name === name)));
-    // TODO: resolve exports in .shared
-    return sources;
+  pathToShared(env: string, variant: string) {
+    return path.join(this.directory, '.shared', env, variant);
+  }
+  pathToSharedExports(env: string, variant: string, target: string) {
+    return path.join(this.pathToShared(env, variant), `${target}.json`);
+  }
+  pathToBuild(env: string, variant: string) {
+    return path.join(this.directory, '.build', env, variant);
+  }
+  pathToResult(env: string, variant: string) {
+    return path.join(this.directory, env, variant);
   }
 
   targets() : TargetElement[] {

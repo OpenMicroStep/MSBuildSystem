@@ -1,5 +1,5 @@
 import {Project, RootGraph, Reporter, CopyTask,
-  AttributePath, AttributeTypes, TargetExportsElement, FileElement, ComponentElement,
+  AttributePath, AttributeTypes, BuildTargetExportsElement, FileElement, ComponentElement,
   Task, Graph, TaskName, BuildTargetElement, File, Directory, util, GenerateFileTask
 } from './index.priv';
 import * as path from 'path';
@@ -85,7 +85,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   dependencies: Set<Target>;
   requiredBy: Set<Target>;
 
-  exports: TargetExportsElement;
+  exports: BuildTargetExportsElement;
   exportsTask: Target.GenerateExports;
   project: Project;
   attributes: BuildTargetElement;
@@ -129,16 +129,15 @@ export class Target extends SelfBuildGraph<RootGraph> {
     this.attributes = attributes;
 
     this.modifiers = [];
-    let env_variant = `${this.environment}/${this.variant}`;
-    let build = path.join(this.project.workspace.directory, '.build', env_variant);
+    let build = this.project.workspace.pathToBuild(this.environment, this.variant);
     this.paths = {
-      output       : path.join(this.project.workspace.directory, env_variant),
-      shared       : path.join(this.project.workspace.directory, '.shared', env_variant),
+      output       : this.project.workspace.pathToResult(this.environment, this.variant),
+      shared       : this.project.workspace.pathToShared(this.environment, this.variant),
       build        : build,
       intermediates: path.join(build, "intermediates", this.targetName),
       tasks        : path.join(build, "tasks", this.targetName)
     };
-    this.exports = new TargetExportsElement(this, this.attributes.name);
+    this.exports = new BuildTargetExportsElement(this, this.attributes.name);
     fs.ensureDirSync(this.paths.tasks);
     fs.ensureDirSync(this.paths.intermediates);
     fs.ensureDirSync(this.paths.output);
@@ -175,7 +174,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   }
 
   buildGraph(reporter: Reporter) {
-    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(reporter), path.join(this.paths.shared, this.name.name + '.json'));
+    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(reporter), this.project.workspace.pathToSharedExports(this.environment, this.variant, this.name.name));
     if (this.copyFiles.length) {
       let copy = this.taskCopyFiles = new CopyTask("copy files", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());

@@ -1,10 +1,12 @@
 import {Workspace, Project, Target, AttributePath, getTargetClass, transformWithCategory,
-  Graph, Task, Reporter, BuildGraphOptions,
-  BuildTargetElement, TargetElement, EnvironmentElement
+  Graph, Reporter, BuildGraphOptions,
+  Element, BuildTargetElement, TargetElement, EnvironmentElement, TargetExportsElement
 } from './index.priv';
+import * as fs from 'fs';
 
 export class RootGraph extends Graph {
   buildTargetElements: BuildTargetElement[] = [];
+  exports: TargetExportsElement[] = [];
   constructor(public workspace: Workspace) {
     super({ name: "Root", type: "root", workspace: workspace.directory }, null!);
   }
@@ -37,15 +39,15 @@ export class RootGraph extends Graph {
         let targetEnvs = target.environments.filter(e => !options.environments || options.environments.indexOf(e.name) !== -1);
         targetEnvs.forEach(environment => {
           variants.forEach(variant => {
-            this.createTarget(reporter, null, target, environment, variant);
+            this.createTarget(reporter, undefined, target, environment, variant);
           });
         });
       });
     });
   }
 
-  createTarget(reporter: Reporter, requester: BuildTargetElement | null, target: TargetElement, environment: EnvironmentElement, variant: string) : Target | null {
-    let task: Target | null = null;
+  createTarget(reporter: Reporter, requester: BuildTargetElement | undefined, target: TargetElement, environment: EnvironmentElement, variant: string) : Target | undefined {
+    let task: Target | undefined = undefined;
     this.iterate(false, (t: Target) => {
       let e = t.attributes;
       if (e.__target === target && e.environment === environment && e.variant === variant)
@@ -64,7 +66,7 @@ export class RootGraph extends Graph {
         });
       }
       else {
-        requester = null;
+        requester = undefined;
       }
     }
     if (!task && !requester) {
@@ -84,30 +86,9 @@ export class RootGraph extends Graph {
           let p = new AttributePath(task, '.targets[', '', ']');
           task.attributes.targets.forEach((targetName, i) => {
             p.set(i , -2);
-            let depTargetElements = <TargetElement[]>this.workspace.resolveExports(targetName, buildTarget.environment.name, buildTarget.variant)
-              .filter(t => t instanceof TargetElement);
-            if (depTargetElements.length === 0) {
-              p.diagnostic(reporter, {
-                type: "error",
-                msg: `the target '${targetName}' is not present in the workspace`
-              });
-            }
-            else if (depTargetElements.length > 1) {
-              p.diagnostic(reporter, {
-                type: "error",
-                msg: `the target '${targetName}' is present multiple times in the workspace, this shouldn't happen`
-              });
-            }
-            else {
-              let depTargetElement = depTargetElements[0];
-              let compatibleEnv = depTargetElement.__compatibleEnvironment(reporter, environment);
-              if (compatibleEnv) {
-                let depTarget = this.createTarget(reporter, buildTarget, depTargetElement, compatibleEnv, buildTarget.variant);
-                if (depTarget) {
-                  task!.addDependency(depTarget);
-                }
-              }
-            }
+            let depTarget = this.findTarget(reporter, p, buildTarget, targetName, buildTarget.environment, buildTarget.variant);
+            if (depTarget)
+              task!.addDependency(depTarget);
           });
         }
       }
@@ -118,10 +99,73 @@ export class RootGraph extends Graph {
         reporter.transform.pop();
         reporter.transform.push(transformWithCategory('exports'));
         task.configureExports(reporter);
+        this.loadExportsDefinition(reporter, task.exports.__serialize(reporter));
         reporter.transform.pop();
       }
     }
     return task;
+  }
+
+  findTargetElement(reporter: Reporter, at: AttributePath, name: string) : TargetElement | undefined {
+    let depTargetElements = this.workspace.targets().filter(t => t.name === name);
+    if (depTargetElements.length === 0) {
+      at.diagnostic(reporter, {
+        type: "error",
+        msg: `the target '${name}' is not present in the workspace`
+      });
+    }
+    else if (depTargetElements.length > 1) {
+      at.diagnostic(reporter, {
+        type: "error",
+        msg: `the target '${name}' is present multiple times in the workspace, this shouldn't happen`
+      });
+    }
+    return depTargetElements[0];
+  }
+
+  findTarget(reporter: Reporter, at: AttributePath, requester: BuildTargetElement, name: string, environment: {name: string, compatibleEnvironments: string[]}, variant: string): Target | undefined {
+    let depTargetElement = this.findTargetElement(reporter, at, name);
+    if (depTargetElement) {
+      let compatibleEnv = depTargetElement.__compatibleEnvironment(reporter, environment);
+      if (compatibleEnv)
+        return this.createTarget(reporter, requester, depTargetElement, compatibleEnv, variant);
+    }
+    return undefined;
+  }
+
+  resolveExports(reporter: Reporter, at: AttributePath, requester: BuildTargetElement, steps: string[]) : TargetExportsElement[] {
+    let name = steps[0];
+    let env = steps[1] ? { name: steps[1], compatibleEnvironments: [] as string[] } : requester.environment;
+    let variant = steps[2] || requester.variant;
+    let filter = (e: TargetExportsElement) =>
+      (e.name === name) &&
+      (e.environment === env.name || env.compatibleEnvironments.indexOf(e.environment) !== -1) &&
+      (e.variant === variant);
+    let ret = this.exports.filter(filter);
+    if (ret.length === 0) {
+      if (this.findTarget(reporter, at, requester, name, env, variant || requester.variant) ||
+          this.loadShared(reporter, at, requester, name, env, variant || requester.variant))
+        ret = this.exports.filter(filter);
+    }
+    return ret;
+  }
+
+  loadShared(reporter: Reporter, at: AttributePath, requester: BuildTargetElement, name: string, environment: {name: string, compatibleEnvironments: string[]}, variant: string) : TargetExportsElement | undefined {
+    let envs = [environment.name, ...environment.compatibleEnvironments];
+    for (let env of envs) {
+      let filename = this.workspace.pathToSharedExports(env, variant, name);
+      try  {
+        return this.loadExportsDefinition(reporter, JSON.parse(fs.readFileSync(filename, 'utf8')));
+      } catch (e) {}
+    }
+    return undefined;
+  }
+
+  loadExportsDefinition(reporter: Reporter, definition) {
+    let el = new TargetExportsElement('component', definition.name, definition.environment, definition.variant);
+    Element.load(reporter, definition, el, Project.elementExportsFactories);
+    this.exports.push(el);
+    return el;
   }
 
   id() {

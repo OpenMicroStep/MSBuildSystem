@@ -1,6 +1,6 @@
 import {Element, ElementLoadContext, Project, Reporter, MakeJS, AttributeTypes, AttributePath, MakeJSElement, util} from '../index.priv';
 
-Project.elementFactories.registerSimple('group', (reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement) => {
+function createGroup(reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement) {
   let group = new GroupElement('group', name, parent);
   if ("path" in definition) {
     let p = AttributeTypes.validateString(reporter, attrPath, definition['path']);
@@ -8,7 +8,9 @@ Project.elementFactories.registerSimple('group', (reporter: Reporter, name: stri
     group.path = p;
   }
   return group;
-});
+}
+Project.elementFactories.registerSimple('group', createGroup);
+Project.elementExportsFactories.registerSimple('group', createGroup);
 export const _GroupElement = Element.DynGroupElement(MakeJSElement); // see https://github.com/Microsoft/TypeScript/issues/14075
 export class GroupElement extends _GroupElement {
   /** if defined, the absolute filepath */

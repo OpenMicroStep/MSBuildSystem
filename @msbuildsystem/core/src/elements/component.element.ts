@@ -1,10 +1,12 @@
 import {Element, MakeJSElement, Project, Reporter, MakeJS, AttributePath} from '../index.priv';
 
-Project.elementFactories.registerSimple('component', (reporter: Reporter, name: string,
+function createComponent(reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element
-) => {
+) {
   return new ComponentElement('component', name, parent);
-});
+}
+Project.elementFactories.registerSimple('component', createComponent);
+Project.elementExportsFactories.registerSimple('component', createComponent);
 export class ComponentElement extends MakeJSElement {
   static validate = Element.elementValidator('component', ComponentElement);
   static validateAllowDelayed = Element.elementIsValidator(['component', 'delayed']);

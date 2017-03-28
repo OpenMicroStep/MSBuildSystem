@@ -117,7 +117,7 @@ function build_graph(f: Flux<Context>) {
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
   assert.deepEqual(target.exports.__serialize(reporter), {
-    "is": "component", "name": "MSStd", "tags": [],
+    "is": "target-exports", "name": "MSStd", "environment": "darwin-i386", "variant": "debug", "tags": [],
     "components": [
       {
         "is": "component", "name": "generated", "tags": [], "components": [],
@@ -147,7 +147,7 @@ function build_graph(f: Flux<Context>) {
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
   assert.deepEqual(target.exports.__serialize(reporter), {
-    "is": "component", "name": "MSStd_static", "tags": [],
+    "is": "target-exports", "name": "MSStd_static", "environment": "darwin-i386", "variant": "debug", "tags": [],
     "components": [
       {
         "is": "component", "name": "generated", "tags": [], "components": [],
