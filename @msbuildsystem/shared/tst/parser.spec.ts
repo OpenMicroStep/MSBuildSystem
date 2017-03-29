@@ -30,8 +30,10 @@ function basics() {
   assertState(parser, parser.skip(Parser.isSpaceChar)   , { r: 1            , ch: '\n', at:  7, line: 0, atline: 0, atEnd: false });
   assertState(parser, parser.skip(Parser.isAnySpaceChar), { r: 2            , ch: 'S' , at:  9, line: 1, atline: 8, atEnd: false });
   assertState(parser, parser.while(ch => ch !== '<', 0) , { r: 'Some HTML\t', ch: '<' , at: 19, line: 1, atline: 8, atEnd: false });
+  assertState(parser, parser.test('</div<')             , { r: ''           , ch: '<' , at: 19, line: 1, atline: 8, atEnd: false });
+  assertState(parser, parser.test('</div>', false)      , { r: '</div>'     , ch: '<' , at: 19, line: 1, atline: 8, atEnd: false });
   assert.deepEqual(parser.reporter.diagnostics, []);
-  assertState(parser, parser.consume('</div<')           , { r: '</div<'    , ch: '>' , at: 24, line: 1, atline: 8, atEnd: false });
+  assertState(parser, parser.consume('</div<')          , { r: '</div<'     , ch: '>' , at: 24, line: 1, atline: 8, atEnd: false });
   assert.deepEqual(parser.reporter.diagnostics, [{ type: "error", msg: "expecting: </div<, received: </div>", col: 17, row: 2 }]);
 }
 
@@ -52,7 +54,7 @@ function perfs_while(n: number) {
   let i = n;
   while (i > 0) {
     let chunk = 100;
-    i -= parser.while(ch => --chunk > 0, 100).length;
+    i -= parser.while(ch => chunk-- > 0, 100).length;
   }
 }
 

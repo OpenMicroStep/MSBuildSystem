@@ -2,6 +2,7 @@ import {Reporter} from './index';
 
 export class Parser {
   ch: string = ""; // current character
+  aheadchars: string[] = [];
   at: number = 0; // index of the current character
   line: number = 0; // current line
   atline: number = 0; // index of the first character of the line
@@ -19,21 +20,26 @@ export class Parser {
     }
     this.ch = this.source() ;
   }
+  static isNotNumberChar(ch: string) { return !Parser.isNumberChar(ch); }
   static isNumberChar(ch: string) {
     return '0' <= ch && ch <= '9';
   }
+  static isNotWordChar(ch: string) { return !Parser.isWordChar(ch); }
   static isWordChar(ch: string) {
     return ch === '_' ||
       ('A' <= ch && ch <= 'Z') ||
       ('a' <= ch && ch <= 'z') ||
       ('0' <= ch && ch <= '9');
   }
+  static isNotSpaceChar(ch: string) { return !Parser.isSpaceChar(ch); }
   static isSpaceChar(ch: string) {
     return ch === ' ' || ch === '\t';
   }
+  static isNotLineChar(ch: string) { return !Parser.isLineChar(ch); }
   static isLineChar(ch: string) {
-    return ch === '\n' || ch === '\r';
+    return ch === '\n';
   }
+  static isNotAnySpaceChar(ch: string) { return !Parser.isAnySpaceChar(ch); }
   static isAnySpaceChar(ch: string) {
     return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
   }
@@ -42,12 +48,28 @@ export class Parser {
     return !this.ch;
   }
 
+  ahead(amount: number) : string {
+    let ret = this.ch;
+    if (ret) {
+      amount--;
+      let ch: string;
+      let i = this.aheadchars.length;
+      while (i > 0 && amount-- > 0)
+        ret += (ch = this.aheadchars[--i]);
+      while (amount-- > 0 && (ch = this.source())) {
+        this.aheadchars.unshift(ch);
+        ret += ch;
+      }
+    }
+    return ret;
+  }
+
   next() : string {
     if (Parser.isLineChar(this.ch)) {
       this.line++;
       this.atline = this.at + 1;
     }
-    this.ch = this.source();
+    this.ch = this.aheadchars.length ? this.aheadchars.pop()! : this.source();
     if (this.ch)
       this.at++;
     return this.ch;
@@ -62,13 +84,13 @@ export class Parser {
     });
   }
 
-  test<T extends string>(expected: T) : T | "" {
-    let pos = 0;
-    while (pos < expected.length && this.ch === expected[pos]) {
-      pos++;
-      this.next();
-    }
-    return pos !== expected.length ? "" : expected;
+  test<T extends string>(expected: T, consume = true) : T | "" {
+    let actual = expected.length === 1 ? this.ch : this.ahead(expected.length);
+    let same = actual === expected;
+    if (same && consume)
+      for (let i = 0; i < expected.length; i++)
+        this.next();
+    return same ? expected : "";
   }
 
   consume<T extends string>(expected: T) : T {
@@ -89,7 +111,7 @@ export class Parser {
       this.next();
     }
     if (ret.length < minLength)
-      this.error(`expecting to match ${predicate.name}, received: ${this.ch}`);
+      this.error(`expecting to match ${predicate.name} x (${ret.length}/${minLength}), received: ${this.ch}`);
     return ret;
   }
 
