@@ -18,7 +18,7 @@ test:
   dependencies:
    - build
   script:
-   - npm install -q -g @microstep/tests
+   - npm install -q -g @openmicrostep/tests
    - mstests -c dist/node/debug/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
                 dist/node/debug/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
 

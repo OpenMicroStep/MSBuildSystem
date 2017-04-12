@@ -192,11 +192,11 @@ module.exports= {
       files: ['=files:typescript:src ? tsc'],
       npmPackage: [{
         "dependencies": {
-          "typescript": "^2.1.6",
+          "typescript": "^2.2.2",
         }
       }],
       npmInstall: [{
-        "typescript": "^2.1.6",
+        "typescript": "^2.2.2",
       }]
     },
     'typescript tests=': {

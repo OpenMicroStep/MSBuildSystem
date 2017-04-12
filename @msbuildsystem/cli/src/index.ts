@@ -155,7 +155,7 @@ function handle_run() {
         }
 
         let progressbar = /*throttle(100, */(() => {
-          let width = (stderr.columns -  20);
+          let width = Math.max(0, stderr.columns -  20);
           let progress = `   ${Math.floor(done * 100 / count)}`.slice(-3);
           let partdone = Math.floor(done * width / count);
           let stallsTxt = stalls.stalls.length === 0 ? 'none' : stalls.stalls.map(dt => util.Formatter.duration.millisecond.short(dt)).join(', ');
