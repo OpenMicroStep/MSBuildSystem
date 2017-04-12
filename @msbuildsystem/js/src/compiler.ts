@@ -1,7 +1,7 @@
 import {
   AttributePath, Reporter, CopyTask,
   SelfBuildGraph, createBuildGraphProviderList
-} from '@msbuildsystem/core';
+} from '@openmicrostep/msbuildsystem.core';
 import {JSTarget} from './index';
 
 export type JSCompiler = SelfBuildGraph<JSTarget>;

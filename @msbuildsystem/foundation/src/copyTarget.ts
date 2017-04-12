@@ -1,4 +1,4 @@
-import {declareTarget, Target, resolver, FileElement, Reporter, AttributeTypes, CopyTask} from '@msbuildsystem/core';
+import {declareTarget, Target, resolver, FileElement, Reporter, AttributeTypes, CopyTask} from '@openmicrostep/msbuildsystem.core';
 import * as path from 'path';
 
 @declareTarget({ type: 'Copy' })

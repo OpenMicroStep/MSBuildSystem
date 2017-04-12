@@ -1,4 +1,4 @@
-import {declareTarget, resolver, AttributeTypes, Reporter, FileElement, AttributePath, CopyTask} from '@msbuildsystem/core';
+import {declareTarget, resolver, AttributeTypes, Reporter, FileElement, AttributePath, CopyTask} from '@openmicrostep/msbuildsystem.core';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
 

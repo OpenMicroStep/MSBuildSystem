@@ -1,4 +1,4 @@
-import {Element, Reporter} from '@msbuildsystem/shared';
+import {Element, Reporter} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function simple() {

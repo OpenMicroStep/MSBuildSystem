@@ -2,7 +2,7 @@ import {
   Target, File, Reporter,
   AttributePath, AttributeTypes,
   resolver, FileElement
-} from '@msbuildsystem/core';
+} from '@openmicrostep/msbuildsystem.core';
 import {
   CXXSysroot, CXXSysroots,
   CompilerOptions, validateCompilerOptions, compilerExtensions,

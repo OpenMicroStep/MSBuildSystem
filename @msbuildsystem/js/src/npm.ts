@@ -2,10 +2,10 @@ import {
   Reporter, SelfBuildGraph, resolver, Task, AttributeTypes, util,
   declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory,
   ComponentElement
-} from '@msbuildsystem/core';
+} from '@openmicrostep/msbuildsystem.core';
 import {
   ProcessTask, LocalProcessProvider, ProcessProviders
-} from '@msbuildsystem/foundation';
+} from '@openmicrostep/msbuildsystem.foundation';
 import { JSTarget, JSPackagers, JSPackager } from './index';
 import * as path from 'path';
 import * as child_process from 'child_process';

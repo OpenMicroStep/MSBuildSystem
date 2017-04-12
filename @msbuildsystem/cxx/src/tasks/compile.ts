@@ -1,8 +1,8 @@
 import {
   File, Directory, declareTask, Step, Graph, Diagnostic, StepWithData,
   AttributeTypes, Target, AttributePath, Reporter
-} from '@msbuildsystem/core';
-import {ProcessTask, ProcessProviderConditions} from '@msbuildsystem/foundation';
+} from '@openmicrostep/msbuildsystem.core';
+import {ProcessTask, ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
 
 //              1:path  2:row 3:col    4:ranges                      5:type                                  6:msg     7:option     8:category
 var rxdiag  = /^([^:]+):(\d+):(\d+):(?:((?:\{\d+:\d+-\d+:\d+\})+):)? (warning|(?:fatal )?error|note|remark): (.+?)(?:\[([^,\]]+)(?:,([^\]]+))?\])?$/;

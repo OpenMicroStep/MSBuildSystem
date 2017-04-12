@@ -1,5 +1,5 @@
-import {File, declareTask, Graph, AttributeTypes, Reporter, AttributePath, Target, Directory} from '@msbuildsystem/core';
-import {ProcessTask} from '@msbuildsystem/foundation';
+import {File, declareTask, Graph, AttributeTypes, Reporter, AttributePath, Target, Directory} from '@openmicrostep/msbuildsystem.core';
+import {ProcessTask} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXLinkType} from '../index.priv';
 
 export interface LinkerOptions {

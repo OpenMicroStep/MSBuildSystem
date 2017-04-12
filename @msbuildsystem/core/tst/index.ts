@@ -4,7 +4,7 @@ import {tests as graph_tests} from './graph.spec';
 import {tests as project_tests} from './project.spec';
 import {tests as element_tests} from './element.spec';
 import {tests as workspace_tests} from './workspace.spec';
-import {Test} from '@microstep/tests';
+import {Test} from '@openmicrostep/tests';
 
 export const name = 'core';
 export const tests = <Test<any>[]>[

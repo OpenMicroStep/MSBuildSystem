@@ -1,4 +1,4 @@
-import {path} from '@msbuildsystem/shared';
+import {path} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function basename() {

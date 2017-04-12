@@ -1,4 +1,4 @@
-import {Graph, TaskName, Step, StepWithData, File, AttributePath, InOutTask} from '@msbuildsystem/core';
+import {Graph, TaskName, Step, StepWithData, File, AttributePath, InOutTask} from '@openmicrostep/msbuildsystem.core';
 import {ProcessProvider, ProcessProviderConditions, ProcessProviderRequirement, ProcessProviders} from './index';
 
 /** if the argument is an array, the content the array will be concatenated */

@@ -1,5 +1,5 @@
-import {File, declareTask, Graph} from '@msbuildsystem/core';
-import {ProcessTask, ProcessProviderConditions} from '@msbuildsystem/foundation';
+import {File, declareTask, Graph} from '@openmicrostep/msbuildsystem.core';
+import {ProcessTask, ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
 
 @declareTask({ type: "cxxcompilemasm" })
 export class CompileMasmTask extends ProcessTask {

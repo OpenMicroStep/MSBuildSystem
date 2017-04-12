@@ -1,4 +1,4 @@
-export { Async, Flux } from '@microstep/async';
+export { Async, Flux } from '@openmicrostep/async';
 import * as _util from './util';
 export import util = _util;
 import * as _path from './path';

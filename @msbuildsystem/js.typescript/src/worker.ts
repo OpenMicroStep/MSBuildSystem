@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
 import * as path from 'path';
-import {util, Diagnostic} from '@msbuildsystem/core';
+import {util, Diagnostic} from '@openmicrostep/msbuildsystem.core';
 
 let timeout = setTimeout(() => {
   console.log(`no command received`);

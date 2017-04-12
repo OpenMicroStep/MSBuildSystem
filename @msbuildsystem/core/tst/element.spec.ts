@@ -1,5 +1,5 @@
-import {Reporter, AttributePath} from '@msbuildsystem/core';
-import {newProxyElement, DelayedElement} from '@msbuildsystem/core/elements/delayed.element';
+import {Reporter, AttributePath} from '@openmicrostep/msbuildsystem.core';
+import {newProxyElement, DelayedElement} from '@openmicrostep/msbuildsystem.core/elements/delayed.element';
 import {assert} from 'chai';
 
 function proxy_element() {
@@ -21,7 +21,7 @@ function proxy_element() {
   let reporter = new Reporter();
   let buildTarget: any = {};
   let res = (<DelayedElement>$2).__delayedResolve(reporter, buildTarget, new AttributePath());
-  assert.deepEqual(res, [{
+  assert.deepEqual<any>(res, [{
     reporter: reporter,
     query: 'tests',
   }]);

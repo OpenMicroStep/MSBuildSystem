@@ -1,4 +1,4 @@
-import {declareTask, Graph, File} from '@msbuildsystem/core';
+import {declareTask, Graph, File} from '@openmicrostep/msbuildsystem.core';
 import {CXXLinkType, LinkTask} from '../index.priv';
 
 @declareTask({ type: "lipo" })

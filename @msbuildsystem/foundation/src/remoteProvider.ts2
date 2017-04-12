@@ -1,4 +1,4 @@
-import {Provider, ProviderOptions, Step, process as child_process, Target, File, Async} from '@msbuildsystem/core';
+import {Provider, ProviderOptions, Step, process as child_process, Target, File, Async} from '@openmicrostep/msbuildsystem.core';
 import * as path from 'path';
 import * as fs from "fs-extra";
 import * as crypto from "crypto";

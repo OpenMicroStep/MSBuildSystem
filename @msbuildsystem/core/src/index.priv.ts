@@ -1,4 +1,4 @@
-export * from '@msbuildsystem/shared';
+export * from '@openmicrostep/msbuildsystem.shared';
 export * from './loader';
 //import * as logger from './logger'; export { logger as logger };
 import * as util from './util'; export { util as util };

@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 
-require('@msbuildsystem/cli');
+require('@openmicrostep/msbuildsystem.cli');

@@ -1,5 +1,5 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, Async, Task, Graph} from '@msbuildsystem/core';
-import {CXXExecutable, CompileClangTask, LinkLibToolTask, CXXDarwinSysroot} from '@msbuildsystem/cxx';
+import {Workspace, Project, Runner, RootGraph, Reporter, Async, Task, Graph} from '@openmicrostep/msbuildsystem.core';
+import {CXXExecutable, CompileClangTask, LinkLibToolTask, CXXDarwinSysroot} from '@openmicrostep/msbuildsystem.cxx';
 import {assert} from 'chai';
 import * as path from 'path';
 

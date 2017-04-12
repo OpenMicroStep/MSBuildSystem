@@ -1,4 +1,4 @@
-import {util, Flux} from '@msbuildsystem/shared';
+import {util, Flux} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function formatSize() {

@@ -1,4 +1,4 @@
-import {createCachedProviderList, File, ProviderList, Step} from '@msbuildsystem/core';
+import {createCachedProviderList, File, ProviderList, Step} from '@openmicrostep/msbuildsystem.core';
 
 export enum ProcessProviderRequirement {
   Inputs,

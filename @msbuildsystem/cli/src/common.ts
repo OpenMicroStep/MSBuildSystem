@@ -1,4 +1,4 @@
-import { Reporter, Diagnostic, util } from '@msbuildsystem/core';
+import { Reporter, Diagnostic, util } from '@openmicrostep/msbuildsystem.core';
 import * as chalk from 'chalk';
 
 export const colors = {

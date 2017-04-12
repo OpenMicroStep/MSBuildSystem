@@ -63,7 +63,7 @@ module.exports= {
       "@types/chai": "^3.4.29",
       "@types/mocha": "^2.2.28",
       "@types/node": "^4.0.30",
-      "@microstep/tests": "^0.1.0"
+      "@openmicrostep/tests": "^0.1.0"
     }],
     npmPackage: [{
       "dependencies": {
@@ -74,7 +74,7 @@ module.exports= {
   'targets=': { 'is': 'group',
     'core=': {
       is: "target",
-      outputName: '@msbuildsystem/core',
+      outputName: '@openmicrostep/msbuildsystem.core',
       targets: ['shared'],
       components: ['=base', '=::shared::'],
       files: ['=files:core:src ? tsc'],
@@ -94,7 +94,7 @@ module.exports= {
     },
     'core tests=': {
       is: "target",
-      outputName: '@msbuildsystem/core.tests',
+      outputName: '@openmicrostep/msbuildsystem.core.tests',
       targets: ['core'],
       components: ['=base tests', '=::core::'],
       files: ['=files:core:tst ? tsc'],
@@ -103,27 +103,27 @@ module.exports= {
     'shared=': {
       is: "target",
       components: ['=base'],
-      outputName: '@msbuildsystem/shared',
+      outputName: '@openmicrostep/msbuildsystem.shared',
       files: ['=files:shared'],
       npmInstall: [{
-        "@microstep/async": "^0.1.0",
+        "@openmicrostep/async": "^0.1.0",
       }],
       npmPackage: [{
         "dependencies": {
-          "@microstep/async": "^0.1.0"
+          "@openmicrostep/async": "^0.1.0"
         }
       }]
     },
     'shared tests=': {
       is: "target",
-      outputName: '@msbuildsystem/shared.tests',
+      outputName: '@openmicrostep/msbuildsystem.shared.tests',
       targets: ['shared'],
       components: ['=base tests', '=::shared::'],
       files: ['=files:shared tests'],
     },
     'cli=': {
       is: "target",
-      outputName: '@msbuildsystem/cli',
+      outputName: '@openmicrostep/msbuildsystem.cli',
       components: ['=base', '=::core::'],
       targets: ['core'],
       files: ['=files:cli'],
@@ -142,28 +142,28 @@ module.exports= {
     },
     'foundation=': {
       is: "target",
-      outputName: '@msbuildsystem/foundation',
+      outputName: '@openmicrostep/msbuildsystem.foundation',
       targets: ['core'],
       components: ['=base', '=::core::'],
       files: ['=files:foundation']
     },
     /*'foundation tests=': {
       is: "target",
-      outputName: '@msbuildsystem/foundation.tests',
+      outputName: '@openmicrostep/msbuildsystem.foundation.tests',
       components: ['=base tests'],
       targets: ['foundation'],
       files: ['=files:foundation tests'],
     },*/
     'cxx=': {
       is: "target",
-      outputName: '@msbuildsystem/cxx',
+      outputName: '@openmicrostep/msbuildsystem.cxx',
       targets: ['core', 'foundation'],
       components: ['=base', '=::core::', '=::foundation::'],
       files: ['=files:cxx:src ? tsc'],
     },
     'cxx tests=': {
       is: "target",
-      outputName: '@msbuildsystem/cxx.tests',
+      outputName: '@openmicrostep/msbuildsystem.cxx.tests',
       targets: ['cxx'],
       components: ['=base tests', '=::cxx::', '=::core::'],
       files: ['=files:cxx:tst ? tsc'],
@@ -171,14 +171,14 @@ module.exports= {
     },
     'js=':               {
       is: 'target',
-      outputName: '@msbuildsystem/js',
+      outputName: '@openmicrostep/msbuildsystem.js',
       targets: ['core', 'foundation'],
       components: ['=base', '=::core::', '=::foundation::'],
       files: ['=files:js:src ? tsc']
     },
     'js tests=':         {
       is: 'target',
-      outputName: '@msbuildsystem/js.tests',
+      outputName: '@openmicrostep/msbuildsystem.js.tests',
       targets: ['js'],
       components: ['=base tests', '=::foundation::', '=::core::', '=::js::'],
       files: ['=files:js:tst ? tsc'],
@@ -186,7 +186,7 @@ module.exports= {
     },
     'typescript=':       {
       is: 'target',
-      outputName: '@msbuildsystem/js.typescript',
+      outputName: '@openmicrostep/msbuildsystem.js.typescript',
       targets: ['core', 'foundation', 'js'],
       components: ['=base', '=::foundation::', '=::js::', '=::core::'],
       files: ['=files:typescript:src ? tsc'],
@@ -201,7 +201,7 @@ module.exports= {
     },
     'typescript tests=': {
       is: 'target',
-      outputName: '@msbuildsystem/js.typescript.tests',
+      outputName: '@openmicrostep/msbuildsystem.js.typescript.tests',
       components: ['=base tests', '=::core::', '=::js::', '=::typescript::'],
       targets: ['typescript'],
       files: ['=files:typescript:tst ? tsc'],

@@ -1,5 +1,5 @@
-import {Reporter, SubGraph, File, Graph} from '@msbuildsystem/core';
-import {ProcessTask} from '@msbuildsystem/foundation';
+import {Reporter, SubGraph, File, Graph} from '@openmicrostep/msbuildsystem.core';
+import {ProcessTask} from '@openmicrostep/msbuildsystem.foundation';
 import {CompileFileParams, CXXLinkType} from '../target';
 import {CXXSysroot, Conditions} from '../sysroot';
 import {CompileTask} from '../tasks/compile';

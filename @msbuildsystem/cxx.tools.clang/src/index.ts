@@ -1,5 +1,5 @@
-import {Provider} from '@msbuildsystem/core';
-import {ProcessProvider} from '@msbuildsystem/foundation';
+import {Provider} from '@openmicrostep/msbuildsystem.core';
+import {ProcessProvider} from '@openmicrostep/msbuildsystem.foundation';
 import * as child_process from 'child_process';
 
 if (process.platform === "darwin") {

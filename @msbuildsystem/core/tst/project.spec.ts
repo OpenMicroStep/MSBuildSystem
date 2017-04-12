@@ -1,4 +1,4 @@
-import {Workspace, Project, Reporter, Target, declareTarget, Flux} from '@msbuildsystem/core';
+import {Workspace, Project, Reporter, Target, declareTarget, Flux, Diagnostic} from '@openmicrostep/msbuildsystem.core';
 import {assert} from 'chai';
 import * as path from 'path';
 
@@ -19,7 +19,7 @@ function load_valid_simple(f: Flux<Context>) {
   assert.equal(project.path, projectPath);
   assert.equal(project.definition!.name, 'MySimpleProject');
   assert.equal(project, workspace.project(__dirname + "/data/simple-project"), "two project at the same path share the same instance");
-  assert.deepEqual(project.reporter.diagnostics, [
+  assert.deepEqual<Diagnostic[]>(project.reporter.diagnostics, [
     { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdTime.c"                     , "msg": `file '${project.directory}/MSStdTime.c' not found`            },
     { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdTime-win32.c"               , "msg": `file '${project.directory}/MSStdTime-win32.c' not found`      },
     { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStd.c"                         , "msg": `file '${project.directory}/MSStd.c' not found`                },
@@ -47,7 +47,7 @@ function load_invalid() {
   assert.equal(project.directory, path.normalize(__dirname + "/data/bad-project"));
   assert.equal(project.path, projectPath);
   assert.equal(project.definition!.name, 'MyInvalidProject');
-  assert.deepEqual(project.reporter.diagnostics, [
+  assert.deepEqual<Diagnostic[]>(project.reporter.diagnostics, [
     { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdTime.c"                     , "msg": `file '${project.directory}/MSStdTime.c' not found`            },
     { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdTime-win32.c"               , "msg": `file '${project.directory}/MSStdTime-win32.c' not found`      },
     { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStd.c"                         , "msg": `file '${project.directory}/MSStd.c' not found`                },

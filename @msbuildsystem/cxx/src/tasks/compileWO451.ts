@@ -1,4 +1,4 @@
-import {File, declareTask, Graph, ProviderConditions} from '@msbuildsystem/core';
+import {File, declareTask, Graph, ProviderConditions} from '@openmicrostep/msbuildsystem.core';
 import {CompileTask} from '../index.priv';
 
 //              1:path  2:row         3:type     4:msg

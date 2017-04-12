@@ -2,9 +2,9 @@ import {
   declareTask, Task, Reporter, SelfBuildGraph, Target, File,
   Flux, Step, StepWithData, ReduceStepContext,
   resolver, AttributeTypes, AttributePath, util
-} from '@msbuildsystem/core';
-import { safeSpawnProcess } from '@msbuildsystem/foundation';
-import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@msbuildsystem/js';
+} from '@openmicrostep/msbuildsystem.core';
+import { safeSpawnProcess } from '@openmicrostep/msbuildsystem.foundation';
+import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@openmicrostep/msbuildsystem.js';
 import { InputData, OutputData } from './worker';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';

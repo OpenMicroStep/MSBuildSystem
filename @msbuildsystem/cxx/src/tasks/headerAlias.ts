@@ -1,4 +1,4 @@
-import {File, Task, Graph, Step} from '@msbuildsystem/core';
+import {File, Task, Graph, Step} from '@openmicrostep/msbuildsystem.core';
 import * as fs from 'fs';
 import * as path from 'path';
 

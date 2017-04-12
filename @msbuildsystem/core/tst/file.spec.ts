@@ -1,4 +1,4 @@
-import {File, Flux} from '@msbuildsystem/core';
+import {File, Flux} from '@openmicrostep/msbuildsystem.core';
 import {assert} from 'chai';
 
 function getShared() {

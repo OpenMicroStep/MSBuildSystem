@@ -1,4 +1,4 @@
-import {LocalProcessProvider, ProcessProviders} from '@msbuildsystem/foundation';
+import {LocalProcessProvider, ProcessProviders} from '@openmicrostep/msbuildsystem.foundation';
 import * as child_process from 'child_process';
 
 if (ProcessProviders.isOutOfDate) {

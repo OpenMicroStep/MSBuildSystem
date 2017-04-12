@@ -1,5 +1,5 @@
-import {Reporter, File, SelfBuildGraph, TaskName, createProviderList, ProviderList} from '@msbuildsystem/core';
-import {ProcessProviderConditions} from '@msbuildsystem/foundation';
+import {Reporter, File, SelfBuildGraph, TaskName, createProviderList, ProviderList} from '@openmicrostep/msbuildsystem.core';
+import {ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXTarget, CXXFramework, CompileTask, LinkTask, CompilerOptions, LinkerOptions, CXXLinkType} from './index.priv';
 import * as path from 'path';
 

@@ -1,4 +1,4 @@
-import {Workspace} from '@msbuildsystem/core';
+import {Workspace} from '@openmicrostep/msbuildsystem.core';
 import {assert} from 'chai';
 import * as path from 'path';
 import * as fs from 'fs';

@@ -2,7 +2,7 @@ import {
   AttributePath, Reporter, AttributeTypes,
   SelfBuildGraph, createBuildGraphProviderList,
   util
-} from '@msbuildsystem/core';
+} from '@openmicrostep/msbuildsystem.core';
 import {JSTarget} from './index';
 
 export function validatePackages(reporter: Reporter, path: AttributePath, value: any) : { [s: string]: any } | undefined {

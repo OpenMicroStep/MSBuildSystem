@@ -1,4 +1,4 @@
-import {AttributeTypes, Reporter, AttributePath, Diagnostic} from '@msbuildsystem/shared';
+import {AttributeTypes, Reporter, AttributePath, Diagnostic} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function testValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>, value: any, a0: A0, expected: T | undefined, diagnostics: Diagnostic[]) {

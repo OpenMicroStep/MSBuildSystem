@@ -1,5 +1,5 @@
 import './index.priv'; // force loading of priv
-export * from '@msbuildsystem/shared';
+export * from '@openmicrostep/msbuildsystem.shared';
 export { Loader  } from './loader';
 export { GroupElement } from './elements/group.element';
 export { ComponentElement } from './elements/component.element';
@@ -12,7 +12,7 @@ export * from './graph'     ;
 export * from './target'    ;
 export * from './runner'    ;
 export * from './provider'  ;
-export { Diagnostic } from '@msbuildsystem/shared';
+export { Diagnostic } from '@openmicrostep/msbuildsystem.shared';
 export { Project } from './project';
 export { RootGraph } from './graph-root';
 export { Workspace  } from './workspace';

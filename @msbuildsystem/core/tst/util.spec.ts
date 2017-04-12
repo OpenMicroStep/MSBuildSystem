@@ -1,4 +1,4 @@
-import {util} from '@msbuildsystem/core';
+import {util} from '@openmicrostep/msbuildsystem.core';
 import {assert} from 'chai';
 
 

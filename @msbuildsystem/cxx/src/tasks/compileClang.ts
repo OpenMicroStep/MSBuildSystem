@@ -1,5 +1,5 @@
-import {File, declareTask, Graph} from '@msbuildsystem/core';
-import {ProcessProviderConditions} from '@msbuildsystem/foundation';
+import {File, declareTask, Graph} from '@openmicrostep/msbuildsystem.core';
+import {ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
 import {CompileTask} from '../index.priv';
 
 @declareTask({ type: "cxxcompileclang" })

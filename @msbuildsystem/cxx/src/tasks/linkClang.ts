@@ -1,5 +1,5 @@
-import {declareTask, Graph, File} from '@msbuildsystem/core';
-import {Arg} from '@msbuildsystem/foundation';
+import {declareTask, Graph, File} from '@openmicrostep/msbuildsystem.core';
+import {Arg} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXLinkType, LinkTask, LinkerOptions} from '../index.priv';
 
 @declareTask({ type: "link-clang" })

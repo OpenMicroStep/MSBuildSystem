@@ -1,4 +1,4 @@
-import {AttributePath} from '@msbuildsystem/shared';
+import {AttributePath} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function path_tracking() {

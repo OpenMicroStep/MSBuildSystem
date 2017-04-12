@@ -1,4 +1,4 @@
-import {Step} from '@msbuildsystem/core';
+import {Step} from '@openmicrostep/msbuildsystem.core';
 import {ProcessProvider, ProcessProviderOptions} from './index';
 import * as child_process from 'child_process';
 

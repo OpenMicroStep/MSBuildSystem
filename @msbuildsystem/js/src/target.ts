@@ -1,7 +1,7 @@
 import {
   declareTarget, Target, Reporter, resolver, AttributeTypes, AttributePath,
   File, FileElement, Step
-} from '@msbuildsystem/core';
+} from '@openmicrostep/msbuildsystem.core';
 import {
   JSCompilers, JSCompiler,
   JSPackagers, JSPackager

@@ -1,5 +1,5 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, Graph, CopyTask, Flux} from '@msbuildsystem/core';
-import {JSTarget, DefaultJSCompiler, DefaultJSPackager} from '@msbuildsystem/js';
+import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, Graph, CopyTask, Flux} from '@openmicrostep/msbuildsystem.core';
+import {JSTarget, DefaultJSCompiler, DefaultJSPackager} from '@openmicrostep/msbuildsystem.js';
 import {assert} from 'chai';
 import * as path from 'path';
 

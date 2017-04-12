@@ -1,4 +1,4 @@
-import {declareTask, Graph, File, ProviderConditions} from '@msbuildsystem/core';
+import {declareTask, Graph, File, ProviderConditions} from '@openmicrostep/msbuildsystem.core';
 import {CXXLinkType, LinkTask, CompileTask, CXXBundle, CXXExecutable} from '../index.priv';
 import * as path from 'path';
 

@@ -1,5 +1,5 @@
-import {Reporter, File, AttributeTypes, resolver} from '@msbuildsystem/core';
-import {ProcessTask} from '@msbuildsystem/foundation';
+import {Reporter, File, AttributeTypes, resolver} from '@openmicrostep/msbuildsystem.core';
+import {ProcessTask} from '@openmicrostep/msbuildsystem.foundation';
 import {
   CompilerOptions, LinkerOptions, Conditions, CXXSysroots, CXXTarget,
   CXXSysroot, CXXLibrary, CXXFramework, CXXLinkType,

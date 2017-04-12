@@ -1,4 +1,4 @@
-import {declareTask, Graph, GenerateFileTask} from '@msbuildsystem/core';
+import {declareTask, Graph, GenerateFileTask} from '@openmicrostep/msbuildsystem.core';
 import {basename} from 'path';
 
 export module Plist {

@@ -1,5 +1,5 @@
 let boot_t0 = process.hrtime();
-import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph } from '@msbuildsystem/core';
+import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph } from '@openmicrostep/msbuildsystem.core';
 import { printReport, ReporterPrinter, mkReport, Report } from './common';
 import { args } from './args';
 import { npm } from './modules';

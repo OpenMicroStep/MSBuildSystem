@@ -1,4 +1,4 @@
-import {declareTask, Graph} from '@msbuildsystem/core';
+import {declareTask, Graph} from '@openmicrostep/msbuildsystem.core';
 import {CXXLinkType, LinkTask} from '../index.priv';
 
 @declareTask({ type: "link-binutils" })

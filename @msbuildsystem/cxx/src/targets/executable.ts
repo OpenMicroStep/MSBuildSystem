@@ -1,4 +1,4 @@
-import {declareTarget} from '@msbuildsystem/core';
+import {declareTarget} from '@openmicrostep/msbuildsystem.core';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 
 @declareTarget({ type: "CXXExecutable" })

@@ -1,4 +1,4 @@
-import {Task, Graph, RootGraph, Workspace} from '@msbuildsystem/core';
+import {Task, Graph, RootGraph, Workspace} from '@openmicrostep/msbuildsystem.core';
 import {assert} from 'chai';
 
 function simple_graph() {

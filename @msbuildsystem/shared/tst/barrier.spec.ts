@@ -1,4 +1,4 @@
-import {Barrier} from '@msbuildsystem/shared';
+import {Barrier} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function empty() {
