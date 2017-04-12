@@ -12,7 +12,7 @@ type Context = {
 }
 
 function load_valid_simple(f: Flux<Context>) {
-  let workspace = f.context.workspace = new Workspace();
+  let workspace = f.context.workspace = Workspace.createTemporary();
   let projectPath = path.normalize(__dirname + "/data/simple-project/make.js");
   let project = f.context.sharedProject = workspace.project(__dirname + "/data/simple-project");
   assert.equal(project.directory, path.normalize(__dirname + "/data/simple-project"));
@@ -41,7 +41,7 @@ function load_valid_simple(f: Flux<Context>) {
   f.continue();
 }
 function load_invalid() {
-  let workspace = new Workspace();
+  let workspace = Workspace.createTemporary();
   let projectPath = path.normalize(__dirname + "/data/bad-project/make.js");
   let project = workspace.project(__dirname + "/data/bad-project");
   assert.equal(project.directory, path.normalize(__dirname + "/data/bad-project"));

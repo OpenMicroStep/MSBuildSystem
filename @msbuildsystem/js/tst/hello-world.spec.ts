@@ -10,7 +10,7 @@ type Context = {
 }
 
 function load(f: Flux<Context>) {
-  f.context.workspace = new Workspace();
+  f.context.workspace = Workspace.createTemporary();
   let project = f.context.workspace.project(__dirname + "/data/hello-world");
   f.context.sharedProject = project;
   assert.equal(project.definition!.name, 'Hello World');
