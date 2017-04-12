@@ -4,13 +4,13 @@ build:
   script:
    - npm install -q -g @openmicrostep/msbuildsystem.cli
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-   - msbuildsystem build -p @msbuildsystem -w bootstrap1/
-   - node bootstrap1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w bootstrap2/
-   - node bootstrap2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/
+   - msbuildsystem build -p @msbuildsystem -w dist/1/
+   - node dist/1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
+   - node dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/3/
   artifacts:
     expire_in: 31d
     paths:
-     - dist/
+     - dist/3/
 
 test:
   image: node:6-alpine
@@ -19,22 +19,22 @@ test:
    - build
   script:
    - npm install -q -g @openmicrostep/tests
-   - mstests -c dist/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
-                dist/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
-                dist/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
-                dist/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
+   - mstests -c dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
+                dist/3/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
+                dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
+                dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
 
 publish:
   image: node:6-alpine
   stage: deploy
   script:
     - echo "$NPM_AUTH" >> ~/.npmrc
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.shared
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.core
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.cli
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.foundation
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.js
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.js.typescript
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.core
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.cli
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.foundation
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.js
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript
   dependencies:
    - build
   only:
@@ -47,12 +47,12 @@ auto_publish:
   stage: deploy
   script:
     - echo "$NPM_AUTH" >> ~/.npmrc
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.shared
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.core
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.cli
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.foundation
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.js
-    - npm publish dist/node/node_modules/@openmicrostep/msbuildsystem.js.typescript
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.core
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.cli
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.foundation
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.js
+    - npm publish dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript
   dependencies:
    - build
   only:

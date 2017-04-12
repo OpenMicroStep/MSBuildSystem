@@ -7,19 +7,19 @@ script:
   - stty cols 80
   - npm install -q -g @openmicrostep/msbuildsystem.cli @openmicrostep/tests istanbul coveralls remap-istanbul
   - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-  - msbuildsystem build -p @msbuildsystem -w bootstrap1/
-  - node bootstrap1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w bootstrap2/
-  - node bootstrap2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/
+  - msbuildsystem build -p @msbuildsystem -w dist/1/
+  - node dist/1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
+  - node dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/3/
   - mstests
         -c -t 20000
-        dist/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
-        dist/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
-        dist/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
-        dist/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
-  - istanbul cover mstests --report json -x 'msbuildsystem.*.tests/**' --root dist/node/node_modules/@openmicrostep/ --
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
+  - istanbul cover mstests --report json -x 'msbuildsystem.*.tests/**' --root dist/3/node/node_modules/@openmicrostep/ --
         -c -t 20000 -i -g perf
-        dist/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
-        dist/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
-        dist/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
-        dist/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
+        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
     && cat ./coverage/coverage-final.json | remap-istanbul --type lcovonly | coveralls && rm -rf ./coverage
