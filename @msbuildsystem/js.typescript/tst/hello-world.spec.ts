@@ -1,5 +1,5 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, Graph, Flux} from '@openmicrostep/msbuildsystem.core';
-import {JSTarget, DefaultJSPackager} from '@openmicrostep/msbuildsystem.js';
+import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, Graph, Flux, Target} from '@openmicrostep/msbuildsystem.core';
+import {JSTarget, DefaultJSPackager, NPMInstallTask} from '@openmicrostep/msbuildsystem.js';
 import {TypescriptCompiler, TypescriptTask} from '@openmicrostep/msbuildsystem.js.typescript';
 import {assert} from 'chai';
 import * as path from 'path';
@@ -52,11 +52,21 @@ function graph(f: Flux<Context>) {
           "type": "compiler",
           "children": [
             {
+              "constructor": NPMInstallTask,
+              "name": "install",
+              "type": "npm"
+            },
+            {
               "constructor": TypescriptTask,
               "name": "tsc",
               "type": "typescript"
             }
           ]
+        },
+        {
+          "constructor": Target.GenerateExports,
+          "name": "Hello World",
+          "type": "exports",
         },
         {
           "constructor": DefaultJSPackager,

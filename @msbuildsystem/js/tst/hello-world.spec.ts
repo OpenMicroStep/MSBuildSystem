@@ -1,4 +1,4 @@
-import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, Graph, CopyTask, Flux} from '@openmicrostep/msbuildsystem.core';
+import {Workspace, Project, Runner, RootGraph, Reporter, File, Async, Task, Graph, CopyTask, Flux, Target} from '@openmicrostep/msbuildsystem.core';
 import {JSTarget, DefaultJSCompiler, DefaultJSPackager} from '@openmicrostep/msbuildsystem.js';
 import {assert} from 'chai';
 import * as path from 'path';
@@ -56,6 +56,11 @@ function graph(f: Flux<Context>) {
               "type": "copy"
             }
           ]
+        },
+        {
+          "constructor": Target.GenerateExports,
+          "name": "Hello World",
+          "type": "exports",
         },
         {
           "constructor": DefaultJSPackager,

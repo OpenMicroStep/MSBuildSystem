@@ -10,5 +10,13 @@ script:
   - msbuildsystem build -p @msbuildsystem -w bootstrap1/
   - node bootstrap1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w bootstrap2/
   - node bootstrap2/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/
-  - mstests -c dist/node/debug/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js dist/node/debug/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
-  - istanbul cover mstests --report lcovonly -x 'msbuildsystem.*.tests/**' --root dist/node/debug/node_modules/@openmicrostep/ -- -c -i -g perf dist/node/debug/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js dist/node/debug/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage
+  - mstests -c dist/node/debug/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
+               dist/node/debug/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
+               dist/node/debug/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
+               dist/node/debug/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
+  - istanbul cover mstests --report lcovonly -x 'msbuildsystem.*.tests/**' --root dist/node/debug/node_modules/@openmicrostep/ -- -c -i -g perf
+               dist/node/debug/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
+               dist/node/debug/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
+               dist/node/debug/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
+               dist/node/debug/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
+            && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage
