@@ -7,7 +7,6 @@ import * as path from 'path';
 export interface BuildGraphOptions {
   targets?: string[];
   environments?: string[];
-  variants?: string[];
 };
 
 export class Project {

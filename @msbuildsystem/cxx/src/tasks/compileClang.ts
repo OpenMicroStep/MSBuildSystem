@@ -20,10 +20,10 @@ export class CompileClangTask extends CompileTask {
 
     // if ( ?.variant.debug )
 
-    if (graph.target().variant !== "release")
-      this.appendArgs(["-g"]);
-    else
-      this.appendArgs(["-O3", "-g"]);
+    //if (graph.target().variant !== "release")
+    this.appendArgs(["-g"]);
+    //else
+    //  this.appendArgs(["-O3", "-g"]);
     // if (this.language === 'C' || this.language === 'OBJC')
     //   this.appendArgs(["-std=c11"]);
     // if(!(<any>process.stdout).isTTY)

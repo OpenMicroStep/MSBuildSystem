@@ -105,7 +105,6 @@ function handle_run() {
     let perf = util.performanceCounter();
     let graph = workspace.buildGraph(reporter, {
       environments: args.environments || undefined,
-      variants: args.variants || undefined,
       targets: args.targets || undefined
     });
     if (printReport('Build graph create', reporter, perf())) {

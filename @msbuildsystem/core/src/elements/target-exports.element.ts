@@ -7,24 +7,21 @@ function createExportsComponent(reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element
 ) {
   let env = AttributeTypes.validateString(reporter, attrPath, definition.environment);
-  let variant = AttributeTypes.validateString(reporter, attrPath, definition.variant);
-  return env && variant ? new TargetExportsElement('component', name, env, variant) : undefined;
+  return env ? new TargetExportsElement('component', name, env) : undefined;
 }
 Project.elementExportsFactories.registerSimple('target-exports', createExportsComponent);
 export class TargetExportsElement extends ComponentElement {
   __target: Target | null;
   __generated: ComponentElement;
   environment: string;
-  variant: string;
 
-  constructor(is: string, name: string, environment: string, variant: string) {
+  constructor(is: string, name: string, environment: string) {
     super(is, name, null);
     this.environment = environment;
-    this.variant = variant;
   }
 
   __path() {
-    return `${this.name}{${this.variant}/${this.environment}}.exports`;
+    return `${this.name}{${this.environment}}.exports`;
   }
 }
 
@@ -33,7 +30,7 @@ export class BuildTargetExportsElement extends TargetExportsElement {
   __generated: ComponentElement;
 
   constructor(target: Target, name: string) {
-    super('target-exports', name, target.environment, target.variant);
+    super('target-exports', name, target.environment);
     this.__generated = new ComponentElement('component', 'generated', this);
     this.__target = target;
     this.__resolved = !!target;

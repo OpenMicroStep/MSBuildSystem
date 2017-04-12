@@ -5,7 +5,6 @@ import {
 import {injectElements} from './injection';
 
 export class BuildTargetElement extends MakeJSElement {
-  variant: string;
   environment: EnvironmentElement;
   environments: EnvironmentElement[];
   targets: string[];
@@ -17,11 +16,9 @@ export class BuildTargetElement extends MakeJSElement {
 
   static notInjectedKeys = new Set(["tags", "elements"]);
 
-  constructor(reporter: Reporter, root: RootGraph, target: TargetElement, environment: EnvironmentElement, variant: string) {
+  constructor(reporter: Reporter, root: RootGraph, target: TargetElement, environment: EnvironmentElement) {
     super('build-target', target.name, target.__parent!); // the parent is the same as the target to have the same resolution behavior
-    // setup the is, variant and environment attributes
     this.is = 'build-target';
-    this.variant = variant;
     this.environment = environment;
     //
     this.targets = [];
@@ -55,6 +52,6 @@ export class BuildTargetElement extends MakeJSElement {
   }
 
   __path() {
-    return `${super.__path()}{${this.variant}/${this.environment.name}}`;
+    return `${super.__path()}{${this.environment.name}}`;
   }
 }

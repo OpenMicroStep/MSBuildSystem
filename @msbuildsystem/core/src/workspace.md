@@ -7,9 +7,9 @@ It retains the set of associated projects (sources or packaged) and allow depend
 Organisation of a workspace (relative to workspace directory)
 
  - `workspace.json`: workspace state (see `WorkspaceData` type)
- - `${environment name}/${variant name}`: result of builds
- - `.shared/${environment name}/${variant name}`: contains target exported make.js
- - `.build/${environment name}/${variant name}`: build related data (can be removed at any time to force full rebuild)
+ - `${environment name}`: result of builds
+ - `.shared/${environment name}`: contains target exported make.js
+ - `.build/${environment name}`: build related data (can be removed at any time to force full rebuild)
 
 ## Methods
 
@@ -54,7 +54,7 @@ Returns true if the workspace directory is not yet defined to it's final value.
 
 Build a new graph of the workspace with respect to the provided _options_.
 
-#### `resolveExports(name: string, environmentName: string, variantName: string): Element[]`
+#### `resolveExports(name: string, environmentName: string): Element[]`
 
 Resolve workspace global elements (ie. referenced with the `=::name:environmentName::` syntax).
 

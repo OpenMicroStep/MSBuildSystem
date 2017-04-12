@@ -80,7 +80,7 @@ setupResolvers(SelfBuildGraph.prototype);
 const configureResolver = new PropertyResolver<void>(AttributeTypes.functionValidator("(target: Target) => void"), "configure");
 
 export class Target extends SelfBuildGraph<RootGraph> {
-  name: { type: "target", name: string, environment: string, variant: string, project: string };
+  name: { type: "target", name: string, environment: string, project: string };
 
   dependencies: Set<Target>;
   requiredBy: Set<Target>;
@@ -98,7 +98,6 @@ export class Target extends SelfBuildGraph<RootGraph> {
   };
   modifiers: ((reporter: Reporter, task: Task) => void)[];
 
-  variant: string;
   environment: string;
   targetName: string;
 
@@ -117,22 +116,20 @@ export class Target extends SelfBuildGraph<RootGraph> {
       type: "target",
       name: attributes.name,
       environment: attributes.environment.name,
-      variant: attributes.variant,
       project: project.path
     }, graph);
 
     this.project = project;
-    this.variant = attributes.variant;
     this.targetName = attributes.name;
     this.outputName = attributes.name;
     this.environment = attributes.environment.name;
     this.attributes = attributes;
 
     this.modifiers = [];
-    let build = this.project.workspace.pathToBuild(this.environment, this.variant);
+    let build = this.project.workspace.pathToBuild(this.environment);
     this.paths = {
-      output       : this.project.workspace.pathToResult(this.environment, this.variant),
-      shared       : this.project.workspace.pathToShared(this.environment, this.variant),
+      output       : this.project.workspace.pathToResult(this.environment),
+      shared       : this.project.workspace.pathToShared(this.environment),
       build        : build,
       intermediates: path.join(build, "intermediates", this.targetName),
       tasks        : path.join(build, "tasks", this.targetName)
@@ -152,7 +149,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   }
 
   uniqueKey() {
-    return { variant: this.variant, environment: this.environment, name: this.targetName };
+    return { environment: this.environment, name: this.targetName };
   }
 
   storagePath(task: Task) {
@@ -174,7 +171,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   }
 
   buildGraph(reporter: Reporter) {
-    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(reporter), this.project.workspace.pathToSharedExports(this.environment, this.variant, this.name.name));
+    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(reporter), this.project.workspace.pathToSharedExports(this.environment, this.name.name));
     if (this.copyFiles.length) {
       let copy = this.taskCopyFiles = new CopyTask("copy files", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());

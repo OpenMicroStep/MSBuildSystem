@@ -43,7 +43,6 @@ function graph(f: Flux<Context>) {
       "name": "Hello World",
       "project": f.context.sharedProject.path,
       "type": "target",
-      "variant": "debug",
       "children": [
         {
           "constructor": DefaultJSCompiler,

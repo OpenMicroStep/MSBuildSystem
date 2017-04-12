@@ -23,8 +23,8 @@ class LinkMSVCTask extends LinkTask {
       this.appendArgs(["kernel32.lib", "user32.lib", "shell32.lib", "MSVCRT.lib", "oldnames.lib"]);
       this.appendArgs(["/nologo"]);
       this.appendArgs(["/subsystem:CONSOLE,5.01"]);
-      if (target.variant !== "release")
-        this.appendArgs(["/debug"]);
+      //if (target.variant !== "release")
+      this.appendArgs(["/debug"]);
       if (this.type === CXXLinkType.DYNAMIC) {
         this.appendArgs(["/dll"]);
         if (!(target instanceof CXXBundle) && !(target instanceof CXXExecutable)) {
@@ -33,8 +33,8 @@ class LinkMSVCTask extends LinkTask {
           this.outputFiles.push(out);
         }
       }
-      if (target.variant !== "release")
-        this.outputFiles.push(File.getShared(finalFile.path.substring(0, finalFile.path.length - 3) + "pdb"));
+      //if (target.variant !== "release")
+      this.outputFiles.push(File.getShared(finalFile.path.substring(0, finalFile.path.length - 3) + "pdb"));
       this.appendArgs([["/out:", finalFile]]);
     }
     this.appendArgs(this.inputFiles.map(function (file) {

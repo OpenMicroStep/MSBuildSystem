@@ -44,7 +44,6 @@ function graph(f: Flux<Context>) {
       "name": "Hello World",
       "project": project.path,
       "type": "target",
-      "variant": "debug",
       "children": [
         {
           "constructor": "CXXDarwinSysroot",
@@ -68,7 +67,6 @@ function graph(f: Flux<Context>) {
       "name": "Hello World",
       "project": project.path,
       "type": "target",
-      "variant": "debug",
       "children": [
         {
           "constructor": "CXXDarwinSysroot",

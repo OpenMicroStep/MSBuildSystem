@@ -86,24 +86,24 @@ function build_graph(f: Flux<Context>) {
   let targetTasks = Array.from(graph.allTasks());
   assert.deepEqual(reporter.diagnostics, []);
   assert.deepEqual(targetTasks.map(task => task.name), [
-    { type: 'target', name: 'MSStd', environment: 'darwin-i386'  , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd', environment: 'darwin-x86_64', variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd', environment: 'linux-i386'   , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd', environment: 'linux-x86_64' , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd', environment: 'msvc12-i386'  , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd', environment: 'msvc12-x86_64', variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd_static', environment: 'darwin-i386'  , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd_static', environment: 'darwin-x86_64', variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd_static', environment: 'linux-i386'   , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd_static', environment: 'linux-x86_64' , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd_static', environment: 'msvc12-i386'  , variant: 'debug', project: project.path },
-    { type: 'target', name: 'MSStd_static', environment: 'msvc12-x86_64', variant: 'debug', project: project.path },
-    { type: 'target', name: 'anotherLib', environment: 'darwin-i386'  , variant: 'debug', project: project.path },
-    { type: 'target', name: 'anotherLib', environment: 'darwin-x86_64', variant: 'debug', project: project.path },
-    { type: 'target', name: 'anotherLib', environment: 'linux-i386'   , variant: 'debug', project: project.path },
-    { type: 'target', name: 'anotherLib', environment: 'linux-x86_64' , variant: 'debug', project: project.path },
-    { type: 'target', name: 'anotherLib', environment: 'msvc12-i386'  , variant: 'debug', project: project.path },
-    { type: 'target', name: 'anotherLib', environment: 'msvc12-x86_64', variant: 'debug', project: project.path }
+    { type: 'target', name: 'MSStd', environment: 'darwin-i386'  , project: project.path },
+    { type: 'target', name: 'MSStd', environment: 'darwin-x86_64', project: project.path },
+    { type: 'target', name: 'MSStd', environment: 'linux-i386'   , project: project.path },
+    { type: 'target', name: 'MSStd', environment: 'linux-x86_64' , project: project.path },
+    { type: 'target', name: 'MSStd', environment: 'msvc12-i386'  , project: project.path },
+    { type: 'target', name: 'MSStd', environment: 'msvc12-x86_64', project: project.path },
+    { type: 'target', name: 'MSStd_static', environment: 'darwin-i386'  , project: project.path },
+    { type: 'target', name: 'MSStd_static', environment: 'darwin-x86_64', project: project.path },
+    { type: 'target', name: 'MSStd_static', environment: 'linux-i386'   , project: project.path },
+    { type: 'target', name: 'MSStd_static', environment: 'linux-x86_64' , project: project.path },
+    { type: 'target', name: 'MSStd_static', environment: 'msvc12-i386'  , project: project.path },
+    { type: 'target', name: 'MSStd_static', environment: 'msvc12-x86_64', project: project.path },
+    { type: 'target', name: 'anotherLib', environment: 'darwin-i386'  , project: project.path },
+    { type: 'target', name: 'anotherLib', environment: 'darwin-x86_64', project: project.path },
+    { type: 'target', name: 'anotherLib', environment: 'linux-i386'   , project: project.path },
+    { type: 'target', name: 'anotherLib', environment: 'linux-x86_64' , project: project.path },
+    { type: 'target', name: 'anotherLib', environment: 'msvc12-i386'  , project: project.path },
+    { type: 'target', name: 'anotherLib', environment: 'msvc12-x86_64', project: project.path }
   ]);
   let target = (graph.findTask(false, (t: Target) => t.name.name === "MSStd" && t.name.environment === 'darwin-i386') as Target);
   let msstd: any = target.attributes;
@@ -117,7 +117,7 @@ function build_graph(f: Flux<Context>) {
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
   assert.deepEqual(target.exports.__serialize(reporter), {
-    "is": "target-exports", "name": "MSStd", "environment": "darwin-i386", "variant": "debug", "tags": [],
+    "is": "target-exports", "name": "MSStd", "environment": "darwin-i386", "tags": [],
     "components": [
       {
         "is": "component", "name": "generated", "tags": [], "components": [],
@@ -147,7 +147,7 @@ function build_graph(f: Flux<Context>) {
   assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
   assert.deepEqual(target.exports.__serialize(reporter), {
-    "is": "target-exports", "name": "MSStd_static", "environment": "darwin-i386", "variant": "debug", "tags": [],
+    "is": "target-exports", "name": "MSStd_static", "environment": "darwin-i386", "tags": [],
     "components": [
       {
         "is": "component", "name": "generated", "tags": [], "components": [],
@@ -268,9 +268,9 @@ function with_external_dependencies(f: Flux<Context>) {
   let targetTasks = Array.from(graph.allTasks());
   assert.deepEqual(reporter.diagnostics.map(d => { if (d.path) d.path = path.relative(project2.directory, d.path); return d;}), []);
   assert.deepEqual(targetTasks.map(task => task.name), [
-    { type: 'target', name: 'ATarget', environment: 'msvc12-i386'  , variant: 'debug', project: project2.path },
-    { type: 'target', name: 'MSStd', environment: 'msvc12-i386'  , variant: 'debug', project: project.path },
-    { type: 'target', name: 'DependencyTestTarget', environment: 'msvc12-i386'  , variant: 'debug', project: project2.path }
+    { type: 'target', name: 'ATarget', environment: 'msvc12-i386'  , project: project2.path },
+    { type: 'target', name: 'MSStd', environment: 'msvc12-i386'  , project: project.path },
+    { type: 'target', name: 'DependencyTestTarget', environment: 'msvc12-i386'  , project: project2.path }
   ]);
   f.continue();
 }

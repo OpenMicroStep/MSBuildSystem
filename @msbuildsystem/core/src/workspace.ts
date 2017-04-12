@@ -100,17 +100,17 @@ export class Workspace {
     return root;
   }
 
-  pathToShared(env: string, variant: string) {
-    return path.join(this.directory, '.shared', env, variant);
+  pathToShared(env: string) {
+    return path.join(this.directory, '.shared', env);
   }
-  pathToSharedExports(env: string, variant: string, target: string) {
-    return path.join(this.pathToShared(env, variant), `${target}.json`);
+  pathToSharedExports(env: string, target: string) {
+    return path.join(this.pathToShared(env), `${target}.json`);
   }
-  pathToBuild(env: string, variant: string) {
-    return path.join(this.directory, '.build', env, variant);
+  pathToBuild(env: string) {
+    return path.join(this.directory, '.build', env);
   }
-  pathToResult(env: string, variant: string) {
-    return path.join(this.directory, env, variant);
+  pathToResult(env: string) {
+    return path.join(this.directory, env);
   }
 
   targets() : TargetElement[] {
