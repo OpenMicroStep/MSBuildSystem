@@ -8,8 +8,8 @@ node_js:
 script:
   - npm install -q -g @openmicrostep/msbuildsystem.cli
   - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-  - msbuildsystem build -p @openmicrostep/msbuildsystem. -w bootstrap1/
-  - node bootstrap1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @openmicrostep/msbuildsystem. -w bootstrap2/
-  - node bootstrap2/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @openmicrostep/msbuildsystem. -w dist/
+  - msbuildsystem build -p @msbuildsystem -w bootstrap1/
+  - node bootstrap1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w bootstrap2/
+  - node bootstrap2/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/
   - npm install -q -g @microstep/tests
   - mstests -c dist/node/debug/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js dist/node/debug/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
