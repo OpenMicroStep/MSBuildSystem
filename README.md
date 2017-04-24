@@ -22,13 +22,14 @@ Installation
 
 Because this buildsystem is made to be run by node.js, it's distributed by npm (node package manager).
 
-```
-npm install -g @msbuildsystem/cli
+```sh
+npm install -g @openmicrostep/msbuildsystem.cli
 ```
 
-To install buildsystem module you can do:
+To install buildsystem modules you can do:
 
-```
-msbuildsystem modules install @msbuildsystem/MODULE_NAME
+```sh
+msbuildsystem modules install $NPM_MODULE_NAME
+msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
 ```
 
