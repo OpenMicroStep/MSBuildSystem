@@ -1,8 +1,8 @@
 import {
-  ComponentElement, EnvironmentElement, MakeJSElement, TargetElement, BuildTargetExportsElement,
-  Reporter, AttributeTypes, AttributePath, RootGraph
+  ComponentElement, EnvironmentElement, MakeJSElement, TargetElement,
+  Reporter, AttributeTypes, AttributePath, RootGraph,
+  injectElements, injectComponentsOf,
 } from '../index.priv';
-import {injectElements} from './injection';
 
 export class BuildTargetElement extends MakeJSElement {
   environment: EnvironmentElement;
@@ -33,22 +33,10 @@ export class BuildTargetElement extends MakeJSElement {
     // inject the environment
     injectElements(reporter, [this.environment], this, at, this);
     // inject components tree
-    let components = new Set<ComponentElement>();
-    this.__injectComponents(reporter, this, components);
-    this.components = Array.from(components);
+    this.components = injectComponentsOf(reporter, this, this, at, this);
 
     this.type = AttributeTypes.validateString(reporter, at.set('.type'), this.type) || "bad type";
     this.targets = AttributeTypes.validateStringList(reporter, at.set('.targets'), this.targets) || [];
-  }
-
-  __injectComponents(reporter: Reporter, current: { components: ComponentElement[] }, injected: Set<ComponentElement>) {
-    if (current !== this)
-      injected.add(<ComponentElement>current);
-    if (current.components) {
-      injectElements(reporter, current.components, this, new AttributePath(this), this);
-      for (var component of current.components)
-        this.__injectComponents(reporter, component, injected);
-    }
   }
 
   __path() {

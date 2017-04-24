@@ -1,7 +1,6 @@
 import {
-  ComponentElement, Target, Element, Reporter, AttributePath, AttributeTypes, MakeJS, Project
+  ComponentElement, Target, Element, Reporter, AttributePath, AttributeTypes, MakeJS, Project, injectElements
 } from '../index.priv';
-import {injectElements} from './injection';
 
 function createExportsComponent(reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element

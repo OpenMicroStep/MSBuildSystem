@@ -17,10 +17,12 @@ export * from './graph-root';
 export * from './project';
 export * from './workspace';
 
+export * from './elements/injection';
 export * from './elements/delayed.element';
 export * from './elements/make.element';
 export * from './elements/group.element';
 export * from './elements/component.element';
+export * from './elements/associate.element';
 export * from './elements/file.element';
 export * from './elements/environment.element';
 export * from './elements/target.element';

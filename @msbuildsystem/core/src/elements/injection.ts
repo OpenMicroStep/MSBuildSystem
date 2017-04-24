@@ -1,6 +1,6 @@
 import {
-  Element, DelayedElement, ComponentElement, EnvironmentElement, BuildTargetElement,
-  Reporter, AttributePath
+  Element, DelayedElement, ComponentElement, BuildTargetElement,
+  Reporter, AttributePath,
 } from '../index.priv';
 
 export const notInjectableKeys = /(^__)|([^\\]=$)|tags|elements|environments/;
@@ -12,9 +12,10 @@ export function defaultValueMap(at: AttributePath, key: string, v) {
   return v;
 }
 export function injectElements(
-  reporter: Reporter, elements: Element[], into: object, path: AttributePath,
+  reporter: Reporter, elements: Element[],
+  into: object, path: AttributePath,
   buildTarget: BuildTargetElement,
-  mapKey: (key: string) => string = defaultKeyMap,
+  mapKey: (key: string) => string | '' = defaultKeyMap,
   mapValue: (at: AttributePath, key: string, value) => any = defaultValueMap,
 ) {
   let keysWithSimpleValue = new Set<string>();
@@ -91,6 +92,27 @@ export function injectElements(
       }
     }
   }
+}
+
+export function injectComponentsOf(
+  reporter: Reporter, component: { components: ComponentElement[] },
+  into: object, path: AttributePath,
+  buildTarget: BuildTargetElement,
+  mapKey: (key: string) => string | '' = defaultKeyMap,
+  mapValue: (at: AttributePath, key: string, value) => any = defaultValueMap
+) : ComponentElement[] {
+  let injected = new Set<ComponentElement>();
+  function injectComponents(current: { components: ComponentElement[] }) {
+    if (current !== component)
+      injected.add(<ComponentElement>current);
+    if (current.components) {
+      injectElements(reporter, current.components, into, path, buildTarget, mapKey, mapValue);
+      for (let next of current.components)
+        injectComponents(next);
+    }
+  }
+  injectComponents(component);
+  return [...injected];
 }
 
 function mergeArrays(reporter: Reporter, buildTarget: BuildTargetElement, at: AttributePath, into: any[], from: any[]) {

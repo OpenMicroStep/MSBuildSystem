@@ -1,7 +1,7 @@
 import {
   declareTask, Task, Reporter, SelfBuildGraph, Target, File,
   Flux, Step, StepWithData, ReduceStepContext,
-  resolver, AttributeTypes, AttributePath, util
+  resolver, AttributeTypes, AttributePath, util, AssociateElement,
 } from '@openmicrostep/msbuildsystem.core';
 import { safeSpawnProcess } from '@openmicrostep/msbuildsystem.foundation';
 import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@openmicrostep/msbuildsystem.js';
@@ -16,16 +16,16 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     super({ type: "compiler", name: "typescript" }, graph);
   }
 
-  @resolver(AttributeTypes.validateMergedObjectList)
+  @resolver(AssociateElement.mergedDynValidator(AttributeTypes.validateObject))
   tsConfig: ts.CompilerOptions = {};
 
-  @resolver(AttributeTypes.validateMergedObjectList)
+  @resolver(AssociateElement.mergedDynValidator(AttributeTypes.objectDynValidator(AttributeTypes.validateString)))
   npmInstall: { [s: string]: string } = {};
 
-  @resolver(AttributeTypes.listValidator(AttributeTypes.objectValidator({
-    path: { validator: AttributeTypes.validateString, default: undefined },
-    name: { validator: AttributeTypes.validateString, default: undefined },
-    srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] }
+  @resolver(AssociateElement.listValidator(AttributeTypes.objectValidator({
+    path: { validator: AttributeTypes.validateString    , default: undefined    },
+    name: { validator: AttributeTypes.validateString    , default: undefined    },
+    srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] },
   })))
   npmLink: { path: string, name: string, srcs: string[] }[] =  [];
 
@@ -73,7 +73,7 @@ Task.generators.register(['tsconfig'], {
   map: (v: TSConfigValue) => v.tsconfig,
   reduce: (reporter: Reporter, values: TSConfigValue[]) : TSConfigValue => ({
     tsconfig: values[0].tsconfig,
-    compilerOptions: validator(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) || {},
+    compilerOptions: validator(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) as ts.CompilerOptions || {},
     files: Array.from(new Set(([] as string[]).concat(...values.map(v => v.files))))
   }),
   run(f: Flux<ReduceStepContext>, value: TSConfigValue) {

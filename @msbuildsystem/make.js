@@ -33,11 +33,13 @@ module.exports= {
     compiler: "typescript",
     environments: ["=node"],
     npmPackage: [{
+      is: "component",
       "version": "0.4.0",
       "main": "index.js",
       "typings": "index.d.ts"
     }],
     tsConfig: [{
+      is: "component",
       "module": "commonjs",
       "target": "es6",
       "declaration": true,
@@ -50,6 +52,7 @@ module.exports= {
       "types": ["node"]
     }],
     npmInstall: [{
+      is: "component",
       "@types/node": "^4.0.30"
     }]
   },
@@ -57,15 +60,18 @@ module.exports= {
     is: "component",
     components: ["=base"],
     tsConfig: [{
+      is: "component",
       "types": ["node", "mocha", "chai"]
     }],
     npmInstall: [{
+      is: "component",
       "@types/chai": "^3.4.29",
       "@types/mocha": "^2.2.28",
       "@types/node": "^4.0.30",
       "@openmicrostep/tests": "^0.1.0"
     }],
     npmPackage: [{
+      is: "component",
       "dependencies": {
         "chai": "^3.5.0"
       }
@@ -79,9 +85,11 @@ module.exports= {
       components: ['=base', '=::shared::'],
       files: ['=files:core:src ? tsc'],
       npmInstall: [{
+        is: "component",
         "@types/fs-extra": "0.0.28",
       }],
       npmPackage: [{
+        is: "component",
         "dependencies": {
           "fs-extra": "^0.30.0",
           "source-map-support": "^0.4.0"
@@ -98,7 +106,7 @@ module.exports= {
       targets: ['core'],
       components: ['=base tests', '=::core::'],
       files: ['=files:core:tst ? tsc'],
-      copyFiles: [{value: ['=files:core:tst ? rsc'], dest: 'data', expand: true }]
+      copyFiles: [{is: 'associate', elements: ['=files:core:tst ? rsc'], dest: 'data', expand: true }]
     },
     'shared=': {
       is: "target",
@@ -106,9 +114,11 @@ module.exports= {
       outputName: '@openmicrostep/msbuildsystem.shared',
       files: ['=files:shared'],
       npmInstall: [{
+        is: "component",
         "@openmicrostep/async": "^0.1.0",
       }],
       npmPackage: [{
+        is: "component",
         "dependencies": {
           "@openmicrostep/async": "^0.1.0"
         }
@@ -129,10 +139,12 @@ module.exports= {
       files: ['=files:cli'],
       //tsConfig: [{ traceResolution: true }],
       npmInstall: [{
+        is: "component",
         "@types/argparse": "^1.0.30",
         "@types/chalk": "^0.4.31",
       }],
       npmPackage: [{
+        is: "component",
         "dependencies": {
           "argparse": "^1.0.9",
           "chalk": "^1.1.3"
@@ -167,7 +179,7 @@ module.exports= {
       targets: ['cxx'],
       components: ['=base tests', '=::cxx::', '=::core::'],
       files: ['=files:cxx:tst ? tsc'],
-      copyFiles: [{value: ['=files:cxx:tst ? rsc'], dest: 'data/hello-world', expand: true }]
+      copyFiles: [{is: 'associate', elements: ['=files:cxx:tst ? rsc'], dest: 'data/hello-world', expand: true }]
     },
     'js=':               {
       is: 'target',
@@ -182,7 +194,7 @@ module.exports= {
       targets: ['js'],
       components: ['=base tests', '=::foundation::', '=::core::', '=::js::'],
       files: ['=files:js:tst ? tsc'],
-      copyFiles: [{value: ['=files:js:tst ? rsc'], dest: 'data/hello-world', expand: true }]
+      copyFiles: [{is: 'associate', elements: ['=files:js:tst ? rsc'], dest: 'data/hello-world', expand: true }]
     },
     'typescript=':       {
       is: 'target',
@@ -191,11 +203,13 @@ module.exports= {
       components: ['=base', '=::foundation::', '=::js::', '=::core::'],
       files: ['=files:typescript:src ? tsc'],
       npmPackage: [{
+        is: "component",
         "dependencies": {
           "typescript": "^2.2.2",
         }
       }],
       npmInstall: [{
+        is: "component",
         "typescript": "^2.2.2",
       }]
     },
@@ -205,7 +219,7 @@ module.exports= {
       components: ['=base tests', '=::core::', '=::js::', '=::typescript::'],
       targets: ['typescript'],
       files: ['=files:typescript:tst ? tsc'],
-      copyFiles: [{value: ['=files:typescript:tst ? rsc'], dest: 'data/hello-world', expand: true }]
+      copyFiles: [{is: 'associate', elements: ['=files:typescript:tst ? rsc'], dest: 'data/hello-world', expand: true }]
     },
   },
   /* WIP

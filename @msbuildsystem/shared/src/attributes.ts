@@ -32,7 +32,7 @@ export function superValidateList<T, A0> (
   }
 }
 
-export function superFillDefaults<T, A0>(extensions: Extensions<T, A0>, into: T, a0: A0) : T {
+export function superFillDefaults<T, A0>(extensions: Extensions<T, A0>, into: T) : T {
   for (var path in extensions) {
     var ext = extensions[path];
     into[path] = ext.default;
@@ -73,7 +73,7 @@ export function superValidateComplex<T, T2, A0>(
   }
   else if ((attr = validator(reporter, path, attr, a0))) { // directly the object
     keys.push(attr);
-    superFillDefaults(extensions, value, a0);
+    superFillDefaults(extensions, value);
   }
   if (keys.length > 0)
     push(keys, value);
@@ -93,7 +93,7 @@ export function validateStringValue(reporter: Reporter, path: AttributePath, val
   return undefined;
 }
 
-export function validateObject(reporter: Reporter, path: AttributePath, value: any) : { [s: string]: any } | undefined {
+export function validateObject(reporter: Reporter, path: AttributePath, value: any) : object | undefined {
   if (typeof value !== "object")
     path.diagnostic(reporter, { type: "warning", msg: `attribute must be an object, got ${typeof value}`});
   else
@@ -124,6 +124,20 @@ export function validateBoolean(reporter: Reporter, path: AttributePath, value: 
   else
     return value;
   return undefined;
+}
+
+export function chain<T0, A0>(v0: Validator<T0, A0>) : T0 | undefined;
+export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<T0, A0>) : T0 | undefined;
+export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<T0, A0>) : T0 | undefined;
+export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<any, A0>, v3: Validator<T0, A0>) : T0 | undefined;
+export function chain<A0>(v0: Validator<any, A0>, ...validators: Validator<any, A0>[]) : any {
+  return function validateChain(reporter, path: AttributePath, value, a0: A0) {
+    let i = 0;
+    value = v0(reporter, path, value, a0);
+    for (; value !== undefined && i < validators.length; i++)
+      value = validators[i](reporter, path, value, a0);
+    return value;
+  };
 }
 
 export function mapAfterValidator<T0, T1, A0>(validator: Validator<T0, A0>, map: (T0) => T1) : Validator<T1, A0> {
@@ -173,10 +187,26 @@ export function objectValidator<T, A0>(extensions: Extensions<T, A0>) {
     var ret = <T>{};
     if (typeof attr !== "object") {
       path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
-      superFillDefaults(extensions, ret, a0);
+      superFillDefaults(extensions, ret);
     }
     else {
       superFill(reporter, path, attr, a0, ret, extensions);
+    }
+    return ret;
+  };
+}
+
+export function objectDynValidator<T>(validator: Validator<T, string>) : ValidatorNU0<{ [s: string]: T | undefined }> {
+  return function validateDynObject(reporter: Reporter, path: AttributePath, attr) : { [s: string]: T | undefined } {
+    var ret = {} as { [s: string]: T | undefined };
+    if (typeof attr !== "object") {
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
+    }
+    else {
+      path.pushArray();
+      for (var key in attr)
+        ret[key] = validator(reporter, path.setArrayKey(key), attr[key], key);
+      path.popArray();
     }
     return ret;
   };
@@ -248,14 +278,14 @@ export function reducedListValidator<T, R, C, A0>(validator: Validator<T, A0>, r
 }
 
 export function createReduceByMergingObjects({ allowMultipleValues }) {
-  return function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: { [s: string]: any }, previous: { [s: string]: any } | undefined,
-    context: { keysWithSimpleValue?: Set<string>, subContexts?: Map<Object, Object> }) : { [s: string]: any } {
+  return function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: object, previous: object | undefined,
+    context: { keysWithSimpleValue?: Set<string>, subContexts?: Map<Object, Object> }) : object {
     if (previous === undefined)
       previous = {};
     if (!context.keysWithSimpleValue)
       context.keysWithSimpleValue = new Set();
     path.push('.', '');
-    for (var key in current) {
+    for (var key in current as any) { // TODO: remove cast to any once tsc 2.3 is released (https://github.com/Microsoft/TypeScript/pull/14195)
       var cvalue = previous[key];
       var dvalue = current[key];
       var cvalueIsArr = cvalue ? Array.isArray(cvalue) : false;
@@ -305,7 +335,7 @@ export function mergedObjectListValidator<R>(extensions: Extensions0<R>) : Valid
 export function mergedObjectListValidator<R, A0>(extensions: Extensions<R, A0>) : Validator<R, A0>;
 export function mergedObjectListValidator<R, A0>(extensions: Extensions<R, A0>) {
   return dynamicDefaultValueValidator(reducedListValidator(objectValidator(extensions), reduceByMergingObjects), (a0: A0) => {
-    return superFillDefaults(extensions, {}, a0);
+    return superFillDefaults(extensions, {});
   });
 }
 

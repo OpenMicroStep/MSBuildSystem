@@ -1,7 +1,7 @@
 import {
   Reporter, SelfBuildGraph, resolver, Task, AttributeTypes, util,
   declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory,
-  ComponentElement
+  ComponentElement, AssociateElement
 } from '@openmicrostep/msbuildsystem.core';
 import {
   ProcessTask, LocalProcessProvider, ProcessProviders
@@ -17,7 +17,7 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
     super({ type: "packager", name: "npm" }, graph);
   }
 
-  @resolver(AttributeTypes.validateMergedObjectList)
+  @resolver(AssociateElement.mergedDynValidator(AttributeTypes.objectValidator))
   npmPackage: NPMPackage = <NPMPackage>{};
 
   @resolver(AttributeTypes.listValidator(AttributeTypes.objectValidator({
@@ -61,6 +61,7 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
     super.configureExports(reporter);
     let exports = this.graph.exports.__createGeneratedComponent('npm');
     let npmLink = [{
+      is: "component",
       path: this.graph.exportsPath(this.absoluteCompilationOutputDirectory()),
       name: this.graph.outputName,
       srcs: this.graph.files.map(f => this.graph.exportsPath(f.path))
@@ -69,10 +70,10 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
       [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
     };
     Object.assign(exports, {
-      npmPackage: [{ dependencies: deps }],
+      npmPackage: [{ is: "component", dependencies: deps }],
       npmLink: npmLink,
       "peerDependency=": Object.assign(new ComponentElement('component', 'peerDependency', exports), {
-        npmPackage: [{ peerDependencies: deps }],
+        npmPackage: [{ is: "component", peerDependencies: deps }],
         npmLink: npmLink,
       })
     });

@@ -1,6 +1,6 @@
 import {
   Element, ElementLoadContext, MakeJSElement,
-  AttributeTypes, AttributePath, Project,
+  AttributeTypes, AttributePath, Project, AssociateElement, Target,
   File, util, Reporter, MakeJS
 } from '../index.priv';
 import * as path from 'path';
@@ -75,9 +75,9 @@ export module FileElement {
       return <File>value.__file;
     return undefined;
   };
-  export const validateFileSet = AttributeTypes.setValidator(validateFile);
-  export type FileGroup = { values: File[], ext: { dest: string, expand: boolean } };
-  export const validateFileGroup = AttributeTypes.groupValidator<File, { dest: string, expand: boolean }>(
+  export const validateFileSet = AssociateElement.setValidator(validateFile);
+  export type FileGroup = AssociateElement.Group<File, { dest: string, expand: boolean }>;
+  export const validateFileGroup = AssociateElement.groupValidator<File, { dest: string, expand: boolean }>(
     validateFile,
     {
       dest: { validator: AttributeTypes.validateString , default: ""   },
