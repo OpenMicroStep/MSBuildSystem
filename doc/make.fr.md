@@ -99,7 +99,7 @@ A tout élément peut être associé un ensemble d'étiquettes (`tags`) qui perm
 ```
 
 Les sept lettres `= : * ? + ! \` sont réservées et ne doivent pas être utilisées dans les noms des éléments car la première sert à la définition ou à l'utilisation d'un élément et les cinq suivantes sont utilisées pour la désignation des groupes en intension (cf. [Utilisation des étiquettes](#Tags)). Si elles apparaissent, elles doivent être escapées par `\`.  
-La case des lettres est signifiante.
+La casse des lettres est signifiante.
 
 <a name="Workspace"></a>Espace de travail [☝︎](#☝︎)
 -----------------------------------------
@@ -152,8 +152,6 @@ Certains éléments sont des espaces de noms (au moins les éléments `project`,
 Dans cet exemple, `Microstep` est un `project` qui déclare deux éléments `base` et `darwin-i386-c`. Ce dernier élément contient une référence à l'élément `base`, en préfixant le nom de l'élément du signe `=`. Celui-ci est alors recherché dans `darwin-i386-c` puis dans `MicroStep`.
 
 De manière générale, si un élément père P fait référence à un élément E, celui-ci est recherché dans P, puis dans le père de P, et ainsi de suite en remontant jusqu'au projet, et même jusqu'à l'espace de travail si l'élément est importé.
-
-> TODO: puisqu'on a le `=`, même les éléments externes doivent commencer par `=`. Donc revoir la syntaxe pour l'import.
 
 <a name="Groupe"></a>Groupe (`group`) [☝︎](#☝︎)
 -------------------------------------
