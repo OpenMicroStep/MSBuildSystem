@@ -1,4 +1,4 @@
-import {Workspace} from '@openmicrostep/msbuildsystem.core';
+import {Workspace, Reporter} from '@openmicrostep/msbuildsystem.core';
 import {assert} from 'chai';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -7,7 +7,11 @@ function defaultDirectory() {
   let workspace = new Workspace();
   assert.isTrue(workspace.isDirectoryPendingResolution());
   let project = workspace.project(path.join(__dirname, "data/simple-project"));
+  assert.isTrue(workspace.isDirectoryPendingResolution());
+  let reporter = new Reporter();
+  workspace.fixDirectoryPendingResolution(reporter);
   assert.isFalse(workspace.isDirectoryPendingResolution());
+  assert.deepEqual(reporter.diagnostics, []);
   assert.sameMembers(Array.from(workspace.projects.values()), [project]);
   assert.deepEqual(workspace.targets().map(t => t.toJSON().name), ["MSStd", "MSStd_static", "anotherLib"]);
   workspace.clear();
