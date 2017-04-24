@@ -21,26 +21,27 @@ export class RootGraph extends Graph {
   }
 
   createTargets(reporter: Reporter, options: BuildGraphOptions, projects: Project[] = Array.from(this.workspace.projects.values())) {
-    projects.forEach((project) => {
+    let selected = 0;
+    for (let project of projects) {
       let targets = project.targets;
       if (options.targets)
         targets = targets.filter(c => options.targets!.indexOf(c.name) !== -1);
 
-      if (targets.length === 0) {
-        reporter.diagnostic({
-          type: "error",
-          msg: "no target where selected"
-        });
-      }
-
       // Phase 1: create targets graph
-      targets.forEach(target => {
+      for (let target of targets) {
         let targetEnvs = target.environments.filter(e => !options.environments || options.environments.indexOf(e.name) !== -1);
-        targetEnvs.forEach(environment => {
+        for (let environment of targetEnvs) {
+          selected++;
           this.createTarget(reporter, undefined, target, environment);
-        });
+        }
+      }
+    }
+    if (selected === 0) {
+      reporter.diagnostic({
+        type: "error",
+        msg: "no target selected"
       });
-    });
+    }
   }
 
   createTarget(reporter: Reporter, requester: BuildTargetElement | undefined, target: TargetElement, environment: EnvironmentElement) : Target | undefined {
