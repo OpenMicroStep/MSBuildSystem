@@ -75,9 +75,9 @@ export module FileElement {
       return <File>value.__file;
     return undefined;
   };
-  export const validateFileSet = AssociateElement.setValidator(validateFile);
+  export const validateFileSet = AssociateElement.setValidator(validateFile, false);
   export type FileGroup = AssociateElement.Group<File, { dest: string, expand: boolean }>;
-  export const validateFileGroup = AssociateElement.groupValidator<File, { dest: string, expand: boolean }>(
+  export const validateFileGroup = AssociateElement.groupValidator(
     validateFile,
     {
       dest: { validator: AttributeTypes.validateString , default: ""   },

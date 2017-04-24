@@ -1,10 +1,10 @@
 import {
   declareTarget, Target, Reporter, resolver, AttributeTypes, AttributePath,
-  File, FileElement, Step
+  File, FileElement, Step, AssociateElement,
 } from '@openmicrostep/msbuildsystem.core';
 import {
   JSCompilers, JSCompiler,
-  JSPackagers, JSPackager
+  JSPackagers, JSPackager,
 } from './index';
 
 @declareTarget({ type: "javascript" })

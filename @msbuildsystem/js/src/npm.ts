@@ -1,7 +1,7 @@
 import {
   Reporter, SelfBuildGraph, resolver, Task, AttributeTypes, util,
   declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory,
-  ComponentElement, AssociateElement
+  ComponentElement, AssociateElement, AttributePath, Target,
 } from '@openmicrostep/msbuildsystem.core';
 import {
   ProcessTask, LocalProcessProvider, ProcessProviders
@@ -11,21 +11,37 @@ import * as path from 'path';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 
+const npmValidateDeps = AssociateElement.mergedValidator({}, AttributeTypes.validateString);
+const npmValidate = AssociateElement.mergedValidator({
+  version:          { validator: AttributeTypes.validateString, default: undefined },
+  description:      { validator: AttributeTypes.validateString, default: undefined },
+  main:             { validator: AttributeTypes.validateString, default: undefined },
+  typings:          { validator: AttributeTypes.validateString, default: undefined },
+  dependencies:     { validator: npmValidateDeps              , default: {}        },
+  devDependencies:  { validator: npmValidateDeps              , default: {}        },
+  peerDependencies: { validator: npmValidateDeps              , default: {}        },
+}, AttributeTypes.validateAny);
+const npmValidateDependencies = AssociateElement.mergedValidator({
+  dependencies:     { validator: npmValidateDeps              , default: {}        },
+  devDependencies:  { validator: npmValidateDeps              , default: {}        },
+  peerDependencies: { validator: npmValidateDeps              , default: {}        },
+}, AttributeTypes.validateAnyToUndefined);
+
 @JSPackagers.declare(['npm'])
 export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager {
   constructor(graph: JSTarget) {
     super({ type: "packager", name: "npm" }, graph);
   }
 
-  @resolver(AssociateElement.mergedDynValidator(AttributeTypes.objectValidator))
-  npmPackage: NPMPackage = <NPMPackage>{};
-
-  @resolver(AttributeTypes.listValidator(AttributeTypes.objectValidator({
-    path: { validator: AttributeTypes.validateString, default: undefined },
-    name: { validator: AttributeTypes.validateString, default: undefined },
-    srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] }
-  })))
+  @resolver(AssociateElement.listValidator(AttributeTypes.objectValidator({
+    name: { validator: AttributeTypes.validateString    , default: undefined    },
+    path: { validator: AttributeTypes.validateString    , default: undefined    },
+    srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] },
+  }), true))
   npmLink: { path: string, name: string, srcs: string[] }[] =  [];
+
+  @resolver(npmValidate)
+  npmPackage: NPMPackage = <NPMPackage>{};
 
   absoluteModulesOutputDirectory() : string {
     return path.join(this.graph.paths.output, 'node_modules');
@@ -60,20 +76,25 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   configureExports(reporter: Reporter) {
     super.configureExports(reporter);
     let exports = this.graph.exports.__createGeneratedComponent('npm');
-    let npmLink = [{
-      is: "component",
+    let npmLink = [Object.assign(new ComponentElement('component', 'peerDependency', exports), {
       path: this.graph.exportsPath(this.absoluteCompilationOutputDirectory()),
       name: this.graph.outputName,
       srcs: this.graph.files.map(f => this.graph.exportsPath(f.path))
-    }];
-    let deps = {
+    })];
+    let dependencies = [Object.assign(new ComponentElement('component', '', exports), {
       [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
-    };
+    })];
+    let npmPackage = [Object.assign(new ComponentElement('component', '', exports), {
+      dependencies: dependencies
+    })];
+    let npmPeerPackage = [Object.assign(new ComponentElement('component', '', exports), {
+      peerDependencies: dependencies
+    })];
     Object.assign(exports, {
-      npmPackage: [{ is: "component", dependencies: deps }],
+      npmPackage: npmPackage,
       npmLink: npmLink,
       "peerDependency=": Object.assign(new ComponentElement('component', 'peerDependency', exports), {
-        npmPackage: [{ is: "component", peerDependencies: deps }],
+        npmPackage: npmPeerPackage,
         npmLink: npmLink,
       })
     });
@@ -89,7 +110,18 @@ export interface NPMPackage {
   test?: string;
   author?: string;
   license?: string;
+  dependencies: { [s: string]: string };
+  devDependencies: { [s: string]: string };
+  peerDependencies: { [s: string]: string };
   [s: string]: any;
+}
+export namespace NPMPackage {
+  export interface DevDependencies {
+    dependencies: { [s: string]: string };
+    devDependencies: { [s: string]: string };
+  }
+  export const validate = npmValidate;
+  export const validateDevDependencies = npmValidateDependencies;
 }
 
 @declareTask({ type: "npm package.json" })
@@ -106,7 +138,6 @@ export class NPMGeneratePackage extends GenerateFileTask {
     return new Buffer(JSON.stringify(this.info, null, 2), 'utf8');
   }
 }
-
 
 export class NPMTask extends ProcessTask {
   constructor(name: string, graph: Graph, directory: string) {

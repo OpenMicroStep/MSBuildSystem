@@ -4,7 +4,7 @@ import {
   resolver, AttributeTypes, AttributePath, util, AssociateElement,
 } from '@openmicrostep/msbuildsystem.core';
 import { safeSpawnProcess } from '@openmicrostep/msbuildsystem.foundation';
-import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask } from '@openmicrostep/msbuildsystem.js';
+import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask, NPMPackage } from '@openmicrostep/msbuildsystem.js';
 import { InputData, OutputData } from './worker';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
@@ -16,18 +16,18 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     super({ type: "compiler", name: "typescript" }, graph);
   }
 
-  @resolver(AssociateElement.mergedDynValidator(AttributeTypes.validateObject))
+  @resolver(AssociateElement.mergedValidator({}, AttributeTypes.validateAny))
   tsConfig: ts.CompilerOptions = {};
-
-  @resolver(AssociateElement.mergedDynValidator(AttributeTypes.objectDynValidator(AttributeTypes.validateString)))
-  npmInstall: { [s: string]: string } = {};
 
   @resolver(AssociateElement.listValidator(AttributeTypes.objectValidator({
     path: { validator: AttributeTypes.validateString    , default: undefined    },
     name: { validator: AttributeTypes.validateString    , default: undefined    },
     srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] },
-  })))
+  }), true))
   npmLink: { path: string, name: string, srcs: string[] }[] =  [];
+
+  @resolver(NPMPackage.validateDevDependencies)
+  npmPackage: NPMPackage.DevDependencies = { dependencies: {}, devDependencies: {} };
 
   @resolver(Target.validateFile)
   tsMain: File | null = null;
@@ -50,15 +50,16 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     this.tsc.options.paths = this.tsc.options.paths || {};
 
     // (cwd intermediates & output) npm install
-    Object.keys(this.npmInstall).forEach(k => npmInstallForBuild.addPackage(k, this.npmInstall[k]));
+    Object.keys(this.npmPackage.dependencies).forEach(k => npmInstallForBuild.addPackage(k, this.npmPackage.dependencies[k]));
+    Object.keys(this.npmPackage.devDependencies).forEach(k => npmInstallForBuild.addPackage(k, this.npmPackage.devDependencies[k]));
 
     // npm link local dependencies (most of the times this is defined by dependencies that are npm targets)
-    this.npmLink.forEach(l =>
+    for (let l of this.npmLink) {
       npmInstallForBuild.addDependency(new NPMLinkTask(this,
         File.getShared(path.join(this.graph.paths.output, l.path), true),
         File.getShared(path.join(this.graph.paths.intermediates, l.path), true)
-      ))
-    );
+      ));
+    }
   }
 }
 

@@ -9,8 +9,8 @@ export type ValidatorNU<T, A0> = (reporter: Reporter, path: AttributePath, value
 export type ValidatorNU0<T> = (reporter: Reporter, path: AttributePath, value: any) => T;
 export type Reducer<T, R, C extends {}> = (reporter: Reporter, path: AttributePath, current: T, previous: R | undefined, context: C) => R;
 export type MapValue<T> = (reporter: Reporter, path: AttributePath, value: any, values: T[], ...args) => void;
-export type Extension<T, A0> = { validator: Validator<T, A0>, default: T };
-export type Extension0<T> = { validator: Validator0<T>, default: T };
+export type Extension<T, A0> = { validator: Validator<T, A0> | ValidatorNU<T, A0>, default: T };
+export type Extension0<T> = { validator: Validator0<T> | ValidatorNU0<T>, default: T };
 export type Extensions<T, A0> = { [K in keyof T]: Extension<T[K], A0> };
 export type Extensions0<T> = { [K in keyof T]: Extension0<T[K]> };
 
@@ -35,7 +35,8 @@ export function superValidateList<T, A0> (
 export function superFillDefaults<T, A0>(extensions: Extensions<T, A0>, into: T) : T {
   for (var path in extensions) {
     var ext = extensions[path];
-    into[path] = ext.default;
+    if (ext.default !== undefined && into[path] === undefined)
+      into[path] = ext.default;
   }
   return into;
 }
@@ -52,7 +53,39 @@ export function superFill<T, A0>(
       path.setArrayKey(k);
       v = ext.validator(reporter, path, v, a0);
     }
-    into[k] = v !== undefined ? v : ext.default;
+    if (v !== undefined)
+      into[k] = v;
+    else if (ext.default !== undefined)
+      into[k] = ext.default;
+  }
+  path.popArray();
+  return into;
+}
+
+export function superValidateObject<T, K, A0>(
+  reporter: Reporter, path: AttributePath, attr: any, a0: A0,
+  into: T & { [s: string]: K }, extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>
+) : T & { [s: string]: K } {
+  path.pushArray();
+  for (var k in attr as T) {
+    var ext = extensions[k];
+    var v = attr[k];
+    path.setArrayKey(k);
+    if (ext) {
+      v = ext.validator(reporter, path, v, a0);
+      if (v !== undefined)
+        into[k] = v;
+      else if (ext.default !== undefined)
+        into[k] = ext.default as any;
+    }
+    else if (objectForKeyValidator) {
+      v = objectForKeyValidator(reporter, path, v, k);
+      if (v !== undefined)
+        into[k] = v;
+    }
+    else {
+      path.diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
+    }
   }
   path.popArray();
   return into;
@@ -78,6 +111,14 @@ export function superValidateComplex<T, T2, A0>(
   if (keys.length > 0)
     push(keys, value);
   return keys;
+}
+
+export function validateAny(reporter: Reporter, path: AttributePath, value: any, expected: string) {
+  return value;
+}
+
+export function validateAnyToUndefined(reporter: Reporter, path: AttributePath, value: any, expected: string) {
+  return undefined;
 }
 
 export function validateStringValue(reporter: Reporter, path: AttributePath, value: any, expected: string) {
@@ -182,32 +223,16 @@ export function listValidator<T, A0>(validator: Validator<T, A0>) {
 
 export function objectValidator<T>(extensions: Extensions0<T>) : ValidatorNU0<T>;
 export function objectValidator<T, A0>(extensions: Extensions<T, A0>) : ValidatorNU<T, A0>;
-export function objectValidator<T, A0>(extensions: Extensions<T, A0>) {
-  return function validateObject(reporter: Reporter, path: AttributePath, attr, a0: A0) : T {
-    var ret = <T>{};
-    if (typeof attr !== "object") {
+export function objectValidator<T, K>(extensions: Extensions0<T>, objectForKeyValidator?: Validator<K, string>) : ValidatorNU0<T & { [s: string]: K }>;
+export function objectValidator<T, K, A0>(extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>) : ValidatorNU<T & { [s: string]: K }, A0>;
+export function objectValidator<T, K, A0>(extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>) {
+  return function validateObject(reporter: Reporter, path: AttributePath, attr, a0: A0) : T & { [s: string]: K } {
+    var ret = <T & { [s: string]: K }>{};
+    if (typeof attr !== "object")
       path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
-      superFillDefaults(extensions, ret);
-    }
-    else {
-      superFill(reporter, path, attr, a0, ret, extensions);
-    }
-    return ret;
-  };
-}
-
-export function objectDynValidator<T>(validator: Validator<T, string>) : ValidatorNU0<{ [s: string]: T | undefined }> {
-  return function validateDynObject(reporter: Reporter, path: AttributePath, attr) : { [s: string]: T | undefined } {
-    var ret = {} as { [s: string]: T | undefined };
-    if (typeof attr !== "object") {
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
-    }
-    else {
-      path.pushArray();
-      for (var key in attr)
-        ret[key] = validator(reporter, path.setArrayKey(key), attr[key], key);
-      path.popArray();
-    }
+    else
+      superValidateObject(reporter, path, attr, a0, ret, extensions, objectForKeyValidator);
+    superFillDefaults(extensions, ret);
     return ret;
   };
 }

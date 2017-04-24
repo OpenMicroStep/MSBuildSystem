@@ -32,14 +32,15 @@ module.exports= {
     type: "javascript",
     compiler: "typescript",
     environments: ["=node"],
-    npmPackage: [{
-      is: "component",
+    npmPackage: [{ is: "component",
       "version": "0.4.0",
       "main": "index.js",
-      "typings": "index.d.ts"
+      "typings": "index.d.ts",
+      devDependencies: [{ is: "component",
+        "@types/node": "^4.0.30"
+      }]
     }],
-    tsConfig: [{
-      is: "component",
+    tsConfig: [{ is: "component",
       "module": "commonjs",
       "target": "es6",
       "declaration": true,
@@ -51,31 +52,24 @@ module.exports= {
       //"lib": ["es6"],
       "types": ["node"]
     }],
-    npmInstall: [{
-      is: "component",
-      "@types/node": "^4.0.30"
-    }]
   },
   'base tests=': {
     is: "component",
     components: ["=base"],
-    tsConfig: [{
-      is: "component",
+    tsConfig: [{ is: "component",
       "types": ["node", "mocha", "chai"]
     }],
-    npmInstall: [{
-      is: "component",
-      "@types/chai": "^3.4.29",
-      "@types/mocha": "^2.2.28",
-      "@types/node": "^4.0.30",
-      "@openmicrostep/tests": "^0.1.0"
-    }],
-    npmPackage: [{
-      is: "component",
-      "dependencies": {
+    npmPackage: [{ is: "component",
+      dependencies: [{ is: "component",
         "chai": "^3.5.0"
-      }
-    }]
+      }],
+      devDependencies: [{ is: "component",
+        "@types/chai": "^3.4.29",
+        "@types/mocha": "^2.2.28",
+        "@types/node": "^4.0.30",
+        "@openmicrostep/tests": "^0.1.0"
+      }],
+    }],
   },
   'targets=': { 'is': 'group',
     'core=': {
@@ -84,16 +78,14 @@ module.exports= {
       targets: ['shared'],
       components: ['=base', '=::shared::'],
       files: ['=files:core:src ? tsc'],
-      npmInstall: [{
-        is: "component",
-        "@types/fs-extra": "0.0.28",
-      }],
-      npmPackage: [{
-        is: "component",
-        "dependencies": {
+      npmPackage: [{ is: "component",
+        dependencies: [{ is: "component",
           "fs-extra": "^0.30.0",
           "source-map-support": "^0.4.0"
-        }
+        }],
+        devDependencies: [{ is: "component",
+          "@types/fs-extra": "0.0.28",
+        }],
       }],
       exports: [{ is: 'component', name: 'cfg',
         "module=": { is: 'component', components: ['=base']       },
@@ -113,15 +105,13 @@ module.exports= {
       components: ['=base'],
       outputName: '@openmicrostep/msbuildsystem.shared',
       files: ['=files:shared'],
-      npmInstall: [{
-        is: "component",
-        "@openmicrostep/async": "^0.1.0",
-      }],
-      npmPackage: [{
-        is: "component",
-        "dependencies": {
+      npmPackage: [{ is: "component",
+        dependencies: [{ is: "component",
           "@openmicrostep/async": "^0.1.0"
-        }
+        }],
+        devDependencies: [{ is: "component",
+          "@openmicrostep/async": "^0.1.0",
+        }]
       }]
     },
     'shared tests=': {
@@ -137,19 +127,17 @@ module.exports= {
       components: ['=base', '=::core::'],
       targets: ['core'],
       files: ['=files:cli'],
-      //tsConfig: [{ traceResolution: true }],
-      npmInstall: [{
-        is: "component",
-        "@types/argparse": "^1.0.30",
-        "@types/chalk": "^0.4.31",
-      }],
-      npmPackage: [{
-        is: "component",
-        "dependencies": {
+      //tsConfig: [{ traceResolution: true }],,
+      npmPackage: [{ is: "component",
+        bin: { "msbuildsystem": "./bin.js" },
+        dependencies: [{ is: "component",
           "argparse": "^1.0.9",
           "chalk": "^1.1.3"
-        },
-        "bin": { "msbuildsystem": "./bin.js" },
+        }],
+        devDependencies: [{ is: "component",
+          "@types/argparse": "^1.0.30",
+          "@types/chalk": "^0.4.31",
+        }],
       }]
     },
     'foundation=': {
@@ -202,16 +190,11 @@ module.exports= {
       targets: ['core', 'foundation', 'js'],
       components: ['=base', '=::foundation::', '=::js::', '=::core::'],
       files: ['=files:typescript:src ? tsc'],
-      npmPackage: [{
-        is: "component",
-        "dependencies": {
+      npmPackage: [{ is: "component",
+        dependencies: [{ is: "component",
           "typescript": "^2.2.2",
-        }
+        }]
       }],
-      npmInstall: [{
-        is: "component",
-        "typescript": "^2.2.2",
-      }]
     },
     'typescript tests=': {
       is: 'target',
