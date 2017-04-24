@@ -97,8 +97,11 @@ function handle_run() {
     results = results && printReport(`Project ${p} load`, project.reporter, perf());
     return project;
   });
+  let reporter = new Reporter();
+  workspace.fixDirectoryPendingResolution(reporter);
+  results = results && printReport(`Workspace load`, reporter);
   console.info(`Workspace: ${workspace.directory}`);
-  console.info(`Projects: ${projects.map(p => p.path).join(', ')}`);
+  console.info(`Projects: ${[...workspace.projects.values()].map(p => `\n - ${p.path}`).join('')}`);
   workspace.save();
   if (results) {
     let reporter = new Reporter();

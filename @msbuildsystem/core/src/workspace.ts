@@ -34,6 +34,7 @@ export class Workspace {
     return w;
   }
 
+  static defaultWorkspaceDirectory = '/opt/microstep';
   static pendingResolutionDirectory = '/7a151994-fab1-4390-859c-bf7bd9aa65f4';
   constructor(directory: string = Workspace.pendingResolutionDirectory) {
     this.directory = requiredAbsolutePath(directory);
@@ -52,10 +53,28 @@ export class Workspace {
     return this.directory === Workspace.pendingResolutionDirectory;
   }
 
-  fixDirectoryPendingResolution(directory: string) {
+  fixDirectoryPendingResolution(reporter: Reporter) {
     if (this.isDirectoryPendingResolution()) {
-      this.directory = `/opt/microstep/${directory}`;
-      this.path = path.join(this.directory, 'workspace.json');
+      let workspaces = new Set<string>();
+      let names = new Set<string>();
+      for (let p of this.projects.values()) {
+        let w = p.definition && p.definition.workspace;
+        let n = p.definition && p.definition.name;
+        if (w) workspaces.add(w);
+        if (n) names.add(n);
+      }
+      if (workspaces.size === 1)
+        this.directory = path.join(Workspace.defaultWorkspaceDirectory, workspaces.values().next().value);
+      else if (workspaces.size > 1)
+          reporter.diagnostic({ type: "error", msg: `cannot determine workspace directory, multiple projects are loaded with no common default workspace name` });
+      else {
+        if (names.size === 1)
+          this.directory = path.join(Workspace.defaultWorkspaceDirectory, names.values().next().value);
+        else if (names.size > 1)
+          reporter.diagnostic({ type: "error", msg: `cannot determine workspace directory, multiple projects are loaded with no common default workspace name` });
+        else if (names.size === 0)
+          reporter.diagnostic({ type: "error", msg: `cannot determine workspace directory, no projects are loaded with a default workspace name or even a name` });
+      }
     }
   }
 
