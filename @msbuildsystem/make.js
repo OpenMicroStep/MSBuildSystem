@@ -33,7 +33,7 @@ module.exports= {
     compiler: "typescript",
     environments: ["=node"],
     npmPackage: [{
-      "version": "0.3.0",
+      "version": "0.4.0",
       "main": "index.js",
       "typings": "index.d.ts"
     }],
