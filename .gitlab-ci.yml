@@ -5,7 +5,7 @@ build:
    - npm install -q -g @openmicrostep/msbuildsystem.cli
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
    - msbuildsystem build -p @msbuildsystem -w dist/1/
-   - node dist/1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
+   - node dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
    - node dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/3/
   artifacts:
     expire_in: 31d

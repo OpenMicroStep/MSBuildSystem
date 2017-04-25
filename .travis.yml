@@ -8,7 +8,7 @@ script:
   - npm install -q -g @openmicrostep/msbuildsystem.cli @openmicrostep/tests istanbul coveralls remap-istanbul
   - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
   - msbuildsystem build -p @msbuildsystem -w dist/1/
-  - node dist/1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
+  - node dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
   - node dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/3/
   - mstests
         -c -t 20000
