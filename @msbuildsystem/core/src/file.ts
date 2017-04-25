@@ -206,7 +206,7 @@ export class File {
     });
   }
 
-  writeSymlinkOf(step: Flux<{ reporter: Reporter }>, target: File, overwrite: boolean = false) {
+  writeSymlinkOf(step: Flux<{ reporter: Reporter }>, source: File, overwrite: boolean = false) {
     this.ensureDir((err) => {
       if (err) {
         step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
@@ -219,7 +219,7 @@ export class File {
         }
 
         let create = () => {
-          fs.symlink(target.path, this.path, undefined, (err) => {
+          fs.symlink(source.path, this.path, undefined, (err) => {
             if (err && (<NodeJS.ErrnoException>err).code !== "EEXIST") step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
             step.continue();
           });
@@ -229,7 +229,7 @@ export class File {
           fs.readlink(this.path, (err, currentTarget) => {
             if (err)
               step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
-            else if (currentTarget !== target.path) {
+            else if (currentTarget !== source.path) {
               step.context.reporter.diagnostic({ type: "error", msg: `file already exists and is a symbolic link to '${currentTarget}'`, path: this.path });
               if (overwrite) {
                 fs.unlink(this.path, (err) => {
