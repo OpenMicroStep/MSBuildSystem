@@ -54,6 +54,12 @@ export namespace AssociateElement {
         if (extensions) superFillDefaults(extensions, component);
       }
     }
+    else if (attr instanceof Element) {
+      if ((attr = validator(reporter, path, attr, a0))) {
+        elements.push(attr as T);
+        if (extensions) superFillDefaults(extensions, component);
+      }
+    }
     else if ((attr = AttributeTypes.validateObject(reporter, path, attr))) { // TODO: remove as soon as possible (make.js before version 0.4)
       attr = { ...attr };
       if (attr["value"]) {
