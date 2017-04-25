@@ -140,6 +140,7 @@ function handle_run() {
         let tasks = new Set<Task>();
         let nblines = 0;
         let count = 0;
+        let run = 0;
         let done = 0;
         let stalls = stallDetector(100);
         for (let task of runner.iterator(true))
@@ -157,12 +158,13 @@ function handle_run() {
         }
 
         let progressbar = /*throttle(100, */(() => {
-          let width = Math.max(0, stderr.columns -  20);
-          let progress = `   ${Math.floor(done * 100 / count)}`.slice(-3);
+          let progress1 = `   ${Math.floor(done * 100 / count)}`.slice(-3);
+          let progress2 = `(${run}/${done}/${count})`;
+          let width = Math.max(0, stderr.columns -  21 - progress2.length);
           let partdone = Math.floor(done * width / count);
           let stallsTxt = stalls.stalls.length === 0 ? 'none' : stalls.stalls.map(dt => util.Formatter.duration.millisecond.short(dt)).join(', ');
           writelines([
-            `Progression: [${"-".repeat(partdone)}${" ".repeat(width - partdone)}] ${progress}%`,
+            `Progression: [${"-".repeat(partdone)}${" ".repeat(width - partdone)}] ${progress1}% ${progress2}`,
             `Elapsed: ${util.Formatter.duration.millisecond.short(perf())}, Stalls: ${stallsTxt}, Issues: ${ReporterPrinter.formatStats(printer.report.stats) || "none"}`,
             tasks.size > 0 ? `Active tasks (${tasks.size}): ${Array.from(tasks.values()).map(t => `${t.target()} > ${t}`).join(" & ")}` : `Done`,
           ]);
@@ -175,6 +177,8 @@ function handle_run() {
         });
         runner.on("taskend", (context) => {
           if (!(context.task instanceof Graph)) {
+            if ((context as any).runRequired !== false)
+              ++run;
             ++done;
             tasks.delete(context.task);
             progressbar();
