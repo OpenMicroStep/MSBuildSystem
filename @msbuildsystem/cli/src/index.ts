@@ -135,7 +135,7 @@ function handle_run() {
         if (!(context.task instanceof Graph))
           printer.push(mkReport(`${context.task.graph && context.task.target().__path()} ${context.task}`, context.reporter, context.lastRunEndTime - context.lastRunStartTime));
       });
-      if (!args.debug && process.stderr.isTTY /* args.progressbar */) {
+      if (!args.debug && args.progress !== false && (args.progress === true || (process.stderr.isTTY && (process.stderr as tty.WriteStream).columns > 30))) {
         let stderr = process.stderr as tty.WriteStream;
         let tasks = new Set<Task>();
         let nblines = 0;

@@ -1,5 +1,21 @@
-import { ArgumentParser, ArgumentGroup } from 'argparse';
-import * as chalk from 'chalk';
+import * as argparse from 'argparse';
+import ArgumentParser = argparse.ArgumentParser;
+import ArgumentGroup = argparse.ArgumentGroup;
+let Action: { new(options): Function } = (argparse as any).Action;
+
+class ActionNoYes extends Action {
+  dest: string;
+  constant: boolean;
+
+  constructor(options: any = {}) {
+    options.nargs = 0;
+    super(options);
+  }
+  call(parser, namespace, values, optionString: string) {
+    namespace.set(this.dest, !optionString.startsWith('--no-'));
+  }
+}
+
 const pkg = require('./package.json');
 let parser = new ArgumentParser({
   prog: "msbuildsystem",
@@ -8,9 +24,11 @@ let parser = new ArgumentParser({
 });
 
 function addCommonArguments(parser: ArgumentGroup) {
+  (parser as any).register('action', 'noYes', ActionNoYes);
   parser.addArgument(['--color'  ], { dest: "color", help: "Force colors to be enabled", action: "storeTrue" });
   parser.addArgument(['--debug'  ], { dest: "debug", help: "Debug output", action: "storeTrue" });
   parser.addArgument(['--full'   ], { dest: "full" , help: "Perform complete non incremental build", action: "storeTrue" });
+  parser.addArgument(['--no-progress', '--progress'], { dest: "progress" , help: "Force desactivation/activation of the progressbar", action: "noYes" });
   parser.addArgument(['-p', '--project'  ], { dest: "projects", action: "append", help: "Path to the make.js file or directory, by default this is the current directory" });
   parser.addArgument(['-w', '--workspace'], { help: "Path to the workspace directory (ie. builddirectory)" });
   parser.addArgument(['--env'    ], { dest: "environments", action: "append", help: "Name of environments to consider, by default all environments are used" });
@@ -53,6 +71,7 @@ export const args: {
   environments: string[] | null;
   color: boolean;
   debug: boolean;
+  progress: boolean | null;
   full: boolean;
   modules: string[];
 } = parser.parseArgs();
