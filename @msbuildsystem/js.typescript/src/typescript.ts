@@ -49,17 +49,21 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     });
     this.tsc.options.paths = this.tsc.options.paths || {};
 
-    // (cwd intermediates & output) npm install
-    Object.keys(this.npmPackage.dependencies).forEach(k => npmInstallForBuild.addPackage(k, this.npmPackage.dependencies[k]));
-    Object.keys(this.npmPackage.devDependencies).forEach(k => npmInstallForBuild.addPackage(k, this.npmPackage.devDependencies[k]));
-
     // npm link local dependencies (most of the times this is defined by dependencies that are npm targets)
+    let ignoreDependencies = new Set<string>(this.npmLink.map(n => n.name));
     for (let l of this.npmLink) {
-      npmInstallForBuild.addDependency(new NPMLinkTask(this,
+      let lnk = new NPMLinkTask(this,
         File.getShared(path.join(this.graph.paths.output, l.path), true),
         File.getShared(path.join(this.graph.paths.intermediates, l.path), true)
-      ));
+      );
+      lnk.addDependency(npmInstallForBuild);
     }
+
+    // (cwd intermediates & output) npm install
+    Object.keys(this.npmPackage.dependencies).forEach(k => !ignoreDependencies.has(k) && npmInstallForBuild.addPackage(k, this.npmPackage.dependencies[k]));
+    Object.keys(this.npmPackage.devDependencies).forEach(k => !ignoreDependencies.has(k) && npmInstallForBuild.addPackage(k, this.npmPackage.devDependencies[k]));
+
+
   }
 }
 

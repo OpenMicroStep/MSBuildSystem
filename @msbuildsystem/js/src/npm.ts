@@ -143,6 +143,7 @@ export class NPMTask extends ProcessTask {
   constructor(name: string, graph: Graph, directory: string) {
     super({ type: "npm", name: name }, graph, [], [], { type: "npm" });
     this.setCwd(directory);
+    this.addFlags(["--loglevel", "info"]);
   }
 
   run(step: Step<{}>) {
