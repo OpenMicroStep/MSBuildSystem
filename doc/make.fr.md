@@ -583,7 +583,7 @@ L'export se déclare au niveau de chaque objectif comme pour les fichiers et les
 Le comportement de `exports` et `exportsByEnvironment` est équivalent à `components` et `componentsByEnvironment`, c'est à dire que l'objectif exporté est utilisable comme un composant.
 Un composant nommé `auto` est crée automatiquement par l'objectif de compilation et est injecter dans la liste `exports`.
 
-Dès lors, pour accéder à ces éléments depuis un autre projet (toujours au sein du même espace de travail), il suffit d'utiliser la syntaxe `::[env:]target::[component]`, où:
+Dès lors, pour accéder à ces éléments depuis un autre projet (toujours au sein du même espace de travail), il suffit d'utiliser la syntaxe `::target[:env]::[component]`, où:
 
 - `env` si fourni, c'est le nom de l'environnement dans lequel il faut rechercher l'objectif contenant les composants exportés.
 - `target` est le nom de l'objectif contenant les composants exportés (dans notre exemple: `ATarget`)
