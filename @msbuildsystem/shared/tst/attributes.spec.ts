@@ -21,6 +21,22 @@ function testValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>, value:
   assert.deepEqual(reporter.diagnostics, diagnostics);
 }
 
+function validateAny() {
+  testValidator(AttributeTypes.validateAny, undefined, undefined, undefined, []);
+  testValidator(AttributeTypes.validateAny, true, undefined, true, []);
+  testValidator(AttributeTypes.validateAny, false, undefined, false, []);
+  testValidator(AttributeTypes.validateAny, "mystring", undefined, "mystring", []);
+  testValidator(AttributeTypes.validateAny, ["myarray"], undefined, ["myarray"], []);
+  testValidator(AttributeTypes.validateAny, { "mykey": ["myarray"] }, undefined, { "mykey": ["myarray"] }, []);
+}
+function validateAnyToUndefined() {
+  testValidator(AttributeTypes.validateAnyToUndefined, undefined, undefined, undefined, []);
+  testValidator(AttributeTypes.validateAnyToUndefined, true, undefined, undefined, []);
+  testValidator(AttributeTypes.validateAnyToUndefined, false, undefined, undefined, []);
+  testValidator(AttributeTypes.validateAnyToUndefined, "mystring", undefined, undefined, []);
+  testValidator(AttributeTypes.validateAnyToUndefined, ["myarray"], undefined, undefined, []);
+  testValidator(AttributeTypes.validateAnyToUndefined, { "mykey": ["myarray"] }, undefined, undefined, []);
+}
 function validateString() {
   testValidator(AttributeTypes.validateString, 'this is a string', undefined, 'this is a string', []);
   testValidator(AttributeTypes.validateString, { t: 'this is not a string' }, undefined, undefined, [
@@ -86,6 +102,13 @@ function validateStringSet() {
   ]);
 }
 
+function chain() {
+  testValidator(AttributeTypes.chain(AttributeTypes.validateArray, AttributeTypes.validateStringList), ['this is a string'], undefined, ['this is a string'], []);
+  testValidator(AttributeTypes.chain(AttributeTypes.validateArray, AttributeTypes.validateString), ['this is a string'], undefined, undefined, [
+    { "type": "warning", "msg": "attribute must be a string, got object" }
+  ]);
+}
+
 function defaultValueValidator() {
   testValidator(AttributeTypes.defaultValueValidator(AttributeTypes.validateString, 'default string value'), 'this is a string', undefined, 'this is a string', []);
   testValidator(AttributeTypes.defaultValueValidator(AttributeTypes.validateString, 'default string value'), undefined, undefined, 'default string value', []);
@@ -141,10 +164,22 @@ function objectValidator() {
     's': { validator: AttributeTypes.validateString, default: 'a string' },
     'b': { validator: AttributeTypes.validateBoolean, default: false },
   });
+  let validator2 = AttributeTypes.objectValidator({
+    's': { validator: AttributeTypes.validateString, default: 'a' },
+    'b': { validator: AttributeTypes.validateString, default: 'b' },
+  }, AttributeTypes.validateString);
   testValidator(validator, { s: 'test', b: true }, undefined, { s: 'test', b: true }, []);
   testValidator(validator, { s: 'test' }, undefined, { s: 'test', b: false }, []);
   testValidator(validator, { s: 0 }, undefined, { s: 'a string', b: false }, [
     { "type": "warning", "msg": "attribute must be a string, got number", "path": "[s]" }
+  ]);
+  testValidator(validator, { }, undefined, { s: 'a string', b: false }, []);
+  testValidator(validator, { not_defined: 0 }, undefined, { s: 'a string', b: false }, [
+    { "type": "warning", "msg": "attribute is unused", "path": "[not_defined]" }
+  ]);
+  testValidator(validator2, { not_defined: "test" }, undefined, { s: 'a', b: 'b', not_defined: "test" }, []);
+  testValidator(validator2, { not_defined: 0 }, undefined, { s: 'a', b: 'b' }, [
+    { "type": "warning", "msg": "attribute must be a string, got number", "path": "[not_defined]" }
   ]);
 }
 function mapValidator() {
@@ -184,12 +219,15 @@ function groupValidator() {
 }
 
 export const tests = { name: 'attributes', tests: [
+  validateAny,
+  validateAnyToUndefined,
   validateString,
   validateObject,
   validateArray,
   validateBoolean,
   validateStringList,
   validateStringSet,
+  chain,
   defaultValueValidator,
   dynamicDefaultValueValidator,
   listValidator,

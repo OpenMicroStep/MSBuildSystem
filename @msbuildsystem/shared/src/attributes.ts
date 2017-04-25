@@ -121,19 +121,6 @@ export function validateAnyToUndefined(reporter: Reporter, path: AttributePath, 
   return undefined;
 }
 
-export function validateStringValue(reporter: Reporter, path: AttributePath, value: any, expected: string) {
-  if (typeof value !== "string")
-    path.diagnostic(reporter, {
-      type: "warning",
-      msg: `attribute must be the string '${expected}', got ${util.limitedDescription(value)}`
-    });
-  else if (value !== expected)
-    path.diagnostic(reporter, { type: "warning", msg: `attribute must be '${expected}', got ${util.limitedDescription(value)}` });
-  else
-    return value;
-  return undefined;
-}
-
 export function validateObject(reporter: Reporter, path: AttributePath, value: any) : object | undefined {
   if (typeof value !== "object")
     path.diagnostic(reporter, { type: "warning", msg: `attribute must be an object, got ${typeof value}`});
@@ -167,26 +154,17 @@ export function validateBoolean(reporter: Reporter, path: AttributePath, value: 
   return undefined;
 }
 
-export function chain<T0, A0>(v0: Validator<T0, A0>) : T0 | undefined;
-export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<T0, A0>) : T0 | undefined;
-export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<T0, A0>) : T0 | undefined;
-export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<any, A0>, v3: Validator<T0, A0>) : T0 | undefined;
-export function chain<A0>(v0: Validator<any, A0>, ...validators: Validator<any, A0>[]) : any {
+export function chain<T0, A0>(v0: Validator<T0, A0>) : Validator<T0, A0>;
+export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<T0, A0>) : Validator<T0, A0>;
+export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<T0, A0>) : Validator<T0, A0>;
+export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<any, A0>, v3: Validator<T0, A0>) : Validator<T0, A0>;
+export function chain<A0>(v0: Validator<any, A0>, ...validators: Validator<any, A0>[]) {
   return function validateChain(reporter, path: AttributePath, value, a0: A0) {
     let i = 0;
     value = v0(reporter, path, value, a0);
     for (; value !== undefined && i < validators.length; i++)
       value = validators[i](reporter, path, value, a0);
     return value;
-  };
-}
-
-export function mapAfterValidator<T0, T1, A0>(validator: Validator<T0, A0>, map: (T0) => T1) : Validator<T1, A0> {
-  return function validateWithAfterMap(reporter, path: AttributePath, value, a0: A0) {
-    let t0 = validator(reporter, path, value, a0);
-    if (t0 !== undefined)
-      return map(t0);
-    return undefined;
   };
 }
 

@@ -27,8 +27,8 @@ Expect _value_ to an array of non empty string and returns a set of strings.
 
 Composable validators allow creation of validate function.
 
-### mapAfterValidator
-If _value_ matches _validator_, return the call result of `map(value)`
+### chain
+Validate a chain of validators
 
 ### defaultValueValidator
 If _value_ is undefined, returns _defaultValue_ otherwize returns _validator_ result.
