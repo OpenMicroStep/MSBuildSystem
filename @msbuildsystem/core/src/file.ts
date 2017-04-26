@@ -7,14 +7,12 @@ export class File {
   public name: string;
   public extension: string;
   public isDirectory: boolean;
-  private _stats?: (cb: (...args) => void) => void;
 
   constructor(filePath: string, isDirectory = false) {
     this.path = filePath;
     this.name = path.basename(filePath);
     this.extension = path.extname(filePath);
     this.isDirectory = isDirectory;
-    this._stats = undefined;
   }
 
   private static files: Map<string, File> = new Map<any, any>();
@@ -41,9 +39,6 @@ export class File {
 
   static ensureDirs = new Map<string, (cb: (...args) => void) => void>();
   static clearCache() {
-    File.files.forEach(function(file) {
-      file._stats = undefined;
-    });
     File.ensureDirs.clear();
   }
 
@@ -183,9 +178,7 @@ export class File {
     ensure(cb);
   }
   stats(cb: (err: Error, stats: fs.Stats) => void) {
-    if (!this._stats)
-      this._stats = util.once((cb) => { fs.stat(this.path, cb); });
-    this._stats(cb);
+    fs.stat(this.path, cb);
   }
 
   copyTo(to: File, lastSuccessTime: number, cb: (err?: Error) => void) {
