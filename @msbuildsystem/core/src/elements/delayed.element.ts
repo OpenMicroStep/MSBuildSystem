@@ -19,12 +19,15 @@ export class DelayedQuery extends DelayedElement {
     if (sources.length === 0) {
       at.diagnostic(reporter, {
         type: "error",
-        msg: `query '::${this.gsteps.join(':')}::${Element.rebuildQuery([this.steps], this.tagsQuery)}' is invalid, the external element wasn't found`
+        msg: `query '${this.__description()}' is invalid, the external element wasn't found`
       });
     }
     for (let group of sources)
       group.__resolveElementsGroup(reporter, ret, this.steps, this.tagsQuery, at);
     return ret;
+  }
+  __description() {
+    return `::${this.gsteps.join(':')}::${Element.rebuildQuery([this.steps], this.tagsQuery)}`;
   }
 }
 
