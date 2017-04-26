@@ -274,7 +274,7 @@ export class Element {
     attrPath.pushArray();
     for (var i = 0, len = values.length; i < len; i++) {
       var value = values[i];
-      if (!validator || (value = validator(reporter, attrPath.set(i, -1), value, this)) !== undefined)
+      if (!validator || (value = validator(reporter, attrPath.setArrayKey(i), value, this)) !== undefined)
         into.push(value);
     }
     attrPath.popArray();
