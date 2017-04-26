@@ -27,12 +27,7 @@ const npmValidateDependencies = AssociateElement.mergedValidator({
   peerDependencies: { validator: npmValidateDeps              , default: {}        },
 }, AttributeTypes.validateAnyToUndefined);
 
-@JSPackagers.declare(['npm'])
-export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager {
-  constructor(graph: JSTarget) {
-    super({ type: "packager", name: "npm" }, graph);
-  }
-
+export abstract class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager {
   @resolver(AssociateElement.listValidator(AttributeTypes.objectValidator({
     name: { validator: AttributeTypes.validateString    , default: undefined    },
     path: { validator: AttributeTypes.validateString    , default: undefined    },
@@ -43,13 +38,7 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
   @resolver(npmValidate)
   npmPackage: NPMPackage = <NPMPackage>{};
 
-  absoluteModulesOutputDirectory() : string {
-    return path.join(this.graph.paths.output, 'node_modules');
-  }
-
-  absoluteCompilationOutputDirectory() : string {
-    return util.pathJoinIfRelative(this.absoluteModulesOutputDirectory(), this.graph.outputFinalName || this.graph.outputName);
-  }
+  abstract absoluteCompilationOutputDirectory() : string;
 
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
@@ -71,6 +60,21 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
       if (!ignoreDependencies.has(key))
         npmInstall.addPackage(key, dependencies[key]);
     }
+  }
+}
+
+@JSPackagers.declare(['npm'])
+export class NPMModule extends NPMPackager {
+  constructor(graph: JSTarget) {
+    super({ type: "packager", name: "npm" }, graph);
+  }
+
+  absoluteModulesOutputDirectory() : string {
+    return path.join(this.graph.paths.output, 'node_modules');
+  }
+
+  absoluteCompilationOutputDirectory() : string {
+    return util.pathJoinIfRelative(this.absoluteModulesOutputDirectory(), this.graph.outputFinalName || this.graph.outputName);
   }
 
   configureExports(reporter: Reporter) {
@@ -98,6 +102,17 @@ export class NPMPackager extends SelfBuildGraph<JSTarget> implements JSPackager 
         npmLink: npmLink,
       })
     });
+  }
+}
+
+@JSPackagers.declare(['npm-app'])
+export class NPMApp extends NPMPackager {
+  constructor(graph: JSTarget) {
+    super({ type: "packager", name: "npm" }, graph);
+  }
+
+  absoluteCompilationOutputDirectory() : string {
+    return this.graph.paths.output;
   }
 }
 
