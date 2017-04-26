@@ -154,10 +154,16 @@ export function validateBoolean(reporter: Reporter, path: AttributePath, value: 
   return undefined;
 }
 
+export function chain<T0>(v0: Validator0<T0>) : Validator0<T0>;
+export function chain<T0>(v0: Validator0<any>, v1: Validator0<T0>) : Validator0<T0>;
+export function chain<T0>(v0: Validator0<any>, v1: Validator0<any>, v2: Validator0<T0>) : Validator0<T0>;
+export function chain<T0>(v0: Validator0<any>, v1: Validator0<any>, v2: Validator0<any>, v3: Validator0<T0>) : Validator0<T0>;
+export function chain(...validators: Validator0<any>[]) : Validator0<any>;
 export function chain<T0, A0>(v0: Validator<T0, A0>) : Validator<T0, A0>;
 export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<T0, A0>) : Validator<T0, A0>;
 export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<T0, A0>) : Validator<T0, A0>;
 export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<any, A0>, v3: Validator<T0, A0>) : Validator<T0, A0>;
+export function chain<A0>(...validators: Validator<any, A0>[]) : Validator<any, A0>;
 export function chain<A0>(v0: Validator<any, A0>, ...validators: Validator<any, A0>[]) {
   return function validateChain(reporter, path: AttributePath, value, a0: A0) {
     let i = 0;
