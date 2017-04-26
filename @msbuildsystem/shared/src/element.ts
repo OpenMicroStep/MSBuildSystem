@@ -92,6 +92,7 @@ export class Element {
     root.__load(context, definition, new AttributePath(root));
     reporter.transform.pop();
     reporter.transform.push(transformWithCategory('resolve'));
+    root.__resolved = false; // force resolution
     root.__resolve(reporter);
     reporter.transform.pop();
     return root;

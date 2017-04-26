@@ -21,7 +21,6 @@ const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Wor
 
 export class Workspace {
   static globalRoot = new Element('root', 'global', null);
-  static globalExports = new Map<string, Element>();
   directory: string;
   projects = new Map<string, Project>();
   path: string;

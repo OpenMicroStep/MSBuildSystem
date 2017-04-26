@@ -29,7 +29,7 @@ export class MakeJSElement extends Element {
         let gsteps = steps.slice(2, i);
         let gel: Element | undefined = undefined;
         if (gsteps.length === 1)
-          gel = Workspace.globalExports.get(gsteps[0]);
+          gel = Workspace.globalRoot[`${gsteps[0]}=`];
         if (gel && gel.__passTags(tags))
           into.push(gel);
         else if (!gel)
