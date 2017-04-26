@@ -105,8 +105,8 @@ function loadElementFiles(reporter: Reporter,
   try {
     let filenames = fs.readdirSync(abspath);
     for (let i = 0, len = filenames.length; i < len; ++i) {
-      let abs = path.join(abspath, filenames[i]);
-      let rel = relpath ? path.join(relpath, filenames[i]) : filenames[i];
+      let abs = path.posix.join(abspath, filenames[i]);
+      let rel = relpath ? path.posix.join(relpath, filenames[i]) : filenames[i];
       let stats = fs.statSync(abs);
       if (stats.isFile()) {
         if (filter(rel))

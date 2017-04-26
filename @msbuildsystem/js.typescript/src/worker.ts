@@ -40,7 +40,7 @@ class TscWorker {
   createCompilerHost(options: ts.CompilerOptions) : CompilerHostWithVirtualFS {
     let sourceDirectory = this.data.sourceDirectory;
     let intermediatesDirectory = this.data.intermediatesDirectory;
-    let isInVirtualFs = new RegExp(`^${util.escapeRegExp(sourceDirectory)}/(${this.data.virtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|$)`, 'i');
+    let isInVirtualFs = new RegExp(`^${util.escapeRegExp(sourceDirectory).replace(/[/\\]+/g, '(?:/|\\\\)')}(?:/|\\\\)(${this.data.virtualPaths.map(p => util.escapeRegExp(p)).join('|')})(/|\\\\|$)`, 'i');
     let host = ts.createCompilerHost(options);
     function fromVirtualFs(p: string) {
       if (isInVirtualFs.test(p))
