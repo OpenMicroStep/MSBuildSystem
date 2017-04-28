@@ -57,7 +57,7 @@ function primitive_nocollision_overwrite() {
 
 function primitive_collision() {
   testInjectElements({ a: 1 }, [{ a: 2, b: 3 }, { a: 3, b: 4 }],
-    [{ "type": "warning", "msg": "attribute value is incoherent for injection into I, attribute is removed", "path": "E1.b" }],
+    [{ "type": "warning", "msg": "collision on I.b: attribute is removed", "path": "E1.b" }],
     { a: 1 });
 }
 
@@ -75,7 +75,7 @@ function array() {
 
 function primitive_into_array() {
   testInjectElements({ a: [1] }, [{ a: 2, b: 3 }, { a: [3], c: 4 }],
-    [{ "type": "warning", "msg": "attribute value is incoherent for injection into I, attribute is ignored", "path": "E0.a" }],
+    [{ "type": "warning", "msg": "not an array: an array can only be injected to an array, ignoring", "path": "E0.a" }],
     { a: [1, 3], b: 3, c: 4 });
 }
 
@@ -92,8 +92,8 @@ function byEnvironment_into() {
 function byEnvironment_noarray() {
   testInjectElements({ b: 2 }, [{ aByEnvironment: { "=a": 2 }, bByEnvironment: { "=a": [3] } }, { aByEnvironment: { "=a": [3], "=b": [4], "=a + b": [5] } }],
     [
-      { "type": "warning", "msg": "attribute must contain an array", "path": "E0.aByEnvironment[=a]" },
-      { "type": "warning", "msg": "attribute value is incoherent for injection into I, 'b' must be an array, attribute is ignored", "path": "E0.bByEnvironment" },
+      { "type": "warning", "msg": "not an array: byEnvironment values must be an array, ignoring", "path": "E0.aByEnvironment[=a]" },
+      { "type": "warning", "msg": "I.bByEnvironment is not array: byEnvironment attribute can only be injected to an array, ignoring", "path": "E0.bByEnvironment" },
     ],
     { b: 2, a: [3, 5] });
 }
@@ -121,7 +121,7 @@ function components_collision() {
       mock_component({ c: 4 }, '01'),
     ],
   }, '0'),
-  [{ "type": "warning", "msg": "attribute value is incoherent for injection into I, attribute is removed", "path": "E01.c" }],
+  [{ "type": "warning", "msg": "collision on I.c: attribute is removed", "path": "E01.c" }],
   { a: 1, b: 2 });
 }
 

@@ -12,102 +12,124 @@ export function defaultValueMap(at: AttributePath, key: string, v) {
   return v;
 }
 
-function injectElementAttribute(
+function injectAttribute(
   reporter: Reporter,
-  depcomponent: Element, into: object, path: AttributePath,
-  at: AttributePath, key: string, destKey: string,
+  src: object, srcAttribute: string, srcPath: AttributePath,
+  dst: object, dstAttribute: string, dstPath: AttributePath,
   buildTarget: BuildTargetElement,
   mapValue: (at: AttributePath, key: string, value) => any,
   keysWithSimpleValue: Set<string>, globalKeysWithSimpleValue: Set<string>
 ) {
-  let cvalue = into[destKey];
-  let dvalue = depcomponent[key];
-  let byenv = key.endsWith("ByEnvironment");
+  let srcValue = src[srcAttribute];
+  let byenv = dstAttribute.endsWith("ByEnvironment");
+  if (byenv)
+    dstAttribute = dstAttribute.substring(0, dstAttribute.length - "ByEnvironment".length);
+  let dstExists = dstAttribute in dst;
+  let dstValue = dstExists ? dst[dstAttribute] : undefined;
+  let dstIsArray = dstValue ? Array.isArray(dstValue) : false;
   if (byenv) {
-    let cFinalKey = destKey.substring(0, destKey.length - "ByEnvironment".length);
-    let cFinalValue = into[cFinalKey];
-    if (cFinalValue !== undefined && !Array.isArray(cFinalValue)) {
-      at.diagnostic(reporter, {
+    if (typeof srcValue !== "object") {
+      srcPath.diagnostic(reporter, {
         type: "warning",
-        msg: `attribute value is incoherent for injection into ${path}, '${cFinalKey}' must be an array, attribute is ignored`
+        msg: `not an object: byEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring`
+      });
+    }
+    else if (!dstIsArray && dstExists) {
+      srcPath.diagnostic(reporter, {
+        type: "warning",
+        msg: `${dstPath} is not array: byEnvironment attribute can only be injected to an array, ignoring`
       });
     }
     else {
-      if (cFinalValue === undefined)
-        cFinalValue = into[cFinalKey] = [];
-      at.pushArray();
-      for (var query in dvalue) {
-        var envs = buildTarget.resolveElements(reporter, query);
-        if (envs.indexOf(buildTarget.environment) !== -1) {
-          var v = mapValue(at, key, dvalue[query]);
-          at.setArrayKey(query);
-          if (Array.isArray(v)) {
-            mergeArrays(reporter, buildTarget, at, cFinalValue, v);
-          }
+      if (!dstExists)
+        dstValue = dst[dstAttribute] = [];
+      srcPath.pushArray();
+      for (let envQuery in srcValue) {
+        let matchingEnvs = buildTarget.resolveElements(reporter, envQuery);
+        if (matchingEnvs.indexOf(buildTarget.environment) !== -1) {
+          srcPath.setArrayKey(envQuery);
+          let srcEnvValue = mapValue(srcPath, dstAttribute, srcValue[envQuery]);
+          if (Array.isArray(srcEnvValue))
+            mergeArrays(reporter, buildTarget, srcPath, dstValue, srcEnvValue);
           else {
-            at.diagnostic(reporter, {
+            srcPath.diagnostic(reporter, {
               type: "warning",
-              msg: "attribute must contain an array"
+              msg: `not an array: byEnvironment values must be an array, ignoring`
             });
           }
         }
       }
-      at.popArray();
+      srcPath.popArray();
     }
   }
   else {
-    dvalue = mapValue(at, key, dvalue);
-    let cvalueIsArr = cvalue ? Array.isArray(cvalue) : false;
-    let dvalueIsArr = dvalue ? Array.isArray(dvalue) : false;
-    if (cvalue !== undefined && cvalueIsArr !== dvalueIsArr) {
-      at.diagnostic(reporter, {
-        type: "warning",
-        msg: `attribute value is incoherent for injection into ${path}, attribute is ignored`
-      });
-    }
-    else if (dvalueIsArr) {
-      if (!cvalue)
-        cvalue = into[destKey] = [];
-      mergeArrays(reporter, buildTarget, at, cvalue, dvalue);
-    }
-    else if (keysWithSimpleValue.has(destKey)) {
-      if (cvalue !== dvalue) {
-        at.diagnostic(reporter, {
+    srcValue = mapValue(srcPath, dstAttribute, srcValue);
+    let srcIsArray = srcValue ? Array.isArray(srcValue) : false;
+    if (srcIsArray) {
+      if (!dstIsArray && dstExists) {
+        srcPath.diagnostic(reporter, {
           type: "warning",
-          msg: `attribute value is incoherent for injection into ${path}, attribute is removed`
+          msg: `${dstPath} is not array: an array can only be injected to an array, ignoring`
         });
-        delete into[destKey];
+      }
+      else {
+        if (!dstExists)
+          dstValue = dst[dstAttribute] = [];
+        mergeArrays(reporter, buildTarget, srcPath, dstValue, srcValue);
       }
     }
-    else if (cvalue === undefined) {
-      globalKeysWithSimpleValue.add(destKey);
-      keysWithSimpleValue.add(destKey);
-      into[destKey] = dvalue;
+    else if (dstIsArray) {
+      srcPath.diagnostic(reporter, {
+        type: "warning",
+        msg: `not an array: an array can only be injected to an array, ignoring`
+      });
+    }
+    else {
+      if (keysWithSimpleValue.has(dstAttribute)) {
+        if (srcValue !== dstValue) {
+          srcPath.diagnostic(reporter, {
+            type: "warning",
+            msg: `collision on ${dstPath}: attribute is removed`
+          });
+          delete dst[dstAttribute];
+        }
+      }
+      else if (!dstExists) {
+        globalKeysWithSimpleValue.add(dstAttribute);
+        keysWithSimpleValue.add(dstAttribute);
+        dst[dstAttribute] = srcValue;
+      }
     }
   }
 }
 
 export function injectElement(
-  reporter: Reporter, element: Element,
-  into: object, path: AttributePath,
+  reporter: Reporter,
+  src: Element, srcPath: AttributePath,
+  dst: object, dstPath: AttributePath,
   buildTarget: BuildTargetElement,
   mapKey: (key: string) => string | '',
   mapValue: (at: AttributePath, key: string, value) => any,
   keysWithSimpleValue: Set<string>, globalKeysWithSimpleValue: Set<string>
 ) {
-  let at = new AttributePath(element, '.', '');
-  for (let key in element) {
-    let destKey = mapKey(key);
-    if (!destKey)
+  srcPath.push('.', '');
+  dstPath.push('.', '');
+  for (let dstAttribute in src) {
+    let srcAttribute = mapKey(dstAttribute);
+    if (!srcAttribute)
       continue;
-    at.set(key);
-    injectElementAttribute(reporter, element, into, path, at, key, destKey, buildTarget, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
+    injectAttribute(reporter,
+      src, srcAttribute, srcPath.set(srcAttribute),
+      dst, dstAttribute, dstPath.set(dstAttribute),
+      buildTarget, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
   }
+  srcPath.pop(2);
+  dstPath.pop(2);
 }
 
 export function injectElements(
   reporter: Reporter, elements: Element[],
-  into: object, path: AttributePath,
+  dst: object, dstPath: AttributePath,
   buildTarget: BuildTargetElement,
   mapKey: (key: string) => string | '' = defaultKeyMap,
   mapValue: (at: AttributePath, key: string, value) => any = defaultValueMap,
@@ -115,12 +137,15 @@ export function injectElements(
 ) {
   let keysWithSimpleValue = new Set<string>();
   for (let element of elements)
-    injectElement(reporter, element, into, path, buildTarget, mapKey, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
+    injectElement(reporter,
+      element, new AttributePath(element),
+      dst, dstPath,
+      buildTarget, mapKey, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
 }
 
 export function injectComponentsOf(
   reporter: Reporter, component: { components: ComponentElement[] },
-  into: object, path: AttributePath,
+  dst: object, dstPath: AttributePath,
   buildTarget: BuildTargetElement,
   mapKey: (key: string) => string | '' = defaultKeyMap,
   mapValue: (at: AttributePath, key: string, value) => any = defaultValueMap
@@ -132,7 +157,10 @@ export function injectComponentsOf(
 
   function injectComponent(current: ComponentElement, keysWithSimpleValue: Set<string>) {
     injected.add(current);
-    injectElement(reporter, current, into, path, buildTarget, mapKey, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
+    injectElement(reporter,
+      current, new AttributePath(current),
+      dst, dstPath,
+      buildTarget, mapKey, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
     if (current.components.length > 0) {
       let keysWithSimpleValue = new Set<string>();
       for (let sub of current.components)
@@ -143,14 +171,14 @@ export function injectComponentsOf(
   return [...injected];
 }
 
-function mergeArrays(reporter: Reporter, buildTarget: BuildTargetElement, at: AttributePath, into: any[], from: any[]) {
-  at.pushArray();
-  for (var i = 0, len = from.length; i < len; i++) {
-    var c = from[i];
+function mergeArrays(reporter: Reporter, buildTarget: BuildTargetElement, srcPath: AttributePath, dstValue: any[], srcValue: any[]) {
+  srcPath.pushArray();
+  for (var i = 0, len = srcValue.length; i < len; i++) {
+    var c = srcValue[i];
     if (c instanceof DelayedElement)
-      into.push(...<ComponentElement[]>c.__delayedResolve(reporter, buildTarget, at.setArrayKey(i)));
+      dstValue.push(...<ComponentElement[]>c.__delayedResolve(reporter, buildTarget, srcPath.setArrayKey(i)));
     else
-      into.push(c);
+      dstValue.push(c);
   }
-  at.popArray();
+  srcPath.popArray();
 }
