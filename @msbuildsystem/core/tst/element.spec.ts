@@ -1,6 +1,7 @@
 import {Reporter, AttributePath} from '@openmicrostep/msbuildsystem.core';
 import {newProxyElement, DelayedElement} from '@openmicrostep/msbuildsystem.core/elements/delayed.element';
 import {assert} from 'chai';
+import {tests as injection_tests} from './injection.spec';
 
 function proxy_element() {
   let $ = newProxyElement;
@@ -28,5 +29,6 @@ function proxy_element() {
 }
 
 export const tests = [
+  injection_tests,
   { name: "proxy element", test: proxy_element },
 ];
