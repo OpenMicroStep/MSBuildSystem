@@ -57,7 +57,7 @@ function primitive_nocollision_overwrite() {
 
 function primitive_collision() {
   testInjectElements({ a: 1 }, [{ a: 2, b: 3 }, { a: 3, b: 4 }],
-    [{ "type": "warning", "msg": "attribute value is incoherent for injection into I, attribute is removed", "path": "E1.b" }] as any[],
+    [{ "type": "warning", "msg": "attribute value is incoherent for injection into I, attribute is removed", "path": "E1.b" }],
     { a: 1 });
 }
 
@@ -102,14 +102,41 @@ function components() {
   testInjectComponentsOf({ b: 2 }, mock_component({
     components: [
       mock_component({ b: 3, components: [
-        mock_component({ a: 1 }, '001'),
+        mock_component({ a: 1 }, '000'),
       ] }, '00'),
       mock_component({ c: 4 }, '01'),
     ],
-   }, '0'),
-    [
-      ],
-    { a: 1, b: 2, c: 4 });
+  }, '0'),
+  [],
+  { a: 1, b: 2, c: 4 });
+}
+
+function components_collision() {
+  testInjectComponentsOf({ b: 2 }, mock_component({
+    components: [
+      mock_component({ b: 3, components: [
+        mock_component({ a: 1 }, '000'),
+        mock_component({ c: 2 }, '001'),
+      ] }, '00'),
+      mock_component({ c: 4 }, '01'),
+    ],
+  }, '0'),
+  [{ "type": "warning", "msg": "attribute value is incoherent for injection into I, attribute is removed", "path": "E01.c" }],
+  { a: 1, b: 2 });
+}
+
+function components_array() {
+  testInjectComponentsOf({ b: 2, c: [1] }, mock_component({
+    components: [
+      mock_component({ b: 3, c: [2], components: [
+        mock_component({ a: 1 }, '000'),
+        mock_component({ c: [3] }, '001'),
+      ] }, '00'),
+      mock_component({ c: [4] }, '01'),
+    ],
+  }, '0'),
+  [],
+  { a: 1, b: 2, c: [1, 2, 3, 4] });
 }
 
 export const tests = { name: 'injection', tests: [
@@ -124,4 +151,6 @@ export const tests = { name: 'injection', tests: [
   byEnvironment_into,
   byEnvironment_noarray,
   components,
+  components_collision,
+  components_array,
 ] };
