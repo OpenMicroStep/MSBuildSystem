@@ -73,10 +73,22 @@ function array() {
     { a: [1, 2, 3], b: 3, c: 4, d: [1, 4, 2, 3] });
 }
 
-function primitive_into_array() {
+function array_into() {
+  testInjectElements({ a: 2 }, [{ b: 3 }, { a: [3], c: 4 }],
+    [{ "type": "warning", "msg": "I.a is not array: an array can only be injected to an array, ignoring", "path": "E1.a" }],
+    { a: 2, b: 3, c: 4 });
+}
+
+function array_collision() {
   testInjectElements({ a: [1] }, [{ a: 2, b: 3 }, { a: [3], c: 4 }],
     [{ "type": "warning", "msg": "not an array: an array can only be injected to an array, ignoring", "path": "E0.a" }],
     { a: [1, 3], b: 3, c: 4 });
+}
+
+function array_collision_into() {
+  testInjectElements({ }, [{ a: 2, b: 3 }, { a: [3], c: 4 }],
+    [{ "type": "warning", "msg": "collision on I.a: attribute is removed", "path": "E1.a" }],
+    { b: 3, c: 4 });
 }
 
 function byEnvironment() {
@@ -90,10 +102,15 @@ function byEnvironment_into() {
     { a: [2, 3, 5] });
 }
 function byEnvironment_noarray() {
-  testInjectElements({ b: 2 }, [{ aByEnvironment: { "=a": 2 }, bByEnvironment: { "=a": [3] } }, { aByEnvironment: { "=a": [3], "=b": [4], "=a + b": [5] } }],
+  testInjectElements({ b: 2 }, [
+      { aByEnvironment: { "=a": 2 }, bByEnvironment: { "=a": [3] }, c: 3 },
+      { aByEnvironment: { "=a": [3], "=b": [4], "=a + b": [5] }, cByEnvironment: { "=a": [4] }, dByEnvironment: 4 },
+    ],
     [
       { "type": "warning", "msg": "not an array: byEnvironment values must be an array, ignoring", "path": "E0.aByEnvironment[=a]" },
-      { "type": "warning", "msg": "I.bByEnvironment is not array: byEnvironment attribute can only be injected to an array, ignoring", "path": "E0.bByEnvironment" },
+      { "type": "warning", "msg": "I.b is not array: byEnvironment attribute can only be injected to an array, ignoring", "path": "E0.bByEnvironment" },
+      { "type": "warning", "msg": "collision on I.c: attribute is removed", "path": "E1.cByEnvironment" },
+      { "type": "warning", "msg": "not an object: byEnvironment attribute must be an object (ie: { \"=env\": [values] }), ignoring", "path": "E1.dByEnvironment" },
     ],
     { b: 2, a: [3, 5] });
 }
@@ -146,7 +163,9 @@ export const tests = { name: 'injection', tests: [
   primitive_collision,
   primitive_collision_samevalue,
   array,
-  primitive_into_array,
+  array_into,
+  array_collision,
+  array_collision_into,
   byEnvironment,
   byEnvironment_into,
   byEnvironment_noarray,
