@@ -87,7 +87,7 @@ class TscWorker {
             col: character + 1,
             row: line + 1,
             msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-            path: host ? host.fromVirtualFs(diagnostic.file.path) : diagnostic.file.path
+            path: host ? host.fromVirtualFs(diagnostic.file.fileName) : diagnostic.file.fileName
             // , diagnostic.code ?
           });
         }
@@ -113,7 +113,7 @@ class TscWorker {
       let host = this.createCompilerHost(o.options);
       let program = ts.createProgram(this.data.files.map(f => host.toVirtualFs(f)), o.options, host);
       let emitResult = program.emit();
-      out.sources = program.getSourceFiles().map(f => host.fromVirtualFs(f.path));
+      out.sources = program.getSourceFiles().map(f => host.fromVirtualFs(f.fileName));
       let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
       this.emitTsDiagnostics(out.diagnostics, tsDiagnostics, host);
     }
