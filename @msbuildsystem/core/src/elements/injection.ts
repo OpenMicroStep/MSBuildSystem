@@ -12,6 +12,23 @@ export function defaultValueMap(at: AttributePath, key: string, v) {
   return v;
 }
 
+function mergeArrays(
+  reporter: Reporter,
+  srcValues: any[], srcPath: AttributePath,
+  dstValues: any[],
+  buildTarget: BuildTargetElement
+) {
+  srcPath.pushArray();
+  for (var i = 0, len = srcValues.length; i < len; i++) {
+    var c = srcValues[i];
+    if (c instanceof DelayedElement)
+      dstValues.push(...c.__delayedResolve(reporter, buildTarget, srcPath.setArrayKey(i)));
+    else
+      dstValues.push(c);
+  }
+  srcPath.popArray();
+}
+
 function injectAttribute(
   reporter: Reporter,
   src: object, srcAttribute: string, srcPath: AttributePath,
@@ -22,40 +39,46 @@ function injectAttribute(
 ) {
   let srcValue = src[srcAttribute];
   let byenv = dstAttribute.endsWith("ByEnvironment");
-  if (byenv)
+  if (byenv) {
     dstAttribute = dstAttribute.substring(0, dstAttribute.length - "ByEnvironment".length);
+    dstPath.set(dstAttribute);
+  }
   let dstExists = dstAttribute in dst;
   let dstValue = dstExists ? dst[dstAttribute] : undefined;
   let dstIsArray = dstValue ? Array.isArray(dstValue) : false;
   if (byenv) {
     if (typeof srcValue !== "object") {
-      srcPath.diagnostic(reporter, {
-        type: "warning",
-        msg: `not an object: byEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring`
-      });
+      srcPath.diagnostic(reporter, { type: "warning",
+        msg: `not an object: byEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring` });
     }
     else if (!dstIsArray && dstExists) {
-      srcPath.diagnostic(reporter, {
-        type: "warning",
-        msg: `${dstPath} is not array: byEnvironment attribute can only be injected to an array, ignoring`
-      });
+      if (keysWithSimpleValue.has(dstAttribute)) {
+        srcPath.diagnostic(reporter, {type: "warning",
+          msg: `collision on ${dstPath}: attribute is removed` });
+        delete dst[dstAttribute];
+      }
+      else {
+        srcPath.diagnostic(reporter, { type: "warning",
+          msg: `${dstPath} is not array: byEnvironment attribute can only be injected to an array, ignoring` });
+      }
     }
     else {
-      if (!dstExists)
+      if (!dstExists) {
+        globalKeysWithSimpleValue.add(dstAttribute);
+        keysWithSimpleValue.add(dstAttribute);
         dstValue = dst[dstAttribute] = [];
+      }
       srcPath.pushArray();
       for (let envQuery in srcValue) {
         let matchingEnvs = buildTarget.resolveElements(reporter, envQuery);
         if (matchingEnvs.indexOf(buildTarget.environment) !== -1) {
           srcPath.setArrayKey(envQuery);
-          let srcEnvValue = mapValue(srcPath, dstAttribute, srcValue[envQuery]);
+          let srcEnvValue = mapValue(srcPath, srcAttribute, srcValue[envQuery]);
           if (Array.isArray(srcEnvValue))
-            mergeArrays(reporter, buildTarget, srcPath, dstValue, srcEnvValue);
+            mergeArrays(reporter, srcEnvValue, srcPath, dstValue, buildTarget);
           else {
-            srcPath.diagnostic(reporter, {
-              type: "warning",
-              msg: `not an array: byEnvironment values must be an array, ignoring`
-            });
+            srcPath.diagnostic(reporter, { type: "warning",
+              msg: `not an array: byEnvironment values must be an array, ignoring` });
           }
         }
       }
@@ -63,34 +86,38 @@ function injectAttribute(
     }
   }
   else {
-    srcValue = mapValue(srcPath, dstAttribute, srcValue);
+    srcValue = mapValue(srcPath, srcAttribute, srcValue);
     let srcIsArray = srcValue ? Array.isArray(srcValue) : false;
     if (srcIsArray) {
       if (!dstIsArray && dstExists) {
-        srcPath.diagnostic(reporter, {
-          type: "warning",
-          msg: `${dstPath} is not array: an array can only be injected to an array, ignoring`
-        });
+        if (keysWithSimpleValue.has(dstAttribute)) {
+          srcPath.diagnostic(reporter, {type: "warning",
+            msg: `collision on ${dstPath}: attribute is removed` });
+          delete dst[dstAttribute];
+        }
+        else {
+          srcPath.diagnostic(reporter, {type: "warning",
+            msg: `${dstPath} is not array: an array can only be injected to an array, ignoring` });
+        }
       }
       else {
-        if (!dstExists)
+        if (!dstExists) {
+          globalKeysWithSimpleValue.add(dstAttribute);
+          keysWithSimpleValue.add(dstAttribute);
           dstValue = dst[dstAttribute] = [];
-        mergeArrays(reporter, buildTarget, srcPath, dstValue, srcValue);
+        }
+        mergeArrays(reporter, srcValue, srcPath, dstValue, buildTarget);
       }
     }
     else if (dstIsArray) {
-      srcPath.diagnostic(reporter, {
-        type: "warning",
-        msg: `not an array: an array can only be injected to an array, ignoring`
-      });
+      srcPath.diagnostic(reporter, { type: "warning",
+        msg: `not an array: an array can only be injected to an array, ignoring` });
     }
     else {
       if (keysWithSimpleValue.has(dstAttribute)) {
         if (srcValue !== dstValue) {
-          srcPath.diagnostic(reporter, {
-            type: "warning",
-            msg: `collision on ${dstPath}: attribute is removed`
-          });
+          srcPath.diagnostic(reporter, { type: "warning",
+            msg: `collision on ${dstPath}: attribute is removed` });
           delete dst[dstAttribute];
         }
       }
@@ -114,9 +141,9 @@ export function injectElement(
 ) {
   srcPath.push('.', '');
   dstPath.push('.', '');
-  for (let dstAttribute in src) {
-    let srcAttribute = mapKey(dstAttribute);
-    if (!srcAttribute)
+  for (let srcAttribute in src) {
+    let dstAttribute = mapKey(srcAttribute);
+    if (!dstAttribute)
       continue;
     injectAttribute(reporter,
       src, srcAttribute, srcPath.set(srcAttribute),
@@ -169,16 +196,4 @@ export function injectComponentsOf(
   }
 
   return [...injected];
-}
-
-function mergeArrays(reporter: Reporter, buildTarget: BuildTargetElement, srcPath: AttributePath, dstValue: any[], srcValue: any[]) {
-  srcPath.pushArray();
-  for (var i = 0, len = srcValue.length; i < len; i++) {
-    var c = srcValue[i];
-    if (c instanceof DelayedElement)
-      dstValue.push(...<ComponentElement[]>c.__delayedResolve(reporter, buildTarget, srcPath.setArrayKey(i)));
-    else
-      dstValue.push(c);
-  }
-  srcPath.popArray();
 }
