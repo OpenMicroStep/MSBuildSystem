@@ -61,7 +61,7 @@ module.exports= {
     }],
     npmPackage: [{ is: "component",
       dependencies: [{ is: "component",
-        "chai": "^3.5.0"
+        "chai": "4.0.0-canary.2"
       }],
       devDependencies: [{ is: "component",
         "@types/chai": "^3.4.29",

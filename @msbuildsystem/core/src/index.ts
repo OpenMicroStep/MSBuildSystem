@@ -3,7 +3,6 @@ export * from '@openmicrostep/msbuildsystem.shared';
 export { Loader  } from './loader';
 export { GroupElement } from './elements/group.element';
 export { ComponentElement } from './elements/component.element';
-export { AssociateElement } from './elements/associate.element';
 export { FileElement } from './elements/file.element';
 export { EnvironmentElement } from './elements/environment.element';
 export { TargetElement } from './elements/target.element';

@@ -1,7 +1,7 @@
 import {
   declareTask, Task, Reporter, SelfBuildGraph, Target, File,
   Flux, Step, StepWithData, ReduceStepContext,
-  resolver, AttributeTypes, AttributePath, util, AssociateElement,
+  AttributeTypes as V, AttributePath, util, ComponentElement,
 } from '@openmicrostep/msbuildsystem.core';
 import { safeSpawnProcess } from '@openmicrostep/msbuildsystem.foundation';
 import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask, NPMPackage } from '@openmicrostep/msbuildsystem.js';
@@ -10,27 +10,13 @@ import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
 import * as child_process from 'child_process';
 
-@JSCompilers.declare(['typescript', 'ts'])
 export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   constructor(graph: JSTarget) {
     super({ type: "compiler", name: "typescript" }, graph);
   }
-
-  @resolver(AssociateElement.mergedValidator({}, AttributeTypes.validateAny))
-  tsConfig: ts.CompilerOptions = {};
-
-  @resolver(AssociateElement.listValidator(AttributeTypes.objectValidator({
-    path: { validator: AttributeTypes.validateString    , default: undefined    },
-    name: { validator: AttributeTypes.validateString    , default: undefined    },
-    srcs: { validator: AttributeTypes.validateStringList, default: <string[]>[] },
-  }), true))
-  npmLink: { path: string, name: string, srcs: string[] }[] =  [];
-
-  @resolver(NPMPackage.validateDevDependencies)
-  npmPackage: NPMPackage.DevDependencies = { dependencies: {}, devDependencies: {} };
-
-  @resolver(Target.validateFile)
-  tsMain: File | null = null;
+  tsConfig: ts.CompilerOptions;
+  npmLink: { path: string, name: string, srcs: string[] }[];
+  npmPackage: NPMPackage.DevDependencies;
 
   tsc: TypescriptTask;
 
@@ -41,7 +27,7 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     let tsc = this.tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addDependency(npmInstallForBuild);
 
-    tsc.addFiles(this.graph.files);
+    tsc.addFiles([...this.graph.files]);
     tsc.setOptions(this.tsConfig);
     tsc.setOptions({
       outDir: this.graph.packager.absoluteCompilationOutputDirectory(),
@@ -66,8 +52,21 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
 
   }
 }
+JSCompilers.register(['typescript', 'tsc'], TypescriptCompiler, {
+  tsConfig: V.defaultsTo(ComponentElement.objectValidator({}, V.validateAny), {}),
+  npmLink: V.defaultsTo(ComponentElement.setAsListValidator(ComponentElement.objectValidator({
+    name: V.validateString     ,
+    path: V.validateString     ,
+    srcs: V.validateStringList ,
+  })), []),
+  npmPackage: V.defaultsTo(NPMPackage.validateDevDependencies, {
+    dependencies:     {},
+    devDependencies:  {},
+    peerDependencies: {},
+  }),
+});
 
-const validator = AttributeTypes.reducedListValidator(AttributeTypes.validateObject, AttributeTypes.createReduceByMergingObjects({ allowMultipleValues: false }));
+const validator = V.reducedListValidator(V.validateObject, V.createReduceByMergingObjects({ allowMultipleValues: false }));
 export type TSConfigValue = {
   tsconfig: File,
   compilerOptions: ts.CompilerOptions,
@@ -78,7 +77,7 @@ Task.generators.register(['tsconfig'], {
   map: (v: TSConfigValue) => v.tsconfig,
   reduce: (reporter: Reporter, values: TSConfigValue[]) : TSConfigValue => ({
     tsconfig: values[0].tsconfig,
-    compilerOptions: validator(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) as ts.CompilerOptions || {},
+    compilerOptions: validator.validate(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) as ts.CompilerOptions || {},
     files: Array.from(new Set(([] as string[]).concat(...values.map(v => v.files))))
   }),
   run(f: Flux<ReduceStepContext>, value: TSConfigValue) {

@@ -1,20 +1,12 @@
-import {declareTarget, resolver, AttributeTypes, Reporter, FileElement, AttributePath, CopyTask} from '@openmicrostep/msbuildsystem.core';
+import {Target, AttributeTypes, Reporter, FileElement, AttributePath, CopyTask} from '@openmicrostep/msbuildsystem.core';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
 
-@declareTarget({ type: "CXXLibrary" })
 export class CXXLibrary extends CXXTarget {
-  @resolver(AttributeTypes.validateBoolean)
-  static: boolean = false;
-
-  @resolver(FileElement.validateFileGroup)
-  publicHeaders: FileElement.FileGroup[] = [];
-
-  @resolver(AttributeTypes.validateString)
-  publicHeadersBasePath: string = "includes";
-
-  @resolver(AttributeTypes.validateString)
-  publicHeadersFolder: string = this.outputName;
+  static: boolean;
+  publicHeaders: FileElement.FileGroup[];
+  publicHeadersBasePath: string;
+  publicHeadersFolder: string;
 
   taskCopyPublicHeaders?: CopyTask;
 
@@ -49,3 +41,9 @@ export class CXXLibrary extends CXXTarget {
     exports["linkerOptions"] = [linkerOptions];
   }
 }
+Target.register(['CXXLibrary'], CXXLibrary, {
+  static                 : AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false) ,
+  publicHeaders          : FileElement.validateFileGroup ,
+  publicHeadersBasePath  : AttributeTypes.defaultsTo(AttributeTypes.validateString, "includes") ,
+  publicHeadersFolder    : AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: CXXTarget) => t.outputName, '${outputName}'),
+});

@@ -3,6 +3,8 @@ import {Workspace, util, RootGraph, Reporter, MakeJS,
   Element, ElementDefinition, ProjectElement, TargetElement
 } from './index.priv';
 import * as path from 'path';
+import * as vm from 'vm';
+import * as fs from 'fs';
 
 export interface BuildGraphOptions {
   targets?: string[];
@@ -32,10 +34,11 @@ export class Project {
     this.reporter = new Reporter();
     this.definition = null;
     try {
-      var Module = require('module');
-      var m = new Module(this.path, null);
-      m.load(this.path);
-      this.definition = <MakeJS.Project>m.exports;
+      const makejs = fs.readFileSync(this.path, 'utf8');
+      const sandbox = { module: { exports: {} } };
+      vm.createContext(sandbox);
+      vm.runInContext(makejs, sandbox, { filename: this.path, displayErrors: true });
+      this.definition = <MakeJS.Project>sandbox.module.exports;
       this.definition.name = this.definition.name || "Unnamed project";
       if (this.directory === this.workspace.directory)
         this.reporter.diagnostic({ type: "warning", msg: "it's highly recommended to not use the project folder as workspace folder" });

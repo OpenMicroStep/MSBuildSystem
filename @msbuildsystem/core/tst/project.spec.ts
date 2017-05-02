@@ -1,10 +1,25 @@
-import {Workspace, Project, Reporter, Target, declareTarget, Flux, Diagnostic} from '@openmicrostep/msbuildsystem.core';
+import {Workspace, Project, Reporter, Target, Flux, Diagnostic, AttributeTypes as V, ComponentElement, FileElement, File} from '@openmicrostep/msbuildsystem.core';
 import {assert} from 'chai';
 import * as path from 'path';
 
-@declareTarget({ type: "Test" })
 export class TestTarget extends Target {
+  compiler: string;
+  sysroot: string;
+  static: boolean;
+  files:         File[];
+  publicHeaders: File[];
+  defines:       string[];
+  libraries:     string[];
 }
+Target.register(["Test"], TestTarget, {
+  compiler     : V.defaultsTo(V.validateString, 'default compiler'),
+  sysroot      : V.defaultsTo(V.validateString, 'default sysroot'),
+  static       : V.defaultsTo(V.validateBoolean, false),
+  files        : V.defaultsTo(ComponentElement.setAsListValidator(FileElement.validateFile), []),
+  publicHeaders: V.defaultsTo(ComponentElement.setAsListValidator(FileElement.validateFile), []),
+  defines      : V.defaultsTo(ComponentElement.setAsListValidator(V.validateString), []),
+  libraries    : V.defaultsTo(ComponentElement.setAsListValidator(V.validateString), []),
+});
 
 type Context = {
   workspace: Workspace;
@@ -106,62 +121,79 @@ function build_graph(f: Flux<Context>) {
     { type: 'target', name: 'anotherLib', environment: 'msvc12-x86_64', project: project.path }
   ]);
   let target = (graph.findTask(false, (t: Target) => t.name.name === "MSStd" && t.name.environment === 'darwin-i386') as Target);
-  let msstd: any = target.attributes;
-  assert.strictEqual(msstd.is, 'build-target');
-  assert.strictEqual(msstd.name, 'MSStd');
-  assert.strictEqual(msstd.type, 'Test');
-  assert.strictEqual(msstd.static, false);
-  assert.sameMembers(msstd.defines, ["MINGW_HAS_SECURE_API" ]);
-  assert.sameMembers(msstd.libraries, ['-lm', '-luuid', '-ldl']);
-  assert.sameMembers(msstd.environments.map(e => e.name), ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
-  assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
-  assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
-  assert.deepEqual(target.exports.__serialize(reporter), {
-    "is": "target-exports", "name": "MSStd", "environment": "darwin-i386", "tags": [],
-    "components": [
+  let msstd: any = target.attributes.toJSON();
+  msstd.components = msstd.components.map(c => c.name);
+  msstd.environment.components = msstd.environment.components.map(c => c.name);
+  assert.deepEqual(msstd, {
+    is           : 'build-target',
+    name         : 'MSStd',
+    tags         : [],
+    compatibleEnvironments: [],
+    components   : [],
+    targets      : [],
+    environment  : {
+      is: "environment",
+      name: "darwin-i386",
+      compatibleEnvironments: [],
+      sysroot: "darwin:i386",
+      tags: ["darwin", "i386"],
+      components: ["clang"],
+      componentsByEnvironment: {},
+    },
+    compiler     : "clang",
+    type         : 'Test',
+    static       : false,
+    sysroot      : "darwin:i386",
+    defines      : ["MINGW_HAS_SECURE_API" ],
+    libraries    : ['-lm', '-luuid', '-ldl'],
+    files        : ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"].map(n => ({ is: "file", name: n, tags: ["CompileC"] })),
+    publicHeaders: ["MSStd.h", "mman.h"].map(n => ({ is: "file", name: n, tags: ["Header"] })),
+    exports: [
       {
-        "is": "component", "name": "generated", "tags": [], "components": [],
-      },
-      {
-        "is": "component", "name": "", "tags": [], "components": [],
+        is: "component",
+        name: "",
+        tags: [],
         "clang=": {
-          "is": "component", "name": "clang", "tags": ["clang"],
-          "compiler": "clang",
-          "components": [],
-          "mylist": ["v2"],
-        },
-      },
-    ],
+          is: "component",
+          name: "clang",
+          tags: ["clang"],
+          compiler: "clang",
+          components: [],
+          componentsByEnvironment: {},
+          mylist: ["v2"],
+        }
+      }
+    ]
   });
-  assert.deepEqual(reporter.diagnostics, []);
-
-  target = (graph.findTask(false, (t: Target) => t.name.name === "MSStd_static" && t.name.environment === 'darwin-i386') as Target);
-  msstd = target.attributes;
-  assert.strictEqual(msstd.is, 'build-target');
-  assert.strictEqual(msstd.name, 'MSStd_static');
-  assert.strictEqual(msstd.type, 'Test');
-  assert.strictEqual(msstd.static, true);
-  assert.sameMembers(msstd.defines, ["MINGW_HAS_SECURE_API" ]);
-  assert.sameMembers(msstd.libraries, ['-lm', '-luuid', '-ldl']);
-  assert.sameMembers(msstd.environments.map(e => e.name), ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
-  assert.sameMembers(msstd.files.map(e => e.name), ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
-  assert.sameMembers(msstd.publicHeaders.map(e => e.name), ["MSStd.h", "mman.h"]);
-  assert.deepEqual(target.exports.__serialize(reporter), {
-    "is": "target-exports", "name": "MSStd_static", "environment": "darwin-i386", "tags": [],
-    "components": [
+  assert.deepEqual(target.exports.toJSON(), {
+    is: "target-exports",
+    name: "MSStd",
+    environment: "darwin-i386",
+    tags: [],
+    components: [
       {
-        "is": "component", "name": "generated", "tags": [], "components": [],
+        is: "component",
+        name: "generated",
+        tags: [],
+        components: [],
+        componentsByEnvironment: {},
       },
       {
-        "is": "component", "name": "", "tags": [], "components": [],
+        is: "component",
+        name: "",
+        tags: [],
         "clang=": {
-          "is": "component", "name": "clang", "tags": ["clang"],
-          "compiler": "clang",
-          "components": [],
-          "mylist": ["v2"],
+          is: "component",
+          name: "clang",
+          tags: ["clang"],
+          compiler: "clang",
+          components: [],
+          componentsByEnvironment: {},
+          mylist: ["v2"],
         },
       },
     ],
+    componentsByEnvironment: {},
   });
   assert.deepEqual(reporter.diagnostics, []);
   f.continue();

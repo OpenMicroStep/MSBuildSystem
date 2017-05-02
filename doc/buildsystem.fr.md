@@ -64,12 +64,21 @@ Chaque tache implémente la méthode `do(step: Runner.Step)`, cette méthode pre
  - `sharedData`: les données persistante partagées entre les actions
  - `lastRunStartTime: number`: le moment où la dernière exécution à commencer
  - `lastRunEndTime: number`: le moment où la dernière exécution à terminer
- - `lastSuccessTime: number`: le moment où la dernière exécution à réussi
+ - `lastSuccessTime: number`: le moment où la dernière exécution réussi à commencer
+
+La méthode `do` commence par demander si l'execution de l'action est requise via `is_${action}_required(step)` avant d'executer réellement l'action `do_${action}(step)`.
 
 L'exécution d'une tache est lié à deux flux d'informations différents gérés par le raporteur : 
 
  - un flux textuel sous la forme d'un log
  - un flux structuré sous la forme d'un ensemble de diagnostics.
+
+L'ensemble des fournisseurs d'objectifs, tâches sont décris par 2 providers:
+
+ - targets: liste de noms vers une classe qui étends `Target`
+   - resolvers: liste d'attributs pris en charge par l'objectif
+ - tasks: liste de noms vers une classe qui étends `Task`
+   - actions: liste d'actions pris en charge par la tâche
 
 ### Génération du graphe de compilation
 

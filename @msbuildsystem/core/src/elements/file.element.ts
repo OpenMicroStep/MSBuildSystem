@@ -1,6 +1,6 @@
 import {
-  Element, ElementLoadContext, MakeJSElement,
-  AttributeTypes, AttributePath, Project, AssociateElement, Target,
+  Element, ElementLoadContext, MakeJSElement, ComponentElement,
+  AttributeTypes, AttributePath, Project, Target,
   File, util, Reporter, MakeJS
 } from '../index.priv';
 import * as path from 'path';
@@ -42,7 +42,7 @@ Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: 
     }, '.name');
   }
 
-  let tags = "tags" in definition ? AttributeTypes.validateStringList(reporter, attrPath, definition["tags"]) : [];
+  let tags = "tags" in definition ? AttributeTypes.validateStringList.validate(reporter, attrPath, definition["tags"]) : [];
   for (let i = 0, len = files.length; i < len; ++i) {
     let file = files[i];
     list.push(new FileElement(typeof name === "string" ? name : null, file, parent, tags));
@@ -55,7 +55,8 @@ export class FileElement extends MakeJSElement {
   __file: File;
 
   constructor(name: string | null, file: File, parent: Element, tags: string[]) {
-    super('file', name || file.path, parent, tags);
+    super('file', name || file.path, parent);
+    this.tags = tags;
     this.__file = file;
   }
 
@@ -70,18 +71,22 @@ export class FileElement extends MakeJSElement {
 }
 export module FileElement {
   export const validate = Element.elementValidator('file', FileElement);
-  export function validateFile(reporter: Reporter, path: AttributePath, value: any) {
-    if ((value = validate(reporter, path, value)) !== undefined && value.__file)
-      return <File>value.__file;
-    return undefined;
+  export const validateFile = {
+    validate(reporter: Reporter, path: AttributePath, value: any) {
+      let element = validate.validate(reporter, path, value);
+      if (element !== undefined && element.__file)
+        return element.__file;
+      return undefined;
+    },
+    traverse(lvl, ctx) { return validate.traverse(lvl, ctx); }
   };
-  export const validateFileSet = AssociateElement.setValidator(validateFile, false);
-  export type FileGroup = AssociateElement.Group<File, { dest: string, expand: boolean }>;
-  export const validateFileGroup = AssociateElement.groupValidator(
+  export const validateFileSet = ComponentElement.setValidator(validateFile);
+  export type FileGroup = ComponentElement.Group<File, { dest: string, expand: boolean }>;
+  export const validateFileGroup = ComponentElement.groupValidator(
     validateFile,
     {
-      dest: { validator: AttributeTypes.validateString , default: ""   },
-      expand: { validator: AttributeTypes.validateBoolean, default: false }
+      dest:   AttributeTypes.defaultsTo(AttributeTypes.validateString , ""   ) ,
+      expand: AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false) ,
     }
   );
 }

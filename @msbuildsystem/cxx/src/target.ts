@@ -1,7 +1,7 @@
 import {
-  Target, File, Reporter,
+  Target, SelfBuildGraph, File, Reporter,
   AttributePath, AttributeTypes,
-  resolver, FileElement
+  FileElement, ComponentElement
 } from '@openmicrostep/msbuildsystem.core';
 import {
   CXXSysroot, CXXSysroots,
@@ -31,7 +31,7 @@ export enum CXXLinkType {
 }
 
 export function validateSysroot(reporter: Reporter, path: AttributePath, value: any, target: CXXTarget) : CXXSysroot | undefined {
-  let v = AttributeTypes.validateString(reporter, path, value);
+  let v = AttributeTypes.validateString.validate(reporter, path, value);
   if (v !== undefined) {
     let m = v.match(/^([^:\s]+)(?::([^:\s]+)(?:@([^:\s]+))?)?$/);
     if (m) {
@@ -56,16 +56,9 @@ export function validateSysroot(reporter: Reporter, path: AttributePath, value: 
  * The sysroot is responsible of the build graph creation
 */
 export abstract class CXXTarget extends Target {
-  @resolver(validateSysroot)
   sysroot: CXXSysroot;
-
-  @resolver(validateCompilerOptions)
   compilerOptions: CompilerOptions;
-
-  @resolver(validateLinkerOptions)
   linkerOptions: LinkerOptions;
-
-  @resolver(AttributeTypes.mapValidator<File, CompilerOptions, Target>(FileElement.validateFile, compilerExtensions))
   files: Map<File, CompilerOptions>;
 
   linkType: CXXLinkType;
@@ -79,3 +72,9 @@ export abstract class CXXTarget extends Target {
     super.configure(reporter, path);
   }
 }
+SelfBuildGraph.registerAttributes(CXXTarget, {
+  sysroot: validateSysroot ,
+  compilerOptions: validateCompilerOptions ,
+  linkerOptions: validateLinkerOptions ,
+  files: ComponentElement.groupValidator(FileElement.validateFile, compilerExtensions) ,
+});

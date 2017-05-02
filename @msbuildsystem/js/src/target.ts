@@ -1,23 +1,16 @@
 import {
-  declareTarget, Target, Reporter, resolver, AttributeTypes, AttributePath,
-  File, FileElement, Step, AssociateElement,
+  Target, Reporter, AttributeTypes,
+  File, FileElement, Step,
 } from '@openmicrostep/msbuildsystem.core';
 import {
   JSCompilers, JSCompiler,
   JSPackagers, JSPackager,
 } from './index';
 
-@declareTarget({ type: "javascript" })
 export class JSTarget extends Target {
-
-  @resolver(JSCompilers.validate)
   compiler: JSCompiler;
-
-  @resolver(JSPackagers.validate)
   packager: JSPackager;
-
-  @resolver(AttributeTypes.listValidator(FileElement.validateFile))
-  files: File[];
+  files: Set<File>;
 
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
@@ -49,3 +42,8 @@ export class JSTarget extends Target {
     this.packager.configureExports(reporter);
   }
 }
+Target.register(["javascript"], JSTarget, {
+  files:    FileElement.validateFileSet,
+  compiler: JSCompilers.validate,
+  packager: JSPackagers.validate,
+});

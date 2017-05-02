@@ -1,14 +1,14 @@
 import {
-  ComponentElement, EnvironmentElement, MakeJSElement, TargetElement,
+  Element, ComponentElement, EnvironmentElement, MakeJSElement, TargetElement,
   Reporter, AttributeTypes, AttributePath, RootGraph,
-  injectElements, injectComponentsOf,
+  injectElement, createInjectionContext,
 } from '../index.priv';
 
 export class BuildTargetElement extends MakeJSElement {
   environment: EnvironmentElement;
-  environments: EnvironmentElement[];
+  compatibleEnvironments: string[];
   targets: string[];
-  components: ComponentElement[];
+  components: Set<ComponentElement>;
   exports: ComponentElement[];
   type: string;
   __target: TargetElement;
@@ -22,24 +22,22 @@ export class BuildTargetElement extends MakeJSElement {
     this.environment = environment;
     //
     this.targets = [];
-    this.components = [];
+    this.components = new Set();
     this.exports = [];
     this.__target = target;
     this.___root = root;
-    // inject target element attributes to itself
-    let at = new AttributePath(this, '');
-    injectElements(reporter, [target], this, at, this);
-    this.environments = target.environments;
-    // inject the environment
-    injectElements(reporter, [this.environment], this, at, this);
-    // inject components tree
-    this.components = injectComponentsOf(reporter, this, this, at, this);
 
-    this.type = AttributeTypes.validateString(reporter, at.set('.type'), this.type) || "bad type";
-    this.targets = AttributeTypes.validateStringList(reporter, at.set('.targets'), this.targets) || [];
+    let ctx = createInjectionContext(reporter, this, true);
+    injectElement(ctx, environment, new AttributePath(environment), this, new AttributePath(this));
+    injectElement(ctx, target     , new AttributePath(target     ), this, new AttributePath(this));
+
+    let at = new AttributePath(this, '');
+    this.type = AttributeTypes.validateString.validate(reporter, at.set('.type'), this.type) || "bad type";
+    this.targets = ComponentElement.setAsListValidator(AttributeTypes.validateString).validate(reporter, at.set('.targets'), this.targets) || [];
   }
 
   __path() {
     return `${super.__path()}{${this.environment.name}}`;
   }
 }
+Element.setElementKeys(BuildTargetElement, ["environment", "compatibleEnvironments", "targets", "components", "exports", "type"]);

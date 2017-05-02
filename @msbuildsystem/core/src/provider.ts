@@ -1,6 +1,13 @@
 import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes} from "./index.priv";
 
-export function createBuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>>(type: string, defaultCstor?: { new (graph: P) : T }) {
+export interface BuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>> {
+  list: Map<string, new (graph: P) => T>;
+  register<A extends object, S extends T & A>(names: string[], constructor: new (graph: P) => S, attributes: AttributeTypes.Extensions<A, S>) : void;
+  declare: (names: string[]) => (constructor: new (graph: P) => T) => void;
+  find: (name: string) => (new (graph: P) => T) | undefined;
+  validate: AttributeTypes.ValidatorT<T, P>;
+}
+export function createBuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>>(type: string, defaultCstor?: { new (graph: P) : T }) : BuildGraphProviderList<P, T> {
   let list = new Map<string, { new (graph: P) : T }>();
   function declareBuildGraphProvider(names: string[]) {
     return function (constructor: { new (graph: P) : T }) {
@@ -9,13 +16,17 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
       });
     };
   }
+  function register<D extends AttributeTypes.Extensions<A, S>, A extends { [K in keyof D]: S[K] }, S extends T & A>(names: string[], constructor: { new (graph: P) : S }, attributes: D) {
+    SelfBuildGraph.registerAttributes(constructor, attributes);
+    names.forEach(name => list.set(name, constructor));
+  }
   function find(name: string) {
     return list.get(name);
   }
   function validate(reporter: Reporter, path: AttributePath, value: any, target: P) : T | undefined {
     if (value === undefined && defaultCstor !== undefined)
       return new defaultCstor(target);
-    let v = AttributeTypes.validateString(reporter, path, value);
+    let v = AttributeTypes.validateString.validate(reporter, path, value);
     let ret: T | undefined = undefined;
     if (v !== undefined) {
       let builder = find(v);
@@ -30,8 +41,9 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
   }
   return {
     list: list,
+    register: register,
     declare: declareBuildGraphProvider,
     find: find,
-    validate: validate
+    validate: { validate: validate, traverse: () => `a ${type} provider {${[...list.keys()].join(', ')}}` }
   };
 }

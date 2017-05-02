@@ -1,11 +1,11 @@
-import {Reporter, AttributePath, Diagnostic, util} from "./index";
+import {Reporter, AttributePath, Diagnostic, AttributeTypes as V, util} from "./index";
 
 export interface ProviderList<CSTOR, C> {
   list: CSTOR[];
   register(constructor: CSTOR) : void;
   unregister(constructor: CSTOR) : void;
   find(conditions: C) : CSTOR[];
-  validate(reporter: Reporter, path: AttributePath, value: any) : CSTOR | undefined;
+  validate: V.ValidatorT0<CSTOR>;
 }
 
 export interface ProviderMap<T> {
@@ -13,7 +13,7 @@ export interface ProviderMap<T> {
   register(name: string[], constructor: T) : void;
   unregister(name: string[]) : void;
   find(name: string) : T | undefined;
-  validate(reporter: Reporter, path: AttributePath, value: any) : T | undefined;
+  validate: V.ValidatorT0<T>;
 }
 
 export function createProviderList<
@@ -63,7 +63,7 @@ export function createProviderList<
     register: register,
     unregister: unregister,
     find: find,
-    validate: validate
+    validate: { validate: validate, traverse: () => `a ${type} provider {${list.map(l => l.name).join(', ')}}` }
   };
 }
 
@@ -102,19 +102,24 @@ export function createProviderMap<T>(type: string) : ProviderMap<T> {
         map.delete(name);
     },
     find(name: string) { return map.get(name); },
-    validate(reporter: Reporter, path: AttributePath, value: string) : T | undefined {
-      let v = map.get(value);
-      if (v === undefined)
-        path.diagnostic(reporter, {
-          type: "error",
-          msg: `unable to find ${type}`,
-          notes: [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
-            .concat(Array.from(map.keys()).map(k => (<Diagnostic>{
-              type: "note",
-              msg: `found: ${k}`
-            })))
-        });
-      return v;
+    validate: {
+      validate(reporter: Reporter, path: AttributePath, value: string) : T | undefined {
+        let v = map.get(value);
+        if (v === undefined)
+          path.diagnostic(reporter, {
+            type: "error",
+            msg: `unable to find ${type}`,
+            notes: [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
+              .concat(Array.from(map.keys()).map(k => (<Diagnostic>{
+                type: "note",
+                msg: `found: ${k}`
+              })))
+          });
+        return v;
+      },
+      traverse() {
+        return `a ${type} provider {${[...map.keys()].join(', ')}}`;
+      }
     }
   };
 }

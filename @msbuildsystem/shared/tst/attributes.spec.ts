@@ -4,7 +4,7 @@ import {assert} from 'chai';
 function testValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>, value: any, a0: A0, expected: T | undefined, diagnostics: Diagnostic[]) {
   let reporter = new Reporter();
   let path = new AttributePath();
-  let v = validator(reporter, path, value, a0);
+  let v = validator.validate(reporter, path, value, a0);
   if (expected instanceof Set) {
     assert.instanceOf(v, Set);
     expected = <any>Array.from(expected.values());
@@ -109,17 +109,10 @@ function chain() {
   ]);
 }
 
-function defaultValueValidator() {
-  testValidator(AttributeTypes.defaultValueValidator(AttributeTypes.validateString, 'default string value'), 'this is a string', undefined, 'this is a string', []);
-  testValidator(AttributeTypes.defaultValueValidator(AttributeTypes.validateString, 'default string value'), undefined, undefined, 'default string value', []);
-  testValidator(AttributeTypes.defaultValueValidator(AttributeTypes.validateString, 'default string value'), { t: 'this is not a string' }, undefined, 'default string value', [
-    { "type": "warning", "msg": "attribute must be a string, got object" }
-  ]);
-}
-function dynamicDefaultValueValidator() {
-  testValidator(AttributeTypes.dynamicDefaultValueValidator(AttributeTypes.validateString, (a0) => a0 + ' string value'), 'this is a string', 'a', 'this is a string', []);
-  testValidator(AttributeTypes.dynamicDefaultValueValidator(AttributeTypes.validateString, (a0) => a0 + ' string value'), undefined, 'b', 'b string value', []);
-  testValidator(AttributeTypes.dynamicDefaultValueValidator(AttributeTypes.validateString, (a0) => a0 + ' string value'), { t: 'this is not a string' }, 'c', 'c string value', [
+function defaultsTo() {
+  testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), 'this is a string', undefined, 'this is a string', []);
+  testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), undefined, undefined, 'default string value', []);
+  testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), { t: 'this is not a string' }, undefined, 'default string value', [
     { "type": "warning", "msg": "attribute must be a string, got object" }
   ]);
 }
@@ -161,12 +154,12 @@ function setValidator() {
 }
 function objectValidator() {
   let validator = AttributeTypes.objectValidator({
-    's': { validator: AttributeTypes.validateString, default: 'a string' },
-    'b': { validator: AttributeTypes.validateBoolean, default: false },
+    's': AttributeTypes.defaultsTo(AttributeTypes.validateString, 'a string') ,
+    'b': AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false) ,
   });
   let validator2 = AttributeTypes.objectValidator({
-    's': { validator: AttributeTypes.validateString, default: 'a' },
-    'b': { validator: AttributeTypes.validateString, default: 'b' },
+    's': AttributeTypes.defaultsTo(AttributeTypes.validateString, 'a') ,
+    'b': AttributeTypes.defaultsTo(AttributeTypes.validateString, 'b') ,
   }, AttributeTypes.validateString);
   testValidator(validator, { s: 'test', b: true }, undefined, { s: 'test', b: true }, []);
   testValidator(validator, { s: 'test' }, undefined, { s: 'test', b: false }, []);
@@ -182,41 +175,6 @@ function objectValidator() {
     { "type": "warning", "msg": "attribute must be a string, got number", "path": "[not_defined]" }
   ]);
 }
-function mapValidator() {
-  let validator = AttributeTypes.mapValidator(AttributeTypes.validateString, {
-    's': { validator: AttributeTypes.validateString, default: 'a string' },
-    'b': { validator: AttributeTypes.validateBoolean, default: false },
-  });
-  testValidator(validator, ['test', {value: ['test2']}, {value: ['test3', 'test4'], s: 'test', b: true }], undefined, new Map([
-    ['test', { s: 'a string', b: false }],
-    ['test2', { s: 'a string', b: false }],
-    ['test3', { s: 'test', b: true }],
-    ['test4', { s: 'test', b: true }]
-  ]), []);
-  testValidator(validator, [0, {value: 'test2'}, {value: 'test3', s: 'test', b: 0 }], undefined, new Map([]), [
-    { "type": "warning", "msg": "attribute must be a string, got number", "path": "[0]" },
-    { "type": "warning", "msg": "attribute must be an array", "path": "[1].value" },
-    { "type": "warning", "msg": "attribute must be an array", "path": "[2].value" },
-    { "type": "warning", "msg": "attribute must be a boolean, got number", "path": "[2][b]" },
-  ]);
-}
-function groupValidator() {
-  let validator = AttributeTypes.groupValidator(AttributeTypes.validateString, {
-    's': { validator: AttributeTypes.validateString, default: 'a string' },
-    'b': { validator: AttributeTypes.validateBoolean, default: false },
-  });
-  testValidator(validator, ['test', {value: ['test2']}, {value: ['test3', 'test4'], s: 'test', b: true }], undefined, [
-    { values: ['test'], ext: { s: 'a string', b: false }},
-    { values: ['test2'], ext: { s: 'a string', b: false }},
-    { values: ['test3', 'test4'], ext: { s: 'test', b: true }},
-  ], []);
-  testValidator(validator, [0, {value: 'test2'}, {value: 'test3', s: 'test', b: 0 }], undefined, [], [
-    { "type": "warning", "msg": "attribute must be a string, got number", "path": "[0]" },
-    { "type": "warning", "msg": "attribute must be an array", "path": "[1].value" },
-    { "type": "warning", "msg": "attribute must be an array", "path": "[2].value" },
-    { "type": "warning", "msg": "attribute must be a boolean, got number", "path": "[2][b]" },
-  ]);
-}
 
 export const tests = { name: 'attributes', tests: [
   validateAny,
@@ -228,11 +186,8 @@ export const tests = { name: 'attributes', tests: [
   validateStringList,
   validateStringSet,
   chain,
-  defaultValueValidator,
-  dynamicDefaultValueValidator,
+  defaultsTo,
   listValidator,
   objectValidator,
-  mapValidator,
-  groupValidator,
   setValidator
 ]};

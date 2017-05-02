@@ -1,4 +1,4 @@
-import {File, declareTask, Graph, AttributeTypes, Reporter, AttributePath, Target, Directory} from '@openmicrostep/msbuildsystem.core';
+import {File, declareTask, Graph, AttributeTypes, Reporter, AttributePath, Target, Directory, ComponentElement} from '@openmicrostep/msbuildsystem.core';
 import {ProcessTask} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXLinkType} from '../index.priv';
 
@@ -7,17 +7,17 @@ export interface LinkerOptions {
   linkFlags: string[];
   libraries: string[];
   archives: string[];
-  libDirectories: Directory[];
-  frameworkDirectories: Directory[];
+  libDirectories: Set<Directory>;
+  frameworkDirectories: Set<Directory>;
 }
 
-export const validateLinkerOptions = AttributeTypes.mergedObjectListValidator<LinkerOptions, Target>({
-    'linker'              : { validator: AttributeTypes.validateString    , default: undefined },
-    'linkFlags'           : { validator: AttributeTypes.validateStringList, default: []   },
-    'libraries'           : { validator: AttributeTypes.validateStringList, default: []   },
-    'archives'            : { validator: AttributeTypes.validateStringList, default: []   },
-    'libDirectories'      : { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
-    'frameworkDirectories': { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+export const validateLinkerOptions = ComponentElement.objectValidator<LinkerOptions, Target>({
+    'linker'              : AttributeTypes.validateString    ,
+    'linkFlags'           : AttributeTypes.validateStringList,
+    'libraries'           : AttributeTypes.validateStringList,
+    'archives'            : AttributeTypes.validateStringList,
+    'libDirectories'      : ComponentElement.setValidator(Target.validateDirectory),
+    'frameworkDirectories': ComponentElement.setValidator(Target.validateDirectory),
 });
 
 @declareTask({ type: "cxxlink" })

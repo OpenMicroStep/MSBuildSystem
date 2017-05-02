@@ -193,7 +193,7 @@ function handle_run() {
       let ok = true;
       if (args.command === "generate") {
         let reporter = new Reporter();
-        provider = Task.generators.validate(reporter, new AttributePath('ide'), args.ide);
+        provider = Task.generators.validate.validate(reporter, new AttributePath('ide'), args.ide);
         ok = !!(provider && printReport('Find generator', reporter));
       }
       if (ok) {

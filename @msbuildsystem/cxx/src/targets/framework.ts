@@ -1,29 +1,14 @@
-import {declareTarget, resolver, FileElement, AttributeTypes, Reporter, AttributePath, File, CopyTask} from '@openmicrostep/msbuildsystem.core';
+import {FileElement, AttributeTypes, Reporter, AttributePath, File, CopyTask, Target} from '@openmicrostep/msbuildsystem.core';
 import {CXXLibrary, PlistInfoTask, HeaderAliasTask} from '../index.priv';
 import * as path from 'path';
 
-@declareTarget({ type: 'CXXFramework' })
 export class CXXFramework extends CXXLibrary {
-  @resolver(FileElement.validateFileGroup)
   resources: FileElement.FileGroup[] = [];
-
-  @resolver(AttributeTypes.validateString)
-  bundleExtension: string = "framework";
-
-  @resolver(AttributeTypes.validateObject)
-  bundleInfo: any = null;
-
-  @resolver(AttributeTypes.validateString)
-  bundleBasePath: string = this.outputName + "." + this.bundleExtension;
-
-  @resolver(AttributeTypes.validateString)
-  bundleResourcesBasePath: string = "Resources";
-
-  @resolver(AttributeTypes.validateString)
-  bundleInfoPath: string = "Info.plist";
-
-  publicHeadersBasePath: string = "Headers";
-  publicHeadersFolder = "";
+  bundleExtension: string;
+  bundleInfo: any;
+  bundleBasePath: string;
+  bundleResourcesBasePath: string;
+  bundleInfoPath: string;
 
   absoluteBundleDirectory() {
     return this.paths.output;
@@ -48,8 +33,8 @@ export class CXXFramework extends CXXLibrary {
   configure(reporter: Reporter, path: AttributePath) {
     super.configure(reporter, path);
     let dir = File.getShared(this.absoluteBundleDirectory(), true);
-    this.compilerOptions.frameworkDirectories.push(dir);
-    this.linkerOptions.frameworkDirectories.push(dir);
+    this.compilerOptions.frameworkDirectories.add(dir);
+    this.linkerOptions.frameworkDirectories.add(dir);
   }
 
   buildGraph(reporter: Reporter) {
@@ -76,5 +61,13 @@ export class CXXFramework extends CXXLibrary {
   }
 */
 }
-
-
+Target.register(['CXXFramework'], CXXFramework, {
+  resources              : FileElement.validateFileGroup ,
+  bundleExtension        : AttributeTypes.defaultsTo(AttributeTypes.validateString, "framework") ,
+  bundleInfo             : AttributeTypes.defaultsTo(AttributeTypes.validateObject, null) ,
+  bundleBasePath         : AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: CXXFramework) => t.outputName + "." + t.bundleExtension, '${outputName}.${bundleExtension}'),
+  bundleResourcesBasePath: AttributeTypes.defaultsTo(AttributeTypes.validateString, "Resources") ,
+  bundleInfoPath         : AttributeTypes.defaultsTo(AttributeTypes.validateString, "Info.plist") ,
+  publicHeadersBasePath  : AttributeTypes.defaultsTo(AttributeTypes.validateString, "Headers") ,
+  publicHeadersFolder    : AttributeTypes.defaultsTo(AttributeTypes.validateString, "") ,
+});

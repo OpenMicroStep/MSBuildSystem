@@ -72,7 +72,7 @@ export class ProcessTask extends InOutTask {
   }
 
   run(step: Step<{}>) {
-    var provider = ProcessProviders.validate(step.context.reporter, new AttributePath(this.target()), this.provider);
+    var provider = ProcessProviders.validate.validate(step.context.reporter, new AttributePath(this.target()), this.provider);
     if (!provider) {
       step.continue();
     }

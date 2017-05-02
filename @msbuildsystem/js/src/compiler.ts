@@ -1,6 +1,6 @@
 import {
-  AttributePath, Reporter, CopyTask,
-  SelfBuildGraph, createBuildGraphProviderList
+  Reporter, CopyTask,
+  SelfBuildGraph, createBuildGraphProviderList, BuildGraphProviderList,
 } from '@openmicrostep/msbuildsystem.core';
 import {JSTarget} from './index';
 
@@ -13,7 +13,7 @@ export class DefaultJSCompiler extends SelfBuildGraph<JSTarget> implements JSCom
 
   buildGraph(reporter: Reporter) {
     let cpy = new CopyTask("javascript", this);
-    cpy.willCopyFiles(reporter, this.graph.files, this.graph.paths.output, true);
+    cpy.willCopyFiles(reporter, [...this.graph.files], this.graph.paths.output, true);
   }
 }
 

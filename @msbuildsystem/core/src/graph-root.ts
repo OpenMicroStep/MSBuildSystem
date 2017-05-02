@@ -1,4 +1,4 @@
-import {Workspace, Project, Target, AttributePath, getTargetClass, transformWithCategory,
+import {Workspace, Project, Target, AttributePath, transformWithCategory,
   Graph, Reporter, BuildGraphOptions,
   Element, BuildTargetElement, TargetElement, EnvironmentElement, TargetExportsElement
 } from './index.priv';
@@ -68,15 +68,8 @@ export class RootGraph extends Graph {
     if (!task && !requester) {
       reporter.transform.push(transformWithCategory('instantiate'));
       let buildTarget = new BuildTargetElement(reporter, this, target, environment);
-      let cls = getTargetClass(buildTarget.type);
-      if (!cls) {
-        reporter.diagnostic({
-          type: "error",
-          msg: `cannot create target ${buildTarget.__path()}, unsupported target type ${buildTarget.type}`,
-          path: buildTarget.__path()
-        });
-      }
-      else {
+      let cls = Target.providers.validate.validate(reporter, new AttributePath(buildTarget), buildTarget.type);
+      if (cls) {
         task = new cls(this, buildTarget.__root().__project(), buildTarget);
         if (task.attributes.targets.length) {
           let p = new AttributePath(task, '.targets[', '', ']');

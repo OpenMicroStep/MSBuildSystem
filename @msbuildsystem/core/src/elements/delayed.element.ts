@@ -10,7 +10,7 @@ export class DelayedElement extends Element {
 }
 
 export class DelayedQuery extends DelayedElement {
-  constructor(public gsteps: string[], public steps: string[], public tagsQuery: Element.Tags, parent: Element | null) {
+  constructor(public gsteps: string[], public steps: string[], public tagsQuery: Element.Query, parent: Element | null) {
     super(parent);
   }
   __delayedResolve(reporter: Reporter, buildTarget: BuildTargetElement, at: AttributePath) : Element[] {
@@ -27,7 +27,7 @@ export class DelayedQuery extends DelayedElement {
     return ret;
   }
   __description() {
-    return `::${this.gsteps.join(':')}::${Element.rebuildQuery([this.steps], this.tagsQuery)}`;
+    return `::${this.gsteps.join(':')}::${Element.rebuildQuery({ ...this.tagsQuery, groups: [this.steps]})}`;
   }
 }
 

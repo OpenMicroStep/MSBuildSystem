@@ -1,6 +1,6 @@
 import {
   File, Directory, declareTask, Step, Graph, Diagnostic, StepWithData,
-  AttributeTypes, Target, AttributePath, Reporter
+  AttributeTypes, Target, AttributePath, Reporter, ComponentElement,
 } from '@openmicrostep/msbuildsystem.core';
 import {ProcessTask, ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
 
@@ -14,18 +14,18 @@ export type CompilerOptions = {
   compiler: string | undefined;
   defines: string[];
   compileFlags: string[];
-  includeDirectories: Directory[];
-  frameworkDirectories: Directory[];
+  includeDirectories: Set<Directory>;
+  frameworkDirectories: Set<Directory>;
 }
 export const compilerExtensions = {
-    'language'            : { validator: AttributeTypes.validateString, default: undefined },
-    'compiler'            : { validator: AttributeTypes.validateString, default: undefined },
-    'defines'             : { validator: AttributeTypes.validateStringList, default: [] },
-    'compileFlags'        : { validator: AttributeTypes.validateStringList, default: [] },
-    'includeDirectories'  : { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
-    'frameworkDirectories': { validator: AttributeTypes.listValidator(Target.validateDirectory), default: [] },
+    'language'            : AttributeTypes.validateString,
+    'compiler'            : AttributeTypes.validateString,
+    'defines'             : AttributeTypes.validateStringList,
+    'compileFlags'        : AttributeTypes.validateStringList,
+    'includeDirectories'  : ComponentElement.setValidator(Target.validateDirectory),
+    'frameworkDirectories': ComponentElement.setValidator(Target.validateDirectory),
 };
-export const validateCompilerOptions = AttributeTypes.mergedObjectListValidator<CompilerOptions, Target>(compilerExtensions);
+export const validateCompilerOptions = ComponentElement.objectValidator<CompilerOptions, Target>(compilerExtensions);
 
 @declareTask({ type: "cxxcompile" })
 export class CompileTask extends ProcessTask {
@@ -42,7 +42,7 @@ export class CompileTask extends ProcessTask {
   }
 
   addOptions(options: CompilerOptions) {
-    if (options.includeDirectories && options.includeDirectories.length) {
+    if (options.includeDirectories && options.includeDirectories.size) {
       options.includeDirectories.forEach((dir) => {
         this.inputFiles.push(dir);
         this.addFlags([['-I', dir]]);
@@ -51,7 +51,7 @@ export class CompileTask extends ProcessTask {
     if (options.defines && options.defines.length) {
       this.addFlags(options.defines.map(def => '-D' + def));
     }
-    if (options.frameworkDirectories && options.frameworkDirectories.length) {
+    if (options.frameworkDirectories && options.frameworkDirectories.size) {
       options.frameworkDirectories.forEach((dir) => {
         this.inputFiles.push(dir);
         this.addFlags([['-F', dir]]);

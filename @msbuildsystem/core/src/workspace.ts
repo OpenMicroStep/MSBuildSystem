@@ -14,9 +14,8 @@ function requiredAbsolutePath(directory: string) {
 interface WorkspaceData {
   projects: Directory[];
 }
-
 const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Workspace>({
-  projects: { validator: AttributeTypes.listValidator(File.validateDirectory), default: [] }
+  projects: { ...AttributeTypes.listValidator(File.validateDirectory), traverse: () => `array of Directory` }
 });
 
 export class Workspace {
@@ -42,7 +41,7 @@ export class Workspace {
     if (!this.isDirectoryPendingResolution()) {
       try {
         let data = JSON.parse(fs.readFileSync(this.path, 'utf8'));
-        let validatedData = workspaceDataValidator(this.reporter, new AttributePath(this.path), data, this);
+        let validatedData = workspaceDataValidator.validate(this.reporter, new AttributePath(this.path), data, this);
         validatedData.projects.forEach(d => this.project(d.path));
       } catch (e) {}
     }

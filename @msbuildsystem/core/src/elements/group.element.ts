@@ -3,7 +3,7 @@ import {Element, ElementLoadContext, Project, Reporter, MakeJS, AttributeTypes, 
 function createGroup(reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement) {
   let group = new GroupElement('group', name, parent);
   if ("path" in definition) {
-    let p = AttributeTypes.validateString(reporter, attrPath, definition['path']);
+    let p = AttributeTypes.validateString.validate(reporter, attrPath, definition['path']);
     p = p && util.pathJoinIfRelative(parent.__absoluteFilepath(), p);
     group.path = p;
   }

@@ -15,7 +15,7 @@ export class MakeJSElement extends Element {
     else super.__resolveValueInArray(reporter, el, ret, attrPath);
   }
 
-  __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], tags: Element.Tags, attrPath: AttributePath) {
+  __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], query: Element.Query, attrPath: AttributePath) {
     if (steps.length >= 5 && steps[0].length === 0 && steps[1].length === 0 && steps[2].length > 0) { // ^::.+
       let i = 3;
       while (i < steps.length && steps[i].length > 0)
@@ -30,17 +30,41 @@ export class MakeJSElement extends Element {
         let gel: Element | undefined = undefined;
         if (gsteps.length === 1)
           gel = Workspace.globalRoot[`${gsteps[0]}=`];
-        if (gel && gel.__passTags(tags))
-          into.push(gel);
-        else if (!gel)
-          into.push(new DelayedQuery(gsteps, steps.slice(i + 1), tags, this));
+        if (gel)
+          gel.__resolveElementsGroupIn(reporter, into, query);
+        else
+          into.push(new DelayedQuery(gsteps, steps.slice(i + 1), query, this));
       }
     }
     else {
-      super.__resolveElementsGroup(reporter, into, steps, tags, attrPath);
+      super.__resolveElementsGroup(reporter, into, steps, query, attrPath);
     }
+  }
+
+  toJSON() {
+    return serialize(this);
   }
 }
 export interface MakeJSElement {
   __root() : ProjectElement;
+}
+
+function serialize(element: any) {
+  if (element instanceof Object) {
+    let ret: any;
+    if (element instanceof Set)
+      element = [...element];
+    if (Array.isArray(element)) {
+      ret = element.map((e, idx) => serialize(e));
+    }
+    else {
+      ret = {};
+      for (let key of Object.getOwnPropertyNames(element)) {
+        if (!Element.isReserved(key))
+          ret[key] = serialize(element[key]);
+      }
+    }
+    return ret;
+  }
+  return element;
 }

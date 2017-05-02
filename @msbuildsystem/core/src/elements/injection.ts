@@ -1,41 +1,22 @@
 import {
-  Element, DelayedElement, ComponentElement, BuildTargetElement,
+  Element, ComponentElement, BuildTargetElement,
   Reporter, AttributePath,
 } from '../index.priv';
 
-export const notInjectableKeys = /(^__)|([^\\]=$)|tags|elements|environments/;
-
-export function defaultKeyMap(key: string) {
-  return notInjectableKeys.test(key) ? '' : key;
-}
-export function defaultValueMap(at: AttributePath, key: string, v) {
-  return v;
+export interface InjectionContext {
+  reporter: Reporter;
+  buildTarget: BuildTargetElement;
+  deep: boolean;
+  map: Map<ComponentElement, ComponentElement>;
 }
 
-function mergeArrays(
-  reporter: Reporter,
-  srcValues: any[], srcPath: AttributePath,
-  dstValues: any[],
-  buildTarget: BuildTargetElement
-) {
-  srcPath.pushArray();
-  for (var i = 0, len = srcValues.length; i < len; i++) {
-    var c = srcValues[i];
-    if (c instanceof DelayedElement)
-      dstValues.push(...c.__delayedResolve(reporter, buildTarget, srcPath.setArrayKey(i)));
-    else
-      dstValues.push(c);
-  }
-  srcPath.popArray();
-}
+const notInjectableKeys = /(^__)|([^\\]=$)|is|name|tags|components|environments/;
+const copiableAsIsKeys = /(^__)|([^\\]=$)|is|name|tags/;
 
-function injectAttribute(
-  reporter: Reporter,
+function injectAttribute(ctx: InjectionContext,
   src: object, srcAttribute: string, srcPath: AttributePath,
   dst: object, dstAttribute: string, dstPath: AttributePath,
-  buildTarget: BuildTargetElement,
-  mapValue: (at: AttributePath, key: string, value) => any,
-  keysWithSimpleValue: Set<string>, globalKeysWithSimpleValue: Set<string>
+  path: string, collisions: Set<string>
 ) {
   let srcValue = src[srcAttribute];
   let byenv = dstAttribute.endsWith("ByEnvironment");
@@ -43,157 +24,141 @@ function injectAttribute(
     dstAttribute = dstAttribute.substring(0, dstAttribute.length - "ByEnvironment".length);
     dstPath.set(dstAttribute);
   }
+  path = `${path}[${dstAttribute}]`;
   let dstExists = dstAttribute in dst;
   let dstValue = dstExists ? dst[dstAttribute] : undefined;
-  let dstIsArray = dstValue ? Array.isArray(dstValue) : false;
-  if (byenv) {
+  if (!dstExists && collisions.has(path)) { // optim: collision can only occurs if !dstExists
+    collision();
+  }
+  else if (byenv) {
     if (typeof srcValue !== "object") {
-      srcPath.diagnostic(reporter, { type: "warning",
+      srcPath.diagnostic(ctx.reporter, { type: "warning",
         msg: `not an object: byEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring` });
     }
-    else if (!dstIsArray && dstExists) {
-      if (keysWithSimpleValue.has(dstAttribute)) {
-        srcPath.diagnostic(reporter, {type: "warning",
-          msg: `collision on ${dstPath}: attribute is removed` });
-        delete dst[dstAttribute];
-      }
-      else {
-        srcPath.diagnostic(reporter, { type: "warning",
-          msg: `${dstPath} is not array: byEnvironment attribute can only be injected to an array, ignoring` });
-      }
-    }
     else {
-      if (!dstExists) {
-        globalKeysWithSimpleValue.add(dstAttribute);
-        keysWithSimpleValue.add(dstAttribute);
-        dstValue = dst[dstAttribute] = [];
-      }
       srcPath.pushArray();
       for (let envQuery in srcValue) {
-        let matchingEnvs = buildTarget.resolveElements(reporter, envQuery);
-        if (matchingEnvs.indexOf(buildTarget.environment) !== -1) {
+        let matchingEnvs = ctx.buildTarget.resolveElements(ctx.reporter, envQuery);
+        if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1) {
           srcPath.setArrayKey(envQuery);
-          let srcEnvValue = mapValue(srcPath, srcAttribute, srcValue[envQuery]);
-          if (Array.isArray(srcEnvValue))
-            mergeArrays(reporter, srcEnvValue, srcPath, dstValue, buildTarget);
-          else {
-            srcPath.diagnostic(reporter, { type: "warning",
-              msg: `not an array: byEnvironment values must be an array, ignoring` });
-          }
+          setDstValue(srcValue[envQuery]);
         }
       }
       srcPath.popArray();
     }
   }
   else {
-    srcValue = mapValue(srcPath, srcAttribute, srcValue);
-    let srcIsArray = srcValue ? Array.isArray(srcValue) : false;
-    if (srcIsArray) {
-      if (!dstIsArray && dstExists) {
-        if (keysWithSimpleValue.has(dstAttribute)) {
-          srcPath.diagnostic(reporter, {type: "warning",
-            msg: `collision on ${dstPath}: attribute is removed` });
-          delete dst[dstAttribute];
+    setDstValue(srcValue);
+  }
+
+  function collision() {
+    srcPath.diagnostic(ctx.reporter, {type: "warning",
+      msg: `collision on ${dstPath}: attribute is removed` });
+    delete dst[dstAttribute];
+    collisions.add(path);
+  }
+
+  function mapValue(srcValue) {
+    if (ctx.deep && srcValue instanceof ComponentElement) {
+      let v = ctx.map.get(srcValue);
+      if (!v) {
+        v = Object.create(srcValue.constructor.prototype) as ComponentElement;
+        for (let k of Object.getOwnPropertyNames(srcValue)) { // copy private properties
+          if (copiableAsIsKeys.test(k))
+            v[k] = srcValue[k];
         }
-        else {
-          srcPath.diagnostic(reporter, {type: "warning",
-            msg: `${dstPath} is not array: an array can only be injected to an array, ignoring` });
-        }
+        injectElement(ctx, srcValue, new AttributePath(srcValue), v, new AttributePath(srcValue));
+        ctx.map.set(srcValue, v);
       }
-      else {
-        if (!dstExists) {
-          globalKeysWithSimpleValue.add(dstAttribute);
-          keysWithSimpleValue.add(dstAttribute);
-          dstValue = dst[dstAttribute] = [];
-        }
-        mergeArrays(reporter, srcValue, srcPath, dstValue, buildTarget);
-      }
+      srcValue = v;
     }
-    else if (dstIsArray) {
-      srcPath.diagnostic(reporter, { type: "warning",
-        msg: `not an array: an array can only be injected to an array, ignoring` });
+    return srcValue;
+  }
+
+  function setDstValue(srcValue) {
+    if (!dstExists) {
+      if (srcValue instanceof Set || srcValue instanceof Array)
+        dstValue = dst[dstAttribute] = new Set(srcValue);
+      else
+        dstValue = dst[dstAttribute] = mapValue(srcValue);
+      dstExists = true;
     }
-    else {
-      if (keysWithSimpleValue.has(dstAttribute)) {
-        if (srcValue !== dstValue) {
-          srcPath.diagnostic(reporter, { type: "warning",
-            msg: `collision on ${dstPath}: attribute is removed` });
-          delete dst[dstAttribute];
-        }
+    else if (srcValue instanceof Set || srcValue instanceof Array) { // src is a set
+      if (dstValue instanceof Array) {
+        dstValue = dst[dstAttribute] = new Set(dstValue);
+        for (let v of srcValue)
+          dstValue.add(mapValue(v));
       }
-      else if (!dstExists) {
-        globalKeysWithSimpleValue.add(dstAttribute);
-        keysWithSimpleValue.add(dstAttribute);
-        dst[dstAttribute] = srcValue;
+      else if (dstValue instanceof Set) {
+        for (let v of srcValue)
+          dstValue.add(mapValue(v));
       }
+      else if (srcValue !== dstValue)
+        collision();
     }
+    else if (srcValue instanceof Object && dstValue instanceof Object && !(dstValue instanceof Set || dstValue instanceof Array)) {
+      injectElement(ctx, srcValue, srcPath, dstValue, dstPath, path, collisions);
+    }
+    else if (srcValue !== dstValue)
+      collision();
   }
 }
 
-export function injectElement(
-  reporter: Reporter,
-  src: Element, srcPath: AttributePath,
+export function injectElement(ctx: InjectionContext,
+  src: object, srcPath: AttributePath,
   dst: object, dstPath: AttributePath,
-  buildTarget: BuildTargetElement,
-  mapKey: (key: string) => string | '',
-  mapValue: (at: AttributePath, key: string, value) => any,
-  keysWithSimpleValue: Set<string>, globalKeysWithSimpleValue: Set<string>
+  path: string = '', collisions: Set<string> = new Set()
 ) {
   srcPath.push('.', '');
   dstPath.push('.', '');
-  for (let srcAttribute in src) {
-    let dstAttribute = mapKey(srcAttribute);
-    if (!dstAttribute)
-      continue;
-    injectAttribute(reporter,
-      src, srcAttribute, srcPath.set(srcAttribute),
-      dst, dstAttribute, dstPath.set(dstAttribute),
-      buildTarget, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
+  for (let attribute in src) {
+    if (!notInjectableKeys.test(attribute))
+      injectAttribute(ctx, src, attribute, srcPath.set(attribute), dst, attribute, dstPath.set(attribute), path, collisions);
+  }
+  dstPath.pop(2);
+  if (ctx.deep && src instanceof ComponentElement) {
+    srcPath.set('components');
+    injectComponents(src.components);
+    srcPath.pushArray();
+    for (let envQuery in src.componentsByEnvironment) {
+      let matchingEnvs = ctx.buildTarget.resolveElements(ctx.reporter, envQuery);
+      if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1) {
+        srcPath.setArrayKey(envQuery);
+        injectComponents(src.componentsByEnvironment[envQuery]);
+      }
+    }
+    srcPath.popArray();
   }
   srcPath.pop(2);
-  dstPath.pop(2);
-}
 
-export function injectElements(
-  reporter: Reporter, elements: Element[],
-  dst: object, dstPath: AttributePath,
-  buildTarget: BuildTargetElement,
-  mapKey: (key: string) => string | '' = defaultKeyMap,
-  mapValue: (at: AttributePath, key: string, value) => any = defaultValueMap,
-  globalKeysWithSimpleValue = new Set<string>()
-) {
-  let keysWithSimpleValue = new Set<string>();
-  for (let element of elements)
-    injectElement(reporter,
-      element, new AttributePath(element),
-      dst, dstPath,
-      buildTarget, mapKey, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
-}
-
-export function injectComponentsOf(
-  reporter: Reporter, component: { components: ComponentElement[] },
-  dst: object, dstPath: AttributePath,
-  buildTarget: BuildTargetElement,
-  mapKey: (key: string) => string | '' = defaultKeyMap,
-  mapValue: (at: AttributePath, key: string, value) => any = defaultValueMap
-) : ComponentElement[] {
-  let injected = new Set<ComponentElement>();
-  let globalKeysWithSimpleValue = new Set<string>();
-  for (let sub of component.components)
-    injectComponent(sub, globalKeysWithSimpleValue);
-
-  function injectComponent(current: ComponentElement, keysWithSimpleValue: Set<string>) {
-    injected.add(current);
-    injectElement(reporter,
-      current, new AttributePath(current),
-      dst, dstPath,
-      buildTarget, mapKey, mapValue, keysWithSimpleValue, globalKeysWithSimpleValue);
-    if (current.components.length > 0) {
-      let keysWithSimpleValue = new Set<string>();
-      for (let sub of current.components)
-        injectComponent(sub, keysWithSimpleValue);
+  function injectComponents(components: ComponentElement[]) {
+    srcPath.pushArray();
+    for (let i = 0; i < components.length; i++) {
+      let component = components[i];
+      srcPath.setArrayKey(i);
+      injectElement(ctx,
+        component, component.name ? new AttributePath(component) : srcPath,
+        dst, dstPath,
+        path, collisions);
     }
+    srcPath.popArray();
   }
+}
 
-  return [...injected];
+export function injectElements(ctx: InjectionContext,
+  elements: Element[],
+  dst: object, dstPath: AttributePath,
+  path: string = '', collisions: Set<string> = new Set()
+) {
+  for (let element of elements)
+    injectElement(ctx, element, new AttributePath(element), dst, dstPath, path, collisions);
+}
+
+export function createInjectionContext(reporter: Reporter, buildTarget: BuildTargetElement, deep = true) : InjectionContext {
+  return {
+    reporter: reporter,
+    buildTarget: buildTarget,
+    deep: deep,
+    map: new Map()
+  };
 }

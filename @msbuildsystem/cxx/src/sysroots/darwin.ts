@@ -1,4 +1,4 @@
-import {Reporter, File, AttributeTypes, resolver} from '@openmicrostep/msbuildsystem.core';
+import {Reporter, File, AttributeTypes, Target} from '@openmicrostep/msbuildsystem.core';
 import {ProcessTask} from '@openmicrostep/msbuildsystem.foundation';
 import {
   CompilerOptions, LinkerOptions, Conditions, CXXSysroots, CXXTarget,
@@ -22,7 +22,6 @@ import {
 export class CXXDarwinSysroot extends CXXSysroot {
   architectures: string[];
 
-  @resolver(AttributeTypes.validateString)
   osxVersionMin = "10.10";
 
   constructor(graph: CXXTarget, conditions: Conditions) {

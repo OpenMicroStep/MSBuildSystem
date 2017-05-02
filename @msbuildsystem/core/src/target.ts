@@ -1,65 +1,42 @@
 import {Project, RootGraph, Reporter, CopyTask,
-  AttributePath, AttributeTypes, BuildTargetExportsElement, FileElement, ComponentElement,
-  Task, Graph, TaskName, BuildTargetElement, File, Directory, util, GenerateFileTask
+  AttributePath, AttributeTypes, BuildTargetExportsElement, FileElement,
+  Task, Graph, TaskName, BuildTargetElement, File, Directory, util, GenerateFileTask,
+  createProviderMap, ProviderMap, InjectionContext,
 } from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
-export var targetClasses = new Map<string, typeof Target>();
-export function declareTarget(options: { type: string }) {
-  return function (constructor: typeof Target) {
-    constructor.prototype.classname = options.type;
-    targetClasses.set(options.type, constructor);
+function targetValidator<T extends object, A0 extends Target & T>(extensions: AttributeTypes.Extensions<T, A0>) : AttributeTypes.ValidatorT<void, { target: A0, into: any }> {
+  function validateObject(reporter: Reporter, path: AttributePath, attr: BuildTargetElement, { target, into }:  { target: A0, into: any }) : void {
+    Object.getOwnPropertyNames(extensions).forEach(name => target.usedAttributes.add(name));
+    AttributeTypes.superValidateObject(reporter, path, attr, target, into, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
+        if (!attr.__keyMeaning(a0))
+          target.unusedAttributes.add(a0);
+        return undefined;
+      }});
   };
+  return { validate: validateObject, traverse: (lvl, ctx) => `object with` };
 }
 
-export function getTargetClass(type: string) : typeof Target | undefined {
-  return targetClasses.get(type);
-}
-
-export class PropertyResolver<T> {
-  constructor(public validator: AttributeTypes.Validator<T, Target>, public attributePath: string, public propertyPath?: string) {}
-
-  resolve(reporter: Reporter, into: SelfBuildGraph<any>, target: Target, path: AttributePath = new AttributePath(target)) : T | undefined {
-    let attr = target.attributes[this.attributePath];
-    let r: T | undefined = undefined;
-    path.push('.', this.attributePath);
-    if (attr !== undefined || (this.propertyPath && (r = into[this.propertyPath]) === undefined)) {
-      r = this.validator(reporter, path, attr, target);
-      if (this.propertyPath && r !== undefined)
-        into[this.propertyPath] = r;
-    }
-    path.pop(2);
-    return r;
-  }
-}
-
-function setupResolvers(prototype: { resolvers: PropertyResolver<any>[] }) : PropertyResolver<any>[] {
-  let p = prototype;
-  if (!p.hasOwnProperty('resolvers'))
-    p.resolvers = prototype.resolvers ? prototype.resolvers.slice() : [];
-  return p.resolvers;
-}
-
-function pushResolvers(prototype: { resolvers: PropertyResolver<any>[] }, r: PropertyResolver<any>[]) {
-  setupResolvers(prototype).push(...r);
-}
-
-export function declareResolvers(r: PropertyResolver<any>[]) {
-  return function installResolvers(cls: { prototype: { resolvers: PropertyResolver<any>[] } }) {
-    pushResolvers(cls.prototype, r);
-  };
-}
-export function resolver<T>(r: AttributeTypes.Validator<T, Target>, options?: {
-  attributePath?: string
- }) {
-  return function pushResolverOnProperty(prototype: typeof SelfBuildGraph.prototype, propertyName: string, descriptor?: TypedPropertyDescriptor<T>) {
-    setupResolvers(prototype).push(new PropertyResolver(r, (options && options.attributePath) || propertyName, propertyName));
-  };
+interface TargetValidation {
+  __extensions: AttributeTypes.Extension<Partial<Target>, Target>;
+  __validator: AttributeTypes.Validator<void, { target: Target, into: any }>;
 }
 
 export abstract class SelfBuildGraph<P extends Graph> extends Graph {
-  readonly resolvers: PropertyResolver<any>[]; // on the prototype
+  readonly __extensions: AttributeTypes.Extension<Partial<Target>, Target>; // on the prototype
+  readonly __validator: AttributeTypes.Validator<void, { target: Target, into: any }>;
+  static registerAttributes<D extends AttributeTypes.Extensions<A, T>, A extends { [K in keyof D]: T[K] }, T extends Target & A>(cstor: { new? (...args) : T, prototype: typeof SelfBuildGraph.prototype }, attributes: AttributeTypes.Extensions<A, T>) {
+    let p = cstor.prototype as TargetValidation;
+    if (p.hasOwnProperty('__extensions') || p.hasOwnProperty('__validator'))
+      throw new Error(`registerAttributes can only be called once per SelfBuildGraph class`);
+
+    let extensions = p.__extensions ? { ...p.__extensions, ...attributes as object } : attributes;
+    Object.defineProperties(p, {
+      __extensions: { enumerable: false, writable: false, value: extensions },
+      __validator: { enumerable: false, writable: false, value: targetValidator(extensions) },
+    });
+  }
   graph: P;
 
   constructor(name: TaskName, graph: P) {
@@ -67,19 +44,21 @@ export abstract class SelfBuildGraph<P extends Graph> extends Graph {
   }
 
   resolve(reporter: Reporter, target: Target, path: AttributePath = new AttributePath(target)) {
-    for (var r of this.resolvers) {
-      r.resolve(reporter, this, target, path);
-    }
+    this.__validator.validate(reporter, path, target.attributes, { target: target, into: this });
   }
 
   buildGraph(reporter: Reporter) {}
   configureExports(reporter: Reporter) {}
 }
-setupResolvers(SelfBuildGraph.prototype);
-
-const configureResolver = new PropertyResolver<void>(AttributeTypes.functionValidator("(target: Target) => void"), "configure");
+SelfBuildGraph.registerAttributes(SelfBuildGraph as any, {});
 
 export class Target extends SelfBuildGraph<RootGraph> {
+  static providers = createProviderMap<{ new (graph: RootGraph, project: Project, attributes: BuildTargetElement): Target }>('targets');
+  static register<D extends AttributeTypes.Extensions<A, T>, A extends { [K in keyof D]: T[K] }, T extends Target & A>(names: string[], cstor: { new (graph: RootGraph, project: Project, attributes: BuildTargetElement): T }, attributes: D) {
+    SelfBuildGraph.registerAttributes(cstor, attributes);
+    Target.providers.register(names, cstor);
+  }
+
   name: { type: "target", name: string, environment: string, project: string };
 
   dependencies: Set<Target>;
@@ -88,7 +67,11 @@ export class Target extends SelfBuildGraph<RootGraph> {
   exports: BuildTargetExportsElement;
   exportsTask: Target.GenerateExports;
   project: Project;
+
   attributes: BuildTargetElement;
+  usedAttributes = new Set<string>();
+  unusedAttributes = new Set<string>();
+
   paths: {
     output: string,
     build: string,
@@ -101,15 +84,12 @@ export class Target extends SelfBuildGraph<RootGraph> {
   environment: string;
   targetName: string;
 
-  @resolver(FileElement.validateFileGroup)
   copyFiles: FileElement.FileGroup[] = [];
+  outputName: string;
+  outputFinalName: string | null;
+
   taskCopyFiles?: CopyTask = undefined;
 
-  @resolver(AttributeTypes.validateString)
-  outputName: string;
-
-  @resolver(AttributeTypes.validateString)
-  outputFinalName: string | null = null;
 
   constructor(graph: RootGraph, project: Project, attributes: BuildTargetElement) {
     super({
@@ -121,7 +101,6 @@ export class Target extends SelfBuildGraph<RootGraph> {
 
     this.project = project;
     this.targetName = attributes.name;
-    this.outputName = attributes.name;
     this.environment = attributes.environment.name;
     this.attributes = attributes;
 
@@ -159,7 +138,11 @@ export class Target extends SelfBuildGraph<RootGraph> {
 
   configure(reporter: Reporter, path: AttributePath) {
     this.resolve(reporter, this, path);
-    configureResolver.resolve(reporter, this, this, path);
+    path.push('.', '');
+    for (let unused of this.unusedAttributes)
+      if (!this.usedAttributes.has(unused))
+        path.set(unused).diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
+    path.pop(2);
   }
 
   configureExports(reporter: Reporter) {
@@ -206,40 +189,33 @@ export class Target extends SelfBuildGraph<RootGraph> {
   listInputFiles(set: Set<File>) { }
 }
 
+Target.register([], Target, {
+  outputName:      AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.attributes.name, 'name of target'),
+  outputFinalName: AttributeTypes.defaultsTo(AttributeTypes.validateString, null),
+  copyFiles:       AttributeTypes.defaultsTo(FileElement.validateFileGroup, []),
+});
+
 export namespace Target {
-  export function validateDirectory(reporter: Reporter, path: AttributePath, value: any, target: Target) : Directory | undefined {
-    if (typeof value === "string") {
-      let v = AttributeTypes.validateString(reporter, path, value);
-      if (v !== undefined) {
-        v = util.pathJoinIfRelative(target.paths.output, v);
-        return File.getShared(v, true);
+  export const validateDirectory: AttributeTypes.ValidatorT<Directory, Target> = {
+    validate: function validateDirectory(reporter: Reporter, path: AttributePath, value: any, target: Target) : Directory | undefined {
+      if (typeof value === "string") {
+        let v = AttributeTypes.validateString.validate(reporter, path, value);
+        if (v !== undefined) {
+          v = util.pathJoinIfRelative(target.paths.output, v);
+          return File.getShared(v, true);
+        }
       }
-    }
-    else if (value instanceof FileElement) {
-      let f = value.__file;
-      return f.isDirectory ? f as Directory : f.directory();
-    }
-    else {
-      path.diagnostic(reporter, { type: "warning", msg: "attribute must be a 'file' element or a string" });
-    }
-    return undefined;
-  }
-  export function validateFile(reporter: Reporter, path: AttributePath, value: any, target: Target) {
-    if (typeof value === "string") {
-      let v = AttributeTypes.validateString(reporter, path, value);
-      if (v !== undefined) {
-        v = util.pathJoinIfRelative(target.paths.output, v);
-        return File.getShared(v, false);
+      else if (value instanceof FileElement) {
+        let f = value.__file;
+        return f.isDirectory ? f as Directory : f.directory();
       }
-    }
-    else if (value instanceof FileElement) {
-      return value.__file;
-    }
-    else {
-      path.diagnostic(reporter, { type: "warning", msg: "attribute must be a 'file' element or a string" });
-    }
-    return undefined;
-  }
+      else {
+        path.diagnostic(reporter, { type: "warning", msg: "attribute must be a 'file' element or a string" });
+      }
+      return undefined;
+    },
+    traverse: () => `a directory (can be relative to target make.js directory)`
+  };
 
   export class GenerateExports extends GenerateFileTask {
     constructor(graph: Target, public info: any, path: string) {

@@ -134,19 +134,21 @@ export class File {
     return commonPart ? commonPart.join('/') : "";
   }
 
-  static validateDirectory(reporter: Reporter, path: AttributePath, value: any, relative: { directory: string }) : Directory | undefined {
-    if (typeof value === "string") {
-      let v = AttributeTypes.validateString(reporter, path, value);
-      if (v !== undefined) {
-        v = util.pathJoinIfRelative(relative.directory, v);
-        return File.getShared(v, true);
+  static validateDirectory: AttributeTypes.Validator<Directory, { directory: string }>  = { 
+    validate(reporter: Reporter, path: AttributePath, value: any, relative: { directory: string }) : Directory | undefined {
+      if (typeof value === "string") {
+        let v = AttributeTypes.validateString.validate(reporter, path, value);
+        if (v !== undefined) {
+          v = util.pathJoinIfRelative(relative.directory, v);
+          return File.getShared(v, true);
+        }
       }
+      else {
+        path.diagnostic(reporter, { type: "warning", msg: "attribute must be a relative path" });
+      }
+      return undefined;
     }
-    else {
-      path.diagnostic(reporter, { type: "warning", msg: "attribute must be a relative path" });
-    }
-    return undefined;
-  }
+  };
 
   components() : string[] {
     return this.path.split(/[/\\]+/);

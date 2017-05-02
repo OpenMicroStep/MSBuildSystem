@@ -58,6 +58,6 @@ export class Reporter {
 
   aggregate(reporter: Reporter) {
     this.failed = this.failed || reporter.failed;
-    this.diagnostics.push(...reporter.diagnostics);
+    reporter.diagnostics.forEach(d => this.diagnostic(d));
   }
 }
