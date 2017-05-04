@@ -592,7 +592,7 @@ export namespace Element {
       return cmp;
     };
   }
-  export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) {
+  export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) : AttributeTypes.Validator0<T> {
     return function (reporter: Reporter, path: AttributePath, value: any) {
       if ((value = validateElement(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
         return <T>value;
