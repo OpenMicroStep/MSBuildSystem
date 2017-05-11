@@ -36,13 +36,14 @@ load
   |           |           +-> instantiate   --+
   |           +-> __loadObject                |
   |                 +-> instantiate         --+
-  +-> __resolve
-        +-> __resolveWithPath
-        |     +-> __resolveValuesInObject
-        |           +-> __resolveAnyValue
-        |                 |-> __resolveValuesInArray
-        |                 |     +-> __resolveAnyValue
-        |                 |     +-> __resolveElements
+  +-> __resolve                                    <----+
+        +-> __resolveWithPath                           |
+        |     +-> __resolveValuesInObject               |
+        |           +-> __resolveAnyValue             --+
+        |                 |-> __resolveValuesInArray    |
+        |                 |     +-> __resolveAnyValue   |
+        |                 |     +-> __resolveElements   |
+        |                 |     +-> __resolveInto     --+
         |                 |-> __resolveValuesInObject
         |                 |     +-> __resolveAnyValue
         |                 +-> __resolveElements
@@ -88,8 +89,14 @@ Returns the path to this element relative to the root element path.
 
 Find matching _query_ elements. Any lookup error are reported into _reporter_.
 
-Queries have the form: `[group0 [+ groupX]*] [? tag0 [+ tagX]*]`.
+Queries have the form: 
+
+  - `[group0 [+ groupX]*] [? tag0 [+ tagX]*]`
+  - `{ [group0 [+ groupX]*] [? tag0 [+ tagX]*] } +attr0 +attr1`
+  - `{ [group0 [+ groupX]*] [? tag0 [+ tagX]*] } -attr0 -attr1`
+  - `{ [group0 [+ groupX]*] [? tag0 [+ tagX]*] } .method`
+
 The empty query resolves to no element at all.
 
-The actual of the query is done by `__parseQuery` and the final resolution by `__resolveElementsGroup`.
+The parsing of the query is done by `parseQuery` and the final resolution by `__resolveElementsGroup`.
 

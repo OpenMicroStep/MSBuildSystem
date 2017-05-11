@@ -223,25 +223,25 @@ export class Element {
     attrPath.pop(2);
     return into;
   }
-  __loadArray<T>(context: ElementLoadContext, values: any[], into: T[], attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
+  __loadArray(context: ElementLoadContext, values: any[], into: any[], attrPath: AttributePath) {
     attrPath.pushArray();
     for (var i = 0, len = values.length; i < len; ++i) {
       var v = values[i];
       if (typeof v === "object") {
         attrPath.setArrayKey(i);
         if (Array.isArray(v))
-          this.__push(context.reporter, into, attrPath, validator, this.__loadArray(context, v, <any[]>[], attrPath));
+          into.push(this.__loadArray(context, v, <any[]>[], attrPath));
         else
           this.__loadObjectInArray(context, v, into, attrPath);
       }
       else {
-        this.__push(context.reporter, into, attrPath, validator, v);
+        into.push(v);
       }
     }
     attrPath.popArray();
     return into;
   }
-  __loadObjectInArray<T>(context: ElementLoadContext, object: {[s: string]: any}, into: T[], attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
+  __loadObjectInArray(context: ElementLoadContext, object: {[s: string]: any}, into: any[], attrPath: AttributePath) {
     if ("is" in object) {
       var subs = Element.instantiate(context, undefined, <ElementDefinition>object, attrPath, this, true);
       for (var j = 0, jlen = subs.length; j < jlen; ++j) {
@@ -253,10 +253,10 @@ export class Element {
           this[k] = sub;
         }
       }
-      this.__pushArray(context.reporter, into, attrPath, validator, subs);
+      into.push(...subs);
     }
     else {
-      this.__push(context.reporter, into, attrPath, validator, this.__loadObject(context, object, {}, attrPath));
+      into.push(this.__loadObject(context, object, {}, attrPath));
     }
   }
   __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
@@ -268,19 +268,6 @@ export class Element {
         attrPath.diagnostic(context.reporter, { type: 'error', msg:  `conflict with an element defined with the same name: '${Element.namespace2name(name)}'` });
       this[name] = els[0];
     }
-  }
-  __push<T>(reporter: Reporter, into: T[], attrPath: AttributePath, validator: AttributeTypes.Validator<T, Element> | undefined, value) {
-    if (!validator || (value = validator.validate(reporter, attrPath, value, this)) !== undefined)
-      into.push(value);
-  }
-  __pushArray<T>(reporter: Reporter, into: T[], attrPath: AttributePath, validator: AttributeTypes.Validator<T, Element> | undefined, values: any[]) {
-    attrPath.pushArray();
-    for (var i = 0, len = values.length; i < len; i++) {
-      var value = values[i];
-      if (!validator || (value = validator.validate(reporter, attrPath.setArrayKey(i), value, this)) !== undefined)
-        into.push(value);
-    }
-    attrPath.popArray();
   }
   // Load definitions
   ///////////////////
@@ -351,8 +338,14 @@ export class Element {
   __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
     if (Element.isReference(el))
       this.__resolveElements(reporter, ret, Element.reference2query(el), attrPath);
+    else if (el instanceof Element)
+      el.__resolveInto(reporter, ret);
     else
       ret.push(this.__resolveAnyValue(reporter, '', el, attrPath));
+  }
+  __resolveInto(reporter: Reporter, ret: any[]) {
+    this.__resolve(reporter);
+    ret.push(this);
   }
   // Resolve elements
   ///////////////////
@@ -627,7 +620,7 @@ export namespace Element {
   export interface GroupElement extends Element {
      elements: Element[];
   };
-  export function DynGroupElement<C extends { new(...args): Element }>(parentClass: C) : ({
+  export function DynGroupElement<C extends { new(...args): Element, prototype: Element }>(parentClass: C) : ({
     new (...args: any[]): GroupElement;
     prototype: GroupElement;
   } & C) {
@@ -640,63 +633,83 @@ export namespace Element {
           el.__resolveElementsGroupIn(reporter, into, tags);
       }
 
-      __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
-        super.__resolveWithPath(reporter, attrPath);
-        var elements = <any[]>[];
-        var type: string | undefined = undefined;
-        var is: string | undefined = undefined;
-        var loop = (el) => {
+      __resolveInto(reporter: Reporter, ret: any[]) {
+        this.__resolve(reporter);
+        ret.push(...this.elements);
+      }
+
+      __validate(reporter: Reporter, at: AttributePath) {
+        super.__validate(reporter, at); // force elements: Element[]
+        if (this.elements.length > 0)
+          this.__flatten(reporter, at);
+      }
+
+      __flatten(reporter: Reporter, at: AttributePath) { // flatten elements
+        let elements: Element[] = [];
+        let groups: GroupElementImpl[] = [];
+        let is: string | undefined = undefined;
+        let attributes = Object.getOwnPropertyNames(this).filter(key => !this.__keyMeaning(key));
+        at.push('.elements[', '', ']');
+        for (let i = 0, len = this.elements.length; i < len; i++) {
+          let el = this.elements[i];
+          at.setArrayKey(i);
           if (!(el instanceof Element)) {
-            attrPath.diagnostic(reporter, {
+            at.diagnostic(reporter, {
               type: 'error',
               msg:  `expecting an element, got ${typeof el}`
             });
-            return;
           }
-
-          var cis = el.is;
-          if (cis === 'group') {
-            (el as GroupElementImpl).__resolve(reporter);
-            var subs = (el as GroupElementImpl).elements;
-            attrPath.push('.elements[', '', ']');
-            for (var j = 0, jlen = subs.length; j < jlen; ++j) {
-              attrPath.setArrayKey(j);
-              loop(subs[j]);
-            }
-            attrPath.pop(3);
-            return;
+          else if (el instanceof GroupElementImpl) {
+            pushGroup(this, el);
           }
-          if (type === undefined)
-            type = typeof el;
+          else if (canPush(el))
+            elements.push(el);
+        }
+        at.pop(3);
+        if (attributes.length > 0) {
+          let mel = util.clone<GroupElementImpl>(this, k => true);
+          mel.elements = elements;
+          groups.push(mel);
+          this.elements = groups;
+        }
+        else {
+          this.elements = [...groups, ...elements];
+        }
 
-          if (typeof el !== type) {
-            attrPath.diagnostic(reporter, {
-              type: 'error',
-              msg:  `elements must be of the same type, expecting ${type}, got ${typeof el}`
-            });
+        function pushGroup(self, sub: GroupElementImpl) {
+          sub.__resolve(reporter); // sub.elements = Element | { elements: Element[], ...attrs }
+          let subattributes = Object.getOwnPropertyNames(sub).filter(key => !sub.__keyMeaning(key));
+
+          if (subattributes.length > 0) {
+            let mel = util.clone<GroupElementImpl>(sub, k => true);
+            for (let key of attributes)
+              if (!(key in mel))
+                mel[key] = self[key];
+            if (canPush(mel.elements[0])) // no need to check for other elements, sub already did it at its own resolve step
+              groups.push(mel);
           }
           else {
-            if (is === undefined)
-              is = cis;
-
-            if (is !== cis) {
-              attrPath.diagnostic(reporter, {
-                type: 'error',
-                msg:  `elements must be of the same type, expecting ${is}, got ${cis}`
-              });
+            let sat = sub.name ? new AttributePath(sub) : at.push('.elements[', '', ']');
+            for (let i = 0, len = sub.elements.length; i < len; ++i) {
+              let el = sub.elements[i];
+              sat.setArrayKey(i);
+              if (canPush(el))
+                elements.push(el);
             }
-            else {
-              elements.push(el);
-            }
+            if (sat === at)
+              at.pop(3);
           }
-        };
-        attrPath.push('.elements[', '', ']');
-        for (var i = 0, len = this.elements.length; i < len; i++) {
-          attrPath.setArrayKey(i);
-          loop(this.elements[i]);
         }
-        attrPath.pop(3);
-        this.elements = elements;
+
+        function canPush(el: Element) {
+          let el_is = el.is;
+          if (is === undefined)
+            is = el_is;
+          let ok = is === el_is;
+          if (!ok)
+            at.diagnostic(reporter, { type: 'error', msg:  `elements must be of the same type, expecting ${is}, got ${el_is}` });
+          return ok;
+        }
       }
     };
     Element.registerAttributes(GroupElementImpl, [], {
