@@ -56,8 +56,25 @@ function handleSimpleElementName(reporter: Reporter, namespaceName: string | und
   return namespaceName;
 }
 
+function elementValidator<T extends object, A0 extends Element & T>(extensions: AttributeTypes.Extensions<T, A0>) : AttributeTypes.ValidatorT<void, Element> {
+  function validateObject(reporter: Reporter, path: AttributePath, attr: Element, element: Element) : void {
+    AttributeTypes.superValidateObject(reporter, path, attr, element, element as any, extensions, AttributeTypes.validateAnyToUndefined);
+  };
+  return { validate: validateObject, traverse: (lvl, ctx) => `object with` };
+}
+
+interface ElementValidation {
+  __factoryKeys: Set<String>;
+  __extensions: AttributeTypes.Extension<Partial<Element>, Element>;
+  __validator: AttributeTypes.Validator<void, Element>;
+}
+
 export class Element {
-  readonly __elementKeys: Set<String>; // On the prototype
+  // On the prototype
+  readonly __factoryKeys: Set<String>;
+  readonly __extensions: AttributeTypes.Extension<Partial<Element>, Element>;
+  readonly __validator: AttributeTypes.Validator<void, Element>;
+
   __parent: Element | null;
   protected __resolved: boolean;
   is: string;
@@ -66,12 +83,19 @@ export class Element {
 
   static createElementFactoriesProviderMap = createElementFactoriesProviderMap;
 
-  static setElementKeys(cstor: { prototype: typeof Element.prototype }, keys: string[]) {
-    Object.defineProperty(cstor.prototype, '__elementKeys', {
-      value: new Set([...(cstor.prototype.__elementKeys || []), ...keys]),
-      writable: false,
-      enumerable: false,
-      configurable: false,
+  static registerAttributes<D extends AttributeTypes.Extensions<A, T>, A extends { [K in keyof D]: T[K] }, T extends Element & A>(
+    cstor: { new? (...args) : T, prototype: typeof Element.prototype }, factoryKeys: string[], attributes: AttributeTypes.Extensions<A, T>
+  ) {
+    let p = cstor.prototype as ElementValidation;
+    if (p.hasOwnProperty('__extensions') || p.hasOwnProperty('__validator') || p.hasOwnProperty('__factoryKeys'))
+      throw new Error(`registerAttributes can only be called once per Element class`);
+
+    let extensions = p.__extensions ? { ...p.__extensions, ...attributes as object } : attributes;
+    let fkeys = factoryKeys.length > 0 ? new Set([...(p.__factoryKeys || []), ...factoryKeys]) : p.__factoryKeys;
+    Object.defineProperties(p, {
+      __factoryKeys: { enumerable: false, writable: false, value: fkeys },
+      __extensions: { enumerable: false, writable: false, value: extensions },
+      __validator: { enumerable: false, writable: false, value: elementValidator(extensions) },
     });
   }
 
@@ -134,7 +158,7 @@ export class Element {
       return Element.KeyMeaning.Namespace;
     else if (Element.isReserved(key))
       return Element.KeyMeaning.Private;
-    else if (this.__elementKeys.has(key))
+    else if (this.__factoryKeys.has(key) || key in this.__extensions)
       return Element.KeyMeaning.Element;
     return Element.KeyMeaning.User;
   }
@@ -160,17 +184,9 @@ export class Element {
           attrPath.diagnostic(context.reporter, { type: 'error', msg: `an element definition or reference was expected` });
         }
       }
-      else if (k in this) {
-        // reserved property
-        if (k !== 'is' && k !== 'name') {
-          attrPath.rewrite('.', k);
-          this.__loadReservedValue(context, k, v, attrPath);
-        }
-      }
-      else {
-        // simple property
+      else if (!this.__factoryKeys.has(k)) {
         attrPath.rewrite('.', k);
-        if (context.elementFactoriesProviderMap.warningProbableMisuseOfKey.has(k)) {
+        if (!(k in this.__extensions) && context.elementFactoriesProviderMap.warningProbableMisuseOfKey.has(k)) {
           attrPath.diagnostic(context.reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for other element types` });
         }
         this[k] = this.__loadValue(context, v, attrPath);
@@ -186,10 +202,6 @@ export class Element {
       return this.__loadObject(context, value, {}, attrPath);
     }
     return value;
-  }
-  __loadIfObject<T>(context: ElementLoadContext, object: {[s: string]: any}, into: {[s: string]: T}, attrPath: AttributePath, validator: AttributeTypes.Validator<T, Element>) {
-    if (AttributeTypes.validateObject.validate(context.reporter, attrPath, object) !== undefined)
-      this.__loadObject(context, object, into, attrPath, validator);
   }
   __loadObject<T>(context: ElementLoadContext, object: {[s: string]: any}, into: {[s: string]: T}, attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
     if ("is" in object) {
@@ -210,10 +222,6 @@ export class Element {
     }
     attrPath.pop(2);
     return into;
-  }
-  __loadIfArray<T>(context: ElementLoadContext, values: any[], into: T[], attrPath: AttributePath, validator: AttributeTypes.Validator<T, Element>) {
-    if (AttributeTypes.validateArray.validate(context.reporter, attrPath, values) !== undefined)
-      this.__loadArray(context, values, into, attrPath, validator);
   }
   __loadArray<T>(context: ElementLoadContext, values: any[], into: T[], attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
     attrPath.pushArray();
@@ -261,31 +269,6 @@ export class Element {
       this[name] = els[0];
     }
   }
-  __loadReservedValue(context: ElementLoadContext, key: string, value, attrPath: AttributePath) {
-    if (value === undefined) {
-      attrPath.diagnostic(context.reporter, { type: "warning", msg: "value can't be 'undefined'" });
-      return;
-    }
-
-    let current = this[key];
-    if (typeof current === "object" && current !== null) {
-      if (Array.isArray(current)) {
-        if (Array.isArray(value))
-          this.__loadArray(context, value, current, attrPath);
-        else
-          attrPath.diagnostic(context.reporter, { type: "warning", msg: "value must be an array" });
-      }
-      else {
-        if (typeof value === "object")
-          this.__loadObject(context, value, current, attrPath);
-        else
-          attrPath.diagnostic(context.reporter, { type: "warning", msg: "value must be an object" });
-      }
-    }
-    else {
-      this[key] = this.__loadValue(context, value, attrPath);
-    }
-  }
   __push<T>(reporter: Reporter, into: T[], attrPath: AttributePath, validator: AttributeTypes.Validator<T, Element> | undefined, value) {
     if (!validator || (value = validator.validate(reporter, attrPath, value, this)) !== undefined)
       into.push(value);
@@ -304,10 +287,11 @@ export class Element {
 
   ///////////////////
   // Resolve elements
-  __resolve(reporter: Reporter) {
+  __resolve(reporter: Reporter, at: AttributePath = new AttributePath(this)) {
     if (!this.__resolved) {
       this.__resolved = true;
-      this.__resolveWithPath(reporter, new AttributePath(this));
+      this.__resolveWithPath(reporter, at);
+      this.__validate(reporter, at);
     }
   }
   __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
@@ -371,6 +355,14 @@ export class Element {
       ret.push(this.__resolveAnyValue(reporter, '', el, attrPath));
   }
   // Resolve elements
+  ///////////////////
+
+  ///////////////////
+  // Validate
+  __validate(reporter: Reporter, at: AttributePath) {
+    this.__validator.validate(reporter, at, this, this);
+  }
+  // Validate
   ///////////////////
 
   __root() : Element {
@@ -550,7 +542,9 @@ export class Element {
     return serialize(this);
   }
 }
-Element.setElementKeys(Element, ['is', 'name', 'tags']);
+Element.registerAttributes(Element, ['is', 'name'], {
+  tags: AttributeTypes.validateStringList
+});
 
 function serialize(element: Element) {
   if (typeof element === "object") {
@@ -591,6 +585,45 @@ export namespace Element {
     return ret;
   }
 
+  export const validateElement = {
+    validate: function validateElement(reporter: Reporter, path: AttributePath, value: any) {
+      if (!(value instanceof Element))
+        path.diagnostic(reporter, { type: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
+      else
+        return value;
+      return undefined;
+    }
+  };
+
+  export function elementIsValidator<T extends Element>(isList: string[]) : AttributeTypes.ValidatorT0<T> {
+    function validateElementIs(reporter: Reporter, path: AttributePath, cmp: any) {
+      cmp = validateElement.validate(reporter, path, cmp);
+      if (cmp !== undefined && isList.indexOf(cmp.is) === -1) {
+        path.diagnostic(reporter, {
+          type: 'error',
+          msg:  `only elements of type ${JSON.stringify(isList)} are accepted, got ${JSON.stringify({is: cmp.is, name: cmp.name})}`
+        });
+        cmp = undefined;
+      }
+      return cmp;
+    };
+    return { validate: validateElementIs, traverse(lvl, ctx) {
+      return `${isList.join(' / ')} element`;
+    }};
+  }
+  export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) : AttributeTypes.ValidatorT0<T> {
+    function validateElementIs(reporter: Reporter, path: AttributePath, value: any) {
+      if ((value = validateElement.validate(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
+        return <T>value;
+      if (value !== undefined)
+        path.diagnostic(reporter, { type: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
+      return undefined;
+    };
+    return { validate: validateElementIs, traverse(lvl, ctx) {
+      return `${is} element`;
+    } };
+  }
+
   export interface GroupElement extends Element {
      elements: Element[];
   };
@@ -598,7 +631,7 @@ export namespace Element {
     new (...args: any[]): GroupElement;
     prototype: GroupElement;
   } & C) {
-    return class GroupElement extends parentClass {
+    class GroupElementImpl extends parentClass {
       elements: Element[] = [];
 
       __resolveElementsGroupIn(reporter: Reporter, into: Element[], tags: Element.Query) {
@@ -623,8 +656,8 @@ export namespace Element {
 
           var cis = el.is;
           if (cis === 'group') {
-            (el as GroupElement).__resolve(reporter);
-            var subs = (el as GroupElement).elements;
+            (el as GroupElementImpl).__resolve(reporter);
+            var subs = (el as GroupElementImpl).elements;
             attrPath.push('.elements[', '', ']');
             for (var j = 0, jlen = subs.length; j < jlen; ++j) {
               attrPath.setArrayKey(j);
@@ -666,44 +699,9 @@ export namespace Element {
         this.elements = elements;
       }
     };
-  }
-
-  export const validateElement = {
-    validate: function validateElement(reporter: Reporter, path: AttributePath, value: any) {
-      if (!(value instanceof Element))
-        path.diagnostic(reporter, { type: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
-      else
-        return value;
-      return undefined;
-    }
-  };
-
-  export function elementIsValidator<T extends Element>(isList: string[]) : AttributeTypes.ValidatorT0<T> {
-    function validateElementIs(reporter: Reporter, path: AttributePath, cmp: any) {
-      cmp = validateElement.validate(reporter, path, cmp);
-      if (cmp !== undefined && isList.indexOf(cmp.is) === -1) {
-        path.diagnostic(reporter, {
-          type: 'error',
-          msg:  `only elements of type ${JSON.stringify(isList)} are accepted, got ${JSON.stringify({is: cmp.is, name: cmp.name})}`
-        });
-        cmp = undefined;
-      }
-      return cmp;
-    };
-    return { validate: validateElementIs, traverse(lvl, ctx) {
-      return `${isList.join(' / ')} element`;
-    }};
-  }
-  export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) : AttributeTypes.ValidatorT0<T> {
-    function validateElementIs(reporter: Reporter, path: AttributePath, value: any) {
-      if ((value = validateElement.validate(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
-        return <T>value;
-      if (value !== undefined)
-        path.diagnostic(reporter, { type: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
-      return undefined;
-    };
-    return { validate: validateElementIs, traverse(lvl, ctx) {
-      return `${is} element`;
-    } };
+    Element.registerAttributes(GroupElementImpl, [], {
+      elements: AttributeTypes.listValidator(Element.validateElement)
+    });
+    return GroupElementImpl;
   }
 }

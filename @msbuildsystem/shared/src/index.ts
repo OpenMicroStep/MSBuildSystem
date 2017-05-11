@@ -6,9 +6,10 @@ export import path = _path;
 export { Diagnostic } from './diagnostic';
 export * from './reporter';
 export * from './attribute-path';
+import * as _AttributeTypes from './attributes';
+export import AttributeTypes = _AttributeTypes;
+
 export * from './provider';
 export * from './barrier';
 export * from './element';
 export * from './parser';
-import * as _AttributeTypes from './attributes';
-export import AttributeTypes = _AttributeTypes;

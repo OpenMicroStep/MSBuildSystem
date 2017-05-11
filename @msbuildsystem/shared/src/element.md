@@ -3,7 +3,7 @@ Element
 
 Every implementation related properties and methods are prefixed by `__`.
 
-Element loading and resolution make heavy use of `AttributeTypes` validator and `AttributePath` tracking capabilities to detect as soon as possible any definition error into a `Reporter`.
+Element loading and resolution make heavy use of `AttributeTypes` validator and `AttributePath` tracking capabilities to detect as soon as possible any definition error.
 
 ## Attributes
 
@@ -24,15 +24,41 @@ The parent element if any.
 
 ### Instantiation
 
+Instantiation is done in 2 passes: loading elements then resolving references
+
+```
+load 
+  |-> __load                             <----+
+  |     |-> __loadNamespace                   |
+  |     +-> __loadValue                       |
+  |           |-> __loadArray                 |
+  |           |     +-> __loadObjectInArray   |
+  |           |           +-> instantiate   --+
+  |           +-> __loadObject                |
+  |                 +-> instantiate         --+
+  +-> __resolve
+        +-> __resolveWithPath
+        |     +-> __resolveValuesInObject
+        |           +-> __resolveAnyValue
+        |                 |-> __resolveValuesInArray
+        |                 |     +-> __resolveAnyValue
+        |                 |     +-> __resolveElements
+        |                 |-> __resolveValuesInObject
+        |                 |     +-> __resolveAnyValue
+        |                 +-> __resolveElements
+        +-> __validate
+```
+
 #### `static load<T extends Element>(reporter: Reporter, definition: ElementDefinition, root: T, elementFactoriesProviderMap: ElementFactoriesProviderMap): T`
 
 Load _definition_ into _root_ element using _elementFactoriesProviderMap_ to instantiate elements.
-The caller is responsible of the `is` and `name` attribute of the _root_ element.
-Diagnostics are reporter into the given _reporter_.
+The caller is responsible of the `is` and `name` attribute of the _root_ element.  
+Diagnostics are reported into the given _reporter_.  
 
 An element factory takes the optional namespace _name_ (ie. "name="), the element definition and the _parent_ element as input and must return the list of instantiated elements (see `ElementFactory` for the complete definition). Instantiated elements must not be either loaded or resolved, it's the caller of the factory method that is responsible to do this job.
 
-To simplify creating factory for the most common simple pattern: _one definition equal one element_, it is possible to use `registerSimple` that will handle for you the `name` resolution (by calling `handleSimpleElementName`).
+To simplify factory creation for the most common pattern: _one definition equal one element_, it is possible to use `registerSimple` that will handle for you the `name` resolution (by calling `handleSimpleElementName`).
+
 
 #### `__load(context: ElementLoadContext, definition: ElementDefinition, attrPath: AttributePath)`
 

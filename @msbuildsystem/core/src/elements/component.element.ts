@@ -20,7 +20,11 @@ export class ComponentElement extends MakeJSElement {
     this.componentsByEnvironment = {};
   }
 }
-Element.setElementKeys(ComponentElement, ["components", "componentsByEnvironment"]);
+const validateComponents = AttributeTypes.listValidator(ComponentElement.validateAllowDelayed);
+Element.registerAttributes(ComponentElement, [], {
+  components: validateComponents,
+  componentsByEnvironment: AttributeTypes.objectValidator({}, validateComponents)
+});
 
 export namespace ComponentElement {
   export function superValidateList<T, A0> (

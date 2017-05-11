@@ -63,12 +63,8 @@ export class FileElement extends MakeJSElement {
   __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
     attrPath.diagnostic(context.reporter, { type: 'error', msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
   }
-
-  __loadReservedValue(context: ElementLoadContext, key: string, value, attrPath: AttributePath) {
-    if (key !== 'tags') // name and tags are handled by instantiation
-      super.__loadReservedValue(context, key, value, attrPath);
-  }
 }
+Element.registerAttributes(FileElement, ['tags'], {});
 export module FileElement {
   export const validate = Element.elementValidator('file', FileElement);
   export const validateFile = {

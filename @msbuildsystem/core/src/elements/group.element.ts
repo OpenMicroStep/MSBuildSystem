@@ -19,9 +19,5 @@ export class GroupElement extends _GroupElement {
   __absoluteFilepath() : string {
     return this.path || this.__parent!.__absoluteFilepath();
   }
-
-  __loadReservedValue(context: ElementLoadContext, key: string, value, attrPath: AttributePath) {
-    if (key !== 'path') // path is handled by the factory
-      super.__loadReservedValue(context, key, value, attrPath);
-  }
 }
+Element.registerAttributes(GroupElement, ['path'], {});

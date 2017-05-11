@@ -40,4 +40,4 @@ export class BuildTargetElement extends MakeJSElement {
     return `${super.__path()}{${this.environment.name}}`;
   }
 }
-Element.setElementKeys(BuildTargetElement, ["environment", "compatibleEnvironments", "targets", "components", "exports", "type"]);
+Element.registerAttributes(BuildTargetElement, ["environment", "compatibleEnvironments", "targets", "components", "exports", "type"], {});
