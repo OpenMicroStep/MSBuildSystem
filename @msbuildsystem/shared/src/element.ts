@@ -3,7 +3,7 @@ import {
   util, createProviderMap, ProviderMap,
   Diagnostic, transformWithCategory, Parser
 } from './index';
-
+import * as Q from './query';
 export interface ElementDefinition {
   is: string;
   name?: any;
@@ -390,69 +390,6 @@ export class Element {
     return ok;
   }
 
-  __parseQuery(reporter: Reporter, into: Element[], parser: Parser, attrPath: AttributePath) : Element.Query {
-    parser.skip(Parser.isAnySpaceChar);
-    let ret: Element.Query = {
-      groups: [],
-      requiredTags: [],
-      rejectedTags: [],
-      explicitAttributes: undefined,
-      removedAttributes: undefined,
-      method: undefined
-    };
-    let level = parser.test('{');
-    parser.skip(Parser.isAnySpaceChar);
-    if (parser.ch !== '?') {
-      this.__parseGroups(parser, ret);
-      parser.skip(Parser.isAnySpaceChar);
-    }
-    if (parser.test('?')) {
-      this.__parseTags(parser, ret);
-      parser.skip(Parser.isAnySpaceChar);
-    }
-    if (level && parser.consume('}')) {
-      parser.skip(Parser.isAnySpaceChar);
-      if (parser.ch === '.')
-        ret.method = parser.while(Parser.isWordChar, 1);
-      else
-        this.__parseAttributes(parser, ret);
-      parser.skip(Parser.isAnySpaceChar);
-    }
-    if (!parser.atEnd() && !parser.reporter.failed)
-      parser.error(`query is not fully parsed`);
-    return ret;
-  }
-  __parseGroups(parser: Parser, ret: Element.Query) {
-    do {
-      ret.groups.push(parser.while(ch => ch !== '+' && ch !== '?', 1).split(':').map(g => g.trim()));
-    } while (parser.test('+'));
-  }
-  __parseTags(parser: Parser, ret: Element.Query) {
-    do {
-      if (parser.test('!')) {
-        parser.skip(Parser.isAnySpaceChar);
-        ret.rejectedTags.push(parser.while(ch => ch !== '+', 1).trim());
-      }
-      else {
-        ret.requiredTags.push(parser.while(ch => ch !== '+', 1).trim());
-      }
-    } while (parser.test('+'));
-  }
-  __parseAttributes(parser: Parser, ret: Element.Query) {
-    function parseAttrs(prefix: string, list: Set<string>) {
-      while (parser.test(prefix)) {
-        parser.skip(Parser.isAnySpaceChar);
-        list.add(parser.while(ch => ch !== prefix && ch !== '}', 1).trim());
-      }
-    }
-    if (parser.ch === '+')
-      parseAttrs('+', ret.explicitAttributes = new Set());
-    else if (parser.ch === '-')
-      parseAttrs('+', ret.removedAttributes = new Set());
-    else
-      parser.error(`explicit or exclusion attributes list expected`);
-  }
-
   __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], query: Element.Query, attrPath: AttributePath) {
     let el: Element | undefined = this;
     for (let i = 0; el && i < steps.length; i++) {
@@ -523,7 +460,7 @@ export class Element {
 
   __resolveElements(reporter: Reporter, into: Element[], query: string, attrPath: AttributePath | undefined = new AttributePath()) {
     let parser = new Parser(new Reporter(), query);
-    let ret = this.__parseQuery(reporter, into, parser, attrPath);
+    let ret = Q.parseQuery(parser);
     if (!parser.reporter.failed) {
       for (let group of ret.groups)
         this.__resolveElementsGroup(reporter, into, group, ret, attrPath);
@@ -565,12 +502,8 @@ export namespace Element {
     Namespace,
     Element,
   };
-  export type Query = {
-    groups: string[][],
-    requiredTags: string[], rejectedTags: string[],
-    explicitAttributes?: Set<string>, removedAttributes?: Set<string>,
-    method?: string,
-  };
+  export type Query = Q.Query;
+  export const parseQuery = Q.parseQuery;
   export function rebuildQuery(query: Element.Query) {
     let ret = query.groups.map(s => s.join(':')).join(' + ');
     if (query.rejectedTags.length || query.requiredTags.length)
