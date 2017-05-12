@@ -75,6 +75,7 @@ export class Element {
   readonly __extensions: AttributeTypes.Extension<Partial<Element>, Element>;
   readonly __validator: AttributeTypes.Validator<void, Element>;
 
+  ___path: string | undefined;
   __parent: Element | null;
   protected __resolved: boolean;
   is: string;
@@ -110,6 +111,7 @@ export class Element {
   }
 
   constructor(is: string, name: string, parent: Element | null) {
+    this.___path = undefined;
     this.__parent = parent;
     this.__resolved = false;
     this.is = is;
@@ -140,12 +142,15 @@ export class Element {
     else {
       var factory = context.elementFactoriesProviderMap.find(is);
       if (!factory)
-        error = `'is' attribute must be a valid element type`;
+        error = `{ is: '${is}' } attribute must be a valid element type (ie, one of: ${[...context.elementFactoriesProviderMap.map.keys()].join(', ')})`;
       else {
         attrPath = name ? new AttributePath(parent, ':', name) : attrPath;
         var elements = factory(context.reporter, name, definition, attrPath, parent, allowNoName);
-        for (var element of elements)
+        for (var element of elements) {
+          if (!element.name && elements.length === 1)
+              element.___path = attrPath.toString();
           element.__load(context, definition, new AttributePath(element));
+        }
         return elements;
       }
     }
@@ -363,13 +368,7 @@ export class Element {
   }
 
   __path() {
-    var p = "";
-    var element: Element | null = this;
-    while (element) {
-      p = p ? (element.name + ":" + p) : (element.name || "");
-      element = element.__parent;
-    }
-    return p;
+    return this.___path || (this.__parent ? `${this.__parent.__path()}:${this.name}` : (this.name || ''));
   }
 
   resolveElements(reporter: Reporter, query: string) : Element[] {
