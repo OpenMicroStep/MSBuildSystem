@@ -48,16 +48,14 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
     // (cwd intermediates & output) npm install
     Object.keys(this.npmPackage.dependencies).forEach(k => !ignoreDependencies.has(k) && npmInstallForBuild.addPackage(k, this.npmPackage.dependencies[k]));
     Object.keys(this.npmPackage.devDependencies).forEach(k => !ignoreDependencies.has(k) && npmInstallForBuild.addPackage(k, this.npmPackage.devDependencies[k]));
-
-
   }
 }
 JSCompilers.register(['typescript', 'tsc'], TypescriptCompiler, {
-  tsConfig: V.defaultsTo(ComponentElement.objectValidator({}, V.validateAny), {}),
+  tsConfig: V.defaultsTo(ComponentElement.objectValidator({}, ComponentElement.validateAndNormalizeAny), {}),
   npmLink: V.defaultsTo(ComponentElement.setAsListValidator(ComponentElement.objectValidator({
     name: V.validateString     ,
     path: V.validateString     ,
-    srcs: V.validateStringList ,
+    srcs: ComponentElement.setAsListValidator(V.validateString),
   })), []),
   npmPackage: V.defaultsTo(NPMPackage.validateDevDependencies, {
     dependencies:     {},

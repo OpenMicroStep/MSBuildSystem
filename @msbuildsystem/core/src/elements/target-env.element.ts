@@ -1,15 +1,17 @@
 import {
   Element, ComponentElement, EnvironmentElement, MakeJSElement, TargetElement,
-  Reporter, AttributeTypes, AttributePath, RootGraph,
-  injectElement, createInjectionContext,
+  Reporter, AttributeTypes, AttributePath, RootGraph, TargetExportsDefinition,
+  injectElement, createInjectionContext, InjectionContext, closeInjectionContext,
 } from '../index.priv';
+
+const validateStringList = ComponentElement.setAsListValidator(AttributeTypes.validateString);
 
 export class BuildTargetElement extends MakeJSElement {
   environment: EnvironmentElement;
   compatibleEnvironments: string[];
   targets: string[];
   components: Set<ComponentElement>;
-  exports: ComponentElement[];
+  exports: TargetExportsDefinition;
   type: string;
   __target: TargetElement;
   ___root: RootGraph;
@@ -23,17 +25,39 @@ export class BuildTargetElement extends MakeJSElement {
     //
     this.targets = [];
     this.components = new Set();
-    this.exports = [];
     this.__target = target;
     this.___root = root;
 
-    let ctx = createInjectionContext(reporter, this, true);
+    let ctx = createInjectionContext(reporter, this);
+    let keep = ctx.keep;
+    let copy = ctx.copy;
+    ctx.keep = (ctx, attr) => {
+      if (ctx.lpath.startsWith('[exports]'))
+        return Element.isNamespace(attr) || attr === 'components' || keep(ctx, attr);
+      else
+        return keep(ctx, attr);
+    };
+    ctx.deep = (ctx, kind) => !(kind === 'components' && ctx.lpath.startsWith('[exports]'));
+    ctx.copy = (ctx, attr) => copy(ctx, attr) && !(ctx.lpath.startsWith('[exports]') && Element.isNamespace(attr));
     injectElement(ctx, environment, new AttributePath(environment), this, new AttributePath(this));
     injectElement(ctx, target     , new AttributePath(target     ), this, new AttributePath(this));
+    closeInjectionContext(ctx);
+
+    let atexports = new AttributePath(this, '.exports');
+    let exports = new Set<any>();
+    ComponentElement.superValidateList(reporter, atexports, this.exports as any, undefined, AttributeTypes.validateObject, exports.add.bind(exports));
+    exports = serializeExports(ctx, exports, new AttributePath(this, '.exports'));
+    this.exports = {
+      is: "target-exports",
+      name: this.name,
+      environment: this.environment.name,
+      components: ["=generated", ...exports],
+      "generated=": { is: "component", components: [] }
+    };
 
     let at = new AttributePath(this, '');
     this.type = AttributeTypes.validateString.validate(reporter, at.set('.type'), this.type) || "bad type";
-    this.targets = ComponentElement.setAsListValidator(AttributeTypes.validateString).validate(reporter, at.set('.targets'), this.targets) || [];
+    this.targets = validateStringList.validate(reporter, at.set('.targets'), this.targets) || [];
   }
 
   __path() {
@@ -41,3 +65,32 @@ export class BuildTargetElement extends MakeJSElement {
   }
 }
 Element.registerAttributes(BuildTargetElement, ["environment", "compatibleEnvironments", "targets", "components", "exports", "type"], {});
+
+function serializeExports(ctx: InjectionContext, element: any, at: AttributePath) : any {
+  if (element instanceof Object) {
+    let ret: any;
+    if (element instanceof Set) {
+      ret = [];
+      at.pushArray();
+      for (let e of element)
+        ret.push(serializeExports(ctx, e, at));
+      at.popArray();
+    }
+    else if (element instanceof Array) {
+      ret = [];
+      at.pushArray();
+      for (let [i, e] of element.entries())
+        ret.push(serializeExports(ctx, e, at.setArrayKey(i)));
+      at.popArray();
+    }
+    else {
+      ret = {};
+      for (let key of Object.getOwnPropertyNames(element)) {
+        if (!Element.isReserved(key))
+          ret[key] = serializeExports(ctx, element[key], at);
+      }
+    }
+    return ret;
+  }
+  return element;
+}

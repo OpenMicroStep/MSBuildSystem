@@ -89,9 +89,9 @@ function load_invalid() {
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:files:mman"                            , "msg": "conflict with an element defined with the same name: 'mman'"  },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:notanobject"                           , "msg": "an element definition or reference was expected"              },
     { "category": "load", "type": "error"  , "path": "MyInvalidProject:nois.is"                               , "msg": "'is' attribute must be a string"                              },
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[0]"               , "msg": "expecting an element, got object"                             }, // MyInvalidProject:files.elements[14]
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:files:mman.elements[0]"               , "msg": "expecting an element, got object"                             }, // MyInvalidProject:files.elements[15]
-    { "category": "resolve", "type": "error", "path": "MyInvalidProject:all envs.elements[6]"                 , "msg": "elements must be of the same type, expecting environment, got component" },
+    { "category": "resolve", "type": "warning", "path": "MyInvalidProject:files:mman.elements[0]", "msg": "attribute must be an element, got a {\"name\":\"mman.c\",\"tags\":[\"CompileC\"]}"}, // MyInvalidProject:files.elements[14]
+    { "category": "resolve", "type": "warning", "path": "MyInvalidProject:files:mman.elements[0]", "msg": "attribute must be an element, got a {\"name\":\"mman.c\",\"tags\":[\"CompileC\"]}"}, // MyInvalidProject:files.elements[15]
+    { "category": "resolve", "type": "error"  , "path": "MyInvalidProject:all envs.elements[6]"  , "msg": "elements must be of the same type, expecting environment, got component"          },
   ]);
 }
 function build_graph(f: Flux<Context>) {
@@ -124,6 +124,34 @@ function build_graph(f: Flux<Context>) {
   let msstd: any = target.attributes.toJSON();
   msstd.components = msstd.components.map(c => c.name);
   msstd.environment.components = msstd.environment.components.map(c => c.name);
+  let exports = {
+    is: "target-exports",
+    name: "MSStd",
+    environment: "darwin-i386",
+    components: [
+      "=generated",
+      {
+        is: "component",
+        name: "",
+        tags: [],
+        components: [{
+          is: "component",
+          name: "",
+          tags: [],
+          components: [],
+          "clang=": {
+            is: "component",
+            name: "clang",
+            tags: ["clang"],
+            compiler: "clang",
+            components: [],
+            mylist: ["v2"],
+          }
+        }]
+      }
+    ],
+    "generated=": { is: "component", components: [] }
+  };
   assert.deepEqual(msstd, {
     is           : 'build-target',
     name         : 'MSStd',
@@ -148,53 +176,9 @@ function build_graph(f: Flux<Context>) {
     libraries    : ['-lm', '-luuid', '-ldl'],
     files        : ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"].map(n => ({ is: "file", name: n, tags: ["CompileC"] })),
     publicHeaders: ["MSStd.h", "mman.h"].map(n => ({ is: "file", name: n, tags: ["Header"] })),
-    exports: [
-      {
-        is: "component",
-        name: "",
-        tags: [],
-        "clang=": {
-          is: "component",
-          name: "clang",
-          tags: ["clang"],
-          compiler: "clang",
-          components: [],
-          componentsByEnvironment: {},
-          mylist: ["v2"],
-        }
-      }
-    ]
+    exports: exports
   });
-  assert.deepEqual(target.exports.toJSON(), {
-    is: "target-exports",
-    name: "MSStd",
-    environment: "darwin-i386",
-    tags: [],
-    components: [
-      {
-        is: "component",
-        name: "generated",
-        tags: [],
-        components: [],
-        componentsByEnvironment: {},
-      },
-      {
-        is: "component",
-        name: "",
-        tags: [],
-        "clang=": {
-          is: "component",
-          name: "clang",
-          tags: ["clang"],
-          compiler: "clang",
-          components: [],
-          componentsByEnvironment: {},
-          mylist: ["v2"],
-        },
-      },
-    ],
-    componentsByEnvironment: {},
-  });
+  assert.deepEqual(target.exports as any, exports);
   assert.deepEqual(reporter.diagnostics, []);
   f.continue();
 }
@@ -221,17 +205,11 @@ function files(f: Flux<Context>) {
   f.continue();
 }
 function components(f: Flux<Context>) {
-  function simplify(e) {
-    var r: any = {};
-    Object.assign(r, e);
-    r.__parent = r.__parent && r.__parent.name || null;
-    return r;
-  }
   let reporter = new Reporter();
   let project = f.context.sharedProject.tree;
   assert.deepEqual(
-    project.resolveElements(reporter, "clang").map(simplify),
-    [{ is: 'component', compiler: "clang", tags: ["clang"], mylist: ["v2"], components: [], componentsByEnvironment: {}, name: 'clang', __parent: 'MySimpleProject', __resolved: true }]);
+    project.resolveElements(reporter, "clang").map(e => e.toJSON()),
+    [{ is: 'component', compiler: "clang", tags: ["clang"], mylist: ["v2"], components: [], componentsByEnvironment: {}, name: 'clang' }]);
   assert.deepEqual(
     project.resolveElements(reporter, "all envs").map(e => e.name),
     ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);

@@ -1,6 +1,6 @@
 import {
   Project, Element, ComponentElement, EnvironmentElement, MakeJSElement,
-  Reporter, MakeJS, AttributePath, Target
+  Reporter, MakeJS, AttributePath, AttributeTypes,
 } from '../index.priv';
 
 Project.elementFactories.registerSimple('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: MakeJSElement) => {
@@ -8,6 +8,7 @@ Project.elementFactories.registerSimple('target', (reporter: Reporter, name: str
   parent.__root().__project().targets.push(target);
   return target;
 });
+const validateEnvList = AttributeTypes.listValidator(EnvironmentElement.validate);
 export class TargetElement extends ComponentElement {
   static validate = Element.elementValidator('target', TargetElement);
 
@@ -30,7 +31,7 @@ export class TargetElement extends ComponentElement {
   __resolveEnvironments(reporter: Reporter, component: ComponentElement, into: EnvironmentElement[]) {
     let envs = component['environments'];
     if (envs)
-      this.__pushArray(reporter, into, new AttributePath(component, '.environments'), EnvironmentElement.validate, envs);
+      into.push(...validateEnvList.validate(reporter, new AttributePath(component, '.environments'), envs));
     if ("environmentsByEnvironment" in component) {
       reporter.diagnostic({
         type: "warning",

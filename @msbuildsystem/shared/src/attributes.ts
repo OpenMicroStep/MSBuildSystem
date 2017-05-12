@@ -61,32 +61,32 @@ export function superValidateObject<T, K, A0>(
   into: T & { [s: string]: K }, extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>
 ) : T & { [s: string]: K };
 export function superValidateObject<T, K, A0>(
-  reporter: Reporter, path: AttributePath, attr: any, a0: A0,
+  reporter: Reporter, at: AttributePath, attr: any, a0: A0,
   into: T & { [s: string]: K }, extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>
 ) : T & { [s: string]: K } {
-  path.pushArray();
+  at.push('.', '');
   if (typeof attr !== "object") {
-    path.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
+    at.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
     attr = {};
   }
   let k;
   for (k in extensions) { // insert all extensions first
-    into[k] = extensions[k].validate(reporter, path.setArrayKey(k), attr[k], a0) as any;
+    into[k] = extensions[k].validate(reporter, at.set(k), attr[k], a0) as any;
   }
   for (k in attr as T) {
     if (!(k in extensions)) {
-      path.setArrayKey(k);
+      at.set(k);
       if (objectForKeyValidator) {
-        let v = objectForKeyValidator.validate(reporter, path, attr[k], k);
+        let v = objectForKeyValidator.validate(reporter, at, attr[k], k);
         if (v !== undefined)
           into[k] = v;
       }
       else {
-        path.diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
+        at.diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
       }
     }
   }
-  path.popArray();
+  at.pop(2);
   return into;
 }
 

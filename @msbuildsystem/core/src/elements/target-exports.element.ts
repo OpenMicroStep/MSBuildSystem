@@ -1,5 +1,5 @@
 import {
-  ComponentElement, Target, Element, Reporter, AttributePath, AttributeTypes, MakeJS, Project, injectElements
+  ComponentElement, Target, Element, Reporter, AttributePath, AttributeTypes, MakeJS, Project, ElementDefinition
 } from '../index.priv';
 
 function createExportsComponent(reporter: Reporter, name: string,
@@ -24,29 +24,10 @@ export class TargetExportsElement extends ComponentElement {
   }
 }
 
-export class BuildTargetExportsElement extends TargetExportsElement {
-  __target: Target;
-  __generated: ComponentElement;
-
-  constructor(target: Target, name: string) {
-    super('target-exports', name, target.environment);
-    this.__generated = new ComponentElement('component', 'generated', this);
-    this.__target = target;
-    this.__resolved = !!target;
-    this.components.push(this.__generated);
-  }
-
-  __resolve(reporter: Reporter) {
-    throw new Error(`__resolve is disabled for BuildTargetExportsElement`);
-  }
-
-  __createGeneratedComponent(name: string) {
-    let component = new ComponentElement('component', name, this.__generated);
-    this.__generated.components.push(component);
-    return component;
-  }
-
-  __serialize(reporter: Reporter) {
-    return this.toJSON();
-  }
+export type TargetExportsDefinition = {
+  is: "target-exports";
+  name: string;
+  environment: string;
+  components: (ElementDefinition | string)[];
+  "generated=": { is: "component", components: ElementDefinition[] }
 }

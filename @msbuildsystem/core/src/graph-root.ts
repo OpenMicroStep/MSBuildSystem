@@ -88,7 +88,7 @@ export class RootGraph extends Graph {
         reporter.transform.pop();
         reporter.transform.push(transformWithCategory('exports'));
         task.configureExports(reporter);
-        this.loadExportsDefinition(reporter, task.exports.__serialize(reporter));
+        this.loadExportsDefinition(reporter, task.exports);
         reporter.transform.pop();
       }
     }

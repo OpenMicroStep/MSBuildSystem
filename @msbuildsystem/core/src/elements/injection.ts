@@ -1,22 +1,44 @@
 import {
-  Element, ComponentElement, BuildTargetElement,
-  Reporter, AttributePath,
+  Element, ComponentElement, BuildTargetElement, DelayedElement,
+  Reporter, AttributePath, AttributeTypes, util, Diagnostic,
 } from '../index.priv';
 
 export interface InjectionContext {
   reporter: Reporter;
   buildTarget: BuildTargetElement;
-  deep: boolean;
   map: Map<ComponentElement, ComponentElement>;
+  deep: (ctx: InjectionContext, kind: 'components' | 'value') => boolean;
+  keep: (ctx: InjectionContext, attribute: string) => boolean;
+  copy: (ctx: InjectionContext, attribute: string) => boolean;
+  llvl: number; lpath: string; lcollisions: Map<string, Diagnostic & { notes: Diagnostic[] }>;
+  lprevious: Map<string, [string, object][]>;
+  uid: number;
 }
 
-const notInjectableKeys = /(^__)|([^\\]=$)|is|name|tags|components|environments/;
+/*class Tracer {
+  path: string;
+  previous: [string, object][] = [];
+  collision?: Diagnostic & { notes: Diagnostic[] } = undefined;
+  subs: Map<string, Tracer>;
+
+}*/
+
+const notInjectableKeys = /(^__)|([^\\]=$)|is|name|tags|components|environment|environments/;
 const copiableAsIsKeys = /(^__)|([^\\]=$)|is|name|tags/;
+
+export function injectDefaultDeep(ctx: InjectionContext, kind: 'components' | 'value') {
+  return true;
+}
+export function injectDefaultKeep(ctx: InjectionContext, attribute: string) {
+  return !notInjectableKeys.test(attribute);
+}
+export function injectDefaultCopy(ctx: InjectionContext, attribute: string) {
+  return copiableAsIsKeys.test(attribute);
+}
 
 function injectAttribute(ctx: InjectionContext,
   src: object, srcAttribute: string, srcPath: AttributePath,
-  dst: object, dstAttribute: string, dstPath: AttributePath,
-  path: string, collisions: Set<string>
+  dst: object, dstAttribute: string, dstPath: AttributePath
 ) {
   let srcValue = src[srcAttribute];
   let byenv = dstAttribute.endsWith("ByEnvironment");
@@ -24,10 +46,15 @@ function injectAttribute(ctx: InjectionContext,
     dstAttribute = dstAttribute.substring(0, dstAttribute.length - "ByEnvironment".length);
     dstPath.set(dstAttribute);
   }
-  path = `${path}[${dstAttribute}]`;
+  if (!ctx.keep(ctx, dstAttribute))
+    return;
+
+  let llvl = ctx.llvl;
+  let lpath_i = ctx.lpath;
+  let lpath = ctx.lpath = `${lpath_i}[${dstAttribute}]`;
   let dstExists = dstAttribute in dst;
   let dstValue = dstExists ? dst[dstAttribute] : undefined;
-  if (!dstExists && collisions.has(path)) { // optim: collision can only occurs if !dstExists
+  if (!dstExists && ctx.lcollisions.has(lpath)) { // optim: collision can only occurs if !dstExists
     collision();
   }
   else if (byenv) {
@@ -51,95 +78,156 @@ function injectAttribute(ctx: InjectionContext,
     setDstValue(srcValue);
   }
 
-  function collision() {
-    srcPath.diagnostic(ctx.reporter, {type: "warning",
-      msg: `collision on ${dstPath}: attribute is removed` });
+  ctx.llvl = llvl;
+  ctx.lpath = lpath_i;
+
+  function collision(msg: string = "collision: attribute is removed") {
+    let d = ctx.lcollisions.get(lpath);
+    if (!d) {
+      d = {type: "warning", msg: msg, path: dstPath.toString(), notes: [] };
+      let ccollisionpath = srcPath.toString();
+      let pcollisionpath: string;
+      for (let [plpath, plobj] of (ctx.lprevious.get(lpath_i) || [])) {
+        let plattr = dstAttribute;
+        if (plattr in plobj && (pcollisionpath = `${plpath}.${plattr}`) !== ccollisionpath)
+          d.notes.push({ type: "note", msg: "while merging", path: pcollisionpath });
+        plattr += 'byEnvironment';
+        if (plattr in plobj) {
+          let plbyenv = plobj[plattr];
+          for (let envQuery in plbyenv) {
+            let matchingEnvs = ctx.buildTarget.resolveElements(new Reporter(), envQuery); // ignore diags
+            if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1
+            && (pcollisionpath = `${plpath}.${plattr}[${envQuery}]`) !== ccollisionpath)
+              d.notes.push({ type: "note", msg: "while merging", path: pcollisionpath });
+          }
+        }
+      }
+      d.notes.push({ type: "note", msg: "caused collision while merging", path: ccollisionpath });
+      ctx.lcollisions.set(lpath, d);
+    }
+    else {
+      d.notes.push({ type: "note", msg: "while merging", path: srcPath.toString() });
+    }
     delete dst[dstAttribute];
-    collisions.add(path);
   }
 
-  function mapValue(srcValue) {
-    if (ctx.deep && srcValue instanceof ComponentElement) {
-      let v = ctx.map.get(srcValue);
-      if (!v) {
-        v = Object.create(srcValue.constructor.prototype) as ComponentElement;
-        for (let k of Object.getOwnPropertyNames(srcValue)) { // copy private properties
-          if (copiableAsIsKeys.test(k))
-            v[k] = srcValue[k];
-        }
-        injectElement(ctx, srcValue, new AttributePath(srcValue), v, new AttributePath(srcValue));
-        ctx.map.set(srcValue, v);
+  function mapValues(srcValues: Iterable<any>, dstSet: Set<any>, lvl = 0) : Set<any> {
+    if (lvl === 0)
+      pushlp(ctx, src, srcPath);
+    for (let srcValue of srcValues) {
+      if (srcValue instanceof DelayedElement)
+        mapValues(srcValue.__delayedResolve(ctx, dstPath), dstSet, lvl + 1);
+      else {
+        let lpath = ctx.lpath;
+        ctx.lpath += (++ctx.uid); // create a new unique context
+        dstSet.add(injectionMapValue(ctx, srcValue));
+        ctx.lpath = lpath;
       }
-      srcValue = v;
     }
-    return srcValue;
+    return dstSet;
   }
 
   function setDstValue(srcValue) {
     if (!dstExists) {
       if (srcValue instanceof Set || srcValue instanceof Array)
-        dstValue = dst[dstAttribute] = new Set(srcValue);
+        dstValue = dst[dstAttribute] = mapValues(srcValue, new Set());
+      else if (srcValue instanceof DelayedElement) {
+        let srcValues = srcValue.__delayedResolve(ctx, dstPath);
+        if (srcValues.length === 1)
+          dstValue = dst[dstAttribute] = injectionMapValue(ctx, srcValues[0]);
+        else {
+          if (srcValues.length === 0)
+            collision(`query '${srcValue.__path()}' returned no element, one was expected: attribute is removed`);
+          else
+            collision(`query '${srcValue.__path()}' multiple elements, one was expected: attribute is removed`);
+        }
+      }
       else
-        dstValue = dst[dstAttribute] = mapValue(srcValue);
+        dstValue = dst[dstAttribute] = injectionMapValue(ctx, srcValue);
       dstExists = true;
     }
     else if (srcValue instanceof Set || srcValue instanceof Array) { // src is a set
       if (dstValue instanceof Array) {
         dstValue = dst[dstAttribute] = new Set(dstValue);
-        for (let v of srcValue)
-          dstValue.add(mapValue(v));
+        mapValues(srcValue, dstValue);
       }
       else if (dstValue instanceof Set) {
-        for (let v of srcValue)
-          dstValue.add(mapValue(v));
+        mapValues(srcValue, dstValue);
       }
       else if (srcValue !== dstValue)
         collision();
     }
     else if (srcValue instanceof Object && dstValue instanceof Object && !(dstValue instanceof Set || dstValue instanceof Array)) {
-      injectElement(ctx, srcValue, srcPath, dstValue, dstPath, path, collisions);
+      let llvl = ctx.llvl++;
+      injectElement(ctx, srcValue, srcPath, dstValue, dstPath);
+      ctx.llvl = llvl;
     }
     else if (srcValue !== dstValue)
       collision();
   }
 }
 
+export function injectionMapValue(ctx: InjectionContext, srcValue) {
+  if (ctx.deep(ctx, 'value') && srcValue instanceof ComponentElement) {
+    let v = ctx.map.get(srcValue);
+    if (!v) {
+      v = util.clone(srcValue, k => ctx.copy(ctx, k));
+      injectElement(ctx, srcValue, new AttributePath(srcValue), v, new AttributePath(srcValue));
+      ctx.map.set(srcValue, v);
+    }
+    srcValue = v;
+  }
+  return srcValue;
+}
+
+function pushlp(ctx: InjectionContext, src: object, srcPath: AttributePath) {
+  let lprevious = ctx.lprevious.get(ctx.lpath);
+  if (!lprevious)
+    ctx.lprevious.set(ctx.lpath, lprevious = []);
+  lprevious.push([srcPath.toString(), src]);
+}
+const validateComponents = AttributeTypes.listValidator(ComponentElement.validate);
 export function injectElement(ctx: InjectionContext,
   src: object, srcPath: AttributePath,
-  dst: object, dstPath: AttributePath,
-  path: string = '', collisions: Set<string> = new Set()
+  dst: object, dstPath: AttributePath
 ) {
+  pushlp(ctx, src, srcPath);
   srcPath.push('.', '');
   dstPath.push('.', '');
   for (let attribute in src) {
-    if (!notInjectableKeys.test(attribute))
-      injectAttribute(ctx, src, attribute, srcPath.set(attribute), dst, attribute, dstPath.set(attribute), path, collisions);
+    injectAttribute(ctx, src, attribute, srcPath.set(attribute), dst, attribute, dstPath.set(attribute));
   }
   dstPath.pop(2);
-  if (ctx.deep && src instanceof ComponentElement) {
+  if (ctx.deep(ctx, 'components') && src instanceof ComponentElement) {
     srcPath.set('components');
-    injectComponents(src.components);
+    injectComponents(src.components, srcPath);
     srcPath.pushArray();
     for (let envQuery in src.componentsByEnvironment) {
       let matchingEnvs = ctx.buildTarget.resolveElements(ctx.reporter, envQuery);
       if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1) {
         srcPath.setArrayKey(envQuery);
-        injectComponents(src.componentsByEnvironment[envQuery]);
+        injectComponents(src.componentsByEnvironment[envQuery], srcPath);
       }
     }
     srcPath.popArray();
   }
   srcPath.pop(2);
 
-  function injectComponents(components: ComponentElement[]) {
+  function injectComponents(components: ComponentElement[], srcPath: AttributePath) {
     srcPath.pushArray();
     for (let i = 0; i < components.length; i++) {
       let component = components[i];
-      srcPath.setArrayKey(i);
-      injectElement(ctx,
-        component, component.name ? new AttributePath(component) : srcPath,
-        dst, dstPath,
-        path, collisions);
+      if (component instanceof DelayedElement) {
+        let els = component.__delayedResolve(ctx, srcPath);
+        let at = new AttributePath(component);
+        injectComponents(validateComponents.validate(ctx.reporter, at, els), at);
+      }
+      else {
+        srcPath.setArrayKey(i);
+        injectElement(ctx,
+          component, component.name ? new AttributePath(component) : srcPath,
+          dst, dstPath);
+      }
     }
     srcPath.popArray();
   }
@@ -148,17 +236,29 @@ export function injectElement(ctx: InjectionContext,
 export function injectElements(ctx: InjectionContext,
   elements: Element[],
   dst: object, dstPath: AttributePath,
-  path: string = '', collisions: Set<string> = new Set()
+  glvl: number = 0, gpath: string = '', llvl: number = 0, lpath: string = '', lcollisions: Set<string> = new Set()
 ) {
   for (let element of elements)
-    injectElement(ctx, element, new AttributePath(element), dst, dstPath, path, collisions);
+    injectElement(ctx, element, new AttributePath(element), dst, dstPath);
 }
 
-export function createInjectionContext(reporter: Reporter, buildTarget: BuildTargetElement, deep = true) : InjectionContext {
+export function createInjectionContext(reporter: Reporter, buildTarget: BuildTargetElement) : InjectionContext {
   return {
     reporter: reporter,
     buildTarget: buildTarget,
-    deep: deep,
-    map: new Map()
+    map: new Map(),
+    deep: injectDefaultDeep,
+    keep: injectDefaultKeep,
+    copy: injectDefaultCopy,
+    llvl: 0,
+    lpath: '',
+    lcollisions: new Map(),
+    lprevious: new Map(),
+    uid: 0,
   };
+}
+
+export function closeInjectionContext(ctx: InjectionContext) {
+  for (let d of ctx.lcollisions.values())
+    ctx.reporter.diagnostic(d);
 }

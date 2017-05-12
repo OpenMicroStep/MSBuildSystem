@@ -164,15 +164,15 @@ function objectValidator() {
   testValidator(validator, { s: 'test', b: true }, undefined, { s: 'test', b: true }, []);
   testValidator(validator, { s: 'test' }, undefined, { s: 'test', b: false }, []);
   testValidator(validator, { s: 0 }, undefined, { s: 'a string', b: false }, [
-    { "type": "warning", "msg": "attribute must be a string, got number", "path": "[s]" }
+    { "type": "warning", "msg": "attribute must be a string, got number", "path": ".s" }
   ]);
   testValidator(validator, { }, undefined, { s: 'a string', b: false }, []);
   testValidator(validator, { not_defined: 0 }, undefined, { s: 'a string', b: false }, [
-    { "type": "warning", "msg": "attribute is unused", "path": "[not_defined]" }
+    { "type": "warning", "msg": "attribute is unused", "path": ".not_defined" }
   ]);
   testValidator(validator2, { not_defined: "test" }, undefined, { s: 'a', b: 'b', not_defined: "test" }, []);
   testValidator(validator2, { not_defined: 0 }, undefined, { s: 'a', b: 'b' }, [
-    { "type": "warning", "msg": "attribute must be a string, got number", "path": "[not_defined]" }
+    { "type": "warning", "msg": "attribute must be a string, got number", "path": ".not_defined" }
   ]);
 }
 

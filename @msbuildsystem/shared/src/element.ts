@@ -465,7 +465,6 @@ export class Element {
 Element.registerAttributes(Element, ['is', 'name'], {
   tags: AttributeTypes.validateStringList
 });
-
 function serialize(element: Element) {
   if (typeof element === "object") {
     if (Array.isArray(element)) {

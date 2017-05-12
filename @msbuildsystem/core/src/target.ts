@@ -1,5 +1,5 @@
 import {Project, RootGraph, Reporter, CopyTask,
-  AttributePath, AttributeTypes, BuildTargetExportsElement, FileElement,
+  AttributePath, AttributeTypes, TargetExportsDefinition, FileElement,
   Task, Graph, TaskName, BuildTargetElement, File, Directory, util, GenerateFileTask,
   createProviderMap, ProviderMap, InjectionContext,
 } from './index.priv';
@@ -64,7 +64,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   dependencies: Set<Target>;
   requiredBy: Set<Target>;
 
-  exports: BuildTargetExportsElement;
+  exports: TargetExportsDefinition;
   exportsTask: Target.GenerateExports;
   project: Project;
 
@@ -113,7 +113,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
       intermediates: path.join(build, "intermediates", this.targetName),
       tasks        : path.join(build, "tasks", this.targetName)
     };
-    this.exports = new BuildTargetExportsElement(this, this.attributes.name);
+    this.exports = this.attributes.exports;
     fs.ensureDirSync(this.paths.tasks);
     fs.ensureDirSync(this.paths.intermediates);
     fs.ensureDirSync(this.paths.output);
@@ -145,16 +145,14 @@ export class Target extends SelfBuildGraph<RootGraph> {
     path.pop(2);
   }
 
-  configureExports(reporter: Reporter) {
-    this.exports.components.push(...this.attributes.exports);
-  }
+  configureExports(reporter: Reporter) {}
 
   exportsPath(absolutePath: string) {
     return util.pathRelativeToBase(this.paths.output, absolutePath);
   }
 
   buildGraph(reporter: Reporter) {
-    this.exportsTask = new Target.GenerateExports(this, this.exports.__serialize(reporter), this.project.workspace.pathToSharedExports(this.environment, this.name.name));
+    this.exportsTask = new Target.GenerateExports(this, this.exports, this.project.workspace.pathToSharedExports(this.environment, this.name.name));
     if (this.copyFiles.length) {
       let copy = this.taskCopyFiles = new CopyTask("copy files", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());

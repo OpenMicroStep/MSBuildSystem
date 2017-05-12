@@ -49,7 +49,7 @@ export interface MakeJSElement {
   __root() : ProjectElement;
 }
 
-function serialize(element: any) {
+export function serialize(element: any) {
   if (element instanceof Object) {
     let ret: any;
     if (element instanceof Set)

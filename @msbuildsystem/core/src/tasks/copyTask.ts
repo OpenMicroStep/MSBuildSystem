@@ -1,4 +1,4 @@
-import {Task, Graph, File, declareTask, Reporter, Step, Barrier} from '../index.priv';
+import {Task, Graph, File, declareTask, Reporter, Step, Barrier, FileElement} from '../index.priv';
 import * as path from 'path';
 
 @declareTask({ type: "copy" })
@@ -9,9 +9,9 @@ export class CopyTask extends Task {
     super({ type: "copy", name: name }, graph);
   }
 
-  willCopyFileGroups(reporter: Reporter, groups: { values: File[], ext: { dest: string, expand: boolean }}[], destBase: string) {
+  willCopyFileGroups(reporter: Reporter, groups: FileElement.FileGroup[], destBase: string) {
     for (var group of groups)
-      this.willCopyFiles(reporter, group.values, path.join(destBase, group.ext.dest), group.ext.expand);
+      this.willCopyFiles(reporter, group.elements, path.join(destBase, group.dest), group.expand);
   }
 
   willCopyFiles(reporter: Reporter, files: File[], outDir: string, expand: boolean) {

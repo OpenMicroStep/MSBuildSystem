@@ -53,7 +53,7 @@ module.exports =  {
     publicHeaders: ["=files ? Header"],
     defines      : ["MINGW_HAS_SECURE_API" ],
     libraries    : ['-lm', '-luuid', '-ldl'],
-    exports      : [{ is: 'component', "clang=": "=clang" }],
+    exports      : [{ is: 'component', components: [{ is: 'component', "clang=": "=clang" }] }],
   },
   "MSStd=": {
     is: 'target',

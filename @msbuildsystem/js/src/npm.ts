@@ -13,13 +13,13 @@ import * as fs from 'fs';
 
 const npmValidateDeps = AttributeTypes.defaultsTo(ComponentElement.objectValidator({}, AttributeTypes.validateString), {} as { [s: string]: string });
 const npmValidate = ComponentElement.objectValidator({
-  version:          AttributeTypes.validateString ,
-  description:      AttributeTypes.validateString ,
-  main:             AttributeTypes.validateString ,
-  typings:          AttributeTypes.validateString ,
-  dependencies:     npmValidateDeps               ,
-  devDependencies:  npmValidateDeps               ,
-  peerDependencies: npmValidateDeps               ,
+  version:          AttributeTypes.validateString,
+  description:      AttributeTypes.defaultsTo(AttributeTypes.validateString, undefined),
+  main:             AttributeTypes.defaultsTo(AttributeTypes.validateString, undefined),
+  typings:          AttributeTypes.defaultsTo(AttributeTypes.validateString, undefined),
+  dependencies:     AttributeTypes.defaultsTo(npmValidateDeps, {}),
+  devDependencies:  AttributeTypes.defaultsTo(npmValidateDeps, {}),
+  peerDependencies: AttributeTypes.defaultsTo(npmValidateDeps, {}),
 }, AttributeTypes.validateAny);
 const npmValidateDependencies: AttributeTypes.ValidatorTNU0<NPMPackage.DevDependencies> = ComponentElement.objectValidator({
   dependencies:     npmValidateDeps ,
@@ -56,12 +56,12 @@ export abstract class NPMPackager extends SelfBuildGraph<JSTarget> implements JS
   }
 }
 SelfBuildGraph.registerAttributes(NPMPackager, {
-  npmLink: ComponentElement.setValidator(ComponentElement.objectValidator({
+  npmLink: AttributeTypes.defaultsTo(ComponentElement.setAsListValidator(ComponentElement.objectValidator({
     name: AttributeTypes.validateString     ,
     path: AttributeTypes.validateString     ,
-    srcs: AttributeTypes.validateStringList ,
-  })),
-  npmPackage: npmValidate
+    srcs: ComponentElement.setAsListValidator(AttributeTypes.validateString),
+  })), []),
+  npmPackage: AttributeTypes.defaultsTo(npmValidate, {})
 })
 
 export class NPMModule extends NPMPackager {
@@ -79,29 +79,24 @@ export class NPMModule extends NPMPackager {
 
   configureExports(reporter: Reporter) {
     super.configureExports(reporter);
-    let exports = this.graph.exports.__createGeneratedComponent('npm');
-    let npmLink = [Object.assign(new ComponentElement('component', 'peerDependency', exports), {
+    let exports = { is: 'component', name: 'npm' };
+    let npmLink = [{ is: "component",
       path: this.graph.exportsPath(this.absoluteCompilationOutputDirectory()),
       name: this.graph.outputName,
       srcs: [...this.graph.files].map(f => this.graph.exportsPath(f.path))
-    })];
-    let dependencies = [Object.assign(new ComponentElement('component', '', exports), {
-      [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}`
-    })];
-    let npmPackage = [Object.assign(new ComponentElement('component', '', exports), {
-      dependencies: dependencies
-    })];
-    let npmPeerPackage = [Object.assign(new ComponentElement('component', '', exports), {
-      peerDependencies: dependencies
-    })];
+    }];
+    let dependencies = { is: 'component', [this.graph.outputName]: `^${this.npmPackage.version || "0.0.1"}` };
+    let npmPackage = { is: 'component', dependencies: dependencies };
+    let npmPeerPackage = { is: 'component',  peerDependencies: dependencies };
     Object.assign(exports, {
       npmPackage: npmPackage,
       npmLink: npmLink,
-      "peerDependency=": Object.assign(new ComponentElement('component', 'peerDependency', exports), {
+      "peerDependency=": { is: "component",
         npmPackage: npmPeerPackage,
         npmLink: npmLink,
-      })
+      }
     });
+    this.graph.exports["generated="].components.push(exports);
   }
 }
 JSPackagers.register(['npm'], NPMModule, {});
@@ -126,9 +121,9 @@ export interface NPMPackage {
   test?: string;
   author?: string;
   license?: string;
-  dependencies: { [s: string]: string };
-  devDependencies: { [s: string]: string };
-  peerDependencies: { [s: string]: string };
+  dependencies?: { [s: string]: string };
+  devDependencies?: { [s: string]: string };
+  peerDependencies?: { [s: string]: string };
   [s: string]: any;
 }
 export namespace NPMPackage {
