@@ -121,7 +121,7 @@ function handle_run() {
         runner.on("taskend", (context) => {
           if (context.reporter.diagnostics.length) {
             console.info("DIAGS ∨");
-            console.info(context.reporter.diagnostics.map(ReporterPrinter.formatDiagnostic).join('\n'));
+            console.info(context.reporter.diagnostics.map(d => ReporterPrinter.formatDiagnostic(d)).join('\n'));
             console.info("LOGS  ∨");
             console.info(context.reporter.logs);
             console.info("END   ∧", context.task.graph && context.task.target().__path(), context.task.name, (context.lastRunEndTime - context.lastRunStartTime) + 'ms');

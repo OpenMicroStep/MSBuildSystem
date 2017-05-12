@@ -85,8 +85,8 @@ export class ReporterPrinter {
       .map(type => `${stats[type]} ${ReporterPrinter.colors[type](type + (stats[type] > 1 ? 's' : ''))}`)
       .join(', ');
   }
-  static formatDiagnostic(d: Diagnostic) {
-    let ret = "";
+  static formatDiagnostic(d: Diagnostic, indent = "") {
+    let ret = indent;
     if (d.path) {
       ret += d.path;
       if (d.row) {
@@ -97,6 +97,8 @@ export class ReporterPrinter {
       ret += " ";
     }
     ret += colors[d.type](d.type) + ': ' + d.msg;
+    if (d.notes && d.notes.length)
+      d.notes.forEach(d => ret += "\n" + ReporterPrinter.formatDiagnostic(d, indent + "  "));
     return ret;
   }
   static formatReportConclusion(report: Report) {
@@ -115,7 +117,7 @@ export class ReporterPrinter {
   static formatReportLogs(report: Report) {
     let ret = '';
     if (report.diagnostics.length) {
-      ret += report.diagnostics.map(ReporterPrinter.formatDiagnostic).join('\n');
+      ret += report.diagnostics.map(d => ReporterPrinter.formatDiagnostic(d)).join('\n');
       if (report.failed && report.stats && report.stats.error === 0 && report.stats["fatal error"] === 0)
         ret += report.logs;
     }
