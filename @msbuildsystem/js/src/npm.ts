@@ -194,6 +194,8 @@ export class NPMInstallTask extends NPMTask {
   }
 
   addPackage(name: string, version: string) {
+    if (global.process.platform === 'win32' && version.startsWith('^'))
+      version = '^^^' + version;
     this.addFlags([name + '@' + version]);
   }
 
@@ -205,6 +207,7 @@ export class NPMInstallTask extends NPMTask {
 }
 
 ProcessProviders.safeLoadIfOutOfDate('npm', () => {
-  let ret = child_process.execSync('npm --version').toString('utf8').trim();
-  return ret ? new LocalProcessProvider("npm", { type: "npm", version: ret }) : undefined;
+  let name = global.process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  let ret = child_process.execSync(`${name} --version`).toString('utf8').trim();
+  return ret ? new LocalProcessProvider(name, { type: "npm", version: ret }) : undefined;
 });

@@ -77,8 +77,6 @@ export function safeSpawnProcess(
       }
     }
   }
-  if (global.process.platform === 'win32')
-      args = args.map(a => a.replace('^', '^^^^')); // workaround for: https://github.com/libuv/libuv/issues/1319
   var process: child_process.ChildProcess = (child_process[method] as any)(command, args, options);
   var out = "";
   var exited = false;
