@@ -5,13 +5,21 @@ environment:
 
 install:
   - ps: Install-Product node $env:nodejs_version
-  - npm install -q -g @openmicrostep/msbuildsystem.cli @openmicrostep/tests istanbul coveralls remap-istanbul
-  - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
+  - npm install -q -g @openmicrostep/msbuildsystem.cli@0.4.4 @openmicrostep/tests istanbul coveralls remap-istanbul
+  - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript@0.4.4
 
 build_script:
-  - msbuildsystem build -p @msbuildsystem -w dist/1/
+  - msbuildsystem build -p @msbuildsystem -w dist/1/ --debug
   - node dist/1/node/debug/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
   - node dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/3/
+
+on_failure:
+  - node -p "require('fs').realpathSync('.')"
+  - dir dist\1\.build\node\intermediates\core
+  - dir dist\1\.build\node\intermediates\core\node_modules
+  - dir dist\1\.build\node\intermediates\core\node_modules\@openmicrostep
+  - dir dist\1\node\node_modules\@openmicrostep\msbuildsystem.shared
+  - dir dist\1\node\node_modules\@openmicrostep\msbuildsystem.core
 
 test_script:
   - mstests
