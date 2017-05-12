@@ -8,3 +8,13 @@ export function pathJoinIfRelative(basePath: string, relativeOrAbsolutePath: str
 export function pathRelativeToBase(basePath: string, absolutePath: string) {
   return path.relative(basePath, absolutePath);
 }
+
+export function pathAreEquals(a: string, b: string) {
+  return pathNormalized(a) === pathNormalized(b);
+}
+export function pathNormalized(p: string) {
+  p = path.normalize(p);
+  if (/(\/|\\)$/.test(p))
+    p = p.substring(0, p.length - 1);
+  return p;
+}

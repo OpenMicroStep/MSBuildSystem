@@ -194,7 +194,7 @@ export class File {
           if (err) return cb(err);
           fs.copy(this.path, to.path, (err) => {
             if (err) return cb(err);
-            fs.utimes(to.path, stats.atime.getTime(), stats.mtime.getTime(), cb);
+            fs.utimes(to.path, stats.atime.getTime() / 1000, stats.mtime.getTime() / 1000, cb);
           });
         });
       });
@@ -214,7 +214,7 @@ export class File {
         }
 
         let create = () => {
-          fs.symlink(source.path, this.path, undefined, (err) => {
+          fs.symlink(source.path, this.path, 'junction', (err) => {
             if (err && (<NodeJS.ErrnoException>err).code !== "EEXIST") step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
             step.continue();
           });
@@ -224,7 +224,7 @@ export class File {
           fs.readlink(this.path, (err, currentTarget) => {
             if (err)
               step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
-            else if (currentTarget !== source.path) {
+            else if (!util.pathAreEquals(currentTarget, source.path)) {
               step.context.reporter.diagnostic({ type: "error", msg: `file already exists and is a symbolic link to '${currentTarget}'`, path: this.path });
               if (overwrite) {
                 fs.unlink(this.path, (err) => {

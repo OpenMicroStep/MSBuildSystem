@@ -34,8 +34,8 @@ export class Workspace {
 
   static defaultWorkspaceDirectory = '/opt/microstep';
   static pendingResolutionDirectory = '/7a151994-fab1-4390-859c-bf7bd9aa65f4';
-  constructor(directory: string = Workspace.pendingResolutionDirectory) {
-    this.directory = requiredAbsolutePath(directory);
+  constructor(directory?: string) {
+    this.directory = directory ? requiredAbsolutePath(directory) : Workspace.pendingResolutionDirectory;
     this.reporter = new Reporter();
     this.path = path.join(this.directory, 'workspace.json');
     if (!this.isDirectoryPendingResolution()) {
