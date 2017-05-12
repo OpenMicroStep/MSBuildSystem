@@ -423,37 +423,28 @@ export class Element {
   __resolveElementsGroupIn(reporter: Reporter, into: Element[], query: Element.Query) {
     if (this.__passTags(query)) {
       this.__resolve(reporter);
-      if (query.explicitAttributes) {
-        let o = Object.create(this.constructor.prototype);
-        for (let k of Object.getOwnPropertyNames(o)) {
-          if (Element.isReserved(k))
-            o[k] = this[k];
-          else if (query.explicitAttributes.has(k))
-            o[k] = this[k];
-        }
-      }
-      else if (query.removedAttributes) {
-        let o = Object.create(this.constructor.prototype);
-        for (let k of Object.getOwnPropertyNames(o)) {
-          if (Element.isReserved(k))
-            o[k] = this[k];
-          else if (!query.removedAttributes.has(k))
-            o[k] = this[k];
-        }
-      }
-      else if (query.method) {
-        if (Element.isReserved(query.method))
-          reporter.diagnostic({ type: 'error', msg: `cannot call '${query.method}': method is private`, path: this.__path() });
-        else {
-          if (typeof this[query.method] !== 'function')
-            reporter.diagnostic({ type: 'error', msg: `cannot call '${query.method}': not a method`, path: this.__path() });
-          else
-            into.push(this[query.method]());
-        }
-      }
+      this.__resolveElementsGroupPush(reporter, into, query);
+    }
+  }
+  __resolveElementsGroupPush(reporter: Reporter, into: Element[], query: Element.Query) {
+    if (query.explicitAttributes) {
+      into.push(util.clone(this, k => Element.isReserved(k) || query.explicitAttributes!.has(k)));
+    }
+    else if (query.removedAttributes) {
+      into.push(util.clone(this, k => Element.isReserved(k) || !query.removedAttributes!.has(k)));
+    }
+    else if (query.method) {
+      if (Element.isReserved(query.method))
+        reporter.diagnostic({ type: 'error', msg: `cannot call '${query.method}': method is private`, path: this.__path() });
       else {
-        into.push(this);
+        if (typeof this[query.method] !== 'function')
+          reporter.diagnostic({ type: 'error', msg: `cannot call '${query.method}': not a method`, path: this.__path() });
+        else
+          into.push(this[query.method]());
       }
+    }
+    else {
+      into.push(this);
     }
   }
 

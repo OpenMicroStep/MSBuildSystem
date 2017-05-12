@@ -176,3 +176,12 @@ export function performanceCounter(format?: "long" | "short") : () => number | s
     return format ? Formatter.duration.millisecond[format](ms) : ms;
   };
 }
+
+export function clone<T>(object: T, keep: (key: string) => boolean) : T {
+  let o = Object.create(object.constructor.prototype);
+  for (let k of Object.getOwnPropertyNames(object)) {
+    if (keep(k))
+      o[k] = object[k];
+  }
+  return o;
+}
