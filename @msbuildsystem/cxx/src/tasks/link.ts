@@ -1,4 +1,4 @@
-import {File, declareTask, Graph, AttributeTypes, Reporter, AttributePath, Target, Directory, ComponentElement} from '@openmicrostep/msbuildsystem.core';
+import {File, Graph, AttributeTypes, Reporter, AttributePath, Target, Directory, ComponentElement} from '@openmicrostep/msbuildsystem.core';
 import {ProcessTask} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXLinkType} from '../index.priv';
 
@@ -20,7 +20,6 @@ export const validateLinkerOptions = ComponentElement.objectValidator<LinkerOpti
     'frameworkDirectories': ComponentElement.setValidator(Target.validateDirectory),
 });
 
-@declareTask({ type: "cxxlink" })
 export class LinkTask extends ProcessTask {
   type: CXXLinkType;
   constructor(graph: Graph, finalFile: File, type: CXXLinkType, provider) {

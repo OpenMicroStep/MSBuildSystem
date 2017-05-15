@@ -1,5 +1,5 @@
 let boot_t0 = process.hrtime();
-import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph } from '@openmicrostep/msbuildsystem.core';
+import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph, Node } from '@openmicrostep/msbuildsystem.core';
 import { printReport, ReporterPrinter, mkReport, Report } from './common';
 import { args } from './args';
 import { npm } from './modules';
@@ -137,7 +137,7 @@ function handle_run() {
       });
       if (!args.debug && args.progress !== false && (args.progress === true || (process.stderr.isTTY && (process.stderr as tty.WriteStream).columns > 30))) {
         let stderr = process.stderr as tty.WriteStream;
-        let tasks = new Set<Task>();
+        let tasks = new Set<Node>();
         let nblines = 0;
         let count = 0;
         let run = 0;

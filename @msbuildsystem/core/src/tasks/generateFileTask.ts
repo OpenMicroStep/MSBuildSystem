@@ -1,8 +1,8 @@
-import {InOutTask, TaskName, Graph, File, Step} from '../index.priv';
+import {InOutTask, Graph, File, Node} from '../index.priv';
 
 export abstract class GenerateFileTask extends InOutTask {
-  constructor(name: TaskName, graph: Graph, path: string) {
-    super(name, graph, [], [File.getShared(path)]);
+  constructor(name: Node.Name, graph: Graph, dest: File) {
+    super(name, graph, [], [dest]);
   }
 
   abstract uniqueKeyInfo() : any;

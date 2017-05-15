@@ -1,5 +1,5 @@
 import {
-  declareTask, Task, Reporter, SelfBuildGraph, Target, File,
+  Task, Reporter, SelfBuildGraph, Target, File,
   Flux, Step, StepWithData, ReduceStepContext,
   AttributeTypes as V, AttributePath, util, ComponentElement,
 } from '@openmicrostep/msbuildsystem.core';
@@ -23,7 +23,10 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
 
-    let npmInstallForBuild = new NPMInstallTask(this, this.graph.paths.intermediates);
+    let npmInstallForBuild = new NPMInstallTask("install", this, {
+      directory: File.getShared(this.graph.paths.intermediates, true),
+      packages: {}
+    });
     let tsc = this.tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addDependency(npmInstallForBuild);
 
@@ -89,7 +92,6 @@ Task.generators.register(['tsconfig'], {
   }
 });
 
-@declareTask({ type: "typescript" })
 export class TypescriptTask extends Task {
   files: File[] = [];
   options: ts.CompilerOptions = {};

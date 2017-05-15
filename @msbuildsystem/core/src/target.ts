@@ -1,6 +1,6 @@
 import {Project, RootGraph, Reporter, CopyTask,
   AttributePath, AttributeTypes, TargetExportsDefinition, FileElement,
-  Task, Graph, TaskName, BuildTargetElement, File, Directory, util, GenerateFileTask,
+  Node, Task, Graph, BuildTargetElement, File, Directory, util, GenerateFileTask,
   createProviderMap, ProviderMap, InjectionContext,
 } from './index.priv';
 import * as path from 'path';
@@ -39,7 +39,7 @@ export abstract class SelfBuildGraph<P extends Graph> extends Graph {
   }
   graph: P;
 
-  constructor(name: TaskName, graph: P) {
+  constructor(name: Node.Name, graph: P) {
     super(name, graph);
   }
 
@@ -152,7 +152,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   }
 
   buildGraph(reporter: Reporter) {
-    this.exportsTask = new Target.GenerateExports(this, this.exports, this.project.workspace.pathToSharedExports(this.environment, this.name.name));
+    this.exportsTask = new Target.GenerateExports(this, this.exports, File.getShared(this.project.workspace.pathToSharedExports(this.environment, this.name.name)));
     if (this.copyFiles.length) {
       let copy = this.taskCopyFiles = new CopyTask("copy files", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());
@@ -216,7 +216,7 @@ export namespace Target {
   };
 
   export class GenerateExports extends GenerateFileTask {
-    constructor(graph: Target, public info: any, path: string) {
+    constructor(graph: Target, public info: any, path: File) {
       super({ type: "exports", name: graph.name.name }, graph, path);
     }
 

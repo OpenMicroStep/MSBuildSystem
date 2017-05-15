@@ -1,7 +1,7 @@
-import {Task, Graph, File, declareTask, Reporter, Step, Barrier, FileElement} from '../index.priv';
+import {Task, Graph, File, Reporter, Step, Barrier, FileElement} from '../index.priv';
 import * as path from 'path';
 
-@declareTask({ type: "copy" })
+@Task.declare(["copy"])
 export class CopyTask extends Task {
   protected steps: File[] = [];
 

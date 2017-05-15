@@ -1,4 +1,4 @@
-import {Reporter, File, SelfBuildGraph, TaskName, createProviderList, ProviderList} from '@openmicrostep/msbuildsystem.core';
+import {Reporter, File, SelfBuildGraph, createProviderList, ProviderList, Node} from '@openmicrostep/msbuildsystem.core';
 import {ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXTarget, CXXFramework, CompileTask, LinkTask, CompilerOptions, LinkerOptions, CXXLinkType} from './index.priv';
 import * as path from 'path';
@@ -54,7 +54,7 @@ export abstract class CXXSysroot extends SelfBuildGraph<CXXTarget> implements CX
   version?: string;
   architecture?: string;
 
-  constructor(name: TaskName, graph: CXXTarget, conditions: Conditions) {
+  constructor(name: Node.Name, graph: CXXTarget, conditions: Conditions) {
     super(name, graph);
     this.platform = conditions.platform;
     this.version = conditions.version;

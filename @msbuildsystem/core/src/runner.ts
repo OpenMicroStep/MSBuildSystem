@@ -1,5 +1,5 @@
 import {EventEmitter} from 'events';
-import {Task, Graph, BuildSession, Async, Reporter, Flux, Diagnostic} from './index.priv';
+import {Node, Graph, BuildSession, Async, Reporter, Flux, Diagnostic} from './index.priv';
 import * as os from 'os';
 
 export type RunnerContext = { runner: Runner, failed: boolean };
@@ -9,8 +9,8 @@ export type ReduceStepContext = {
 }
 export type StepContext<DATA, SHARED> = {
   runner: Runner,
-  execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext<any, any>>) => void),
-  task: Task,
+  execute(runner: Runner, task: Node, lastAction: (flux: Flux<StepContext<any, any>>) => void),
+  task: Node,
   reporter: Reporter,
   storage: BuildSession.BuildSession,
   data: {
@@ -85,7 +85,7 @@ function end(flux: Flux<StepContext<{}, {}>>) {
   });
 }
 
-function execute(runner: Runner, task: Task, lastAction: (flux: Flux<StepContext<any, any>>) => void) {
+function execute(runner: Runner, task: Node, lastAction: (flux: Flux<StepContext<any, any>>) => void) {
   Async.run<StepContext<any, any>>({
     runner: runner,
     execute: execute,
@@ -113,11 +113,11 @@ function executeMapReduceRun<V>(p: Flux<RunnerContext>, run: (step: Flux<ReduceS
   }]);
 }
 
-function isChildOf(parent: Task, task: Task) {
+function isChildOf(parent: Node, task: Node) {
   return task.parents().indexOf(<Graph>parent) !== -1;
 }
 
-function createTaskAction(task: Task) {
+function createTaskAction(task: Node) {
   return function run(p: Flux<RunnerContext>) {
     execute(p.context.runner, task, (flux) => {
       p.context.failed = p.context.failed || flux.context.reporter.failed;
@@ -128,20 +128,20 @@ function createTaskAction(task: Task) {
 }
 
 export class Runner extends EventEmitter {
-  root: Task;
+  root: Node;
   action: string;
   options: { [s: string]: any };
-  enabled: Set<Task>;
+  enabled: Set<Node>;
 
-  constructor(root: Task, action: string, options: { [s: string]: any } = {}) {
+  constructor(root: Node, action: string, options: { [s: string]: any } = {}) {
     super();
     this.root = root;
     this.action = action;
     this.options = options;
-    this.enabled = new Set<Task>();
+    this.enabled = new Set<Node>();
   }
 
-  enable(task: Task) {
+  enable(task: Node) {
     let parents = task.parents();
     let alreadyEnabled = this.enabled.has(task) || parents.some(p => this.enabled.has(p));
     if (!alreadyEnabled) {
@@ -157,8 +157,8 @@ export class Runner extends EventEmitter {
     yield* this.iterator(true);
   }
 
-  *iterator(deep = true) : IterableIterator<Task> {
-    function *iterate(task: Task) : IterableIterator<Task> {
+  *iterator(deep = true) : IterableIterator<Node> {
+    function *iterate(task: Node) : IterableIterator<Node> {
       if (task instanceof Graph)
         yield* task.iterator(true);
       else

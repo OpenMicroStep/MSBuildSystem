@@ -1,7 +1,7 @@
 import {Workspace, Project, Target, AttributePath, transformWithCategory,
   Graph, Reporter, BuildGraphOptions,
   Element, BuildTargetElement, TargetElement, EnvironmentElement, TargetExportsElement
-} from './index.priv';
+} from '../index.priv';
 import * as fs from 'fs';
 
 export class RootGraph extends Graph {
@@ -13,10 +13,8 @@ export class RootGraph extends Graph {
 
   buildGraph(reporter: Reporter) {
     reporter.transform.push(transformWithCategory('graph'));
-    this.iterate(false, (t: Target) => {
+    for (let t of this.iterator(false) as IterableIterator<Target>)
       t.buildGraph(reporter);
-      return true;
-    });
     reporter.transform.pop();
   }
 
@@ -46,12 +44,13 @@ export class RootGraph extends Graph {
 
   createTarget(reporter: Reporter, requester: BuildTargetElement | undefined, target: TargetElement, environment: EnvironmentElement) : Target | undefined {
     let task: Target | undefined = undefined;
-    this.iterate(false, (t: Target) => {
+    for (let t of this.iterator(false) as IterableIterator<Target>) {
       let e = t.attributes;
-      if (e.__target === target && e.environment === environment)
+      if (e.__target === target && e.environment === environment) {
         task = t;
-      return !task;
-    });
+        break;
+      }
+    }
     if (!task && requester) {
       let buildTarget = this.buildTargetElements.find(e => e.__target === target && e.environment === environment);
       if (buildTarget) {

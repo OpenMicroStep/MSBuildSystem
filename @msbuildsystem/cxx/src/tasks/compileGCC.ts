@@ -1,8 +1,7 @@
-import {File, declareTask, Graph} from '@openmicrostep/msbuildsystem.core';
+import {File, Graph, Task} from '@openmicrostep/msbuildsystem.core';
 import {ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
 import {CompileTask} from '../index.priv';
 
-@declareTask({ type: "cxxcompilegcc" })
 export class CompileGCCTask extends CompileTask {
   constructor(graph: Graph, srcFile:File, objFile:File, provider: ProcessProviderConditions = { compiler: "gcc" }) {
     super(graph, srcFile, objFile, provider);

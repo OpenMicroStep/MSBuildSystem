@@ -1,7 +1,7 @@
-import { Task, Step, File, TaskName, Graph, Barrier } from '../index.priv';
+import { Task, Node, Step, File, Graph } from '../index.priv';
 
 export class InOutTask extends Task {
-  constructor(name: TaskName, graph: Graph, public inputFiles: File[] = [], public outputFiles: File[] = []) {
+  constructor(name: Node.Name, graph: Graph, public inputFiles: File[] = [], public outputFiles: File[] = []) {
     super(name, graph);
   }
 

@@ -1,13 +1,17 @@
-import {Task, TaskName, File, Step, Barrier} from './index.priv';
+import {Node, File, Step, Barrier} from '../index.priv';
 
-export class Graph extends Task {
-  constructor(name: TaskName, graph: Graph, public inputs: Set<Task> = new Set<Task>()) {
+export class Graph extends Node {
+  constructor(name: Node.Name, graph: Graph, public inputs: Set<Node> = new Set<Node>()) {
     super(name, graph);
   }
 
-  do(flux: Step<any>) {
+  storagePath(task: Node) : string | undefined {
+    return this.graph && this.graph.storagePath(task);
+  }
+
+  do(flux: Step<{}>) {
     var barrier = new Barrier("Graph");
-    var map = new Map<Task, { running: boolean, requirements: number }>();
+    var map = new Map<Node, { running: boolean, requirements: number }>();
     this.inputs.forEach(function (task) {
       var substep = getstep(task);
       if (substep.requirements === 0)
@@ -15,7 +19,7 @@ export class Graph extends Task {
     });
     barrier.endWith(() => { flux.continue(); });
 
-    function getstep(task: Task) {
+    function getstep(task: Node) {
       var step = map.get(task);
       if (!step) {
         step = { requirements: task.dependencies.size, running: false };
@@ -24,7 +28,7 @@ export class Graph extends Task {
       return step;
     }
 
-    function lastAction(step: Step<any>) {
+    function lastAction(step: Step<{}>) {
       let ctx = step.context;
       let task = ctx.task;
       // console.trace("End task %s %s (action=%s)", task.name.type, task.name.name, step.failed, task.requiredBy.size);
@@ -41,7 +45,7 @@ export class Graph extends Task {
       barrier.dec();
     }
 
-    function run(substep: { running: boolean, requirements: number }, task: Task) {
+    function run(substep: { running: boolean, requirements: number }, task: Node) {
       if (!substep.running) {
         substep.running = true;
         barrier.inc();
@@ -50,9 +54,9 @@ export class Graph extends Task {
     }
   }
 
-  *iterator(deep = true) : IterableIterator<Task> {
-    var tasks = new Set<Task>();
-    function* iterate(inputs: Iterable<Task>) {
+  *iterator(deep = true) : IterableIterator<Node> {
+    var tasks = new Set<Node>();
+    function* iterate(inputs: Iterable<Node>) {
       for (let input of inputs) {
         if (!tasks.has(input)) {
           tasks.add(input);
@@ -70,8 +74,8 @@ export class Graph extends Task {
     yield* iterate(this.inputs);
   }
 
-  iterate(deep: boolean, shouldIContinue?: (task: Task) => boolean) {
-    var tasks = new Set<Task>();
+  iterate(deep: boolean, shouldIContinue?: (task: Node) => boolean) {
+    var tasks = new Set<Node>();
     var end = false;
     function iterate(inputs) {
       if (end) return;
@@ -100,12 +104,12 @@ export class Graph extends Task {
     });
   }
 
-  allTasks(deep: boolean = false) : Set<Task> {
+  allTasks(deep: boolean = false) : Set<Node> {
     return this.iterate(deep);
   }
 
-  findTask(deep: boolean, predicate: (task: Task) => boolean) : Task | null {
-    var task: Task | null = null;
+  findTask(deep: boolean, predicate: (task: Node) => boolean) : Node | null {
+    var task: Node | null = null;
     var ret = predicate(this);
     if (ret === true)
       return this;
@@ -117,28 +121,5 @@ export class Graph extends Task {
       return ret;
     });
     return task;
-  }
-
-  description() {
-    console.time("description");
-    var desc = "";
-    var append = (level: number, prefix: string, d: string) => {
-      while (level--) desc += "  ";
-      desc += " " + prefix + " " + d + "\n";
-    };
-    var appendTasks = (level: number, graph: Graph) => {
-      append(level, '+', graph.name.type + " " + graph.name.name);
-      ++level;
-      var tasks = graph.allTasks();
-      tasks.forEach((task) => {
-        if (task instanceof Graph)
-          appendTasks(level, task);
-        else
-          append(level, '-', task.description());
-      });
-    };
-    appendTasks(0, this);
-    console.timeEnd("description");
-    return desc;
   }
 }

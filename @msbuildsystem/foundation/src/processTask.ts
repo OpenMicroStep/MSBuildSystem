@@ -1,4 +1,4 @@
-import {Graph, TaskName, Step, StepWithData, File, AttributePath, InOutTask} from '@openmicrostep/msbuildsystem.core';
+import {Node, Graph, Step, StepWithData, File, AttributePath, InOutTask} from '@openmicrostep/msbuildsystem.core';
 import {ProcessProvider, ProcessProviderConditions, ProcessProviderRequirement, ProcessProviders} from './index';
 
 /** if the argument is an array, the content the array will be concatenated */
@@ -9,7 +9,7 @@ export class ProcessTask extends InOutTask {
   env?: {[s: string]: string} = undefined;
   cwd: string;
 
-  constructor(name: TaskName, graph: Graph, inputFiles: File[], outputFiles: File[], public provider: ProcessProviderConditions) {
+  constructor(name: Node.Name, graph: Graph, inputFiles: File[], outputFiles: File[], public provider: ProcessProviderConditions) {
     super(name, graph, inputFiles, outputFiles);
     this.cwd = graph.target().paths.output;
   }

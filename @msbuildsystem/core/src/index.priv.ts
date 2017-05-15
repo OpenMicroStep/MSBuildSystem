@@ -6,14 +6,15 @@ import * as MakeJS from './make'; export { MakeJS as MakeJS };
 import * as BuildSession from './buildSession'; export { BuildSession as BuildSession };
 
 export * from './file';
-export * from './task';
-export * from './graph';
+export * from './graph/node';
+export * from './graph/task';
+export * from './graph/graph';
 export * from './tasks/inOutTask';
 export * from './tasks/generateFileTask';
 export * from './tasks/copyTask';
 export * from './runner';
 export * from './provider';
-export * from './graph-root';
+export * from './graph/graph-root';
 export * from './project';
 export * from './workspace';
 

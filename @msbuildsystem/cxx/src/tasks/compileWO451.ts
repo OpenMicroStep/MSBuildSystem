@@ -1,10 +1,9 @@
-import {File, declareTask, Graph, ProviderConditions} from '@openmicrostep/msbuildsystem.core';
+import {File, Graph, ProviderConditions} from '@openmicrostep/msbuildsystem.core';
 import {CompileTask} from '../index.priv';
 
 //              1:path  2:row         3:type     4:msg
 var rxdiag  = /^([^:]+)[\(:](\d+)\)?: (warning:)?(.+?)$/;
 
-@declareTask({ type: "cxxcompilewo451"})
 class CompileWO451Task extends CompileTask {
   constructor(graph: Graph, srcFile:File, objFile:File, provider: ProviderConditions = { compiler: "gcc" }) {
     super(graph, srcFile, objFile, provider);

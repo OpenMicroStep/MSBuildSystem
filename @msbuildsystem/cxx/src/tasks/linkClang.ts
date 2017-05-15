@@ -1,8 +1,7 @@
-import {declareTask, Graph, File} from '@openmicrostep/msbuildsystem.core';
+import {Graph, File} from '@openmicrostep/msbuildsystem.core';
 import {Arg} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXLinkType, LinkTask, LinkerOptions} from '../index.priv';
 
-@declareTask({ type: "link-clang" })
 export class LinkClangTask extends LinkTask {
   constructor(graph: Graph, finalFile: File, type: CXXLinkType, provider = { compiler: "clang"}) {
     super(graph, finalFile, type, provider);

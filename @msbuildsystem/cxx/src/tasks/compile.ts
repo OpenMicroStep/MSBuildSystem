@@ -1,5 +1,5 @@
 import {
-  File, Directory, declareTask, Step, Graph, Diagnostic, StepWithData,
+  File, Directory, Step, Graph, Diagnostic, StepWithData, Task,
   AttributeTypes, Target, AttributePath, Reporter, ComponentElement,
 } from '@openmicrostep/msbuildsystem.core';
 import {ProcessTask, ProcessProviderConditions} from '@openmicrostep/msbuildsystem.foundation';
@@ -27,7 +27,6 @@ export const compilerExtensions = {
 };
 export const validateCompilerOptions = ComponentElement.objectValidator<CompilerOptions, Target>(compilerExtensions);
 
-@declareTask({ type: "cxxcompile" })
 export class CompileTask extends ProcessTask {
   hmapFile: File;
   constructor(graph: Graph, srcFile: File, objFile: File, provider: ProcessProviderConditions) {

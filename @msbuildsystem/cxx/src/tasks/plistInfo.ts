@@ -1,4 +1,4 @@
-import {declareTask, Graph, GenerateFileTask} from '@openmicrostep/msbuildsystem.core';
+import {Graph, GenerateFileTask, File} from '@openmicrostep/msbuildsystem.core';
 import {basename} from 'path';
 
 export module Plist {
@@ -44,10 +44,9 @@ export module Plist {
   }
 }
 
-@declareTask({ type: "plistinfo" })
 export class PlistInfoTask extends GenerateFileTask {
-  constructor(graph: Graph, public info: {[s: string]: any}, path: string) {
-    super({ type: "plistinfo", name: basename(path) }, graph, path);
+  constructor(graph: Graph, public info: {[s: string]: any}, path: File) {
+    super({ type: "plistinfo", name: path.name }, graph, path);
   }
 
   uniqueKeyInfo() : any {

@@ -1,7 +1,6 @@
-import {declareTask, Graph} from '@openmicrostep/msbuildsystem.core';
+import {Graph} from '@openmicrostep/msbuildsystem.core';
 import {CXXLinkType, LinkTask} from '../index.priv';
 
-@declareTask({ type: "link-binutils" })
 export class LinkBinUtilsTask extends LinkTask {
   constructor(graph: Graph, finalFile, type: CXXLinkType, provider?) {
     provider = provider || (type === CXXLinkType.STATIC ? {archiver: "binutils"} : { linker: "gcc"});

@@ -1,8 +1,7 @@
-import {declareTask, Graph, File} from '@openmicrostep/msbuildsystem.core';
+import {Graph, File} from '@openmicrostep/msbuildsystem.core';
 import {Arg} from '@openmicrostep/msbuildsystem.foundation';
 import {CXXLinkType, LinkTask} from '../index.priv';
 
-@declareTask({ type: "link-libtool" })
 export class LinkLibToolTask extends LinkTask {
   constructor(graph: Graph, finalFile: File, type: CXXLinkType, provider?) {
     provider = provider || (type === CXXLinkType.STATIC ? {linker: "libtool"} : { compiler: "clang"});

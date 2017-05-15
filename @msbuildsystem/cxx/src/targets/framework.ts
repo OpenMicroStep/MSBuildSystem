@@ -40,7 +40,7 @@ export class CXXFramework extends CXXLibrary {
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
     if (this.bundleInfo) {
-      this.taskPlistInfo = new PlistInfoTask(this, this.bundleInfo, this.absoluteBundleInfoPath());
+      this.taskPlistInfo = new PlistInfoTask(this, this.bundleInfo, File.getShared(this.absoluteBundleInfoPath()));
     }
     if (this.resources.length) {
       let copy = this.taskCopyBundleResources = new CopyTask("bundle resources", this);

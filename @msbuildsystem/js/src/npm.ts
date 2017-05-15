@@ -1,7 +1,7 @@
 import {
   Reporter, SelfBuildGraph, Task, AttributeTypes, util,
-  declareTask, Graph, GenerateFileTask, Step, InOutTask, File, Directory,
-  ComponentElement, AttributePath, Target,
+  Graph, GenerateFileTask, Step, InOutTask, File, Directory,
+  ComponentElement, AttributePath, Target, FileElement,
 } from '@openmicrostep/msbuildsystem.core';
 import {
   ProcessTask, LocalProcessProvider, ProcessProviders
@@ -36,8 +36,11 @@ export abstract class NPMPackager extends SelfBuildGraph<JSTarget> implements JS
   buildGraph(reporter: Reporter) {
     super.buildGraph(reporter);
     this.npmPackage.name = this.graph.outputName;
-    let createPkgJson = new NPMGeneratePackage(this, this.npmPackage, path.join(this.absoluteCompilationOutputDirectory(), 'package.json'));
-    let npmInstall = new NPMInstallTask(this, this.absoluteCompilationOutputDirectory());
+    let createPkgJson = new NPMGeneratePackage('package.json', this, {
+      npmPackage: this.npmPackage,
+      dest: File.getShared(path.join(this.absoluteCompilationOutputDirectory(), 'package.json'))
+    });
+    let npmInstall = new NPMInstallTask("install", this, { directory: File.getShared(this.absoluteCompilationOutputDirectory(), true), packages: {} });
     npmInstall.addDependency(createPkgJson);
     let dependencies = this.npmPackage.dependencies || {};
     for (let link of this.npmLink) {
@@ -136,25 +139,31 @@ export namespace NPMPackage {
   export const validateDevDependencies = npmValidateDependencies;
 }
 
-@declareTask({ type: "npm package.json" })
+@Task.declare(["npm package.json"], {
+  npmPackage: npmValidate,
+  dest: FileElement.validateFile,
+})
 export class NPMGeneratePackage extends GenerateFileTask {
-  constructor(graph: Graph, public info: NPMPackage, path: string) {
-    super({ type: "npm", name: "package.json" }, graph, path);
+  npmPackage: object
+
+  constructor(name: string, graph: Graph, { npmPackage, dest } : { npmPackage: object, dest: File }) {
+    super({ type: "npm", name: name }, graph, dest);
+    this.npmPackage = npmPackage;
   }
 
   uniqueKeyInfo() : any {
-    return this.info;
+    return this.npmPackage;
   }
 
   generate() : Buffer {
-    return new Buffer(JSON.stringify(this.info, null, 2), 'utf8');
+    return new Buffer(JSON.stringify(this.npmPackage, null, 2), 'utf8');
   }
 }
 
 export class NPMTask extends ProcessTask {
-  constructor(name: string, graph: Graph, directory: string) {
+  constructor(name: string, graph: Graph, directory: Directory) {
     super({ type: "npm", name: name }, graph, [], [], { type: "npm" });
-    this.setCwd(directory);
+    this.setCwd(directory.path);
     this.addFlags(["--loglevel", "info"]);
   }
 
@@ -170,24 +179,26 @@ export class NPMTask extends ProcessTask {
   }
 }
 
-@declareTask({ type: "npm link" })
 export class NPMLinkTask extends InOutTask {
-
   constructor(graph: Graph, source: Directory, target: Directory) {
     super({ type: "npm", name: "link" }, graph, [source], [target]);
   }
 
-  run(step: Step<{}>) {
+  do_build(step: Step<{}>) {
     this.outputFiles[0].writeSymlinkOf(step, this.inputFiles[0], true);
   }
-
 }
 
-@declareTask({ type: "npm install" })
+@Task.declare(["npm install"], {
+  packages: npmValidateDeps,
+  directory: Target.validateDirectory,
+})
 export class NPMInstallTask extends NPMTask {
-  constructor(graph: Graph, directory: string) {
-    super("install", graph, directory);
+  constructor(name: string, graph: Graph, { directory, packages } : { directory: Directory, packages: { [s: string]: string } }) {
+    super(name, graph, directory);
     this.addFlags(['install']);
+    for (let pkg in packages)
+      this.addPackage(pkg, packages[pkg]);
   }
 
   addPackage(name: string, version: string) {
