@@ -58,6 +58,72 @@ Dans cet exemple, `Microstep` est un `project` qui déclare deux éléments `bas
 
 De manière générale, si un élément père P fait référence à un élément E, celui-ci est recherché dans P, puis dans le père de P, et ainsi de suite en remontant jusqu'au projet, et même jusqu'à l'espace de travail si l'élément est importé.
 
+Groupe
+------
+
+Un groupe est un élément contenant d'autres éléments de même type et/ou des sous-groupes.
+
+Les sous-éléments peuvent être désignés par leurs noms sous la propriété `elements`. Tous les sous-éléments doivent être de même type (ou des sous-groupes dont les sous-éléments sont de même types).  
+
+Un groupe peut porter des attributs, c'est attributs sont alors reportés sur l'ensemble des sous-éléments du groupe. Si des sous-groupes portent des attributs ceux-ci sont ajoutés et ont priorité sur ceux ajoutés par les sur-groupes pour l'ensemble des sous-éléments qu'ils contiennent.
+
+Voici l'exemple d'un groupe nommé `myGroup` composé des deux éléments `e1` et `e2`.
+
+```js
+'myGroup=': {
+  is: "group",
+  elements: [ "e1", "e2" ],
+  }
+```
+
+Les sous-éléments peuvent être définis directement dans le groupe comme suit:
+
+```js
+'myGroup=': {
+  is: "group",
+  elements: [ "=e1", "=e2" ],
+  'e1=': { is: "xxx", ... },
+  'e2=': { is: "xxx", ... },
+  }
+```
+
+Ou alors:
+
+```js
+'myGroup=': {
+  is: "group",
+  elements: [
+    { name: "e1", is: "xxx", ... },
+    { name: "e2", is: "xxx", ... },
+    ]
+  }
+```
+
+Si un sous-élément n'est pas défini dans le groupe, il est recherché au même niveau que le groupe puis en remontant jusqu'à l'espace de travail.
+
+Un groupe peut être utilisé partout où une valeur multiple est attendue. Sont alors ajoutés tous les éléments terminaux du groupe et de ses sous-groupes.
+
+Par exemple si on a défini un groupe `commonPublicHeaders` de headers publiques courants, on pourra l'appliquer aux `publicHeaders` d'un objectif particulier comme suit:
+
+```js
+'header1=': { is: "file", ... },
+'header2=': { is: "file", ... },
+'header3=': { is: "file", ... },
+'commonPublicHeaders=': {
+  is: "group",
+  elements: [ "=header1", "=header2" ],
+  }
+'myTarget=': {
+  is: "target",
+  publicHeaders: ["=commonPublicHeaders", "=header3"],
+  }
+```
+
+Contrairement aux autres éléments, un groupe ne définit jamais d'étiquettes car cela entretiendrait une confusion. En effet, ces étiquettes pourraient être comprises:
+
+ - soit comme appartenant au groupe lui-même,
+ - soit comme s'appliquant aux éléments terminaux du groupe et de ses sous-groupes.
+
 Références
 ----------
 
