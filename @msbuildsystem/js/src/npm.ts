@@ -158,14 +158,14 @@ export class NPMTask extends ProcessTask {
     this.addFlags(["--loglevel", "info"]);
   }
 
-  run(step: Step<{}>) {
+  do_build(step: Step<{}>) {
     let node_modules = File.getShared(path.join(this.cwd, 'node_modules'), true);
     node_modules.ensureDir((err) => {
       if (err) {
         step.context.reporter.error(err);
         step.continue();
       }
-      else super.run(step);
+      else super.do_build(step);
     });
   }
 }

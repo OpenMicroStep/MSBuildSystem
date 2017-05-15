@@ -16,7 +16,7 @@ export class HeaderAliasTask extends Task {
     this.steps.push([inFile, outFile]);
   }
 
-  run(fstep: Step<{}>) {
+  do_build(fstep: Step<{}>) {
     var i = 0;
     var step = () => {
       if (i < this.steps.length) {
@@ -41,7 +41,7 @@ export class HeaderAliasTask extends Task {
     step();
   }
 
-  clean(fstep) {
+  do_clean(fstep) {
     var i = 0;
     var step = () => {
       if (i < this.steps.length) {

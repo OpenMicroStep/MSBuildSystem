@@ -40,7 +40,7 @@ export class CopyTask extends Task {
     }
   }
 
-  run(step: Step<{}>) {
+  do_build(step: Step<{}>) {
     let barrier = new Barrier("Copy files", this.steps.length / 2);
     for (let i = 1, len = this.steps.length; i < len; i += 2) {
       let from = this.steps[i];
@@ -53,7 +53,7 @@ export class CopyTask extends Task {
     }
     barrier.endWith(step.continue.bind(step));
   }
-  clean(step: Step<{}>) {
+  do_clean(step: Step<{}>) {
     let elements: ((f: Step<{}>) => void)[] = [];
     this.foreach((from, to) => {
       elements.push(f => to.unlink(f));

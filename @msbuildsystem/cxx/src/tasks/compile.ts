@@ -153,11 +153,11 @@ export class CompileTask extends ProcessTask {
     return ["inputs", "files", "dependencies outputs"];
   }
 
-  isRunRequired(step: StepWithData<{ runRequired?: boolean }, {}, { headers: string[] }>) {
+  is_build_required(step: StepWithData<{ actionRequired?: boolean }, {}, { headers: string[] }>) {
      step.setFirstElements((step) => {
-       if (!step.context.runRequired && step.context.sharedData.headers) {
+       if (!step.context.actionRequired && step.context.sharedData.headers) {
          File.ensure(step.context.sharedData.headers.map(h => File.getShared(h)), step.context.lastSuccessTime, {}, (err, required) => {
-           step.context.runRequired = !!(err || required);
+           step.context.actionRequired = !!(err || required);
            step.continue();
          });
        }
@@ -165,6 +165,6 @@ export class CompileTask extends ProcessTask {
          step.continue();
        }
      });
-     super.isRunRequired(step);
+     super.is_build_required(step);
   }
 }

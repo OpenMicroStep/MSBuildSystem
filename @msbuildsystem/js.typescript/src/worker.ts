@@ -8,7 +8,7 @@ let timeout = setTimeout(() => {
 }, 5000);
 process.on('message', (message: InputData) => {
   clearTimeout(timeout);
-  new TscWorker(message).run(out => process.send!(out));
+  new TscWorker(message).do_build(out => process.send!(out));
 });
 
 export type InputData = {
@@ -102,7 +102,7 @@ class TscWorker {
     return success;
   }
 
-  run(cb: (out: OutputData) => void) {
+  do_build(cb: (out: OutputData) => void) {
     let out: OutputData = {
       diagnostics: [],
       sources: [],

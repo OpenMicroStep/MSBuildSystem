@@ -19,19 +19,6 @@ export class JSTarget extends Target {
     this.packager.buildGraph(reporter);
   }
 
-  requiredDo(step: Step<{}>) {
-    if (step.context.runner.action !== "generate")
-      return super.requiredDo(step);
-
-    let ide: string = step.context.runner.options['ide'];
-    switch (ide) {
-      case 'terminal': return super.requiredDo(step);
-      default:
-        step.context.reporter.diagnostic({ type: "error", msg: `unsupported ide generation: '${ide}'` });
-        return step.continue();
-    }
-  }
-
   absoluteCopyFilesPath() {
     return this.packager.absoluteCompilationOutputDirectory();
   }

@@ -14,7 +14,7 @@ export abstract class GenerateFileTask extends InOutTask {
     });
   }
 
-  run(step) {
+  do_build(step) {
     this.outputFiles[0].writeFile(this.generate(), (err) => {
       step.context.reporter.error(err);
       step.continue();

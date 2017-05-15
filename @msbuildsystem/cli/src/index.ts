@@ -177,7 +177,7 @@ function handle_run() {
         });
         runner.on("taskend", (context) => {
           if (!(context.task instanceof Graph)) {
-            if ((context as any).runRequired !== false)
+            if ((context as any).actionRequired !== false)
               ++run;
             ++done;
             tasks.delete(context.task);

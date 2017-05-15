@@ -12,29 +12,29 @@ export class InOutTask extends Task {
     };
   }
 
-  isRunRequired(step: Step<{ runRequired?: boolean }>) {
+  is_build_required(step: Step<{ actionRequired?: boolean }>) {
     if (this.inputFiles.length && this.outputFiles.length) {
       // Force creation of output file directories
       File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {
         if (err || required) {
-          step.context.runRequired = true;
+          step.context.actionRequired = true;
           step.continue();
         }
         else {
           File.ensure(this.inputFiles, step.context.lastSuccessTime, {}, (err, required) => {
-            step.context.runRequired = !!(err || required);
+            step.context.actionRequired = !!(err || required);
             step.continue();
           });
         }
       });
     }
     else {
-      step.context.runRequired = step.context.lastSuccessTime === 0;
+      step.context.actionRequired = step.context.lastSuccessTime === 0;
       step.continue();
     }
   }
 
-  clean(step: Step<{}>) {
+  do_clean(step: Step<{}>) {
     step.setFirstElements(this.outputFiles.map(f => flux => f.unlink(flux)));
     step.continue();
   }
