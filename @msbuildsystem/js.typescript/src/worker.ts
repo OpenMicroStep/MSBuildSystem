@@ -9,6 +9,7 @@ let timeout = setTimeout(() => {
 process.on('message', (message: InputData) => {
   clearTimeout(timeout);
   new TscWorker(message).do_build(out => process.send!(out));
+  process.disconnect();
 });
 
 export type InputData = {

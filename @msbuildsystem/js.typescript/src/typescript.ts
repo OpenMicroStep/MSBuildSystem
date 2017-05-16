@@ -128,31 +128,15 @@ export class TypescriptTask extends Task {
   }
 
   do_build(step: StepWithData<{}, {}, { sources?: string[] }>) {
-    let done = false;
-    let process = safeSpawnProcess(path.join(__dirname, 'worker.js'), [], undefined, {}, (err, code, signal, out) => {
-      if (err)
-        step.context.reporter.error(err);
-      else if (signal)
-        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with signal ${signal}` });
-      else if (code !== 0)
-        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with exit code: ${code}` });
-      if (out) {
-        step.context.reporter.log(out);
-      }
-      if (!done) {
-        done = true;
-        step.continue();
-      }
-    }, 'fork');
+    let process = safeSpawnProcess(step, {
+      cmd: [path.join(__dirname, 'worker.js')],
+      method: 'fork',
+    });
     let target = this.target();
     process.on('message', (message: OutputData) => {
       for (let d of message.diagnostics)
         step.context.reporter.diagnostic(d);
       step.context.sharedData.sources = message.sources;
-      if (!done) {
-        done = true;
-        step.continue();
-      }
     });
     process.send({
       files: this.files.map(f => f.path),

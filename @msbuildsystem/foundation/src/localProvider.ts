@@ -19,45 +19,32 @@ export class LocalProcessProvider extends ProcessProvider {
     if (this.options && this.options.args) {
       args.unshift.apply(args, this.options.args);
     }
-    this.run(this.bin, args, options.cwd, env, (err, code, signal, out) => {
-      if (err)
-        step.context.reporter.error(err);
-      else if (signal)
-        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with signal ${signal}` });
-      else if (code !== 0)
-        step.context.reporter.diagnostic({ type: "error", msg: `process terminated with exit code: ${code}` });
-      if (out) {
-        step.context.reporter.log(`${this.bin} ${args.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ')}\n`);
-        step.context.reporter.log(out);
-      }
-      step.continue();
-    });
-  }
-  run(bin: string, args: string[], cwd: string | undefined, env: {[s: string]: string}, cb: (err: Error, code: number, signal: string, out: string) => void) {
-    safeSpawnProcess(this.bin, args, cwd, env, cb);
+    safeSpawnProcess(step, { cmd: [this.bin, ...args], cwd: options.cwd, env: env });
   }
 }
 
 const baseEnv = process.env;
-
-export function safeSpawnProcess(
-  command: string,
-  args: string[],
-  cwd: string | undefined,
-  env: {[s: string]: string} | undefined,
-  callback: (err: Error | null, code: number, signal: string, out: string) => any,
-  method: 'spawn' | 'fork' = 'spawn'
-) {
+export type SafeSpawnParams = {
+  cmd: string[],
+  cwd?: string,
+  env?: {[s: string]: string},
+  tty?: boolean;
+  method?: 'spawn' | 'fork'
+};
+export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
+  let method = p.method || 'spawn';
   var options: any = {
     encoding: 'utf8',
     //stdio: ['ignore', 'pipe', 'pipe'],
-    cwd: cwd
+    cwd: p.cwd
   };
+  if (p.tty)
+    options.stdio = ['ignore', process.stdout, process.stderr];
   if (method === 'fork') {
     //options.stdio.push('ipc');
     options.execArgv = [];
   }
-  if (env && Object.keys(env).length) {
+  if (p.env && Object.keys(p.env).length) {
     var pathKey = "PATH";
     options.env = {};
     for (var i in baseEnv) {
@@ -67,27 +54,45 @@ export function safeSpawnProcess(
         options.env[i] = baseEnv[i];
       }
     }
-    if (env["PATH"] && pathKey !== "PATH") {
-      env[pathKey] = env["PATH"];
-      delete env["PATH"];
+    if (p.env["PATH"] && pathKey !== "PATH") {
+      p.env[pathKey] = p.env["PATH"];
+      delete p.env["PATH"];
     }
-    for (var i in env) {
-      if (env.hasOwnProperty(i)) {
-        options.env[i] = env[i];
-      }
+    for (var i of Object.getOwnPropertyNames(p.env)) {
+        options.env[i] = p.env[i];
     }
   }
-  var process: child_process.ChildProcess = (child_process[method] as any)(command, args, options);
+  var proc: child_process.ChildProcess = (child_process[method] as any)(p.cmd[0], p.cmd.slice(1), options);
   var out = "";
   var exited = false;
 
   var err: Error | null = null;
 
+  function cmd() {
+    return p.cmd.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ');
+  }
+
+  function callback(err, code, signal, out) {
+    if (p.tty)
+      process.stderr.write(`∧ [${signal || code}] ${cmd()}\n`);
+    if (err)
+      step.context.reporter.error(err);
+    if (out || signal || code !== 0) {
+      step.context.reporter.failed = !!(signal || code !== 0);
+      step.context.reporter.log(`${cmd()}\n`);
+      if (out)
+        step.context.reporter.log(out);
+      if (signal)
+        step.context.reporter.log(`process terminated with signal ${signal}`);
+      if (code !== 0)
+        step.context.reporter.log(`process terminated with exit code: ${code}`);
+    }
+    step.continue();
+  }
+
   function exithandler(code, signal) {
     if (exited) return;
     exited = true;
-
-    if (!callback) return;
     callback(err, code, signal, out);
   }
 
@@ -96,18 +101,20 @@ export function safeSpawnProcess(
     exithandler(-1, null);
   }
 
-  if (process) {
+  if (p.tty)
+    process.stderr.write(`∨ ${cmd()}\n`);
+  if (proc) {
     var append = function(chunk) { out += chunk; };
-    if (process.stdout)
-      process.stdout.addListener('data', append);
-    if (process.stderr)
-      process.stderr.addListener('data', append);
-    process.addListener('close', exithandler);
-    process.addListener('error', errorhandler);
+    if (!p.tty && proc.stdout)
+      proc.stdout.addListener('data', append);
+    if (!p.tty && proc.stderr)
+      proc.stderr.addListener('data', append);
+    proc.addListener('close', exithandler);
+    proc.addListener('error', errorhandler);
   }
   else {
     err = new Error("could not create child_process object");
     exithandler(-1, null);
   }
-  return process;
+  return proc;
 }
