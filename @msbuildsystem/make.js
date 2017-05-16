@@ -9,6 +9,14 @@ function moduleFiles(name) {
     ]}
   ]}
 }
+function tests(path) {
+  return [
+    `${path}/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js`,
+    `${path}/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js`,
+    `${path}/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js`,
+    `${path}/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js`,
+  ]
+}
 
 module.exports= {
   is: "project",
@@ -205,20 +213,33 @@ module.exports= {
       copyFiles: [{is: 'group', elements: ['=files:typescript:tst ? rsc'], dest: 'data/hello-world', expand: true }]
     },
   },
-  /* WIP
-  'tests=': {
-    // launch is a new element type related to testing/executing/debugging an output
-    is: 'launch',
-    // the type of launch allow like for targets to provide advanced control over the launch (ie. providing a debugger service)
-    type: "node",
-    // launch element results in launch graph in the build graph with dependencies to some targets
-    targets: ['=targets ? test'],
-    // like targets, launch are compatible with some environements
-    environments: ['=launch envs:node'],
-    // Everypath is relative to the environment output to make it easy to set the program value
-    program: "=::core.tests:: ?"
-    arguments: [...]
-    "cwd":
+  'commands=': { is: "group",
+    "shell=": { is: "environment"},
+    'cwd=': { is: 'group', elements: [{ is: 'file', name: "../" }] },
+    "build-1=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+      "msbuildsystem", "build", "-p", "@msbuildsystem", "-w", "dist/1/"
+    ]) },
+    "tests-1=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+      "mstests", "-c", ...tests("dist/1")
+    ]) },
+    "build-2=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+      "node", "dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/2/"
+    ]) },
+    "tests-2=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+      "mstests", "-c", ...tests("dist/2")
+    ]) },
+    "build-3=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+      "node", "dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/3/"
+    ]) },
+    "tests-3=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+      "mstests", "-c", ...tests("dist/3")
+    ]) },
+    "build-tests-1=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(["=build-1", "=tests-1"]) },
+    "build-tests-2=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(["=build-2", "=tests-2"]) },
+    "build-tests-3=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(["=build-3", "=tests-3"]) },
+    "bootstrap=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(
+      ["=build-1", "=build-2", "=build-3", "=tests-3"]
+    ) },
   }
-  */
 }
+
