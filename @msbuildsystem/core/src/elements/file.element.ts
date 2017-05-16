@@ -60,6 +60,10 @@ export class FileElement extends MakeJSElement {
     this.__file = file;
   }
 
+  absolutePath() {
+    return this.__file.path;
+  }
+
   __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
     attrPath.diagnostic(context.reporter, { type: 'error', msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
   }
