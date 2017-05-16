@@ -124,12 +124,8 @@ function injectAttribute(ctx: InjectionContext,
     for (let srcValue of srcValues) {
       if (srcValue instanceof DelayedElement)
         mapValues(srcValue.__delayedResolve(ctx, dstPath), dstSet, lvl + 1);
-      else {
-        let lpath = ctx.lpath;
-        ctx.lpath += (++ctx.uid); // create a new unique context
-        dstSet.add(injectionMapValue(ctx, srcValue));
-        ctx.lpath = lpath;
-      }
+      else
+        dstSet.add(injectionMapValueInIterable(ctx, srcValue, ++ctx.uid)); // create a new unique context
     }
     return dstSet;
   }
@@ -137,8 +133,12 @@ function injectAttribute(ctx: InjectionContext,
   function setDstValue(srcValue) {
     let isValue = Element.isValue(srcValue);
     if (!dstExists) {
-      if (isValue)
-        dstValue = dst[dstAttribute] = srcValue;
+      if (isValue) {
+        if (srcValue instanceof Array)
+          dstValue = dst[dstAttribute] = srcValue.map((v, idx) => injectionMapValueInIterable(ctx, v, idx));
+        else
+          dstValue = dst[dstAttribute] = srcValue;
+      }
       else if (srcValue instanceof Set || srcValue instanceof Array)
         dstValue = dst[dstAttribute] = mapValues(srcValue, new Set());
       else if (srcValue instanceof DelayedElement) {
@@ -177,6 +177,13 @@ function injectAttribute(ctx: InjectionContext,
     else if (srcValue !== dstValue)
       collision();
   }
+}
+function injectionMapValueInIterable(ctx: InjectionContext, srcValue, idx: number) {
+  let lpath = ctx.lpath;
+  ctx.lpath += idx;
+  let ret = injectionMapValue(ctx, srcValue);
+  ctx.lpath = lpath;
+  return ret;
 }
 
 export function injectionMapValue(ctx: InjectionContext, srcValue) {
