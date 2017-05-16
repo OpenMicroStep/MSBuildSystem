@@ -214,32 +214,65 @@ module.exports= {
     },
   },
   'commands=': { is: "group",
-    "shell=": { is: "environment"},
+    "envs=": { is: "group", elements: [
+      { is: "environment", name: "gitlab", tags: ["ci"   ] },
+      { is: "environment", name: "travis", tags: ["ci"   ] },
+      { is: "environment", name: "local" , tags: ["local"] },
+    ]},
+    "shell=": {
+      is: "component",
+      type: "basic",
+      manual: true,
+      environments: ["=envs"],
+    },
+    "cmd=": {
+      is: "component",
+      type: "cmd",
+      cwd: "={cwd}.absolutePath",
+      tty: true
+    },
     'cwd=': { is: 'group', elements: [{ is: 'file', name: "../" }] },
-    "build-1=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+    "build-1=": { is: "task", components: ["=cmd"], cmd: Value([
       "msbuildsystem", "build", "-p", "@msbuildsystem", "-w", "dist/1/"
     ]) },
-    "tests-1=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+    "tests-1=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", ...tests("dist/1")
     ]) },
-    "build-2=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+    "build-2=": { is: "task", components: ["=cmd"], cmd: Value([
       "node", "dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/2/"
     ]) },
-    "tests-2=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+    "tests-2=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", ...tests("dist/2")
     ]) },
-    "build-3=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+    "build-3=": { is: "task", components: ["=cmd"], cmd: Value([
       "node", "dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/3/"
     ]) },
-    "tests-3=": { is: "task", type: "cmd", cwd: "={cwd}.absolutePath", tty: true, cmd: Value([
+    "tests-3=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", ...tests("dist/3")
     ]) },
-    "build-tests-1=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(["=build-1", "=tests-1"]) },
-    "build-tests-2=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(["=build-2", "=tests-2"]) },
-    "build-tests-3=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(["=build-3", "=tests-3"]) },
-    "bootstrap=": { is: "target", type: "basic", environments: ["=shell"], manual: true, preTasks: Value(
-      ["=build-1", "=build-2", "=build-3", "=tests-3"]
-    ) },
+    "coverage-3=": { is: "task", components: ["=cmd"], cmd: Value([
+      "istanbul", "cover", "mstests",
+      "--report", "json",
+      "-x", "msbuildsystem.*.tests/**",
+      "--root", "dist/3/node/node_modules/@openmicrostep/",
+      "--",
+      "-c", "-t", "20000", "-i", "-g", "perf", ...tests("dist/3")
+    ]) },
+    "coveralls-3=": { is: "task", components: ["=cmd"], cmd: Value([
+      "sh", "-c",
+      "cat ./coverage/coverage-final.json | remap-istanbul --type lcovonly | coveralls"
+    ]) },
+    "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: Value([
+      "sh", "-c",
+      "cat ./coverage/coverage-final.json | remap-istanbul --output coverage --type html"
+    ]) },
+    "build-tests-1=": { is: "target", components: ["=shell"], preTasks: Value(["=build-1", "=tests-1"]) },
+    "build-tests-2=": { is: "target", components: ["=shell"], preTasks: Value(["=build-2", "=tests-2"]) },
+    "build-tests-3=": { is: "target", components: ["=shell"], preTasks: Value(["=build-3", "=tests-3"]) },
+    "bootstrap=":     { is: "target", components: ["=shell"], preTasksByEnvironment: {
+      "=envs ? ci   ": Value(["=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-3", "=coveralls-3"     ]),
+      "=envs ? local": Value(["=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-3", "=coverage-local-3"]),
+    } },
   }
 }
 

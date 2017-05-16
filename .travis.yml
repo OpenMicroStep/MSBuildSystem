@@ -4,21 +4,6 @@ node_js:
   - "7"
 
 script:
-  - npm install -q -g @openmicrostep/msbuildsystem.cli@^0.4.0 @openmicrostep/tests istanbul coveralls remap-istanbul
-  - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript@^0.4.0
-  - msbuildsystem build -p @msbuildsystem -w dist/1/
-  - node dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/2/
-  - node dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js build -p @msbuildsystem -w dist/3/
-  - mstests
-        -c -t 20000
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
-  - istanbul cover mstests --report json -x 'msbuildsystem.*.tests/**' --root dist/3/node/node_modules/@openmicrostep/ --
-        -c -t 20000 -i -g perf
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared.tests/index.js
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.core.tests/index.js
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.tests/index.js
-        dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript.tests/index.js
-    && cat ./coverage/coverage-final.json | remap-istanbul --type lcovonly | coveralls && rm -rf ./coverage
+  - npm install -q -g @openmicrostep/msbuildsystem.cli@^0.5.0 @openmicrostep/tests istanbul coveralls remap-istanbul
+  - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript@^0.5.0
+  - msbuildsystem build -p @msbuildsystem -w dist/gitlab/ --target bootstrap --env travis --no-progress
