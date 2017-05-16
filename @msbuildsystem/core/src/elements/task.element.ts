@@ -46,7 +46,13 @@ export namespace TaskElement {
   export const validateTaskSequence: AttributeTypes.ValidatorT<Graph, Target> = {
     validate: function validateArray(reporter: Reporter, path: AttributePath, attr: any, target: Target) {
       let graph = new Graph({ type: "graph", name: "tasks" }, target);
-      validateArrayOf.validate(reporter, path, attr, graph);
+      let tasks = validateArrayOf.validate(reporter, path, attr, graph);
+      let p: Node | undefined = undefined;
+      for (let t of tasks) {
+        if (p)
+          t.addDependency(p);
+        p = t;
+      }
       return graph;
     },
     traverse() {
