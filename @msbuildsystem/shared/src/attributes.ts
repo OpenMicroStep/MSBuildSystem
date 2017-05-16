@@ -206,6 +206,32 @@ export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defa
   };
 }
 
+export function fallbackTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: undefined) : Traverse<Validator0<T    >>;
+export function fallbackTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: undefined) : Traverse<Validator <T, A0>>;
+export function fallbackTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: undefined) : Traverse<Validator0<T    >>;
+export function fallbackTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: undefined) : Traverse<Validator <T, A0>>;
+export function fallbackTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: T) : Traverse<ValidatorNU0<T    >>;
+export function fallbackTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: T) : Traverse<ValidatorNU <T, A0>>;
+export function fallbackTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: T) : Traverse<ValidatorNU0<T    >>;
+export function fallbackTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: T) : Traverse<ValidatorNU <T, A0>>;
+export function fallbackTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: (  ) => T) : Traverse<ValidatorNU0<T    >>;
+export function fallbackTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: (a0) => T) : Traverse<ValidatorNU <T, A0>>;
+export function fallbackTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: (  ) => T) : Traverse<ValidatorNU0<T    >>;
+export function fallbackTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: (a0) => T) : Traverse<ValidatorNU <T, A0>>;
+export function fallbackTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: T | ((a0) => T)) : Traverse<ValidatorNU <T, A0>> {
+  function validateWithFallbackValue(reporter, path: AttributePath, value, a0: A0) {
+    if ((value = validator.validate(reporter, path, value, a0)) === undefined)
+      return typeof defaultValue === "function" ? defaultValue(a0) : defaultValue;
+    return value;
+  }
+  return {
+    validate: validateWithFallbackValue,
+    traverse(lvl, context) {
+      return `${validator.traverse(lvl, context)}`;
+    }
+  };
+}
+
 export function functionValidator<A0>(prototype: string) : Validator<void, A0> {
   function validateFunction(reporter, path: AttributePath, value, a0: A0) {
     AttributeUtil.safeCall(reporter, value, prototype, null, path, a0);
