@@ -4,6 +4,10 @@ import {
 } from '../index.priv';
 
 Project.elementFactories.registerSimple('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: MakeJSElement) => {
+  if (!name) {
+    attrPath.diagnostic(reporter, { type: "warning", msg: `target element must have a name` });
+    return undefined;
+  }
   let target = new TargetElement(name, parent);
   parent.__root().__project().targets.push(target);
   return target;
