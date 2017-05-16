@@ -88,14 +88,21 @@ export module FileElement {
 }
 
 function loadElementFile(reporter: Reporter, attrPath: AttributePath, filepath: string, files: File[]) {
+  let file: File | undefined = undefined;
   try {
     let stats = fs.statSync(filepath);
-    if (!stats.isFile())
-      attrPath.diagnostic(reporter, { type: 'error', msg: `path '${filepath}' doesn't refer to a file` });
+    if (stats.isFile())
+      file = File.getShared(filepath);
+    else if (stats.isDirectory())
+      file = File.getShared(filepath, true);
+    else
+      attrPath.diagnostic(reporter, { type: 'error', msg: `path '${filepath}' doesn't refer to a file or directory` });
   } catch (e) {
     attrPath.diagnostic(reporter, { type: 'warning', msg: `file '${filepath}' not found` });
   }
-  files.push(File.getShared(filepath));
+  if (!file)
+    file = File.getShared(filepath);
+  files.push(file);
 }
 
 function loadElementFiles(reporter: Reporter,
