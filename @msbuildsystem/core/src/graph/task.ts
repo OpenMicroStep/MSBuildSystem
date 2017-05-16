@@ -7,7 +7,7 @@ function taskValidator<T extends object>(extensions: AttributeTypes.ExtensionsNU
   function validateObject(reporter: Reporter, path: AttributePath, attr: TaskElement, target) {
     return map(reporter, AttributeTypes.superValidateObject(reporter, path, attr, target, {}, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
         if (!attr.__keyMeaning(a0))
-          target.unusedAttributes.add(a0);
+          at.diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
         return undefined;
       }}));
   };
