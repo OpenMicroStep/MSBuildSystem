@@ -128,8 +128,11 @@ function injectAttribute(ctx: InjectionContext,
   }
 
   function setDstValue(srcValue) {
+    let isValue = Element.isValue(srcValue);
     if (!dstExists) {
-      if (srcValue instanceof Set || srcValue instanceof Array)
+      if (isValue)
+        dstValue = dst[dstAttribute] = srcValue;
+      else if (srcValue instanceof Set || srcValue instanceof Array)
         dstValue = dst[dstAttribute] = mapValues(srcValue, new Set());
       else if (srcValue instanceof DelayedElement) {
         let srcValues = srcValue.__delayedResolve(ctx, dstPath);
@@ -146,6 +149,8 @@ function injectAttribute(ctx: InjectionContext,
         dstValue = dst[dstAttribute] = injectionMapValue(ctx, srcValue);
       dstExists = true;
     }
+    else if (isValue && srcValue !== dstValue)
+      collision();
     else if (srcValue instanceof Set || srcValue instanceof Array) { // src is a set
       if (dstValue instanceof Array) {
         dstValue = dst[dstAttribute] = new Set(dstValue);

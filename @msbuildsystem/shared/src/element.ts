@@ -110,6 +110,16 @@ export class Element {
     return typeof value === 'string' && value.startsWith('__');
   }
 
+  static asValue(value: any) {
+    return typeof value === 'object' ? Object.freeze(value) : value;
+  }
+  static isValue(value: any) {
+    return typeof value === 'object' ? Object.isFrozen(value) : true;
+  }
+  static keepIsValue(oldValue, newValue) {
+    return Element.isValue(oldValue) ? Element.asValue(newValue) : newValue;
+  }
+
   constructor(is: string, name: string, parent: Element | null) {
     this.___path = undefined;
     this.__parent = parent;
@@ -201,12 +211,14 @@ export class Element {
   }
 
   __loadValue(context: ElementLoadContext, value: any, attrPath: AttributePath) {
+    let newValue = value;
     if (typeof value === "object") {
       if (Array.isArray(value))
-        return this.__loadArray(context, value, [], attrPath);
-      return this.__loadObject(context, value, {}, attrPath);
+        newValue = this.__loadArray(context, value, [], attrPath);
+      else
+        newValue = this.__loadObject(context, value, {}, attrPath);
     }
-    return value;
+    return Element.keepIsValue(value, newValue);
   }
   __loadObject<T>(context: ElementLoadContext, object: {[s: string]: any}, into: {[s: string]: T}, attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
     if ("is" in object) {
@@ -312,12 +324,12 @@ export class Element {
   __resolveAnyValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
     if (typeof value === "object") {
       if (Array.isArray(value))
-        return this.__resolveValuesInArray(reporter, value, attrPath);
+        return Element.keepIsValue(value, this.__resolveValuesInArray(reporter, value, attrPath));
       if (value instanceof Element) {
         value.__resolve(reporter);
         return value;
       }
-      return this.__resolveValuesInObject(reporter, value, {}, attrPath);
+      return Element.keepIsValue(value, this.__resolveValuesInObject(reporter, value, {}, attrPath));
     }
     else if (Element.isReference(value)) {
       let ret: Element[] = [];

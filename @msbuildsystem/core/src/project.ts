@@ -36,7 +36,7 @@ export class Project {
     this.definition = null;
     try {
       const makejs = fs.readFileSync(this.path, 'utf8');
-      const sandbox = { module: { exports: {} } };
+      const sandbox = { module: { exports: {} }, Value: Element.asValue };
       vm.createContext(sandbox);
       vm.runInContext(makejs, sandbox, { filename: this.path, displayErrors: true });
       this.definition = <MakeJS.Project>sandbox.module.exports;
