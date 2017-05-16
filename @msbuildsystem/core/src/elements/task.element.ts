@@ -9,20 +9,21 @@ Project.elementFactories.registerSimple('task', factory);
 Project.elementExportsFactories.registerSimple('task', factory);
 export class TaskElement extends ComponentElement {
   static validate = Element.elementValidator('task', TaskElement);
-  type: Task.Constructor<any, any> | undefined;
+  type: string | undefined;
 
   constructor(name: string, parent: Element) {
     super('task', name, parent);
   }
+
+  __keyMeaning(attr) {
+    return attr === "type" ? Element.KeyMeaning.Element : super.__keyMeaning(attr);
+  }
 }
-Element.registerAttributes(TaskElement, [], {
-  type: Task.providers.validate
-});
 export namespace TaskElement {
   const validateAsTask: AttributeTypes.Validator<Task, Graph> = {
     validate(reporter: Reporter, path: AttributePath, value: any, graph: Graph) : Task | undefined {
       let e = TaskElement.validate.validate(reporter, path, value);
-      let cstor = e && e.type;
+      let cstor = e && e.type ? Task.providers.validate.validate(reporter, path, e.type) : undefined;
       let v = cstor && cstor.prototype.__validator;
       let attrs = v && v.validate(reporter, path, e, graph.target());
       let task = cstor && new cstor(e!.name, graph, attrs);
