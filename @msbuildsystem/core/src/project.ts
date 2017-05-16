@@ -12,6 +12,7 @@ export interface BuildGraphOptions {
   allowManual?: boolean;
 };
 
+const allowedModules = new Set(["path", "fs", "child_process", "os"]);
 export class Project {
   workspace: Workspace;
   directory: string;
@@ -36,7 +37,17 @@ export class Project {
     this.definition = null;
     try {
       const makejs = fs.readFileSync(this.path, 'utf8');
-      const sandbox = { module: { exports: {} }, Value: Element.asValue };
+      const sandbox = {
+        __filename: this.path,
+        __dirname: path.dirname(this.path),
+        require: function(module) {
+          if (allowedModules.has(module))
+            return require(module);
+          throw new Error(`module ${module} is not one of: ${[...allowedModules].join(', ')}`);
+        },
+        module: { exports: {} },
+        Value: Element.asValue,
+      };
       vm.createContext(sandbox);
       vm.runInContext(makejs, sandbox, { filename: this.path, displayErrors: true });
       this.definition = <MakeJS.Project>sandbox.module.exports;
