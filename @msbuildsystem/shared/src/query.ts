@@ -29,7 +29,7 @@ export function parseQuery(parser: Parser) : Query {
   }
   if (level && parser.consume('}')) {
     parser.skip(Parser.isAnySpaceChar);
-    if (parser.ch === '.')
+    if (parser.test('.'))
       ret.method = parser.while(Parser.isWordChar, 1);
     else
       parseAttributes(parser, ret);
@@ -47,6 +47,7 @@ function parseGroups(parser: Parser, ret: Query) {
 }
 function parseTags(parser: Parser, ret: Query) {
   do {
+    parser.skip(Parser.isAnySpaceChar);
     if (parser.test('!')) {
       parser.skip(Parser.isAnySpaceChar);
       ret.rejectedTags.push(parser.while(isNotQuerySpecialChar, 1).trim());
