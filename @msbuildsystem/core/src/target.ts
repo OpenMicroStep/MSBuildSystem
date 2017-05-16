@@ -8,7 +8,7 @@ import * as fs from 'fs-extra';
 
 function targetValidator<T extends object, A0 extends Target & T>(extensions: AttributeTypes.ExtensionsNU<T, A0>) : AttributeTypes.ValidatorT<void, { target: A0, into: any }> {
   function validateObject(reporter: Reporter, path: AttributePath, attr: BuildTargetElement, { target, into }:  { target: A0, into: any }) : void {
-    Object.getOwnPropertyNames(extensions).forEach(name => target.usedAttributes.add(name));
+    Object.keys(extensions).forEach(name => target.usedAttributes.add(name));
     AttributeTypes.superValidateObject(reporter, path, attr, target, into, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
         if (!attr.__keyMeaning(a0))
           target.unusedAttributes.add(a0);
