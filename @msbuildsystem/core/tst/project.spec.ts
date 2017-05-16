@@ -159,6 +159,7 @@ function build_graph(f: Flux<Context>) {
     compatibleEnvironments: [],
     components   : [],
     targets      : [],
+    manual       : false,
     environment  : {
       is: "environment",
       name: "darwin-i386",

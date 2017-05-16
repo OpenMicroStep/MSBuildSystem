@@ -108,7 +108,8 @@ function handle_run() {
     let perf = util.performanceCounter();
     let graph = workspace.buildGraph(reporter, {
       environments: args.environments || undefined,
-      targets: args.targets || ([] as string[]).concat(...projects.map(p => p.targets.map(t => t.name)))
+      targets: args.targets || ([] as string[]).concat(...projects.map(p => p.targets.map(t => t.name))),
+      allowManual: !!args.targets
     });
     if (printReport('Build graph create', reporter, perf())) {
       let runner = new Runner(graph, args.command, { ide: args.ide, full: args.full });

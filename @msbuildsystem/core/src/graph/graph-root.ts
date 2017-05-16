@@ -1,5 +1,5 @@
 import {Workspace, Project, Target, AttributePath, transformWithCategory,
-  Graph, Reporter, BuildGraphOptions,
+  Graph, Reporter, BuildGraphOptions, Diagnostic,
   Element, BuildTargetElement, TargetElement, EnvironmentElement, TargetExportsElement
 } from '../index.priv';
 import * as fs from 'fs';
@@ -30,19 +30,23 @@ export class RootGraph extends Graph {
         let targetEnvs = target.environments.filter(e => !options.environments || options.environments.indexOf(e.name) !== -1);
         for (let environment of targetEnvs) {
           selected++;
-          this.createTarget(reporter, undefined, target, environment);
+          this.createTarget(reporter, undefined, target, environment, !!options.allowManual);
         }
       }
     }
     if (selected === 0) {
       reporter.diagnostic({
         type: "error",
-        msg: "no target selected"
+        msg: "no target selected",
+        notes: this.workspace.targets().map<Diagnostic>(t => ({
+          type: "note", msg: `possible target: '${t.name}'`,
+          notes: t.environments.map<Diagnostic>(e => ({type: "note", msg: `possible environment: '${e.name}'`}))
+        }))
       });
     }
   }
 
-  createTarget(reporter: Reporter, requester: BuildTargetElement | undefined, target: TargetElement, environment: EnvironmentElement) : Target | undefined {
+  createTarget(reporter: Reporter, requester: BuildTargetElement | undefined, target: TargetElement, environment: EnvironmentElement, allowManual: boolean) : Target | undefined {
     let task: Target | undefined = undefined;
     for (let t of this.iterator(false) as IterableIterator<Target>) {
       let e = t.attributes;
@@ -67,29 +71,36 @@ export class RootGraph extends Graph {
     if (!task && !requester) {
       reporter.transform.push(transformWithCategory('instantiate'));
       let buildTarget = new BuildTargetElement(reporter, this, target, environment);
-      let cls = Target.providers.validate.validate(reporter, new AttributePath(buildTarget), buildTarget.type);
-      if (cls) {
-        task = new cls(this, buildTarget.__root().__project(), buildTarget);
-        if (task.attributes.targets.length) {
-          let p = new AttributePath(task, '.targets[', '', ']');
-          task.attributes.targets.forEach((targetName, i) => {
-            p.set(i , -2);
-            let depTarget = this.findTarget(reporter, p, buildTarget, targetName, buildTarget.environment);
-            if (depTarget)
-              task!.addDependency(depTarget);
-          });
-        }
+      if (!buildTarget.manual || allowManual)
+        task = this.createTarget_(reporter, buildTarget);
+    }
+    return task;
+  }
+
+  createTarget_(reporter: Reporter, buildTarget: BuildTargetElement) : Target | undefined {
+    let task: Target | undefined;
+    let cls = Target.providers.validate.validate(reporter, new AttributePath(buildTarget), buildTarget.type);
+    if (cls) {
+      task = new cls(this, buildTarget.__root().__project(), buildTarget);
+      if (task.attributes.targets.length) {
+        let p = new AttributePath(task, '.targets[', '', ']');
+        task.attributes.targets.forEach((targetName, i) => {
+          p.set(i , -2);
+          let depTarget = this.findTarget(reporter, p, buildTarget, targetName, buildTarget.environment);
+          if (depTarget)
+            task!.addDependency(depTarget);
+        });
       }
+    }
+    reporter.transform.pop();
+    if (task) {
+      reporter.transform.push(transformWithCategory('configure'));
+      task.configure(reporter, new AttributePath(task));
       reporter.transform.pop();
-      if (task) {
-        reporter.transform.push(transformWithCategory('configure'));
-        task.configure(reporter, new AttributePath(task));
-        reporter.transform.pop();
-        reporter.transform.push(transformWithCategory('exports'));
-        task.configureExports(reporter);
-        this.loadExportsDefinition(reporter, task.exports);
-        reporter.transform.pop();
-      }
+      reporter.transform.push(transformWithCategory('exports'));
+      task.configureExports(reporter);
+      this.loadExportsDefinition(reporter, task.exports);
+      reporter.transform.pop();
     }
     return task;
   }
@@ -116,7 +127,7 @@ export class RootGraph extends Graph {
     if (depTargetElement) {
       let compatibleEnv = depTargetElement.__compatibleEnvironment(reporter, environment);
       if (compatibleEnv)
-        return this.createTarget(reporter, requester, depTargetElement, compatibleEnv);
+        return this.createTarget(reporter, requester, depTargetElement, compatibleEnv, true);
     }
     return undefined;
   }

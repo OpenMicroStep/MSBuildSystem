@@ -9,6 +9,7 @@ import * as fs from 'fs';
 export interface BuildGraphOptions {
   targets?: string[];
   environments?: string[];
+  allowManual?: boolean;
 };
 
 export class Project {

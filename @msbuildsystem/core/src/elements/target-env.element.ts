@@ -7,6 +7,7 @@ import {
 const validateStringList = ComponentElement.setAsListValidator(AttributeTypes.validateString);
 
 export class BuildTargetElement extends MakeJSElement {
+  manual: boolean;
   environment: EnvironmentElement;
   compatibleEnvironments: string[];
   targets: string[];
@@ -58,13 +59,14 @@ export class BuildTargetElement extends MakeJSElement {
     let at = new AttributePath(this, '');
     this.type = AttributeTypes.validateString.validate(reporter, at.set('.type'), this.type) || "bad type";
     this.targets = validateStringList.validate(reporter, at.set('.targets'), this.targets) || [];
+    this.manual = AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false).validate(reporter, at.set('.manual'), this.manual);
   }
 
   __path() {
     return `${super.__path()}{${this.environment.name}}`;
   }
 }
-Element.registerAttributes(BuildTargetElement, ["environment", "compatibleEnvironments", "targets", "components", "exports", "type"], {});
+Element.registerAttributes(BuildTargetElement, ["environment", "compatibleEnvironments", "targets", "components", "exports", "type", "manual"], {});
 
 function serializeExports(ctx: InjectionContext, element: any, at: AttributePath) : any {
   if (element instanceof Object) {
