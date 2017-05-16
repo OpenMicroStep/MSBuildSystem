@@ -248,7 +248,7 @@ module.exports= {
       "node", "dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/3/"
     ]) },
     "tests-3=": { is: "task", components: ["=cmd"], cmd: Value([
-      "mstests", "-c", ...tests("dist/3")
+      "mstests", "-c", "-t", "10000", ...tests("dist/3")
     ]) },
     "coverage-3=": { is: "task", components: ["=cmd"], cmd: Value([
       "istanbul", "cover", "mstests",
