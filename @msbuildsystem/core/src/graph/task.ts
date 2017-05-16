@@ -1,19 +1,45 @@
 import {
   Graph, Node, Step, BuildSession, TaskDoMapReduce, Target,
-  createProviderMap, ProviderMap, Reporter, AttributePath, AttributeTypes
+  createProviderMap, ProviderMap, Reporter, AttributePath, AttributeTypes, TaskElement
 } from '../index.priv';
 
+function taskValidator<T extends object>(extensions: AttributeTypes.ExtensionsNU<T, Target>, map: Task.Map<any, any>) : AttributeTypes.ValidatorT<object, Target> {
+  function validateObject(reporter: Reporter, path: AttributePath, attr: TaskElement, target) {
+    return map(reporter, AttributeTypes.superValidateObject(reporter, path, attr, target, {}, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
+        if (!attr.__keyMeaning(a0))
+          target.unusedAttributes.add(a0);
+        return undefined;
+      }}));
+  };
+  return { validate: validateObject, traverse: (lvl, ctx) => `object with` };
+}
+
 export class Task extends Node {
-  static declare(names: string[]) : (cstor: { new (name: string, graph: Graph): Task }) => void;
-  static declare<A>(names: string[], attributes: AttributeTypes.Extensions<A, Target> ) : (cstor: { new (name: string, graph: Graph, attributes: A): Task }) => void;
-  static declare(names: string[], attributes?: AttributeTypes.Extension<any, Target>) {
-    return function register(cstor: { new (name: string, graph: Graph): Task }) {
-      Task.providers.register(names, cstor);
+  readonly __extensions: AttributeTypes.Extension<Partial<Target>, Target>; // on the prototype
+  readonly __validator: AttributeTypes.ValidatorNU<object, Target>;
+
+  static declare<T extends Task, A>(names: string[], attributes: AttributeTypes.ExtensionsNU<A, Target>) : (cstor: Task.Constructor<T, A>) => void;
+  static declare<T extends Task, OA, MA>(names: string[], attributes: AttributeTypes.ExtensionsNU<OA, Target>, map: Task.Map<OA, MA>) : (cstor: Task.Constructor<T, MA>) => void;
+  static declare<T extends Task, OA, MA>(names: string[], attributes: AttributeTypes.ExtensionsNU<OA, Target>, map?: Task.Map<OA, MA>) {
+    return function register(cstor: Task.Constructor<T, MA>) {
+      Task.register(names, cstor, attributes);
     };
   }
-  static providers = createProviderMap<{ new (name: string, graph: Graph): Task }>('tasks');
-  static register(names: string[], cstor: { new (name: string, graph: Graph): Task }, attributes?: {}) {
+  static providers = createProviderMap<Task.Constructor<any, any>>('tasks');
+
+  static register<T extends Task, A>(names: string[], cstor: Task.Constructor<T, A>, attributes: AttributeTypes.ExtensionsNU<A, Target>): void;
+  static register<T extends Task, OA, MA>(names: string[], cstor: Task.Constructor<T, MA>, attributes: AttributeTypes.ExtensionsNU<OA, Target>, map?: Task.Map<OA, MA>): void;
+  static register<T extends Task, OA, MA>(names: string[], cstor: Task.Constructor<T, MA>, attributes: AttributeTypes.ExtensionsNU<OA, Target>, map?: Task.Map<OA, MA>) {
     Task.providers.register(names, cstor);
+    let p = cstor.prototype;
+    if (p.hasOwnProperty('__extensions') || p.hasOwnProperty('__validator'))
+      throw new Error(`registerAttributes can only be called once per SelfBuildGraph class`);
+
+    let extensions = p.__extensions ? { ...p.__extensions, ...attributes as object } : (attributes || {});
+    Object.defineProperties(p, {
+      __extensions: { enumerable: false, writable: false, value: extensions },
+      __validator: { enumerable: false, writable: false, value: taskValidator(extensions, map || ((reporter, a) => a)) },
+    });
   }
 
   static generators = createProviderMap<TaskDoMapReduce<any, any>>('generator');
@@ -24,7 +50,7 @@ export class Task extends Node {
     super(name, graph);
   }
 
-  configure(attributes: {}) : void {}
+  configure(reporter: Reporter, attributes: {}) : void {}
 
   /** returns the unique and reusable accross session data storage of this task */
   getStorage() : BuildSession.BuildSession {
@@ -96,6 +122,11 @@ export class Task extends Node {
 }
 
 export namespace Task {
+  export type Map<OA, MA> = (reporter: Reporter, oa: OA) => MA;
+  export type Constructor<T extends Task, A> = {
+    new (name: string, graph: Graph, attributes: A): Task,
+    prototype: T
+  };
   export type Actions = { [s: string]: Action };
   export type Action = { name: string };
 }

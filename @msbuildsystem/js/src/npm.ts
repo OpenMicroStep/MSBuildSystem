@@ -141,7 +141,7 @@ export namespace NPMPackage {
 
 @Task.declare(["npm package.json"], {
   npmPackage: npmValidate,
-  dest: FileElement.validateFile,
+  dest: AttributeTypes.fallbackTo(FileElement.validateFile, (t: Target) => File.getShared(path.join(t.paths.intermediates, "package-fallback.json"))),
 })
 export class NPMGeneratePackage extends GenerateFileTask {
   npmPackage: object

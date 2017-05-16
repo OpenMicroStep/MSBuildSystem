@@ -1,12 +1,12 @@
 import {Project, RootGraph, Reporter, CopyTask,
   AttributePath, AttributeTypes, TargetExportsDefinition, FileElement,
   Node, Task, Graph, BuildTargetElement, File, Directory, util, GenerateFileTask,
-  createProviderMap, ProviderMap, InjectionContext,
+  createProviderMap, ProviderMap, InjectionContext, TaskElement,
 } from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
-function targetValidator<T extends object, A0 extends Target & T>(extensions: AttributeTypes.Extensions<T, A0>) : AttributeTypes.ValidatorT<void, { target: A0, into: any }> {
+function targetValidator<T extends object, A0 extends Target & T>(extensions: AttributeTypes.ExtensionsNU<T, A0>) : AttributeTypes.ValidatorT<void, { target: A0, into: any }> {
   function validateObject(reporter: Reporter, path: AttributePath, attr: BuildTargetElement, { target, into }:  { target: A0, into: any }) : void {
     Object.getOwnPropertyNames(extensions).forEach(name => target.usedAttributes.add(name));
     AttributeTypes.superValidateObject(reporter, path, attr, target, into, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
@@ -26,7 +26,7 @@ interface TargetValidation {
 export abstract class SelfBuildGraph<P extends Graph> extends Graph {
   readonly __extensions: AttributeTypes.Extension<Partial<Target>, Target>; // on the prototype
   readonly __validator: AttributeTypes.Validator<void, { target: Target, into: any }>;
-  static registerAttributes<D extends AttributeTypes.Extensions<A, T>, A extends { [K in keyof D]: T[K] }, T extends Target & A>(cstor: { new? (...args) : T, prototype: typeof SelfBuildGraph.prototype }, attributes: AttributeTypes.Extensions<A, T>) {
+  static registerAttributes<T extends SelfBuildGraph<any>, A>(cstor: { prototype: T & A }, attributes: AttributeTypes.ExtensionsNU<A, Target>) {
     let p = cstor.prototype as TargetValidation;
     if (p.hasOwnProperty('__extensions') || p.hasOwnProperty('__validator'))
       throw new Error(`registerAttributes can only be called once per SelfBuildGraph class`);
@@ -52,9 +52,21 @@ export abstract class SelfBuildGraph<P extends Graph> extends Graph {
 }
 SelfBuildGraph.registerAttributes(SelfBuildGraph as any, {});
 
+@Target.declare(['basic'], {
+  outputName:      AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.attributes.name, 'name of target'),
+  outputFinalName: AttributeTypes.defaultsTo(AttributeTypes.validateString, undefined),
+  copyFiles:       AttributeTypes.defaultsTo(FileElement.validateFileGroup, []),
+  preTasks:        AttributeTypes.defaultsTo(TaskElement.validateTaskSequence, undefined),
+  postsTasks:      AttributeTypes.defaultsTo(TaskElement.validateTaskSequence, undefined),
+})
 export class Target extends SelfBuildGraph<RootGraph> {
   static providers = createProviderMap<{ new (graph: RootGraph, project: Project, attributes: BuildTargetElement): Target }>('targets');
-  static register<D extends AttributeTypes.Extensions<A, T>, A extends { [K in keyof D]: T[K] }, T extends Target & A>(names: string[], cstor: { new (graph: RootGraph, project: Project, attributes: BuildTargetElement): T }, attributes: D) {
+  static declare<T extends Target, A>(names: string[], attributes: AttributeTypes.ExtensionsNU<A, T> ) {
+    return function register(cstor: Target.Constructor<T, A>) {
+      Target.register(names, cstor, attributes);
+    };
+  }
+  static register<T extends Target, A>(names: string[], cstor: Target.Constructor<T, A>, attributes: AttributeTypes.ExtensionsNU<A, T>) {
     SelfBuildGraph.registerAttributes(cstor, attributes);
     Target.providers.register(names, cstor);
   }
@@ -84,9 +96,11 @@ export class Target extends SelfBuildGraph<RootGraph> {
   environment: string;
   targetName: string;
 
+  preTasks: Graph | undefined;
+  postsTasks: Graph | undefined;
   copyFiles: FileElement.FileGroup[] = [];
   outputName: string;
-  outputFinalName: string | null;
+  outputFinalName: string | undefined;
 
   taskCopyFiles?: CopyTask = undefined;
 
@@ -187,13 +201,8 @@ export class Target extends SelfBuildGraph<RootGraph> {
   listInputFiles(set: Set<File>) { }
 }
 
-Target.register([], Target, {
-  outputName:      AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.attributes.name, 'name of target'),
-  outputFinalName: AttributeTypes.defaultsTo(AttributeTypes.validateString, null),
-  copyFiles:       AttributeTypes.defaultsTo(FileElement.validateFileGroup, []),
-});
-
 export namespace Target {
+  export type Constructor<T extends Target, A> = { new (graph: RootGraph, project: Project, attributes: BuildTargetElement): Target, prototype: T & A };
   export const validateDirectory: AttributeTypes.ValidatorT<Directory, Target> = {
     validate: function validateDirectory(reporter: Reporter, path: AttributePath, value: any, target: Target) : Directory | undefined {
       if (typeof value === "string") {

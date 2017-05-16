@@ -2,7 +2,7 @@ import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes} from ".
 
 export interface BuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>> {
   list: Map<string, new (graph: P) => T>;
-  register<A extends object, S extends T & A>(names: string[], constructor: new (graph: P) => S, attributes: AttributeTypes.Extensions<A, S>) : void;
+  register<S extends T, A>(names: string[], constructor: { new (graph: P) : S, prototype: S & A }, attributes: AttributeTypes.ExtensionsNU<A, Target>) : void;
   declare: (names: string[]) => (constructor: new (graph: P) => T) => void;
   find: (name: string) => (new (graph: P) => T) | undefined;
   validate: AttributeTypes.ValidatorT<T, P>;
@@ -16,7 +16,7 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
       });
     };
   }
-  function register<D extends AttributeTypes.Extensions<A, S>, A extends { [K in keyof D]: S[K] }, S extends T & A>(names: string[], constructor: { new (graph: P) : S }, attributes: D) {
+  function register<S extends T, A>(names: string[], constructor: { new (graph: P) : S, prototype: S & A }, attributes: AttributeTypes.ExtensionsNU<A, Target>) {
     SelfBuildGraph.registerAttributes(constructor, attributes);
     names.forEach(name => list.set(name, constructor));
   }

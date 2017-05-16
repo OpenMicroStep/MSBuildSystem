@@ -44,7 +44,7 @@ export function safeSpawnProcess(
   command: string,
   args: string[],
   cwd: string | undefined,
-  env: {[s: string]: string},
+  env: {[s: string]: string} | undefined,
   callback: (err: Error | null, code: number, signal: string, out: string) => any,
   method: 'spawn' | 'fork' = 'spawn'
 ) {

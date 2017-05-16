@@ -1,12 +1,18 @@
 import {Task, Graph, File, Reporter, Step, Barrier, FileElement} from '../index.priv';
 import * as path from 'path';
 
-@Task.declare(["copy"])
+@Task.declare(["copy"], {
+  files: FileElement.validateFileGroup,
+})
 export class CopyTask extends Task {
   protected steps: File[] = [];
 
   constructor(name: string, graph: Graph) {
     super({ type: "copy", name: name }, graph);
+  }
+
+  configure(reporter: Reporter, { files }: { files: FileElement.FileGroup[] }) {
+    this.willCopyFileGroups(reporter, files, this.target().paths.output);
   }
 
   willCopyFileGroups(reporter: Reporter, groups: FileElement.FileGroup[], destBase: string) {
