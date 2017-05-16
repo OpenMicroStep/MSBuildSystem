@@ -105,7 +105,6 @@ export class Element {
   static namespace2name(namespace: string) { return namespace.substring(0, namespace.length - 1); }
 
   static isReference(value: string) : boolean { return typeof value === 'string' && value.startsWith('='); }
-  static reference2query(name: string) { return name.substring(1); }
   static isReserved(value: string) : boolean {
     return typeof value === 'string' && value.startsWith('__');
   }
@@ -333,7 +332,7 @@ export class Element {
     }
     else if (Element.isReference(value)) {
       let ret: Element[] = [];
-      this.__resolveElements(reporter, ret, Element.reference2query(value), attrPath);
+      this.__resolveElements(reporter, ret, value, attrPath);
       if (ret.length > 1)
         attrPath.diagnostic(reporter, { type: 'warning', msg: `can't reference multiple elements here` });
       else if (ret.length === 0)
@@ -354,7 +353,7 @@ export class Element {
   }
   __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
     if (Element.isReference(el))
-      this.__resolveElements(reporter, ret, Element.reference2query(el), attrPath);
+      this.__resolveElements(reporter, ret, el, attrPath);
     else if (el instanceof Element)
       el.__resolveInto(reporter, ret);
     else
@@ -582,7 +581,7 @@ export namespace Element {
         let elements: Element[] = [];
         let groups: GroupElementImpl[] = [];
         let is: string | undefined = undefined;
-        let attributes = Object.getOwnPropertyNames(this).filter(key => !this.__keyMeaning(key));
+        let attributes = Object.keys(this).filter(key => !this.__keyMeaning(key));
         at.push('.elements[', '', ']');
         for (let i = 0, len = this.elements.length; i < len; i++) {
           let el = this.elements[i];
@@ -612,7 +611,7 @@ export namespace Element {
 
         function pushGroup(self, sub: GroupElementImpl) {
           sub.__resolve(reporter); // sub.elements = Element | { elements: Element[], ...attrs }
-          let subattributes = Object.getOwnPropertyNames(sub).filter(key => !sub.__keyMeaning(key));
+          let subattributes = Object.keys(sub).filter(key => !sub.__keyMeaning(key));
 
           if (subattributes.length > 0) {
             let mel = util.clone<GroupElementImpl>(sub, k => true);

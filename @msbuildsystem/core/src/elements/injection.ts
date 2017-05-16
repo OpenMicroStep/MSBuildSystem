@@ -60,12 +60,16 @@ function injectAttribute(ctx: InjectionContext,
   else if (byenv) {
     if (typeof srcValue !== "object") {
       srcPath.diagnostic(ctx.reporter, { type: "warning",
-        msg: `not an object: byEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring` });
+        msg: `not an object: ByEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring` });
+    }
+    else if (!(src instanceof Element)) {
+      srcPath.diagnostic(ctx.reporter, { type: "warning",
+        msg: `not allowed suffix: ByEnvironment attribute outside an element, ignoring` });
     }
     else {
       srcPath.pushArray();
       for (let envQuery in srcValue) {
-        let matchingEnvs = ctx.buildTarget.resolveElements(ctx.reporter, envQuery);
+        let matchingEnvs = src.resolveElements(ctx.reporter, envQuery);
         if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1) {
           srcPath.setArrayKey(envQuery);
           setDstValue(srcValue[envQuery]);
@@ -91,14 +95,17 @@ function injectAttribute(ctx: InjectionContext,
         let plattr = dstAttribute;
         if (plattr in plobj && (pcollisionpath = `${plpath}.${plattr}`) !== ccollisionpath)
           d.notes.push({ type: "note", msg: "while merging", path: pcollisionpath });
-        plattr += 'byEnvironment';
-        if (plattr in plobj) {
+        plattr += 'ByEnvironment';
+        if (plattr in plobj && plobj instanceof Element) {
           let plbyenv = plobj[plattr];
           for (let envQuery in plbyenv) {
-            let matchingEnvs = ctx.buildTarget.resolveElements(new Reporter(), envQuery); // ignore diags
-            if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1
-            && (pcollisionpath = `${plpath}.${plattr}[${envQuery}]`) !== ccollisionpath)
+            let matchingEnvs = plobj.resolveElements(new Reporter(), envQuery); // ignore diags
+            if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1) {
+              pcollisionpath = `${plpath}.${plattr}[${envQuery}]`;
+              if (pcollisionpath === ccollisionpath)
+                break; // break here to prevent writing notes too soon (use the js object key ordering property)
               d.notes.push({ type: "note", msg: "while merging", path: pcollisionpath });
+            }
           }
         }
       }
@@ -208,7 +215,7 @@ export function injectElement(ctx: InjectionContext,
     injectComponents(src.components, srcPath);
     srcPath.pushArray();
     for (let envQuery in src.componentsByEnvironment) {
-      let matchingEnvs = ctx.buildTarget.resolveElements(ctx.reporter, envQuery);
+      let matchingEnvs = src.resolveElements(ctx.reporter, envQuery);
       if (matchingEnvs.indexOf(ctx.buildTarget.environment) !== -1) {
         srcPath.setArrayKey(envQuery);
         injectComponents(src.componentsByEnvironment[envQuery], srcPath);

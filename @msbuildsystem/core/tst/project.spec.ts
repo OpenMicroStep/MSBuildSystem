@@ -188,19 +188,19 @@ function files(f: Flux<Context>) {
   let reporter = new Reporter();
   let project = f.context.sharedProject.tree;
   assert.deepEqual(
-    project.resolveElements(reporter, "files?CompileC").map(f => f.name),
+    project.resolveElements(reporter, "=files?CompileC").map(f => f.name),
     ["MSStdTime.c", "MSStd.c", "MSStdShared.c", "MSStdThreads.c", "MSStdBacktrace.c", "mman.c"]);
   assert.deepEqual(
-    project.resolveElements(reporter, "files?Header").map(f => f.name),
+    project.resolveElements(reporter, "=files?Header").map(f => f.name),
     ["MSStd.h", "mman.h"]);
   assert.deepEqual(
-    project.resolveElements(reporter, "files:mman?Header").map(f => f.name),
+    project.resolveElements(reporter, "=files:mman?Header").map(f => f.name),
     ["mman.h"]);
   assert.deepEqual(
-    project.resolveElements(reporter, "files:unix").map(f => f.name),
+    project.resolveElements(reporter, "=files:unix").map(f => f.name),
     ["MSStdTime-unix.c", "MSStdShared-unix.c", "MSStdThreads-unix.c", "MSStdBacktrace-unix.c"]);
   assert.deepEqual(
-    project.resolveElements(reporter, "files:unix:backtrace").map(f => f.name),
+    project.resolveElements(reporter, "=files:unix:backtrace").map(f => f.name),
     []);
   assert.deepEqual(reporter.diagnostics, [{"type": "warning", "msg": "query 'files:unix:backtrace' refer to an element that can't be found, the group 'files:unix:backtrace' is ignored"}]);
   f.continue();
@@ -209,13 +209,13 @@ function components(f: Flux<Context>) {
   let reporter = new Reporter();
   let project = f.context.sharedProject.tree;
   assert.deepEqual(
-    project.resolveElements(reporter, "clang").map(e => e.toJSON()),
+    project.resolveElements(reporter, "=clang").map(e => e.toJSON()),
     [{ is: 'component', compiler: "clang", tags: ["clang"], mylist: ["v2"], components: [], componentsByEnvironment: {}, name: 'clang' }]);
   assert.deepEqual(
-    project.resolveElements(reporter, "all envs").map(e => e.name),
+    project.resolveElements(reporter, "=all envs").map(e => e.name),
     ["darwin-i386", "darwin-x86_64", "linux-i386", "linux-x86_64", "msvc12-i386", "msvc12-x86_64"]);
   assert.deepEqual(
-    project.resolveElements(reporter, "darwin-i386").map(e => e.toJSON()),
+    project.resolveElements(reporter, "=darwin-i386").map(e => e.toJSON()),
     [
       {
         is: 'environment',
@@ -238,7 +238,7 @@ function components(f: Flux<Context>) {
       }
     ]);
   assert.deepEqual(
-    project.resolveElements(reporter, "darwin-x86_64").map(e => e.toJSON()),
+    project.resolveElements(reporter, "=darwin-x86_64").map(e => e.toJSON()),
     [
       {
         is: 'environment',

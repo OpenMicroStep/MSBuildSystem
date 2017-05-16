@@ -8,7 +8,6 @@ export type Query = {
 };
 
 export function parseQuery(parser: Parser) : Query {
-  parser.skip(Parser.isAnySpaceChar);
   let ret: Query = {
     groups: [],
     requiredTags: [],
@@ -17,6 +16,10 @@ export function parseQuery(parser: Parser) : Query {
     removedAttributes: undefined,
     method: undefined
   };
+  if (!parser.consume('='))
+    return ret;
+
+  parser.skip(Parser.isAnySpaceChar);
   let level = parser.test('{');
   parser.skip(Parser.isAnySpaceChar);
   if (parser.ch !== '?') {

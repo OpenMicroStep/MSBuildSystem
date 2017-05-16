@@ -1,18 +1,22 @@
 import {Reporter, injectElements, AttributePath, BuildTargetElement, Diagnostic, ComponentElement, Element, createInjectionContext, closeInjectionContext} from '@openmicrostep/msbuildsystem.core/index.priv';
 import {assert} from 'chai';
 
+const env = { name: "a" };
 function mock_buildtarget() : BuildTargetElement {
   return {
-    environment: { name: "a" },
-    resolveElements(reporter, query: string) {
-      return query.indexOf("a") !== -1 ? [this.environment] : [];
-    }
+    environment: env,
   } as any;
 }
 
 function mock_component(obj: object, name: string) : ComponentElement {
   let ret = new ComponentElement('component', name, null);
   Object.assign(ret, obj);
+  Object.defineProperty(ret, "resolveElements", {
+    enumerable: false,
+    value: (reporter, query: string) => {
+      return query.indexOf("a") !== -1 ? [env as any] : [];
+    }
+  });
   return ret;
 }
 
@@ -129,10 +133,11 @@ function byEnvironment_noarray() {
       { aByEnvironment: { "=a": 2 }, bByEnvironment: { "=a": [3] }, c: 3 },
       { aByEnvironment: { "=a": [3], "=b": [4], "=a + b": [5] }, cByEnvironment: { "=a": [4] }, dByEnvironment: 4, e: 5 },
     ], [
-    { "type": "warning", "msg": "not an object: byEnvironment attribute must be an object (ie: { \"=env\": [values] }), ignoring", "path": "E1.dByEnvironment" },
+    { "type": "warning", "msg": "not an object: ByEnvironment attribute must be an object (ie: { \"=env\": [values] }), ignoring", "path": "E1.dByEnvironment" },
     { "type": "warning", "msg": "collision: attribute is removed", "path": "I.b", notes: [
       { type: "note", msg: `caused collision while merging`, path: "E0.bByEnvironment[=a]" }] },
     { "type": "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
+      { type: "note", msg: `while merging`, path: "E0.aByEnvironment[=a]" },
       { type: "note", msg: `caused collision while merging`, path: "E1.aByEnvironment[=a]" },
       { type: "note", msg: `while merging`, path: "E1.aByEnvironment[=a + b]" }] },
     { "type": "warning", "msg": "collision: attribute is removed", "path": "I.c", notes: [
