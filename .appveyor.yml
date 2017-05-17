@@ -1,0 +1,14 @@
+environment:
+  matrix:
+    - nodejs_version: "6"
+    - nodejs_version: "7"
+
+install:
+   - npm install -q -g @openmicrostep/msbuildsystem.cli@^0.5.0 @openmicrostep/tests istanbul coveralls remap-istanbul
+   - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript@^0.5.0
+
+build_script:
+   - msbuildsystem build -p @msbuildsystem -w dist/appveyor/ --target bootstrap --env appveyor --no-progress
+
+artifacts:
+  - path: dist/3/

@@ -215,9 +215,10 @@ module.exports= {
   },
   'commands=': { is: "group",
     "envs=": { is: "group", elements: [
-      { is: "environment", name: "gitlab", tags: ["ci"   ] },
-      { is: "environment", name: "travis", tags: ["ci"   ] },
-      { is: "environment", name: "local" , tags: ["local"] },
+      { is: "environment", name: "gitlab"  , tags: ["ci"   ] },
+      { is: "environment", name: "travis"  , tags: ["ci"   ] },
+      { is: "environment", name: "appveyor", tags: ["ci"   ] },
+      { is: "environment", name: "local"   , tags: ["local"] },
     ]},
     "shell=": {
       is: "component",
