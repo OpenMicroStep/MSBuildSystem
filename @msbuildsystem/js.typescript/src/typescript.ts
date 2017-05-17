@@ -46,6 +46,7 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
         File.getShared(path.join(this.graph.paths.intermediates, l.path), true)
       );
       lnk.addDependency(npmInstallForBuild);
+      tsc.addDependency(lnk);
     }
 
     // (cwd intermediates & output) npm install
