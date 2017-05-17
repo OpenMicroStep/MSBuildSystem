@@ -116,19 +116,24 @@ function handle_run() {
       let perf = util.performanceCounter();
       let printer = new ReporterPrinter();
       if (args.debug) {
+        function where(task: Node) {
+          return [...task.parents().reverse().slice(1), task].map(p => p.toString()).join(" - ");
+        }
         runner.on("taskbegin", (context) => {
-          console.info("BEGIN  ", context.task.graph && context.task.target().__path(), context.task.name);
+          if (context.task instanceof Graph) return;
+          console.info("BEGIN  ", where(context.task));
         });
         runner.on("taskend", (context) => {
+          if (context.task instanceof Graph) return;
           if (context.reporter.diagnostics.length) {
             console.info("DIAGS ∨");
             console.info(context.reporter.diagnostics.map(d => ReporterPrinter.formatDiagnostic(d)).join('\n'));
             console.info("LOGS  ∨");
             console.info(context.reporter.logs);
-            console.info("END   ∧", context.task.graph && context.task.target().__path(), context.task.name, (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
+            console.info("END   ∧", where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
           }
           else {
-            console.info("END    ", context.task.graph && context.task.target().__path(), context.task.name, (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
+            console.info("END    ", where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
           }
         });
       }
