@@ -216,8 +216,8 @@ module.exports= {
   'commands=': { is: "group",
     "envs=": { is: "group", elements: [
       { is: "environment", name: "gitlab"  , tags: ["ci"   ] },
-      { is: "environment", name: "travis"  , tags: ["ci"   ] },
-      { is: "environment", name: "appveyor", tags: ["ci"   ] },
+      { is: "environment", name: "travis"  , tags: ["ci"   , "coveralls"] },
+      { is: "environment", name: "appveyor", tags: ["ci"   , "coveralls"] },
       { is: "environment", name: "local"   , tags: ["local"] },
     ]},
     "shell=": {
@@ -271,8 +271,9 @@ module.exports= {
     "build-tests-2=": { is: "target", components: ["=shell"], preTasks: Value(["=build-2", "=tests-2"]) },
     "build-tests-3=": { is: "target", components: ["=shell"], preTasks: Value(["=build-3", "=tests-3"]) },
     "bootstrap=":     { is: "target", components: ["=shell"], preTasksByEnvironment: {
-      "=envs ? ci   ": Value(["=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-3", "=coveralls-3"     ]),
-      "=envs ? local": Value(["=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-3", "=coverage-local-3"]),
+      "=envs ? ci + !coveralls": Value(["=build-1", "=build-2", "=build-3", "=tests-3"                                    ]),
+      "=envs ? ci +  coveralls": Value(["=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-3", "=coveralls-3"     ]),
+      "=envs ? local"          : Value(["=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-3", "=coverage-local-3"]),
     } },
   }
 }
