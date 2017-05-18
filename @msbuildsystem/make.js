@@ -34,50 +34,66 @@ module.exports= {
     'js=' :              moduleFiles('js'),
     'typescript=':       moduleFiles('js.typescript'),
   },
-  'node=': { is: "environment", packager: "npm" /* generate to node_modules/${target.outputName} */ },
-  'base=': {
-    is: "component",
-    type: "javascript",
-    compiler: "typescript",
-    environments: ["=node"],
-    npmPackage: { is: "component",
-      "version": "0.5.2",
-      "main": "index.js",
-      "typings": "index.d.ts",
-      devDependencies: { is: "component",
-        "@types/node": "^4.0.30"
+  'config=': { is: "group",
+    'node=': {
+      is: "environment",
+      npmPackage: { is: "component",
+        "version": "0.5.2",
       }
     },
-    tsConfig: { is: "component",
-      "module": "commonjs",
-      "target": "es6",
-      "declaration": true,
-      "experimentalDecorators": true,
-      "strictNullChecks": true,
-      "noImplicitThis": true,
-      "noImplicitReturns": true,
-      "sourceMap": true,
-      //"lib": ["es6"],
-      "types": ["node"]
+    'module=': {
+      is: "component",
+      type: "javascript",
+      compiler: "typescript",
+      packager: "npm",
+      npmPackage: { is: "component",
+        "main": "index.js",
+        "typings": "index.d.ts",
+        devDependencies: { is: "component",
+          "@types/node": "^4.0.30"
+        }
+      },
+      tsConfig: { is: "component",
+        "module": "commonjs",
+        "target": "es6",
+        "declaration": true,
+        "experimentalDecorators": true,
+        "strictNullChecks": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true,
+        "sourceMap": true,
+        //"lib": ["es6"],
+        "types": ["node"]
+      },
     },
+    'module tests=': {
+      is: "component",
+      components: ["=module"],
+      tsConfig: { is: "component",
+        "types": ["node", "mocha", "chai"]
+      },
+      npmPackage: { is: "component",
+        dependencies: { is: "component",
+          "chai": "4.0.0-canary.2"
+        },
+        devDependencies: { is: "component",
+          "@types/chai": "^3.4.29",
+          "@types/mocha": "^2.2.28",
+          "@types/node": "^4.0.30",
+          "@openmicrostep/tests": "^0.1.0"
+        },
+      },
+    },
+  },
+  'base=': {
+    is: "component",
+    components: ["=config:module"],
+    environments: ["=config:node"],
   },
   'base tests=': {
     is: "component",
-    components: ["=base"],
-    tsConfig: { is: "component",
-      "types": ["node", "mocha", "chai"]
-    },
-    npmPackage: { is: "component",
-      dependencies: { is: "component",
-        "chai": "4.0.0-canary.2"
-      },
-      devDependencies: { is: "component",
-        "@types/chai": "^3.4.29",
-        "@types/mocha": "^2.2.28",
-        "@types/node": "^4.0.30",
-        "@openmicrostep/tests": "^0.1.0"
-      },
-    },
+    components: ["=config:module tests"],
+    environments: ["=config:node"],
   },
   'targets=': { 'is': 'group',
     'core=': {
@@ -96,8 +112,8 @@ module.exports= {
         },
       },
       exports: [{ is: 'component', name: 'cfg',
-        "module=": { is: 'component', components: ['={base} - environments']       },
-        "tests=" : { is: 'component', components: ['=base tests'] },
+        "module=": { is: 'component', components: ['=config:module']       },
+        "tests=" : { is: 'component', components: ['=config:module tests'] },
       }]
     },
     'core tests=': {
