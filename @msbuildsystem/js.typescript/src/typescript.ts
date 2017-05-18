@@ -129,17 +129,18 @@ export class TypescriptTask extends Task {
   }
 
   do_build(step: StepWithData<{}, {}, { sources?: string[] }>) {
-    let process = safeSpawnProcess(step, {
+    let proc = safeSpawnProcess(step, {
       cmd: [path.join(__dirname, 'worker.js')],
       method: 'fork',
     });
     let target = this.target();
-    process.on('message', (message: OutputData) => {
+    proc.on('message', (message: OutputData) => {
       for (let d of message.diagnostics)
         step.context.reporter.diagnostic(d);
       step.context.sharedData.sources = message.sources;
+      proc.send("exit");
     });
-    process.send({
+    proc.send({
       files: this.files.map(f => f.path),
       intermediatesDirectory: target.paths.intermediates,
       sourceDirectory: target.project.directory,

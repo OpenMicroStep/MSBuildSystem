@@ -6,10 +6,12 @@ let timeout = setTimeout(() => {
   console.log(`no command received`);
   process.exit(1);
 }, 5000);
-process.on('message', (message: InputData) => {
+process.on('message', (message: InputData | "exit") => {
   clearTimeout(timeout);
-  new TscWorker(message).do_build(out => process.send!(out));
-  process.disconnect();
+  if (message === "exit")
+    process.exit(0);
+  else
+    new TscWorker(message).do_build(out => process.send!(out));
 });
 
 export type InputData = {
