@@ -145,6 +145,7 @@ export namespace ComponentElement {
   export type Group<T, T2 extends object> = { elements: T[] } & T2; // TODO: remove this
   export function groupValidator<T, T2 extends object, K, A0>(validator: AttributeTypes.ValidatorT<T, A0>, extensions: AttributeTypes.Extensions<T2, A0>, objectForKeyValidator?: AttributeTypes.Validator<K, string>) : AttributeTypes.ValidatorTNU<Group<T, T2 & { [s: string]: K }>[], A0> {
     const validateGroup = objectValidator<Group<T, T2>, K, A0>({ elements: setAsListValidator(validator), ...extensions as any }, objectForKeyValidator);
+    const validateGroupDefaults = objectValidator<Group<T, T2>, K, A0>({ elements: AttributeTypes.validateAny, ...extensions as any }, objectForKeyValidator);
     function validateGroups(reporter: Reporter, path: AttributePath, attr, a0: A0) {
       let ret: Group<T, T2 & { [s: string]: K }>[] = [];
       let idxs: number[] = [];
@@ -154,7 +155,7 @@ export namespace ComponentElement {
         idxs.push(idx);
       });
       path.push('[', ...idxs, ']');
-      let g = validateGroup.validate(reporter, path, { elements: elements }, a0);
+      let g = validateGroupDefaults.validate(reporter, path, { elements: elements }, a0);
       if (g)
         ret.push(g);
       path.pop(2 + idxs.length);
