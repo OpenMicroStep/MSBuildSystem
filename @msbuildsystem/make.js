@@ -1,3 +1,5 @@
+const version = require('child_process').execSync('git describe').toString().trim();
+
 function moduleFiles(name) {
   return { is: 'group', path: name, elements: [
     { is: 'group', name: "src", path: "src", elements: [
@@ -38,7 +40,7 @@ module.exports= {
     'node=': {
       is: "environment",
       npmPackage: { is: "component",
-        "version": "0.5.2",
+        "version": version,
       }
     },
     'module=': {
