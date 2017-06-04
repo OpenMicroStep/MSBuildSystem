@@ -1,4 +1,4 @@
-const version = require('child_process').execSync('git describe --always').toString().trim();
+const version = require('child_process').execSync('git describe --always', { cwd: __dirname }).toString().trim();
 
 function moduleFiles(name) {
   return { is: 'group', path: name, elements: [
