@@ -13,25 +13,32 @@ export class InOutTask extends Task {
   }
 
   is_build_required(step: Step<{ actionRequired?: boolean }>) {
-    if (this.inputFiles.length && this.outputFiles.length) {
-      // Force creation of output file directories
-      File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {
-        if (err || required) {
-          step.context.actionRequired = true;
-          step.continue();
+    step.setFirstElements([
+      (step) => {
+        if (this.outputFiles.length) {
+          // Force creation of output file directories
+          File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {
+            step.context.actionRequired = !!(err || required);
+            step.continue();
+          });
         }
         else {
+          step.continue();
+        }
+      },
+      (step) => {
+        if (this.inputFiles.length && !step.context.actionRequired) {
           File.ensure(this.inputFiles, step.context.lastSuccessTime, {}, (err, required) => {
             step.context.actionRequired = !!(err || required);
             step.continue();
           });
         }
-      });
-    }
-    else {
-      step.context.actionRequired = step.context.lastSuccessTime === 0;
-      step.continue();
-    }
+        else {
+          step.continue();
+        }
+      }
+    ]);
+    step.continue();
   }
 
   do_clean(step: Step<{}>) {
