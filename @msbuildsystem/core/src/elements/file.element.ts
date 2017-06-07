@@ -85,7 +85,7 @@ export module FileElement {
   export const validateFileGroup = ComponentElement.groupValidator(
     validateFile,
     {
-      dest:   AttributeTypes.defaultsTo(AttributeTypes.validateString , ""   ) ,
+      dest:   AttributeTypes.defaultsTo(AttributeTypes.validateAnyString, "") ,
       expand: AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false) ,
     }
   );
