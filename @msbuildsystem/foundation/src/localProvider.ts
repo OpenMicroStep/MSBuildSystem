@@ -24,15 +24,15 @@ export class LocalProcessProvider extends ProcessProvider {
 }
 
 const baseEnv = process.env;
-export type SafeSpawnParams = {
-  cmd: string[],
-  cwd?: string,
-  env?: {[s: string]: string},
+export interface SafeSpawnParams {
+  cmd: string[] | string;
+  cwd?: string;
+  env?: {[s: string]: string};
   tty?: boolean;
-  method?: 'spawn' | 'fork'
+  method?: 'spawn' | 'exec' | 'fork';
 };
 export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
-  let method = p.method || 'spawn';
+  let method = p.method || (Array.isArray(p.cmd) ? 'spawn' : 'exec');
   var options: any = {
     encoding: 'utf8',
     //stdio: ['ignore', 'pipe', 'pipe'],
@@ -62,14 +62,16 @@ export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
         options.env[i] = p.env[i];
     }
   }
-  var proc: child_process.ChildProcess = (child_process[method] as any)(p.cmd[0], p.cmd.slice(1), options);
+  var proc: child_process.ChildProcess = Array.isArray(pcmd)
+    ? (child_process[method] as any)(pcmd[0], pcmd.slice(1), options)
+    : (child_process[method] as any)(pcmd, options);
   var out = "";
   var exited = false;
 
   var err: Error | null = null;
 
   function cmd() {
-    return p.cmd.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ');
+    return Array.isArray(p.cmd) ? p.cmd.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ') : p.cmd;
   }
 
   function callback(err, code, signal, out) {

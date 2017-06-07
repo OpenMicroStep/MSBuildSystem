@@ -3,14 +3,14 @@ import {safeSpawnProcess} from './index';
 
 let v = AttributeTypes.defaultsTo(ComponentElement.objectValidator({}, AttributeTypes.validateString), undefined);
 @Task.declare(["cmd"], {
-  cmd: AttributeTypes.validateStringList,
+  cmd: AttributeTypes.oneOf(AttributeTypes.validateStringList, AttributeTypes.validateString),
   env: v,
   cwd: AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.paths.output, 'target output'),
   tty: AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false),
 })
 export class LocalProcessTask extends Task {
   constructor(name: string, graph: Graph, public params: {
-    cmd: string[]
+    cmd: string[] | string
     env: {[s: string]: string} | undefined;
     cwd: string;
     tty: boolean;
@@ -22,7 +22,7 @@ export class LocalProcessTask extends Task {
     return this.params;
   }
 
-  do(step: StepWithData<{}, {}, { command: { args: string[] } }>) {
+  do(step: StepWithData<{}, {}, { command: { args: string[] | string } }>) {
     step.context.sharedData.command = { args: this.params.cmd };
     super.do(step);
   }
