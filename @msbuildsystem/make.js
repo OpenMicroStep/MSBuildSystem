@@ -135,9 +135,6 @@ module.exports= {
         dependencies: { is: "component",
           "@openmicrostep/async": "^0.1.0"
         },
-        devDependencies: { is: "component",
-          "@openmicrostep/async": "^0.1.0",
-        }
       }
     },
     'shared tests=': {
