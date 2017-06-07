@@ -6,6 +6,7 @@ import * as MakeJS from './make'; export { MakeJS as MakeJS };
 import * as BuildSession from './buildSession'; export { BuildSession as BuildSession };
 
 export * from './file';
+export * from './taskreporter';
 export * from './graph/node';
 export * from './graph/task';
 export * from './graph/graph';

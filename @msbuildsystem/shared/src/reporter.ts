@@ -1,16 +1,6 @@
 import {Diagnostic} from './index';
-import {format} from 'util';
-
-export function transformWithCategory(category: string) {
-  return function setDiagCategory(diagnostic: Diagnostic) {
-    diagnostic.category = category;
-    return diagnostic;
-  };
-}
 
 export class Reporter {
-  /** raw logs */
-  logs: string = "";
   /** structured diagnostics, use diagnostic(...) or error(...) to add somes */
   diagnostics: Diagnostic[] = [];
   /** true if the task failed, automatically set to true if a diagnostic of type error is added e*/
@@ -18,25 +8,31 @@ export class Reporter {
   /** if not null, run a transformation on new diagnostics (ie. set category, prefix path, ...) */
   transform: ((diagnostic: Diagnostic) => Diagnostic)[] = [];
 
-  log(...args) {
-    this.logs += format.apply(null, arguments);
+  snapshot() : { count: number, failed: boolean } {
+    return { count: this.diagnostics.length, failed: this.failed };
   }
-  lognl(...args) {
-    this.log(...args);
-    this.logs += "\n";
+
+  diagnosticsAfter(snapshot: { count: number, failed: boolean }) {
+    return this.diagnostics.slice(snapshot.count);
   }
-  debug(...args) {
-    this.log(...args);
+
+  rollback(snapshot: { count: number, failed: boolean }) {
+    if (this.diagnostics.length > snapshot.count)
+      this.diagnostics.splice(snapshot.count, this.diagnostics.length - snapshot.count);
+    this.failed = snapshot.failed;
   }
-  debugnl(...args) {
-    this.log(...args);
-    this.logs += "\n";
+
+  hasChanged(snapshot: { count: number, failed: boolean }) {
+    return this.failed !== snapshot.failed || this.diagnostics.length !== snapshot.count;
   }
 
   diagnostic(d: Diagnostic) {
     if (!d) return;
-    if (this.transform.length)
-      d = this.transform[this.transform.length - 1](d);
+    if (this.transform.length) {
+      let i = this.transform.length;
+      while (i > 0)
+        d = this.transform[--i](d);
+    }
     if (!d) return;
     this.diagnostics.push(d);
     if (d.type === "error" || d.type === "fatal error")
@@ -59,5 +55,13 @@ export class Reporter {
   aggregate(reporter: Reporter) {
     this.failed = this.failed || reporter.failed;
     reporter.diagnostics.forEach(d => this.diagnostic(d));
+  }
+}
+export namespace Reporter {
+  export function transformWithCategory(category: string) {
+    return function setDiagCategory(diagnostic: Diagnostic) {
+      diagnostic.category = category;
+      return diagnostic;
+    };
   }
 }

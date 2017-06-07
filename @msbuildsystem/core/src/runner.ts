@@ -1,17 +1,17 @@
 import {EventEmitter} from 'events';
-import {Node, Graph, BuildSession, Async, Reporter, Flux, Diagnostic} from './index.priv';
+import {Node, Graph, BuildSession, Async, TaskReporter, Flux, Diagnostic} from './index.priv';
 import * as os from 'os';
 
 export type RunnerContext = { runner: Runner, failed: boolean };
 export type ReduceStepContext = {
   runner: Runner,
-  reporter: Reporter,
+  reporter: TaskReporter,
 }
 export type StepContext<DATA, SHARED> = {
   runner: Runner,
   execute(runner: Runner, task: Node, lastAction: (flux: Flux<StepContext<any, any>>) => void),
   task: Node,
-  reporter: Reporter,
+  reporter: TaskReporter,
   storage: BuildSession.BuildSession,
   data: {
     lastRunStartTime?: number,
@@ -91,7 +91,7 @@ function execute(runner: Runner, task: Node, lastAction: (flux: Flux<StepContext
     execute: execute,
     task: task,
     storage: task.getStorage(),
-    reporter: new Reporter(),
+    reporter: new TaskReporter(),
     data: null,
     sharedData: null,
     lastRunStartTime: 0,
@@ -105,7 +105,7 @@ function execute(runner: Runner, task: Node, lastAction: (flux: Flux<StepContext
 function executeMapReduceRun<V>(p: Flux<RunnerContext>, run: (step: Flux<ReduceStepContext>, value: V) => void, value: V) {
   Async.run<ReduceStepContext>({
     runner: p.context.runner,
-    reporter: new Reporter()
+    reporter: new TaskReporter()
   }, [takeTaskSlot, f => run(f, value), giveTaskSlot, (flux) => {
     p.context.failed = p.context.failed || flux.context.reporter.failed;
     flux.continue();
@@ -201,7 +201,7 @@ export class Runner extends EventEmitter {
     p.setFirstElements((f) => {
       this.removeListener('taskend', mapCallback);
       let reducedValues = <V[]>[];
-      let reporter = new Reporter();
+      let reporter = new TaskReporter();
       naiveMapStorage.forEach( values => reducedValues.push(reduce(reporter, values)) );
       if (run && reducedValues.length)
         f.setFirstElements([reducedValues.map(v => f => executeMapReduceRun(f, run!, v))]);
@@ -223,7 +223,7 @@ export interface Runner {
 
 export type TaskDoMapReduce<V, K> = {
   map: (context: V) => K;
-  reduce: (reporter: Reporter, contexts: V[]) => V;
+  reduce: (reporter: TaskReporter, contexts: V[]) => V;
   run?: (step: Flux<ReduceStepContext>, value: V) => void;
   returnValues: boolean
 };

@@ -1,8 +1,9 @@
-import {Workspace, Project, Target, AttributePath, transformWithCategory,
+import {Workspace, Project, Target, AttributePath,
   Graph, Reporter, BuildGraphOptions, Diagnostic,
   Element, BuildTargetElement, TargetElement, EnvironmentElement, TargetExportsElement
 } from '../index.priv';
 import * as fs from 'fs';
+const transformWithCategory = Reporter.transformWithCategory;
 
 export class RootGraph extends Graph {
   buildTargetElements: BuildTargetElement[] = [];

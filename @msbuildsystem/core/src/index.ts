@@ -6,6 +6,7 @@ export { ComponentElement } from './elements/component.element';
 export { FileElement } from './elements/file.element';
 export { EnvironmentElement } from './elements/environment.element';
 export { TargetElement } from './elements/target.element';
+export * from './taskreporter';
 export * from './file'      ;
 export * from './graph/node';
 export * from './graph/task';

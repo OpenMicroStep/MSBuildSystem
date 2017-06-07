@@ -1,4 +1,4 @@
-import { Reporter, Diagnostic, util } from '@openmicrostep/msbuildsystem.core';
+import { Reporter, TaskReporter, Diagnostic, util } from '@openmicrostep/msbuildsystem.core';
 import * as chalk from 'chalk';
 
 export const colors = {
@@ -9,7 +9,7 @@ export const colors = {
   "fatal error": chalk.red
 };
 
-export type Report = { name: string, diagnostics: Diagnostic[], logs: string, failed: boolean, duration?: number, stats: Stats };
+export type Report = { name: string, diagnostics: Diagnostic[], logs: string | undefined, failed: boolean, duration?: number, stats: Stats };
 export type Stats = {
     "note": number,
     "remark": number,
@@ -128,11 +128,11 @@ export class ReporterPrinter {
   }
 }
 
-export function mkReport(name: string, reporter: Reporter, duration?: number) : Report {
-  return { name: name, logs: reporter.logs, diagnostics: reporter.diagnostics, failed: reporter.failed, duration: duration, stats: reduce(reporter.diagnostics, mkStats()) };
+export function mkReport(name: string, reporter: TaskReporter | Reporter, duration?: number) : Report {
+  return { name: name, logs: (reporter as TaskReporter).logs, diagnostics: reporter.diagnostics, failed: reporter.failed, duration: duration, stats: reduce(reporter.diagnostics, mkStats()) };
 }
 
-export function printReport(name: string, reporter: Reporter, duration?: number) {
+export function printReport(name: string, reporter: TaskReporter | Reporter, duration?: number) {
   let report: Report = mkReport(name, reporter, duration);
   if (report.failed || report.diagnostics.length)
     console.log(embed('\n', ReporterPrinter.formatReportLogs(report), '\n'));

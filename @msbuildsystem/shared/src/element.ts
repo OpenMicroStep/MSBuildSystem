@@ -1,7 +1,7 @@
 import {
   Reporter, AttributePath, AttributeTypes,
   util, createProviderMap, ProviderMap,
-  Diagnostic, transformWithCategory, Parser
+  Diagnostic, Parser
 } from './index';
 import * as Q from './query';
 export interface ElementDefinition {
@@ -133,10 +133,10 @@ export class Element {
       elementFactoriesProviderMap: elementFactoriesProviderMap,
       reporter: reporter
     };
-    reporter.transform.push(transformWithCategory('load'));
+    reporter.transform.push(Reporter.transformWithCategory('load'));
     root.__load(context, definition, new AttributePath(root));
     reporter.transform.pop();
-    reporter.transform.push(transformWithCategory('resolve'));
+    reporter.transform.push(Reporter.transformWithCategory('resolve'));
     root.__resolved = false; // force resolution
     root.__resolve(reporter);
     reporter.transform.pop();
