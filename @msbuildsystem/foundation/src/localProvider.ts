@@ -36,7 +36,7 @@ export interface SafeSpawnParams {
 function toShellArg(arg: string) : string {
   if (process.platform === 'win32')
     return `"${arg.replace(/(\\|")/g, '\\$1')}"`;
-  return `'${arg.replace("'", "''")}`;
+  return `'${arg.replace("'", "''")}'`;
 }
 export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
   let method = p.method || 'spawn';
@@ -83,7 +83,7 @@ export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
   var err: Error | null = null;
 
   function cmd() {
-    return Array.isArray(p.cmd) ? p.cmd.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ') : p.cmd;
+    return Array.isArray(pcmd) ? pcmd.map(a => /\s/.test(a) ? `"${a}"` : a).join(' ') : pcmd;
   }
 
   function callback(err, code, signal, out) {
