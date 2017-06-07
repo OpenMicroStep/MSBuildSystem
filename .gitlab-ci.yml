@@ -16,6 +16,7 @@ deploy:
   only:
     - tags
   script:
+   - echo "$NPM_AUTH" >> ~/.npmrc
    - apk add --no-cache git
    - npm install -q -g @openmicrostep/msbuildsystem.cli@^0.5.0 @openmicrostep/tests istanbul coveralls remap-istanbul
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript@^0.5.0
