@@ -73,7 +73,7 @@ export class Task extends Node {
       (step) => {
         if (step.context.reporter.failed)
           step.continue();
-        else if (step.context.actionRequired)
+        else if (step.context.actionRequired || step.context.runner.options.full || step.context.lastSuccessTime === 0)
           this.doRequiredAction(step);
         else {
           step.context.reporter.logs = step.context.data.logs || "";
@@ -86,12 +86,10 @@ export class Task extends Node {
   }
 
   isActionRequired(step: Step<{ actionRequired?: boolean }>) {
-    if (!step.context.runner.options.full && step.context.lastSuccessTime > 0) {
-      let m = `is_${step.context.runner.action}_required`;
-      let method = this[m];
-      if (typeof method === 'function')
-        step.setFirstElements(step => this[m](step));
-    }
+    let m = `is_${step.context.runner.action}_required`;
+    let method = this[m];
+    if (typeof method === 'function')
+      step.setFirstElements(step => this[m](step));
     step.continue();
   }
 
