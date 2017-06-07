@@ -193,6 +193,44 @@ export function chain<A0>(v0: Validator<any, A0>, ...validators: Validator<any, 
   }
   return { validate: validateChain };
 }
+
+export function oneOf<T0>(v0: Validator0<T0>) : Validator0<T0>;
+export function oneOf<T0, T1>(v0: Validator0<T0>, v1: Validator0<T1>) : Validator0<T0 | T1>;
+export function oneOf<T0, T1, T2>(v0: Validator0<T0>, v1: Validator0<T1>, v2: Validator0<T2>) : Validator0<T0 | T1 | T2>;
+export function oneOf<T0, T1, T2, T3>(v0: Validator0<T0>, v1: Validator0<T1>, v2: Validator0<T2>, v3: Validator0<T3>) : Validator0<T0 | T1 | T2 | T3>;
+export function oneOf(...validators: Validator0<any>[]) : Validator0<any>;
+export function oneOf<T0, A0>(v0: Validator<T0, A0>) : Validator<T0, A0>;
+export function oneOf<T0, T1, A0>(v0: Validator<T0, A0>, v1: Validator<T1, A0>) : Validator<T0 | T1, A0>;
+export function oneOf<T0, T1, T2, A0>(v0: Validator<T0, A0>, v1: Validator<T1, A0>, v2: Validator<T2, A0>) : Validator<T0 | T1 | T2, A0>;
+export function oneOf<T0, T1, T2, T3, A0>(v0: Validator<T0, A0>, v1: Validator<T1, A0>, v2: Validator<T2, A0>, v3: Validator<T3, A0>) : Validator<T0 | T1 | T2 | T3, A0>;
+export function oneOf<A0>(...validators: Validator<any, A0>[]) : Validator<any, A0>;
+export function oneOf<A0>(v0: Validator<any, A0>, ...validators: Validator<any, A0>[]) {
+  function validateOneOf(reporter: Reporter, path: AttributePath, value, a0: A0) {
+    let s0 = reporter.snapshot();
+    let si = s0;
+    let rvalue = v0.validate(reporter, path, value, a0);
+    for (let i = 0; reporter.hasChanged(si) && i < validators.length; i++) {
+      si = reporter.snapshot();
+      rvalue = validators[i].validate(reporter, path, value, a0);
+    }
+    if (!reporter.hasChanged(si)) {
+      reporter.rollback(s0); // value is value, rollback all diagnostics
+      return rvalue;
+    }
+    else {
+      let diags = reporter.diagnosticsAfter(s0);
+      reporter.rollback(s0);
+      reporter.diagnostic({
+        type: "warning",
+        msg: `attribute must be one of`,
+        notes: diags,
+      });
+    }
+    return undefined;
+  }
+  return { validate: validateOneOf };
+}
+
 export function defaultsTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: undefined) : Traverse<Validator0<T    >>;
 export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: undefined) : Traverse<Validator <T, A0>>;
 export function defaultsTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: undefined) : Traverse<Validator0<T    >>;

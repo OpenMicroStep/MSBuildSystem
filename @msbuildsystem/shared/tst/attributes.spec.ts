@@ -116,6 +116,17 @@ function chain() {
   ]);
 }
 
+function oneOf() {
+  testValidator(AttributeTypes.oneOf(AttributeTypes.validateString, AttributeTypes.validateStringList), ['this is a string'], undefined, ['this is a string'], []);
+  testValidator(AttributeTypes.oneOf(AttributeTypes.validateString, AttributeTypes.validateStringList), 'this is a string', undefined, 'this is a string', []);
+  testValidator(AttributeTypes.oneOf(AttributeTypes.validateString, AttributeTypes.validateStringList), { t: 'this is not a string' }, undefined, undefined, [{
+    "type": "warning", "msg": "attribute must be one of",
+    "notes": [
+      { "type": "warning", "msg": "attribute must be a string, got object" },
+      { "type": "warning", "msg": "attribute must be an array" },
+    ]
+  }]);
+}
 function defaultsTo() {
   testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), 'this is a string', undefined, 'this is a string', []);
   testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), undefined, undefined, 'default string value', []);
@@ -194,6 +205,7 @@ export const tests = { name: 'attributes', tests: [
   validateStringList,
   validateStringSet,
   chain,
+  oneOf,
   defaultsTo,
   listValidator,
   objectValidator,
