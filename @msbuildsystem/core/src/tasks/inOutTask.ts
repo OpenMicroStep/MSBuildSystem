@@ -13,6 +13,7 @@ export class InOutTask extends Task {
   }
 
   is_build_required(step: Step<{ actionRequired?: boolean }>) {
+    step.context.actionRequired = false;
     step.setFirstElements([
       (step) => {
         if (this.outputFiles.length) {

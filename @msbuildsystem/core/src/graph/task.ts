@@ -67,7 +67,6 @@ export class Task extends Node {
   do(step: Step<{ actionRequired?: boolean }>) {
     step.setFirstElements([
       (step) => {
-        step.context.actionRequired = true;
         this.isActionRequired(step);
       },
       (step) => {
@@ -86,6 +85,7 @@ export class Task extends Node {
   }
 
   isActionRequired(step: Step<{ actionRequired?: boolean }>) {
+    step.context.actionRequired = true;
     let m = `is_${step.context.runner.action}_required`;
     let method = this[m];
     if (typeof method === 'function')
