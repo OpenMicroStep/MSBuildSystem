@@ -263,11 +263,13 @@ export function listValidator<T, A0>(validator: Validator<T, A0>) {
   return { validate: validateList };
 }
 
-export function objectValidator<T>(extensions: Extensions0<T>) : ValidatorNU0<T>;
-export function objectValidator<T, A0>(extensions: Extensions<T, A0>) : ValidatorNU<T, A0>;
-export function objectValidator<T, K>(extensions: Extensions0<T>, objectForKeyValidator?: Validator<K, string>) : ValidatorNU0<T & { [s: string]: K }>;
-export function objectValidator<T, K, A0>(extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>) : ValidatorNU<T & { [s: string]: K }, A0>;
-export function objectValidator<T, K, A0>(extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>) {
+export function objectValidator<T       >(extensions: Extensions0<T    >) : ValidatorNU0<T>;
+export function objectValidator<T   , A0>(extensions: Extensions <T, A0>) : ValidatorNU <T, A0>;
+export function objectValidator<T       >(extensions: Extensions0<T   > , objectForKeyValidator: Validator<undefined, string>) : ValidatorNU0<T>;
+export function objectValidator<T   , A0>(extensions: Extensions <T, A0>, objectForKeyValidator: Validator<undefined, string>) : ValidatorNU <T, A0>;
+export function objectValidator<T, K    >(extensions: Extensions0<T   > , objectForKeyValidator: Validator<K        , string>) : ValidatorNU0<T & { [s: string]: K }>;
+export function objectValidator<T, K, A0>(extensions: Extensions <T, A0>, objectForKeyValidator: Validator<K        , string>) : ValidatorNU <T & { [s: string]: K }, A0>;
+export function objectValidator<T, K, A0>(extensions: Extensions <T, A0>, objectForKeyValidator?: Validator<K, string>) {
   function validateObject(reporter: Reporter, path: AttributePath, attr, a0: A0) : T & { [s: string]: K } {
     var ret = <T & { [s: string]: K }>{};
     superValidateObject(reporter, path, attr, a0, ret, extensions, objectForKeyValidator);
