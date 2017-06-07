@@ -30,7 +30,14 @@ export interface SafeSpawnParams {
   env?: {[s: string]: string};
   tty?: boolean;
   method?: 'spawn' | 'exec' | 'fork';
+  shell?: boolean;
 };
+
+function toShellArg(arg: string) : string {
+  if (process.platform === 'win32')
+    return `"${arg.replace(/(\\|")/g, '\\$1')}"`;
+  return `'${arg.replace("'", "''")}`;
+}
 export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
   let method = p.method || (Array.isArray(p.cmd) ? 'spawn' : 'exec');
   var options: any = {
@@ -40,6 +47,11 @@ export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
   };
   if (p.tty)
     options.stdio = ['ignore', process.stdout, process.stderr];
+  let pcmd = p.cmd;
+  if ((method === 'exec' || p.shell) && Array.isArray(p.cmd)) {
+    method = 'exec';
+    pcmd = p.cmd.map(arg => toShellArg(arg)).join(' ');
+  }
   if (method === 'fork') {
     //options.stdio.push('ipc');
     options.execArgv = [];

@@ -7,6 +7,7 @@ let v = AttributeTypes.defaultsTo(ComponentElement.objectValidator({}, Attribute
   env: v,
   cwd: AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.paths.output, 'target output'),
   tty: AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false),
+  shell: AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false),
 })
 export class LocalProcessTask extends Task {
   constructor(name: string, graph: Graph, public params: {
@@ -14,6 +15,7 @@ export class LocalProcessTask extends Task {
     env: {[s: string]: string} | undefined;
     cwd: string;
     tty: boolean;
+    shell: boolean;
   }) {
     super({ type: 'cmd', name: name }, graph);
   }
