@@ -29,7 +29,7 @@ export interface SafeSpawnParams {
   cwd?: string;
   env?: {[s: string]: string};
   tty?: boolean;
-  method?: 'spawn' | 'exec' | 'fork';
+  method?: 'spawn' | 'fork';
   shell?: boolean;
 };
 
@@ -39,7 +39,7 @@ function toShellArg(arg: string) : string {
   return `'${arg.replace("'", "''")}`;
 }
 export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
-  let method = p.method || (Array.isArray(p.cmd) ? 'spawn' : 'exec');
+  let method = p.method || 'spawn';
   var options: any = {
     encoding: 'utf8',
     //stdio: ['ignore', 'pipe', 'pipe'],
@@ -48,13 +48,13 @@ export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
   if (p.tty)
     options.stdio = ['ignore', process.stdout, process.stderr];
   let pcmd = p.cmd;
-  if ((method === 'exec' || p.shell) && Array.isArray(p.cmd)) {
-    method = 'exec';
-    pcmd = p.cmd.map(arg => toShellArg(arg)).join(' ');
-  }
+  options.shell = p.shell || typeof pcmd === "string";
   if (method === 'fork') {
     //options.stdio.push('ipc');
     options.execArgv = [];
+  }
+  else if (options.shell && Array.isArray(pcmd)) {
+    pcmd = pcmd.map(arg => toShellArg(arg)).join(' ');
   }
   if (p.env && Object.keys(p.env).length) {
     var pathKey = "PATH";
@@ -76,7 +76,7 @@ export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
   }
   var proc: child_process.ChildProcess = Array.isArray(pcmd)
     ? (child_process[method] as any)(pcmd[0], pcmd.slice(1), options)
-    : (child_process[method] as any)(pcmd, options);
+    : (child_process[method] as any)(pcmd, [], options);
   var out = "";
   var exited = false;
 
