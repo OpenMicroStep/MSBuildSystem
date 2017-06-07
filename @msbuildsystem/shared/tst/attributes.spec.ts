@@ -46,6 +46,13 @@ function validateString() {
     {"type": "warning", "msg": "attribute can't be an empty string" }
   ]);
 }
+function validateAnyString() {
+  testValidator(AttributeTypes.validateAnyString, 'this is a string', undefined, 'this is a string', []);
+  testValidator(AttributeTypes.validateAnyString, { t: 'this is not a string' }, undefined, undefined, [
+    {"type": "warning", "msg": "attribute must be a string, got object" }
+  ]);
+  testValidator(AttributeTypes.validateAnyString, '', undefined, '', []);
+}
 function validateObject() {
   testValidator(AttributeTypes.validateObject, { o: 1 }, undefined, { o: 1 }, []);
   testValidator(AttributeTypes.validateObject, 'this is a string', undefined, undefined, [
@@ -180,6 +187,7 @@ export const tests = { name: 'attributes', tests: [
   validateAny,
   validateAnyToUndefined,
   validateString,
+  validateAnyString,
   validateObject,
   validateArray,
   validateBoolean,

@@ -147,6 +147,18 @@ export const validateString: Traverse<Validator0<string>> = {
     return `non empty string`;
   }
 };
+export const validateAnyString: Traverse<Validator0<string>> = {
+  validate: function validateString(reporter: Reporter, path: AttributePath, value: any) {
+    if (typeof value !== "string")
+      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a string, got ${typeof value}`});
+    else
+      return value;
+    return undefined;
+  },
+  traverse() {
+    return `a string`;
+  }
+};
 
 export const validateBoolean: Traverse<Validator0<boolean>> = {
   validate: function validateBoolean(reporter: Reporter, path: AttributePath, value: any) {
