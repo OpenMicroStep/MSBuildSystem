@@ -245,7 +245,8 @@ module.exports= {
       is: "component",
       type: "cmd",
       cwd: "={cwd}.absolutePath",
-      tty: true
+      tty: true,
+      shell: true,
     },
     'cwd=': { is: 'group', elements: [{ is: 'file', name: "../" }] },
     "build-1=": { is: "task", components: ["=cmd"], cmd: Value([
@@ -275,12 +276,10 @@ module.exports= {
       "-c", "-t", "20000", "-i", "-g", "perf", ...tests("dist/3")
     ]) },
     "coveralls-3=": { is: "task", components: ["=cmd"], cmd: Value([
-      "sh", "-c",
-      "cat ./coverage/coverage-final.json | remap-istanbul --type lcovonly | coveralls"
+      "remap-istanbul --type lcovonly < ./coverage/coverage-final.json | coveralls"
     ]) },
     "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: Value([
-      "sh", "-c",
-      "cat ./coverage/coverage-final.json | remap-istanbul --output coverage --type html"
+      "remap-istanbul --output coverage --type html < ./coverage/coverage-final.json"
     ]) },
     "build-tests-1=": { is: "target", components: ["=shell"], preTasks: Value(["=build-1", "=tests-1"]) },
     "build-tests-2=": { is: "target", components: ["=shell"], preTasks: Value(["=build-2", "=tests-2"]) },

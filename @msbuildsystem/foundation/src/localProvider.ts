@@ -53,8 +53,14 @@ export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
     //options.stdio.push('ipc');
     options.execArgv = [];
   }
-  else if (options.shell && Array.isArray(pcmd)) {
-    pcmd = pcmd.map(arg => toShellArg(arg)).join(' ');
+  else if (options.shell && Array.isArray(p.cmd)) {
+    if (process.platform === 'win32')
+      pcmd = [process.env.comspec || 'cmd.exe', '/d', '/s', '/c'];
+    else if (process.platform === 'android')
+      pcmd = ['/system/bin/sh', '-c'];
+    else
+      pcmd = ['/bin/sh', '-c'];
+    pcmd.push(...p.cmd);
   }
   if (p.env && Object.keys(p.env).length) {
     var pathKey = "PATH";

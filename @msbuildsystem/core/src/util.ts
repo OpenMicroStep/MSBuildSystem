@@ -13,8 +13,8 @@ export function pathAreEquals(a: string, b: string) {
   return pathNormalized(a) === pathNormalized(b);
 }
 export function pathNormalized(p: string) {
-  p = path.normalize(p);
-  if (/(\/|\\)$/.test(p))
+  p = path.normalize(p).replace(/\\/g, '/');
+  if (p.endsWith('/'))
     p = p.substring(0, p.length - 1);
   return p;
 }
