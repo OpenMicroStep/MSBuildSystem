@@ -85,12 +85,13 @@ class TscWorker {
           success = false;
         if (diagnostic.file) {
           let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
+          let filename = util.pathNormalized(diagnostic.file.fileName);
           diagnostics.push({
             type: mapCategory.get(diagnostic.category)!,
             col: character + 1,
             row: line + 1,
             msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
-            path: host ? host.fromVirtualFs(diagnostic.file.fileName) : diagnostic.file.fileName
+            path: host ? host.fromVirtualFs(filename) : filename
             // , diagnostic.code ?
           });
         }
