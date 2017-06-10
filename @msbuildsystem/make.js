@@ -52,7 +52,7 @@ module.exports= {
         "main": "index.js",
         "typings": "index.d.ts",
         devDependencies: { is: "component",
-          "@types/node": "^4.0.30"
+          "@types/node": "^6.0.78"
         }
       },
       tsConfig: { is: "component",
@@ -81,7 +81,7 @@ module.exports= {
         devDependencies: { is: "component",
           "@types/chai": "^3.4.29",
           "@types/mocha": "^2.2.28",
-          "@types/node": "^4.0.30",
+          "@types/node": "^6.0.78",
           "@openmicrostep/tests": "^0.1.0"
         },
       },

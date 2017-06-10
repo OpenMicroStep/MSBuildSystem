@@ -18,7 +18,7 @@ export namespace Loader {
     var dir = fs.readdirSync(at);
     dir.forEach(function(moduleName) {
       try {
-        let p = path.join(at, moduleName);
+        let p = path.join(at!, moduleName);
         if (fs.statSync(p).isDirectory()) {
           if (moduleName !== 'cli' && (!filter || filter(moduleName, p))) {
             modules.set(moduleName, new Module(p, moduleName, require(p)));
