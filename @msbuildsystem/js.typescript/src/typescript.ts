@@ -115,20 +115,38 @@ export class TypescriptTask extends Task {
 
   // TODO: clean output
 
-  is_build_required(step: StepWithData<{ actionRequired?: boolean }, {}, { sources?: string[] }>) {
-    if (step.context.sharedData.sources && step.context.sharedData.sources.length) {
-      File.ensure(step.context.sharedData.sources.map(h => File.getShared(h)), step.context.lastSuccessStartTime, {}, (err, required) => {
-        step.context.actionRequired = !!(err || required);
-        step.continue();
-      });
-    }
-    else {
-      step.context.actionRequired = true;
-      step.continue();
-    }
+  is_build_required(step: StepWithData<{ actionRequired?: boolean }, {}, { sources?: string[], outputs?: string[] }>) {
+    let {sources, outputs} = step.context.sharedData;
+    step.context.actionRequired = !outputs || !sources;
+    step.setFirstElements([
+      (step) => {
+        if (!step.context.actionRequired && outputs && outputs.length) {
+          File.ensure(outputs.map(f => File.getShared(f)), step.context.lastSuccessEndTime, {}, (err, required) => {
+            step.context.actionRequired = !!(err || required);
+            step.continue();
+          });
+        }
+        else {
+          step.continue();
+        }
+      },
+      (step) => {
+        if (!step.context.actionRequired && sources && sources.length) {
+          File.ensure(sources.map(f => File.getShared(f)), step.context.lastSuccessStartTime, {}, (err, required) => {
+            step.context.actionRequired = !!(err || required);
+            step.continue();
+          });
+        }
+        else {
+          step.continue();
+        }
+      }
+    ]);
+    step.continue();
   }
 
-  do_build(step: StepWithData<{}, {}, { sources?: string[] }>) {
+
+  do_build(step: StepWithData<{}, {}, { sources?: string[], outputs?: string[] }>) {
     let proc = safeSpawnProcess(step, {
       cmd: [path.join(__dirname, 'worker.js')],
       method: 'fork',
@@ -138,6 +156,7 @@ export class TypescriptTask extends Task {
       for (let d of message.diagnostics)
         step.context.reporter.diagnostic(d);
       step.context.sharedData.sources = message.sources;
+      step.context.sharedData.outputs = message.outputs;
       proc.send("exit");
     });
     proc.send({

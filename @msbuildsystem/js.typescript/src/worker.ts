@@ -25,6 +25,7 @@ export type InputData = {
 export type OutputData = {
   diagnostics: Diagnostic[]
   sources: string[]
+  outputs: string[]
 }
 export type CompilerHostWithVirtualFS = ts.CompilerHost & {
   fromVirtualFs(p: string) : string,
@@ -110,14 +111,17 @@ class TscWorker {
     let out: OutputData = {
       diagnostics: [],
       sources: [],
+      outputs: [],
     };
     let outputDirectory = this.data.outputDirectory;
     let o = ts.convertCompilerOptionsFromJson(this.data.options, outputDirectory);
     if (this.emitTsDiagnostics(out.diagnostics, o.errors)) {
+      o.options.listEmittedFiles = true;
       let host = this.createCompilerHost(o.options);
       let program = ts.createProgram(this.data.files.map(f => host.toVirtualFs(f)), o.options, host);
       let emitResult = program.emit();
       out.sources = program.getSourceFiles().map(f => host.fromVirtualFs(util.pathNormalized(f.fileName)));
+      out.outputs = emitResult.emittedFiles.map(f => util.pathNormalized(f));
       let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
       this.emitTsDiagnostics(out.diagnostics, tsDiagnostics, host);
     }
