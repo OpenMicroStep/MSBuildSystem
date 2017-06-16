@@ -154,11 +154,13 @@ export namespace ComponentElement {
         elements.push(v);
         idxs.push(idx);
       });
-      path.push('[', ...idxs, ']');
-      let g = validateGroupDefaults.validate(reporter, path, { elements: elements }, a0);
-      if (g)
-        ret.push(g);
-      path.pop(2 + idxs.length);
+      if (elements.length) {
+        path.push('[]');
+        let g = validateGroupDefaults.validate(reporter, path, { elements: elements }, a0);
+        if (g)
+          ret.push(g);
+        path.pop();
+      }
       return ret;
     };
     return { validate: validateGroups, traverse(lvl, ctx) {
