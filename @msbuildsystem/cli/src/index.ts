@@ -125,15 +125,16 @@ function handle_run() {
         });
         runner.on("taskend", (context) => {
           if (context.task instanceof Graph) return;
+          let wasrun = !!(context as any).actionRequired;
           if (context.reporter.diagnostics.length) {
             console.info("DIAGS ∨");
             console.info(context.reporter.diagnostics.map(d => ReporterPrinter.formatDiagnostic(d)).join('\n'));
             console.info("LOGS  ∨");
             console.info(context.reporter.logs);
-            console.info("END   ∧", where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
+            console.info(`END ${wasrun ? "X" : "O"}  ∧`, where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
           }
           else {
-            console.info("END    ", where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
+            console.info(`END ${wasrun ? "X" : "O"}   `, where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
           }
         });
       }
