@@ -117,7 +117,7 @@ export class TypescriptTask extends Task {
 
   is_build_required(step: StepWithData<{ actionRequired?: boolean }, {}, { sources?: string[] }>) {
     if (step.context.sharedData.sources && step.context.sharedData.sources.length) {
-      File.ensure(step.context.sharedData.sources.map(h => File.getShared(h)), step.context.lastSuccessTime, {}, (err, required) => {
+      File.ensure(step.context.sharedData.sources.map(h => File.getShared(h)), step.context.lastSuccessStartTime, {}, (err, required) => {
         step.context.actionRequired = !!(err || required);
         step.continue();
       });

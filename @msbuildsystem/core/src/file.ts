@@ -183,12 +183,12 @@ export class File {
     fs.stat(this.path, cb);
   }
 
-  copyTo(to: File, lastSuccessTime: number, cb: (err?: Error) => void) {
+  copyTo(to: File, lastSuccessStartTime: number, lastSuccessEndTime: number, cb: (err?: Error) => void) {
     this.stats((err, stats) => {
       if (err) return cb(err);
-      else if (stats.mtime.getTime() < lastSuccessTime) return cb();
+      else if (stats.mtime.getTime() < lastSuccessStartTime) return cb();
       to.stats((err, toStats) => {
-        if (!err && toStats.mtime.getTime() < lastSuccessTime) return cb();
+        if (!err && toStats.mtime.getTime() < lastSuccessEndTime) return cb();
 
         to.ensureDir((err) => {
           if (err) return cb(err);

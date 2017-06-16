@@ -155,7 +155,7 @@ export class CompileTask extends ProcessTask {
   is_build_required(step: StepWithData<{ actionRequired?: boolean }, {}, { headers: string[] }>) {
      step.setFirstElements((step) => {
        if (!step.context.actionRequired && step.context.sharedData.headers) {
-         File.ensure(step.context.sharedData.headers.map(h => File.getShared(h)), step.context.lastSuccessTime, {}, (err, required) => {
+         File.ensure(step.context.sharedData.headers.map(h => File.getShared(h)), step.context.lastSuccessStartTime, {}, (err, required) => {
            step.context.actionRequired = !!(err || required);
            step.continue();
          });

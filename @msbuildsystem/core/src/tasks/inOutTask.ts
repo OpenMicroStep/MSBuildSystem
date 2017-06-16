@@ -18,7 +18,7 @@ export class InOutTask extends Task {
       (step) => {
         if (this.outputFiles.length) {
           // Force creation of output file directories
-          File.ensure(this.outputFiles, step.context.lastSuccessTime, {ensureDir: true}, (err, required) => {
+          File.ensure(this.outputFiles, step.context.lastSuccessEndTime, {ensureDir: true}, (err, required) => {
             step.context.actionRequired = !!(err || required);
             step.continue();
           });
@@ -29,7 +29,7 @@ export class InOutTask extends Task {
       },
       (step) => {
         if (this.inputFiles.length && !step.context.actionRequired) {
-          File.ensure(this.inputFiles, step.context.lastSuccessTime, {}, (err, required) => {
+          File.ensure(this.inputFiles, step.context.lastSuccessStartTime, {}, (err, required) => {
             step.context.actionRequired = !!(err || required);
             step.continue();
           });

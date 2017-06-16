@@ -16,19 +16,22 @@ export type StepContext<DATA, SHARED> = {
   data: {
     lastRunStartTime?: number,
     lastRunEndTime?: number,
-    lastSuccessTime?: number,
+    lastSuccessStartTime: number;
+    lastSuccessEndTime: number;
     logs?: string,
     diagnostics?: Diagnostic[]
   } & DATA;
   sharedData: SHARED;
   lastRunStartTime: number;
   lastRunEndTime: number;
-  lastSuccessTime: number;
+  lastSuccessStartTime: number;
+  lastSuccessEndTime: number;
 }
 export type StepData<DATA> = DATA & {
   lastRunStartTime: number;
   lastRunEndTime: number;
-  lastSuccessTime: number;
+  lastSuccessStartTime: number;
+  lastSuccessEndTime: number;
 };
 
 export type Step<T> = Flux<StepContext<{}, {}> & T>;
@@ -64,7 +67,8 @@ function start(flux: Flux<StepContext<{}, {}>>) {
     ctx.sharedData = ctx.storage.get("SHARED") || {};
     ctx.lastRunStartTime = Date.now();
     ctx.lastRunEndTime = ctx.data.lastRunEndTime || 0;
-    ctx.lastSuccessTime = ctx.data.lastSuccessTime || 0;
+    ctx.lastSuccessStartTime = ctx.data.lastSuccessStartTime || 0;
+    ctx.lastSuccessEndTime = ctx.data.lastSuccessEndTime || 0;
     ctx.runner.emit("taskbegin", ctx);
     flux.continue();
   });
@@ -76,7 +80,8 @@ function end(flux: Flux<StepContext<{}, {}>>) {
   ctx.data.diagnostics = ctx.reporter.diagnostics;
   ctx.data.lastRunEndTime = ctx.lastRunEndTime = Date.now();
   ctx.data.lastRunStartTime = ctx.lastRunStartTime;
-  ctx.data.lastSuccessTime = ctx.lastSuccessTime = ctx.reporter.failed ? 0 : ctx.lastRunStartTime;
+  ctx.data.lastSuccessStartTime = ctx.lastSuccessStartTime = ctx.reporter.failed ? 0 : ctx.lastRunStartTime;
+  ctx.data.lastSuccessEndTime = ctx.lastSuccessEndTime = ctx.reporter.failed ? 0 : ctx.lastRunEndTime;
   ctx.storage.set(ctx.runner.action, ctx.data);
   ctx.storage.set("SHARED", ctx.sharedData);
   ctx.storage.save(() => {
@@ -96,7 +101,8 @@ function execute(runner: Runner, task: Node, lastAction: (flux: Flux<StepContext
     sharedData: null,
     lastRunStartTime: 0,
     lastRunEndTime: 0,
-    lastSuccessTime: 0
+    lastSuccessStartTime: 0,
+    lastSuccessEndTime: 0,
   }, task instanceof Graph
     ? [start, task.do.bind(task), end, lastAction]
     : [takeTaskSlot, start, task.do.bind(task), end, giveTaskSlot, lastAction]);

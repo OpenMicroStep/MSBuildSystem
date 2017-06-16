@@ -72,7 +72,7 @@ export class Task extends Node {
       (step) => {
         if (step.context.reporter.failed)
           step.continue();
-        else if (step.context.actionRequired || step.context.runner.options.full || step.context.lastSuccessTime === 0)
+        else if (step.context.actionRequired || step.context.runner.options.full || step.context.lastSuccessStartTime === 0)
           this.doRequiredAction(step);
         else {
           step.context.reporter.logs = step.context.data.logs || "";

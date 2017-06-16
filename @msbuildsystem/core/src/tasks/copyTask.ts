@@ -51,7 +51,7 @@ export class CopyTask extends Task {
     for (let i = 1, len = this.steps.length; i < len; i += 2) {
       let from = this.steps[i];
       let to = this.steps[i - 1];
-      from.copyTo(to, step.context.lastSuccessTime, (err) => {
+      from.copyTo(to, step.context.lastSuccessStartTime, step.context.lastSuccessEndTime, (err) => {
         if (err)
           step.context.reporter.diagnostic({type: "error", msg: "couldn't copy file: " + err + this});
         barrier.dec();
