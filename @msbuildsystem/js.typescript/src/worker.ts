@@ -117,7 +117,7 @@ class TscWorker {
       let host = this.createCompilerHost(o.options);
       let program = ts.createProgram(this.data.files.map(f => host.toVirtualFs(f)), o.options, host);
       let emitResult = program.emit();
-      out.sources = program.getSourceFiles().map(f => host.fromVirtualFs(f.fileName));
+      out.sources = program.getSourceFiles().map(f => host.fromVirtualFs(util.pathNormalized(f.fileName)));
       let tsDiagnostics = ts.getPreEmitDiagnostics(program).concat(emitResult.diagnostics);
       this.emitTsDiagnostics(out.diagnostics, tsDiagnostics, host);
     }
