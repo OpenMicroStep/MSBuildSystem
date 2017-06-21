@@ -23,7 +23,7 @@ export type Conditions = {
 };
 export type CXXSysrootConstructor = {
   new (graph: CXXTarget, conditions: Conditions): CXXSysroot;
-  isCompatible: (conditions: Conditions) => boolean;
+  compatibility: (conditions: Conditions) => number;
 };
 
 export const CXXSysroots = Object.assign(

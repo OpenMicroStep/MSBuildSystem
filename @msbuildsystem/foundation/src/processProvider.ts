@@ -28,17 +28,17 @@ export abstract class ProcessProvider {
     this.info = info;
   }
 
-  isCompatible(conditions: ProcessProviderConditions) : boolean {
+  compatibility(conditions: ProcessProviderConditions) : number {
     for (var k in conditions) {
       if (conditions.hasOwnProperty(k)) {
         var cnd = conditions[k];
         var v = this.info[k];
         var ok = typeof cnd === "function" ? cnd(v) : cnd === v;
         if (!ok)
-          return false;
+          return 0;
       }
     }
-    return true;
+    return 1;
   }
 
   /** map the given virtual path to the provider real path */

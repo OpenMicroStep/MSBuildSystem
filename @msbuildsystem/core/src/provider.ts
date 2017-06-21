@@ -1,4 +1,31 @@
-import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes} from "./index.priv";
+import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes, createProviderList, ProviderList, util} from "./index.priv";
+
+export function createCachedProviderList<
+  CSTOR extends { name: string, compatibility(conditions: C) : number },
+  C extends { [s: string]: any }
+  >(type: string) {
+  return Object.assign(createProviderList<CSTOR, C>(type), {
+    loadCost: 0,
+    loaded: new Map<string, CSTOR | undefined>(),
+    safeLoadIfOutOfDate(this: ProviderList<CSTOR, C> & { loaded: Map<string, CSTOR | undefined>, loadCost: number }, name: string, loader: () => CSTOR | undefined) {
+      if (!this.loaded.has(name)) {
+        let t0 = util.now();
+        try {
+          let p = loader();
+          this.loaded.set(name, p);
+          if (p)
+            this.register(p);
+        } catch (e) {}
+        let cost = util.now() - t0;
+        this.loadCost += cost;
+        createCachedProviderList.totalLoadCost += cost;
+      }
+    }
+  });
+}
+export namespace createCachedProviderList {
+  export let totalLoadCost = 0;
+}
 
 export interface BuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>> {
   list: Map<string, new (graph: P) => T>;
