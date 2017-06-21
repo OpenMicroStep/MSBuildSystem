@@ -34,14 +34,13 @@ export type StepData<DATA> = DATA & {
   lastSuccessEndTime: number;
 };
 
-export type Step<T> = Flux<StepContext<{}, {}> & T>;
+export type Step<T = {}> = Flux<StepContext<{}, {}> & T>;
 export type StepWithData<T, DATA, SHARED> = Flux<StepContext<DATA, SHARED> & T>;
 
-export var maxConcurrentTasks: number = os.cpus().length;
 var nbTaskRunning: number = 0;
 var waitingTasks: (() => void)[] = [];
-function takeTaskSlot(step: Flux<{}>) {
-  if (nbTaskRunning < maxConcurrentTasks || maxConcurrentTasks === 0) {
+function takeTaskSlot(step: Flux<StepContext<any, any>>) {
+  if (nbTaskRunning < step.context.runner.options.maxConcurrentTasks || step.context.runner.options.maxConcurrentTasks === 0) {
     nbTaskRunning++;
     step.continue();
   }
@@ -53,7 +52,7 @@ function takeTaskSlot(step: Flux<{}>) {
   }
 }
 
-function giveTaskSlot(step: Flux<{}>) {
+function giveTaskSlot(step: Flux<StepContext<any, any>>) {
   nbTaskRunning--;
   if (waitingTasks.length > 0)
     waitingTasks.shift()!();
@@ -136,14 +135,14 @@ function createTaskAction(task: Node) {
 export class Runner extends EventEmitter {
   root: Node;
   action: string;
-  options: { [s: string]: any };
+  options: { maxConcurrentTasks: number, [s: string]: any };
   enabled: Set<Node>;
 
-  constructor(root: Node, action: string, options: { [s: string]: any } = {}) {
+  constructor(root: Node, action: string, options: { maxConcurrentTasks?: number, [s: string]: any } = {}) {
     super();
     this.root = root;
     this.action = action;
-    this.options = options;
+    this.options = Object.assign({ maxConcurrentTasks: os.cpus().length }, options);
     this.enabled = new Set<Node>();
   }
 

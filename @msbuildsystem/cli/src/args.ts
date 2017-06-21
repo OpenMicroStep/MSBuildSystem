@@ -33,6 +33,7 @@ function addCommonArguments(parser: ArgumentGroup) {
   parser.addArgument(['-w', '--workspace'], { help: "Path to the workspace directory (ie. builddirectory)" });
   parser.addArgument(['--env'    ], { dest: "environments", action: "append", help: "Name of environments to consider, by default all environments are used" });
   parser.addArgument(['--target' ], { dest: "targets"     , action: "append", help: "Name of targets to consider, by default all targets are used" });
+  parser.addArgument(['-j', '--jobs'], { dest: "jobs"    , type: "int", help: "Number of maximum concurrent jobs" });
 }
 
 let subs = parser.addSubparsers({
@@ -65,6 +66,7 @@ export const args: {
   command: string;
   action?: string;
   ide?: string;
+  jobs?: number;
   workspace: string | null;
   projects: string[];
   targets: string[] | null;

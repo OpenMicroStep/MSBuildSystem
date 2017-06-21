@@ -112,7 +112,14 @@ function handle_run() {
       allowManual: !!args.targets
     });
     if (printReport('Build graph create', reporter, perf())) {
-      let runner = new Runner(graph, args.command, { ide: args.ide, full: args.full });
+      let options: any = {};
+      if (typeof args.jobs === "number")
+        options.maxConcurrentTasks = args.jobs;
+      if (typeof args.ide === "string")
+        options.ide = args.ide;
+      if (typeof args.full === "boolean")
+        options.full = args.full;
+      let runner = new Runner(graph, args.command, options);
       let perf = util.performanceCounter();
       let printer = new ReporterPrinter();
       if (args.debug) {
@@ -131,10 +138,10 @@ function handle_run() {
             console.info(context.reporter.diagnostics.map(d => ReporterPrinter.formatDiagnostic(d)).join('\n'));
             console.info("LOGS  ∨");
             console.info(context.reporter.logs);
-            console.info(`END ${wasrun ? "X" : "O"}  ∧`, where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
+            console.info(`END ${wasrun ? "X" : "O"} ∧`, where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
           }
           else {
-            console.info(`END ${wasrun ? "X" : "O"}   `, where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
+            console.info(`END ${wasrun ? "X" : "O"}  `, where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
           }
         });
       }
