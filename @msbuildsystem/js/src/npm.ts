@@ -2,9 +2,10 @@ import {
   Reporter, SelfBuildGraph, Task, AttributeTypes, util,
   Graph, GenerateFileTask, Step, InOutTask, File, Directory,
   ComponentElement, AttributePath, Target, FileElement,
+  createCachedProviderList, ProviderList,
 } from '@openmicrostep/msbuildsystem.core';
 import {
-  ProcessTask, LocalProcessProvider, ProcessProviders
+  ProcessTask, LocalProcessProvider, ProcessProviders, safeSpawnProcess,
 } from '@openmicrostep/msbuildsystem.foundation';
 import { JSTarget, JSPackagers, JSPackager } from './index';
 import * as path from 'path';
@@ -40,17 +41,11 @@ export abstract class NPMPackager extends SelfBuildGraph<JSTarget> implements JS
       npmPackage: this.npmPackage,
       dest: File.getShared(path.join(this.absoluteCompilationOutputDirectory(), 'package.json'))
     });
-    let npmInstall = new NPMInstallTask("install", this, { directory: File.getShared(this.absoluteCompilationOutputDirectory(), true), packages: {} });
+    let npmInstall = new NPMInstallTask("install", this, { directory: File.getShared(this.absoluteCompilationOutputDirectory(), true), packages: {}, links: {} });
     npmInstall.addDependency(createPkgJson);
     let dependencies = this.npmPackage.dependencies || {};
-    for (let link of this.npmLink) {
-      let linktask = new NPMLinkTask(this,
-        File.getShared(path.join(this.graph.paths.output, link.path), true),
-        File.getShared(path.join(this.absoluteCompilationOutputDirectory(), link.path), true)
-      );
-      linktask.addDependency(createPkgJson);
-      npmInstall.addDependency(linktask);
-    }
+    for (let link of this.npmLink)
+      npmInstall.addLink(link.name, path.join(this.graph.paths.output, link.path));
     let ignoreDependencies = new Set<string>(this.npmLink.map(n => n.name));
     for (let key of Object.keys(dependencies)) {
       if (!ignoreDependencies.has(key))
@@ -179,43 +174,90 @@ export class NPMTask extends ProcessTask {
   }
 }
 
-export class NPMLinkTask extends InOutTask {
-  constructor(graph: Graph, source: Directory, target: Directory) {
-    super({ type: "npm", name: "link" }, graph, [source], [target]);
-  }
-
-  do_build(step: Step<{}>) {
-    this.outputFiles[0].writeSymlinkOf(step, this.inputFiles[0], true);
-  }
-}
-
 @Task.declare(["npm install"], {
   packages: npmValidateDeps,
   directory: Target.validateDirectory,
 })
-export class NPMInstallTask extends NPMTask {
-  constructor(name: string, graph: Graph, { directory, packages } : { directory: Directory, packages: { [s: string]: string } }) {
-    super(name, graph, directory);
-    this.addFlags(['install']);
-    for (let pkg in packages)
-      this.addPackage(pkg, packages[pkg]);
+export class NPMInstallTask extends Task {
+  directory: Directory;
+  packages: { [s: string]: string };
+  links: { [s: string]: string };
+  constructor(name: string, graph: Graph, what: { directory: Directory, packages: { [s: string]: string }, links: { [s: string]: string } }) {
+    super({ name: 'npm', type: 'install' }, graph);
+    this.directory = what.directory;
+    this.packages = what.packages;
+    this.links = what.links;
+  }
+
+  uniqueKey() {
+    return {
+      directory: this.directory.path,
+      packages: this.packages,
+      links: this.links,
+    }
   }
 
   addPackage(name: string, version: string) {
-    if (global.process.platform === 'win32' && version.startsWith('^'))
-      version = '^^^' + version;
-    this.addFlags([name + '@' + version]);
+    this.packages[name] = version;
   }
 
-  do_generate_npm(step: Step<{}>) {
-    let link = File.getShared(path.join(this.target().project.directory, 'node_modules'), true);
-    let target = File.getShared(path.join(this.cwd, 'node_modules'), true);
-    link.writeSymlinkOf(step, target, true);
+  addLink(name: string, path: string) {
+    this.links[name] = path;
+  }
+
+  is_build_required(step: Step<{ actionRequired?: boolean }>) {
+    step.context.actionRequired = false;
+    step.continue();
+  }
+
+  do_build(step: Step) {
+    let npmProvider = NPMProviders.validateBest.validate(step.context.reporter, new AttributePath(), {});
+    if (!npmProvider) return step.continue();
+
+    npmProvider.do_install(step, {
+      directory: this.directory.path,
+      packages: this.packages,
+      links: this.links,
+    });
+  }
+
+  do_clean(step: Step<{}>) {
+    this.directory.unlink(step);
   }
 }
 
-ProcessProviders.safeLoadIfOutOfDate('npm', () => {
-  let name = global.process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  let ret = child_process.execSync(`${name} --version`).toString('utf8').trim();
-  return ret ? new LocalProcessProvider(name, { type: "npm", version: ret }) : undefined;
+export const NPMProviders = createCachedProviderList<NPMProvider, {}>('provider');
+export interface NPMProvider {
+  name: string;
+  compatibility(): number;
+  do_install(step: Step, what: { directory: string, packages: { [s: string]: string }, links: { [s: string]: string } }): void;
+}
+NPMProviders.safeLoadIfOutOfDate('npm', () => {
+  let bin = global.process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  let version = child_process.execSync(`${bin} --version`).toString('utf8').trim();
+  let isV5 = !/^[0-4]\./.test(version);
+  return version ? {
+    name: `npm@${version}`,
+    compatibility() { return 1 },
+    do_install(step, what) {
+      step.setFirstElements([
+        ...Object.keys(what.links).map(name => {
+          return (step) => {
+            let source = File.getShared(what.links[name]);
+            File.getShared(path.join(what.directory, "node_modules", name)).writeSymlinkOf(step, source, true);
+          }
+        }),
+        (step) => {
+          let args = Object.keys(what.packages).map(name => {
+            let version = what.packages[name];
+            if (global.process.platform === 'win32' && version.startsWith('^'))
+              version = '^^^' + version;
+            return `${name}@${version}`;
+          });
+          safeSpawnProcess(step, { cmd: [bin, "install", ...isV5 ? ["--no-shrinkwrap", "--no-save"] : [], ...args], cwd: what.directory });
+        }
+      ]);
+      step.continue();
+    }
+  } : undefined;
 });

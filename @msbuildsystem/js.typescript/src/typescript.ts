@@ -4,7 +4,7 @@ import {
   AttributeTypes as V, AttributePath, util, ComponentElement,
 } from '@openmicrostep/msbuildsystem.core';
 import { safeSpawnProcess } from '@openmicrostep/msbuildsystem.foundation';
-import { JSTarget, JSCompilers, NPMInstallTask, NPMLinkTask, NPMPackage } from '@openmicrostep/msbuildsystem.js';
+import { JSTarget, JSCompilers, NPMInstallTask, NPMPackage } from '@openmicrostep/msbuildsystem.js';
 import { InputData, OutputData } from './worker';
 import * as ts from 'typescript'; // don't use the compiler, just use types
 import * as path from 'path';
@@ -25,7 +25,8 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
 
     let npmInstallForBuild = new NPMInstallTask("install", this, {
       directory: File.getShared(this.graph.paths.intermediates, true),
-      packages: {}
+      packages: {},
+      links: {},
     });
     let tsc = this.tsc = new TypescriptTask({ type: "typescript", name: "tsc" }, this);
     tsc.addDependency(npmInstallForBuild);
@@ -40,14 +41,8 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
 
     // npm link local dependencies (most of the times this is defined by dependencies that are npm targets)
     let ignoreDependencies = new Set<string>(this.npmLink.map(n => n.name));
-    for (let l of this.npmLink) {
-      let lnk = new NPMLinkTask(this,
-        File.getShared(path.join(this.graph.paths.output, l.path), true),
-        File.getShared(path.join(this.graph.paths.intermediates, l.path), true)
-      );
-      lnk.addDependency(npmInstallForBuild);
-      tsc.addDependency(lnk);
-    }
+    for (let l of this.npmLink)
+      npmInstallForBuild.addLink(l.name, path.join(this.graph.paths.output, l.path));
 
     // (cwd intermediates & output) npm install
     Object.keys(this.npmPackage.dependencies).forEach(k => !ignoreDependencies.has(k) && npmInstallForBuild.addPackage(k, this.npmPackage.dependencies[k]));
