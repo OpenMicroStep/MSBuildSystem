@@ -52,8 +52,8 @@ function graph(f: Flux<Context>) {
           "children": [
             {
               "constructor": NPMInstallTask,
-              "name": "install",
-              "type": "npm"
+              "name": "npm",
+              "type": "install",
             },
             {
               "constructor": TypescriptTask,
