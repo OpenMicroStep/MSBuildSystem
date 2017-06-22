@@ -34,6 +34,8 @@ export interface SafeSpawnParams {
 };
 
 function toShellArg(arg: string) : string {
+  if (/^[a-zA-Z0-9-_]*$/.test(arg))
+    return arg;
   if (process.platform === 'win32')
     return `"${arg.replace(/(\\|")/g, '\\$1')}"`;
   return `'${arg.replace("'", "''")}'`;
@@ -54,13 +56,13 @@ export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
     options.execArgv = [];
   }
   else if (options.shell && Array.isArray(p.cmd)) {
+    options.shell = false;
     if (process.platform === 'win32')
-      pcmd = [process.env.comspec || 'cmd.exe', '/d', '/s', '/c'];
+      pcmd = [process.env.comspec || 'cmd.exe', '/d', '/s', '/c', ...p.cmd];
     else if (process.platform === 'android')
-      pcmd = ['/system/bin/sh', '-c'];
+      pcmd = ['/system/bin/sh', '-c', p.cmd.map(a => toShellArg(a)).join(' ')];
     else
-      pcmd = ['/bin/sh', '-c'];
-    pcmd.push(...p.cmd);
+      pcmd = ['/bin/sh', '-c', p.cmd.map(a => toShellArg(a)).join(' ')];
   }
   if (p.env && Object.keys(p.env).length) {
     var pathKey = "PATH";
