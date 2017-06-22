@@ -277,6 +277,16 @@ module.exports= {
     ]) },
     "coveralls-3=": { is: "task", components: ["=cmd"], cmd: "remap-istanbul --type lcovonly < ./coverage/coverage-final.json | coveralls" },
     "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: "remap-istanbul --output coverage --type html < ./coverage/coverage-final.json" },
+
+    "deploy-shared="    : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared"       ]) },
+    "deploy-core="      : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.core"         ]) },
+    "deploy-cli="       : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.cli"          ]) },
+    "deploy-foundation=": { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.foundation"   ]) },
+    "deploy-js="        : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.js"           ]) },
+    "deploy-ts="        : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.js.typescript"]) },
+    "deploy=":        { is: "target", components: ["=shell"], targets: ["bootstrap"],
+      preTasks: Value(["=deploy-shared","=deploy-core","=deploy-cli","=deploy-foundation","=deploy-js","=deploy-ts"]) },
+
     "build-tests-1=": { is: "target", components: ["=shell"], preTasks: Value(["=build-1", "=tests-1"]) },
     "build-tests-2=": { is: "target", components: ["=shell"], preTasks: Value(["=build-2", "=tests-2"]) },
     "build-tests-3=": { is: "target", components: ["=shell"], preTasks: Value(["=build-3", "=tests-3"]) },
