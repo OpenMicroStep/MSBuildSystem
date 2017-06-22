@@ -275,12 +275,8 @@ module.exports= {
       "--",
       "-c", "-t", "20000", "-i", "-g", "perf", ...tests("dist/3")
     ]) },
-    "coveralls-3=": { is: "task", components: ["=cmd"], cmd: Value([
-      "remap-istanbul --type lcovonly < ./coverage/coverage-final.json | coveralls"
-    ]) },
-    "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: Value([
-      "remap-istanbul --output coverage --type html < ./coverage/coverage-final.json"
-    ]) },
+    "coveralls-3=": { is: "task", components: ["=cmd"], cmd: "remap-istanbul --type lcovonly < ./coverage/coverage-final.json | coveralls" },
+    "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: "remap-istanbul --output coverage --type html < ./coverage/coverage-final.json" },
     "build-tests-1=": { is: "target", components: ["=shell"], preTasks: Value(["=build-1", "=tests-1"]) },
     "build-tests-2=": { is: "target", components: ["=shell"], preTasks: Value(["=build-2", "=tests-2"]) },
     "build-tests-3=": { is: "target", components: ["=shell"], preTasks: Value(["=build-3", "=tests-3"]) },
