@@ -39,13 +39,13 @@ export class DelayedInjection extends DelayedElement {
     let c = { ...ctx };
     if (this.query.explicitAttributes) {
       let explicitAttributes = this.query.explicitAttributes;
-      c.keep = (ctx, k) => ctx.keep(ctx, k) && explicitAttributes.has(k);
+      c.keep = (c, k) => ctx.keep(c, k) && explicitAttributes.has(k);
     }
     else if (this.query.removedAttributes) {
       let removedAttributes = this.query.removedAttributes;
-      c.keep = (ctx, k) => ctx.keep(ctx, k) && !removedAttributes.has(k);
+      c.keep = (c, k) => ctx.keep(c, k) && !removedAttributes.has(k);
     }
-    let ret = injectionMapValue(ctx, this.__parent!);
+    let ret = injectionMapValue(c, this.__parent!);
     return [ret];
   }
   __path() {
