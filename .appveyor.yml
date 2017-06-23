@@ -5,8 +5,8 @@ environment:
 
 install:
    - ps: Install-Product node $env:nodejs_version
-   - npm install -q -g @openmicrostep/msbuildsystem.cli@^0.5.0 @openmicrostep/tests istanbul coveralls remap-istanbul
-   - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript@^0.5.0
+   - npm install -q -g @openmicrostep/msbuildsystem.cli
+   - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
 
 build_script:
    - msbuildsystem build -p @msbuildsystem -w dist/appveyor/ --target bootstrap --env appveyor --no-progress

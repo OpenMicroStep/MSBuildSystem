@@ -243,42 +243,44 @@ module.exports= {
       manual: true,
       environments: ["=envs"],
     },
-    "cmd=": {
+    "cmd_no_cwd=": {
       is: "component",
       type: "cmd",
-      cwd: "={cwd}.absolutePath",
       tty: true,
       shell: true,
+    },
+    "cmd=": {
+      is: "component",
+      components: ["=cmd_no_cwd"],
+      cwd: "={cwd}.absolutePath",
     },
     'cwd=': { is: 'group', elements: [{ is: 'file', name: "../" }] },
     "install-deps=": { is: "task", components: ["=cmd"], cmd: "npm install -g -q coveralls nyc @openmicrostep/tests" },
     "build-1=": { is: "task", components: ["=cmd"], cmd: Value([
       "msbuildsystem", "build", "-p", "@msbuildsystem", "-w", "dist/1/"
     ]) },
-    "tests-1=": { is: "task", components: ["={cmd} - cwd"], cwd: cwd_test('dist/1'), cmd: Value([
+    "tests-1=": { is: "task", components: ["=cmd_no_cwd"], cwd: cwd_test('dist/1'), cmd: Value([
       "mstests", "-c", ...tests
     ]) },
     "build-2=": { is: "task", components: ["=cmd"], cmd: Value([
       "node", "dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/2/"
     ]) },
-    "tests-2=": { is: "task", components: ["={cmd} - cwd"], cwd: cwd_test('dist/2'), cmd: Value([
+    "tests-2=": { is: "task", components: ["=cmd_no_cwd"], cwd: cwd_test('dist/2'), cmd: Value([
       "mstests", "-c", ...tests
     ]) },
     "build-3=": { is: "task", components: ["=cmd"], cmd: Value([
       "node", "dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/3/"
     ]) },
-    "tests-3=": { is: "task", components: ["={cmd} - cwd"], cwd: cwd_test('dist/3'), cmd: Value([
+    "tests-3=": { is: "task", components: ["=cmd_no_cwd"], cwd: cwd_test('dist/3'), cmd: Value([
       "mstests", "-c", "-t", "10000", ...tests
     ]) },
-    "coverage-local-3=": { is: "task", components: ["={cmd} - cwd"], cwd: cwd_test('dist/3'), cmd: Value([
+    "coverage-local-3=": { is: "task", components: ["=cmd_no_cwd"], cwd: cwd_test('dist/3'), cmd: Value([
       "nyc", "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "-x", "*.tests/**", "mstests",
       "-c", "-t", "20000", ...tests
     ]) },
-    "coverage-3=": { is: "task", components: ["={cmd} - cwd"], cwd: `${__dirname}/dist/aspects/js/node_modules/@openmicrostep/`, cmd: Value([
-      "nyc", "--reporter=text-lcov", "--report-dir", `${__dirname}/../dist/coverage`, "-x", "*.tests/**", "mstests",
-      "-c", "-t", "20000", ...tests
-    ]) },
-    "coveralls-3=": { is: "task", components: ["=cmd"], cmd: `coveralls < ${__dirname}/dist/coverage/coverage-final.json` },
+    "coveralls-3=": { is: "task", components: ["=cmd_no_cwd"], cwd: cwd_test('dist/3'), cmd:
+      `nyc --reporter=text-lcov --report-dir ${__dirname}/../dist/coverage -x "*.tests/**" mstests -c -t 20000 ${tests.join(' ')} | coveralls`
+    },
 
     "deploy-shared="    : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared"       ]) },
     "deploy-core="      : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.core"         ]) },
@@ -294,7 +296,7 @@ module.exports= {
     "build-tests-3=": { is: "target", components: ["=shell"], preTasks: Value(["=build-3", "=tests-3"]) },
     "bootstrap=":     { is: "target", components: ["=shell"], preTasksByEnvironment: {
       "=envs ? ci + !coveralls": Value(["=install-deps", "=build-1", "=build-2", "=build-3", "=tests-3"                                    ]),
-      "=envs ? ci +  coveralls": Value(["=install-deps", "=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-3", "=coveralls-3"     ]),
+      "=envs ? ci +  coveralls": Value(["=install-deps", "=build-1", "=build-2", "=build-3", "=tests-3", "=coveralls-3"     ]),
       "=envs ? local"          : Value(["=build-1", "=build-2", "=build-3", "=tests-3", "=coverage-local-3"]),
     } },
   }
