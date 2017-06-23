@@ -234,7 +234,7 @@ module.exports= {
     "envs=": { is: "group", elements: [
       { is: "environment", name: "gitlab"  , tags: ["ci"   ] },
       { is: "environment", name: "travis"  , tags: ["ci"   , "coveralls"] },
-      { is: "environment", name: "appveyor", tags: ["ci"   , "coveralls"] },
+      { is: "environment", name: "appveyor", tags: ["ci"   ] },
       { is: "environment", name: "local"   , tags: ["local"] },
     ]},
     "shell=": {
