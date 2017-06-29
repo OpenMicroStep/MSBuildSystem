@@ -34,7 +34,7 @@ export class FastJSONDatabase implements BuildSession {
     });
   }
   save(cb: () => void) {
-    fs.writeFile(this.path, JSON.stringify(this.data), 'utf8', cb);
+    fs.writeFile(this.path, JSON.stringify(this.data), { encoding: 'utf8' }, cb);
   }
   all() : any {
     return this.data;

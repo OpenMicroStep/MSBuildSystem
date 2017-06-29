@@ -15,7 +15,7 @@ interface WorkspaceData {
   projects: Directory[];
 }
 const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Workspace>({
-  projects: { ...AttributeTypes.listValidator(File.validateDirectory), traverse: () => `array of Directory` }
+  projects: AttributeTypes.listValidator(File.validateDirectory)
 });
 
 export class Workspace {

@@ -12,7 +12,7 @@ import * as path from 'path';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 
-const npmValidateDeps = AttributeTypes.defaultsTo(ComponentElement.objectValidator({}, AttributeTypes.validateString), {} as { [s: string]: string });
+const npmValidateDeps = AttributeTypes.defaultsTo<{ [s: string]: string }>(ComponentElement.objectValidator({}, AttributeTypes.validateString), {});
 const npmValidate = ComponentElement.objectValidator({
   version:          AttributeTypes.validateString,
   description:      AttributeTypes.defaultsTo(AttributeTypes.validateString, undefined),

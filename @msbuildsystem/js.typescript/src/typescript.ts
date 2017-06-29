@@ -50,7 +50,7 @@ export class TypescriptCompiler extends SelfBuildGraph<JSTarget> {
   }
 }
 JSCompilers.register(['typescript', 'tsc'], TypescriptCompiler, {
-  tsConfig: V.defaultsTo(ComponentElement.objectValidator({}, ComponentElement.validateAndNormalizeAny), {}),
+  tsConfig: V.defaultsTo<object>(ComponentElement.objectValidator({}, ComponentElement.validateAndNormalizeAny), {}),
   npmLink: V.defaultsTo(ComponentElement.setAsListValidator(ComponentElement.objectValidator({
     name: V.validateString     ,
     path: V.validateString     ,

@@ -84,7 +84,7 @@ class TscWorker {
     tsDiagnostics.forEach(diagnostic => {
         if (diagnostic.category === ts.DiagnosticCategory.Error)
           success = false;
-        if (diagnostic.file) {
+        if (diagnostic.file && typeof diagnostic.start === "number") {
           let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
           let filename = util.pathNormalized(diagnostic.file.fileName);
           diagnostics.push({

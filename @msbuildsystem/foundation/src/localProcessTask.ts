@@ -1,7 +1,7 @@
 import {Graph, Step, StepWithData, Target, Task, AttributeTypes, ComponentElement} from '@openmicrostep/msbuildsystem.core';
 import {safeSpawnProcess} from './index';
 
-let v = AttributeTypes.defaultsTo(ComponentElement.objectValidator({}, AttributeTypes.validateString), undefined);
+let v = AttributeTypes.defaultsTo<{ [s: string]: string }>(ComponentElement.objectValidator({}, AttributeTypes.validateString), undefined);
 @Task.declare(["cmd"], {
   cmd: AttributeTypes.oneOf(AttributeTypes.validateStringList, AttributeTypes.validateString),
   env: v,

@@ -24,7 +24,7 @@ export class HeaderAliasTask extends Task {
         s[1].ensure(true, fstep.context.lastSuccessStartTime, (err, changed) => {
           if (err) { fstep.context.reporter.error(err); fstep.continue(); }
           else if (changed) {
-            fs.writeFile(s[1].path, "#import \"" + path.relative(this.aliaspath, s[0].path) + "\"\n", 'utf8', (err) => {
+            fs.writeFile(s[1].path, "#import \"" + path.relative(this.aliaspath, s[0].path) + "\"\n", { encoding: 'utf8' }, (err) => {
               if (err) { fstep.context.reporter.error(err); fstep.continue(); }
               else step();
             });
