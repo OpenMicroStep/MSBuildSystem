@@ -275,7 +275,7 @@ module.exports= {
       "mstests", "-c", "-t", "10000", ...tests("dist/3")
     ]) },
     "coverage-local-3=": { is: "task", components: ["=cmd"], env: { is: "component", NYC_CWD: cwd_test("dist/3") }, cmd: Value([
-      "nyc", "--reporter=text-lcov", "--report-dir", `${__dirname}/../dist/coverage`, "-x", "*.tests/**", "mstests",
+      "nyc", "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "-x", "*.tests/**", "mstests",
       "-c", "-t", "20000", ...tests("dist/3")
     ]) },
     "coveralls-3=": { is: "task", components: ["=cmd"], env: { is: "component", NYC_CWD: cwd_test("dist/3") }, cmd:
