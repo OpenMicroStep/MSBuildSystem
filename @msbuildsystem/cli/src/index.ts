@@ -102,8 +102,8 @@ function handle_run() {
   results = results && printReport(`Workspace load`, reporter);
   console.info(`Workspace: ${workspace.directory}`);
   console.info(`Projects: ${[...workspace.projects.values()].map(p => `\n - ${p.path}`).join('')}`);
-  workspace.save();
   if (results) {
+    workspace.save();
     let reporter = new TaskReporter();
     let perf = util.performanceCounter();
     let graph = workspace.buildGraph(reporter, {
