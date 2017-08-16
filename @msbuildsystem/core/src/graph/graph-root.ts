@@ -2,7 +2,8 @@ import {Workspace, Project, Target, AttributePath,
   Graph, Reporter, BuildGraphOptions, Diagnostic,
   Element, BuildTargetElement, TargetElement, EnvironmentElement, TargetExportsElement
 } from '../index.priv';
-import * as fs from 'fs';
+import * as fs from 'fs-extra';
+import * as path from 'path';
 const transformWithCategory = Reporter.transformWithCategory;
 
 export class RootGraph extends Graph {
@@ -72,6 +73,9 @@ export class RootGraph extends Graph {
     if (!task && !requester) {
       reporter.transform.push(transformWithCategory('instantiate'));
       let buildTarget = new BuildTargetElement(reporter, this, target, environment);
+      let defs = path.join(this.workspace.pathToBuild(environment.name), "defs");
+      fs.ensureDirSync(defs);
+      fs.writeFileSync(path.join(defs, `${target.name}.json`), JSON.stringify(buildTarget, null, 2));
       if (!buildTarget.manual || allowManual)
         task = this.createTarget_(reporter, buildTarget);
     }
