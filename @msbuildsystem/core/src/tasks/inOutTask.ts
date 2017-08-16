@@ -47,7 +47,7 @@ export class InOutTask extends Task {
     step.continue();
   }
 
-  listOutputFiles(set: Set<File>) {
-    this.outputFiles.forEach((out) => { set.add(out); });
+  protected buildOutputFileChecker(set: Set<string>) : ((absolute_path: string) => boolean) | void {
+    this.outputFiles.forEach((out) => { set.add(out.path); });
   }
 }

@@ -97,11 +97,16 @@ export class Graph extends Node {
     return tasks;
   }
 
-  listOutputFiles(set: Set<File>) {
-    this.iterate(false, (task) => {
-      task.listOutputFiles(set);
-      return true;
-    });
+  isOutputFileChecker() : (absolute_path: string) => boolean {
+    let files = new Set<string>();
+    let checkers: ((absolute_path: string) => boolean)[]  = [];
+    for (let task of this.iterator(true)) {
+      let checker = (task as Graph).buildOutputFileChecker(files);
+      if (checker)
+        checkers.push(checker);
+    }
+    let checker = checkers.length ? (absolute_path: string) => checkers.some(c => c(absolute_path)) : undefined;
+    return this.finalizeOutputFileChecker(files, checker);
   }
 
   allTasks(deep: boolean = false) : Set<Node> {

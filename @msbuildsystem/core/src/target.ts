@@ -1,6 +1,6 @@
 import {Project, RootGraph, Reporter, CopyTask,
   AttributePath, AttributeTypes, TargetExportsDefinition, FileElement,
-  Node, Task, Graph, BuildTargetElement, File, Directory, util, GenerateFileTask,
+  Node, Task, Graph, BuildTargetElement, File, Directory, util, GenerateFileTask, Step,
   createProviderMap, ProviderMap, InjectionContext, TaskElement,
 } from './index.priv';
 import * as path from 'path';
@@ -171,6 +171,21 @@ export class Target extends SelfBuildGraph<RootGraph> {
       let copy = this.taskCopyFiles = new CopyTask("copy files", this);
       copy.willCopyFileGroups(reporter, this.copyFiles, this.absoluteCopyFilesPath());
     }
+  }
+
+  do(flux: Step<{}>) {
+    flux.setFirstElements([f => super.do(f)]);
+    for (let dep of this.dependencies) {
+      if (dep.environment !== this.environment) {
+        flux.setFirstElements([f => {
+          fs.copy(dep.paths.output, this.paths.output, dep.isOutputFileChecker(), err => {
+            f.context.reporter.error(err);
+            f.continue();
+          });
+        }]);
+      }
+    }
+    flux.continue();
   }
 
   addDependency(task: Target) {

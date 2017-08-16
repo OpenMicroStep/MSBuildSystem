@@ -68,7 +68,7 @@ export class CopyTask extends Task {
     step.continue();
   }
 
-  listOutputFiles(set: Set<File>) {
-    this.foreach((from, to) => set.add(to));
+  protected buildOutputFileChecker(set: Set<string>) : ((absolute_path: string) => boolean) | void {
+    this.foreach((from, to) => set.add(to.path));
   }
 }

@@ -1,5 +1,6 @@
 import {Target, Graph, Step, File, BuildSession} from '../index.priv';
 import {createHash} from 'crypto';
+import * as path from 'path';
 
 export abstract class Node {
   dependencies: Set<Node> = new Set<Node>();
@@ -103,7 +104,31 @@ export abstract class Node {
   }
 
   abstract do(step: Step<{}>);
-  listOutputFiles(set: Set<File>) {}
+
+  isOutputFileChecker() : (absolute_path: string) => boolean {
+    let files = new Set<string>();
+    let checker = this.buildOutputFileChecker(files);
+    return this.finalizeOutputFileChecker(files, checker);
+  }
+
+  protected finalizeOutputFileChecker(files: Set<string>, checker: ((absolute_path: string) => boolean) | void) : (absolute_path: string) => boolean {
+    if (files.size > 0) {
+      for (let file of files) {
+        let size: number;
+        do { // add directories to files list
+          size = files.size;
+          let dir = path.dirname(file);
+          files.add(dir);
+        } while (size < files.size);
+      }
+      if (checker)
+        return (absolute_path) => files.has(absolute_path) || checker!(absolute_path);
+      return (absolute_path) => files.has(absolute_path);
+    }
+    return checker || ((absolute_path) => false);
+  }
+
+  protected buildOutputFileChecker(set: Set<string>) : ((absolute_path: string) => boolean) | void {}
 }
 export namespace Node {
   export type Name = { type: string, name: string, [s: string]: string };
