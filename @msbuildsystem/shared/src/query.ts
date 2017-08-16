@@ -53,10 +53,10 @@ function parseTags(parser: Parser, ret: Query) {
     parser.skip(Parser.isAnySpaceChar);
     if (parser.test('!')) {
       parser.skip(Parser.isAnySpaceChar);
-      ret.rejectedTags.push(parser.while(isNotQuerySpecialChar, 1).trim());
+      ret.rejectedTags.push(parser.while(isNotQueryTagSpecialChar, 1).trim());
     }
     else {
-      ret.requiredTags.push(parser.while(isNotQuerySpecialChar, 1).trim());
+      ret.requiredTags.push(parser.while(isNotQueryTagSpecialChar, 1).trim());
     }
   } while (parser.test('+'));
 }
@@ -64,7 +64,7 @@ function parseAttributes(parser: Parser, ret: Query) {
   function parseAttrs(prefix: string, list: Set<string>) {
     while (parser.test(prefix)) {
       parser.skip(Parser.isAnySpaceChar);
-      list.add(parser.while(isNotQuerySpecialChar, 1).trim());
+      list.add(parser.while(isNotQueryAttrSpecialChar, 1).trim());
     }
   }
   if (parser.ch === '+')
@@ -77,6 +77,9 @@ function parseAttributes(parser: Parser, ret: Query) {
 function isNotQueryGroupSpecialChar(ch: string) {
   return "+?{}!".indexOf(ch) === -1;
 }
-function isNotQuerySpecialChar(ch: string) {
+function isNotQueryTagSpecialChar(ch: string) {
+  return "=+?{}!:".indexOf(ch) === -1;
+}
+function isNotQueryAttrSpecialChar(ch: string) {
   return "=+-?{}!:".indexOf(ch) === -1;
 }

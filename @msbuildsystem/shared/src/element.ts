@@ -337,7 +337,9 @@ export class Element {
       let ret: Element[] = [];
       this.__resolveElements(reporter, ret, value, attrPath);
       if (ret.length > 1)
-        attrPath.diagnostic(reporter, { type: 'warning', msg: `can't reference multiple elements here` });
+        attrPath.diagnostic(reporter, { type: 'warning', msg: `can't reference multiple elements here`, notes: [
+          { type: "note", msg: "did you forget the [] ?" },
+        ]});
       else if (ret.length === 0)
         attrPath.diagnostic(reporter, { type: 'warning', msg: `must reference at least one element` });
       if (Element.isNamespace(key) && ret.length === 1 && ret[0].name && ret[0].name !== Element.namespace2name(key))
@@ -469,7 +471,13 @@ export class Element {
       for (let group of ret.groups)
         this.__resolveElementsGroup(reporter, into, group, ret, attrPath);
     }
-    reporter.aggregate(parser.reporter);
+    if (parser.reporter.diagnostics.length) {
+      reporter.diagnostic({
+        type: "warning",
+        msg: `unable to parse query: ${query}`,
+        notes: parser.reporter.diagnostics,
+      });
+    }
   }
 
   toJSON() {
