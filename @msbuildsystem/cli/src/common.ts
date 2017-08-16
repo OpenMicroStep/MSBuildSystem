@@ -119,7 +119,7 @@ export class ReporterPrinter {
     if (report.diagnostics.length) {
       ret += report.diagnostics.map(d => ReporterPrinter.formatDiagnostic(d)).join('\n');
       if (report.failed && report.stats && report.stats.error === 0 && report.stats["fatal error"] === 0)
-        ret += report.logs;
+        ret += "\n" + report.logs;
     }
     else if (report.failed) {
       ret += report.logs;
