@@ -105,6 +105,9 @@ export class Element {
   static namespace2name(namespace: string) { return namespace.substring(0, namespace.length - 1); }
 
   static isReference(value: string) : boolean { return typeof value === 'string' && value.startsWith('='); }
+  static name2reference(name: string) { return '=' + name; }
+  static reference2name(reference: string) { return reference.substring(1); }
+
   static isReserved(value: string) : boolean {
     return typeof value === 'string' && value.startsWith('__');
   }
@@ -470,29 +473,53 @@ export class Element {
   }
 
   toJSON() {
-    return serialize(this);
+    return serialize(this, [], false);
   }
 }
 Element.registerAttributes(Element, ['is', 'name'], {
   tags: AttributeTypes.validateStringList
 });
-function serialize(element: Element) {
-  if (typeof element === "object") {
-    if (Array.isArray(element)) {
-      return element.map(e => serialize(e));
+function isAlreadyDefined(element: Element, stack: Element[]) {
+  let n = Element.name2namespace(element.name);
+  for (let i = stack.length; i > 0; ) {
+    let e = stack[--i][n];
+    if (e === element)
+      return true;
+    if (e)
+      return false;
+  }
+  return false;
+}
+function serialize(element: any, stack: Element[], isNamespace: boolean) : any {
+  let ret: any = element;
+  if (element instanceof Object) {
+    if (element instanceof Set || element instanceof Array) {
+      ret = [];
+      for (let e of element)
+        ret.push(serialize(e, stack, false));
+    }
+    else if (element instanceof Element) {
+      if (!isNamespace && element.name && isAlreadyDefined(element, stack))
+        ret = Element.name2reference(element.name);
+      else {
+        ret = {};
+        stack.push(element);
+        for (let key of Object.getOwnPropertyNames(element)) {
+          if (!Element.isReserved(key)) {
+            ret[key] = serialize(element[key], stack, Element.isNamespace(key));
+          }
+        }
+        stack.pop();
+      }
     }
     else {
-      let k, v, copy = {};
-      for (k in element) {
-        if (!Element.isReserved(k)) {
-          v = element[k];
-          copy[k] = serialize(v);
-        }
+      ret = {};
+      for (let key of Object.getOwnPropertyNames(element)) {
+        ret[key] = serialize(element[key], stack, false);
       }
-      return copy;
     }
   }
-  return element;
+  return ret;
 }
 
 export namespace Element {

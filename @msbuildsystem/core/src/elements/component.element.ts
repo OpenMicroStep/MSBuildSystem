@@ -1,4 +1,4 @@
-import {Element, MakeJSElement, Project, Reporter, MakeJS, AttributePath, AttributeTypes, serialize, DelayedInjection, GroupElement} from '../index.priv';
+import {Element, MakeJSElement, Project, Reporter, MakeJS, AttributePath, AttributeTypes, DelayedInjection, GroupElement} from '../index.priv';
 
 function createComponent(reporter: Reporter, name: string,
   definition: MakeJS.Element, attrPath: AttributePath, parent: Element
@@ -36,9 +36,30 @@ Element.registerAttributes(ComponentElement, [], {
 });
 
 export namespace ComponentElement {
+
+  export function normalize(element: any) {
+    if (element instanceof Object) {
+      let ret: any;
+      if (element instanceof Set)
+        element = [...element];
+      if (Array.isArray(element)) {
+        ret = element.map((e, idx) => normalize(e));
+      }
+      else {
+        ret = {};
+        for (let key of Object.getOwnPropertyNames(element)) {
+          if (!Element.isReserved(key))
+            ret[key] = normalize(element[key]);
+        }
+      }
+      return ret;
+    }
+    return element;
+  }
+
   export const validateAndNormalizeAny: AttributeTypes.Validator0<any> = {
     validate: function validateAndNormalizeAny(reporter: Reporter, path: AttributePath, value: any) {
-      return serialize(value);
+      return normalize(value);
     }
   };
 

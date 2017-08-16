@@ -45,14 +45,14 @@ export class BuildTargetElement extends MakeJSElement {
     closeInjectionContext(ctx);
 
     let atexports = new AttributePath(this, '.exports');
-    let exports = new Set<any>();
-    ComponentElement.superValidateList(reporter, atexports, this.exports as any, undefined, AttributeTypes.validateObject, exports.add.bind(exports));
-    exports = serializeExports(ctx, exports, new AttributePath(this, '.exports'));
+    let exports = new Set<Element>();
+    ComponentElement.superValidateList(reporter, atexports, this.exports as any, undefined, Element.validateElement, exports.add.bind(exports));
+    let serialized_exports = [...exports].map(e => e.toJSON());
     this.exports = {
       is: "target-exports",
       name: this.name,
       environment: this.environment.name,
-      components: ["=generated", ...exports],
+      components: ["=generated", ...serialized_exports],
       "generated=": { is: "component", components: [] }
     };
 
@@ -67,32 +67,3 @@ export class BuildTargetElement extends MakeJSElement {
   }
 }
 Element.registerAttributes(BuildTargetElement, ["environment", "compatibleEnvironments", "targets", "components", "exports", "type", "manual"], {});
-
-function serializeExports(ctx: InjectionContext, element: any, at: AttributePath) : any {
-  if (element instanceof Object) {
-    let ret: any;
-    if (element instanceof Set) {
-      ret = [];
-      at.pushArray();
-      for (let e of element)
-        ret.push(serializeExports(ctx, e, at));
-      at.popArray();
-    }
-    else if (element instanceof Array) {
-      ret = [];
-      at.pushArray();
-      for (let [i, e] of element.entries())
-        ret.push(serializeExports(ctx, e, at.setArrayKey(i)));
-      at.popArray();
-    }
-    else {
-      ret = {};
-      for (let key of Object.getOwnPropertyNames(element)) {
-        if (!Element.isReserved(key))
-          ret[key] = serializeExports(ctx, element[key], at);
-      }
-    }
-    return ret;
-  }
-  return element;
-}

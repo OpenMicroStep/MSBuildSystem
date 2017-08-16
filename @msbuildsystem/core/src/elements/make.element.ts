@@ -40,31 +40,7 @@ export class MakeJSElement extends Element {
       super.__resolveElementsGroup(reporter, into, steps, query, attrPath);
     }
   }
-
-  toJSON() {
-    return serialize(this);
-  }
 }
 export interface MakeJSElement {
   __root() : ProjectElement;
-}
-
-export function serialize(element: any) {
-  if (element instanceof Object) {
-    let ret: any;
-    if (element instanceof Set)
-      element = [...element];
-    if (Array.isArray(element)) {
-      ret = element.map((e, idx) => serialize(e));
-    }
-    else {
-      ret = {};
-      for (let key of Object.getOwnPropertyNames(element)) {
-        if (!Element.isReserved(key))
-          ret[key] = serialize(element[key]);
-      }
-    }
-    return ret;
-  }
-  return element;
 }
