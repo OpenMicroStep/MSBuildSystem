@@ -1,49 +1,50 @@
-import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes, createProviderList, ProviderList, util} from "./index.priv";
+import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes as V, File} from "./index.priv";
+import * as semver from 'semver';
 
-export function createCachedProviderList<
-  CSTOR extends { name: string, compatibility(conditions: C) : number },
-  C extends { [s: string]: any }
-  >(type: string) {
-  return Object.assign(createProviderList<CSTOR, C>(type), {
-    loadCost: 0,
-    loaded: new Map<string, CSTOR | undefined>(),
-    safeLoadIfOutOfDate(this: ProviderList<CSTOR, C> & { loaded: Map<string, CSTOR | undefined>, loadCost: number }, name: string, loader: () => CSTOR | undefined) {
-      if (!this.loaded.has(name)) {
-        let t0 = util.now();
-        try {
-          let p = loader();
-          this.loaded.set(name, p);
-          if (p)
-            this.register(p);
-        } catch (e) {}
-        let cost = util.now() - t0;
-        this.loadCost += cost;
-        createCachedProviderList.totalLoadCost += cost;
-      }
-    }
-  });
-}
-export namespace createCachedProviderList {
-  export let totalLoadCost = 0;
+export class SemVerProvider {
+  name: string;
+  constructor(
+    public readonly package_name: string,
+    public readonly package_version: string,
+  ) {
+    if (!semver.valid(package_version))
+      console.warn(`invalid semver version ${package_version} for ${package_name}`);
+    this.name = `${package_name}@${package_version}`;
+  }
+
+  compatibility(query: string) : number {
+    let [name, version] = query.split('@');
+    if (name !== this.package_name)
+      return 0;
+    if (version && !semver.satisfies(this.package_version, version))
+      return 0;
+    return 1;
+  }
+
+  flattenArgs(args: (string | (string | File)[])[]) : string[] {
+    return args.map(f => {
+      let arg: string;
+        if (typeof f === "string")
+            arg = f;
+        else {
+          arg = "";
+          for (let a of f)
+            arg += typeof a === "string" ? a : a.path;
+        }
+        return arg;
+    });
+  }
 }
 
 export interface BuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>> {
   list: Map<string, new (graph: P) => T>;
-  register<S extends T, A>(names: string[], constructor: { new (graph: P) : S, prototype: S & A }, attributes: AttributeTypes.ExtensionsNU<A, Target>) : void;
-  declare: (names: string[]) => (constructor: new (graph: P) => T) => void;
+  register<S extends T, A>(names: string[], constructor: { new (graph: P) : S, prototype: S & A }, attributes: V.ExtensionsNU<A, Target>) : void;
   find: (name: string) => (new (graph: P) => T) | undefined;
-  validate: AttributeTypes.ValidatorT<T, P>;
+  validate: V.ValidatorT<T, P>;
 }
 export function createBuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>>(type: string, defaultCstor?: { new (graph: P) : T }) : BuildGraphProviderList<P, T> {
   let list = new Map<string, { new (graph: P) : T }>();
-  function declareBuildGraphProvider(names: string[]) {
-    return function (constructor: { new (graph: P) : T }) {
-      names.forEach(name => {
-        list.set(name, constructor);
-      });
-    };
-  }
-  function register<S extends T, A>(names: string[], constructor: { new (graph: P) : S, prototype: S & A }, attributes: AttributeTypes.ExtensionsNU<A, Target>) {
+  function register<S extends T, A>(names: string[], constructor: { new (graph: P) : S, prototype: S & A }, attributes: V.ExtensionsNU<A, Target>) {
     SelfBuildGraph.registerAttributes(constructor, attributes);
     names.forEach(name => list.set(name, constructor));
   }
@@ -53,7 +54,7 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
   function validate(reporter: Reporter, path: AttributePath, value: any, target: P) : T | undefined {
     if (value === undefined && defaultCstor !== undefined)
       return new defaultCstor(target);
-    let v = AttributeTypes.validateString.validate(reporter, path, value);
+    let v = V.validateString.validate(reporter, path, value);
     let ret: T | undefined = undefined;
     if (v !== undefined) {
       let builder = find(v);
@@ -69,7 +70,6 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
   return {
     list: list,
     register: register,
-    declare: declareBuildGraphProvider,
     find: find,
     validate: { validate: validate, traverse: () => `a ${type} provider {${[...list.keys()].join(', ')}}` }
   };

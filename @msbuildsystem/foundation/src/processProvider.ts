@@ -1,4 +1,4 @@
-import {createCachedProviderList, File, ProviderList, Step} from '@openmicrostep/msbuildsystem.core';
+import {createProviderList, File, ProviderList, Step} from '@openmicrostep/msbuildsystem.core';
 
 export enum ProcessProviderRequirement {
   Inputs,
@@ -18,7 +18,7 @@ export type ProcessProviderOptions = {
   env?: { [s: string]: string},
 };
 
-export const ProcessProviders = createCachedProviderList<ProcessProvider, ProcessProviderConditions>('provider');
+export const ProcessProviders: ProviderList<ProcessProvider, ProcessProviderConditions> = createProviderList('provider');
 export abstract class ProcessProvider {
   type: string;
   info: ProcessProviderInfo;

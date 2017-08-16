@@ -2,7 +2,7 @@ import {
   Reporter, SelfBuildGraph, Task, AttributeTypes, util,
   Graph, GenerateFileTask, Step, InOutTask, File, Directory,
   ComponentElement, AttributePath, Target, FileElement,
-  createCachedProviderList, ProviderList,
+  createProviderList, ProviderList, Loader,
 } from '@openmicrostep/msbuildsystem.core';
 import {
   ProcessTask, LocalProcessProvider, ProcessProviders, safeSpawnProcess,
@@ -155,25 +155,6 @@ export class NPMGeneratePackage extends GenerateFileTask {
   }
 }
 
-export class NPMTask extends ProcessTask {
-  constructor(name: string, graph: Graph, directory: Directory) {
-    super({ type: "npm", name: name }, graph, [], [], { type: "npm" });
-    this.setCwd(directory.path);
-    this.addFlags(["--loglevel", "info"]);
-  }
-
-  do_build(step: Step<{}>) {
-    let node_modules = File.getShared(path.join(this.cwd, 'node_modules'), true);
-    node_modules.ensureDir((err) => {
-      if (err) {
-        step.context.reporter.error(err);
-        step.continue();
-      }
-      else super.do_build(step);
-    });
-  }
-}
-
 @Task.declare(["npm install"], {
   packages: npmValidateDeps,
   directory: Target.validateDirectory,
@@ -226,38 +207,45 @@ export class NPMInstallTask extends Task {
   }
 }
 
-export const NPMProviders = createCachedProviderList<NPMProvider, {}>('provider');
+export const NPMProviders = createProviderList<NPMProvider, {}>('provider');
 export interface NPMProvider {
   name: string;
   compatibility(): number;
   do_install(step: Step, what: { directory: string, packages: { [s: string]: string }, links: { [s: string]: string } }): void;
 }
-NPMProviders.safeLoadIfOutOfDate('npm', () => {
-  let bin = global.process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  let version = child_process.execSync(`${bin} --version`).toString('utf8').trim();
-  let isV5 = !/^[0-4]\./.test(version);
-  return version ? {
-    name: `npm@${version}`,
-    compatibility() { return 1 },
-    do_install(step, what) {
-      step.setFirstElements([
-        ...Object.keys(what.links).map(name => {
-          return (step) => {
-            let source = File.getShared(what.links[name]);
-            File.getShared(path.join(what.directory, "node_modules", name)).writeSymlinkOf(step, source, true);
+Loader.safeLoadIfOutOfDate<{ bin: string, isV5: boolean, version: string }>({
+  name: 'npm',
+  uuid: 'FCB45F4D-45A0-497F-B2F6-CE1E78F152AA',
+  init() {
+    let bin = global.process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    let version = child_process.execSync(`${bin} --version`).toString('utf8').trim();
+    let isV5 = !/^[0-4]\./.test(version);
+    return version ? { bin: bin, isV5: isV5, version: version } : undefined;
+  },
+  load({ bin, isV5, version }) {
+    NPMProviders.register({
+      name: `npm@${version}`,
+      compatibility() { return 1 },
+      do_install(step, what) {
+        step.setFirstElements([
+          ...Object.keys(what.links).map(name => {
+            return (step) => {
+              let source = File.getShared(what.links[name]);
+              File.getShared(path.join(what.directory, "node_modules", name)).writeSymlinkOf(step, source, true);
+            }
+          }),
+          (step) => {
+            let args = Object.keys(what.packages).map(name => {
+              let version = what.packages[name];
+              if (global.process.platform === 'win32' && version.startsWith('^'))
+                version = '^^^' + version;
+              return `${name}@${version}`;
+            });
+            safeSpawnProcess(step, { cmd: [bin, "install", ...isV5 ? ["--no-shrinkwrap", "--no-save"] : [], ...args], cwd: what.directory });
           }
-        }),
-        (step) => {
-          let args = Object.keys(what.packages).map(name => {
-            let version = what.packages[name];
-            if (global.process.platform === 'win32' && version.startsWith('^'))
-              version = '^^^' + version;
-            return `${name}@${version}`;
-          });
-          safeSpawnProcess(step, { cmd: [bin, "install", ...isV5 ? ["--no-shrinkwrap", "--no-save"] : [], ...args], cwd: what.directory });
-        }
-      ]);
-      step.continue();
-    }
-  } : undefined;
+        ]);
+        step.continue();
+      }
+    });
+  }
 });

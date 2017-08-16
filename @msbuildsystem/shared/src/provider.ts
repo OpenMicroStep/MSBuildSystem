@@ -20,7 +20,7 @@ export interface ProviderMap<T> {
 
 export function createProviderList<
   CSTOR extends { name: string, compatibility(conditions: C): number },
-  C extends { [s: string]: any }
+  C
   >(type: string) : ProviderList<CSTOR, C> {
   let list = <CSTOR[]>[];
   function notes(value) {
