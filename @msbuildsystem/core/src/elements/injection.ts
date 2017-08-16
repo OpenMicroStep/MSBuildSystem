@@ -58,7 +58,7 @@ function injectAttribute(ctx: InjectionContext,
     collision();
   }
   else if (byenv) {
-    if (typeof srcValue !== "object") {
+    if (!srcValue || typeof srcValue !== "object" || srcValue.constructor !== Object) {
       srcPath.diagnostic(ctx.reporter, { type: "warning",
         msg: `not an object: ByEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring` });
     }
