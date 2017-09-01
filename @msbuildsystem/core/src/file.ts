@@ -169,7 +169,7 @@ export class File {
   writeUtf8File(content: string, cb: (err: Error) => any) {
     this.ensureDir((err) => {
       if (err) cb(err);
-      else fs.writeFile(this.path, content, "utf8", cb);
+      else fs.writeFile(this.path, content, { encoding: "utf8" }, cb);
     });
   }
   ensureDir(cb: (err: Error) => void, parentEvenIfDirectory = false) {
