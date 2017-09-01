@@ -1,5 +1,4 @@
 import {Graph, GenerateFileTask, File} from '@openmicrostep/msbuildsystem.core';
-import {basename} from 'path';
 
 export module Plist {
   export function stringify(what) {

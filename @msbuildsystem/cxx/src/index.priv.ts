@@ -1,27 +1,20 @@
-export * from './tasks/compile';
-export * from './tasks/compileClang';
-export * from './tasks/compileGCC';
-export * from './tasks/compileMasm';
+export * from './provider/providers';
+export * from './provider/clang';
+export * from './provider/lld';
+export * from './provider/ar';
+export * from './provider/windres';
 
-export * from './tasks/link';
-export * from './tasks/linkClang';
-export * from './tasks/linkLibTool';
-
-export * from './target';
-export * from './sysroot';
-
-//export {LinkBinUtilsTask} from './tasks/linkBinUtils';
-//export {LinkMSCVTask} from './tasks/linkMSVC';
-
-export * from './tasks/headerAlias';
-export * from './tasks/plistInfo';
-export * from './tasks/lipo';
-
-export * from './targets/executable';
-export * from './targets/library';
-export * from './targets/framework';
-export * from './targets/bundle';
-
-export * from './sysroots/darwin';
-//export {CXXLinuxSysroot} from './sysroots/linux';
-//export {CXXWindowsSysroot} from './sysroots/windows';
+export * from './toolchain/toolchain';
+export * from './toolchain/darwin';
+export * from './toolchain/windows';
+export * from './task/compile';
+export * from './task/link';
+export * from './task/plistInfo';
+export * from './task/headerAlias';
+export * from './task/compile_resource';
+export * from './target/cxxtarget';
+export * from './target/executable';
+export * from './target/library';
+export * from './target/framework';
+export * from './target/bundle';
+export * from './target/application-bundle';

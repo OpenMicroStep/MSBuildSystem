@@ -4,4 +4,4 @@ import {CXXTarget, CXXLinkType} from '../index.priv';
 export class CXXExecutable extends CXXTarget {
   linkType = CXXLinkType.EXECUTABLE;
 }
-Target.register(["CXXExecutable"], CXXExecutable, {});
+Target.register(["cxx-executable"], CXXExecutable, {});
