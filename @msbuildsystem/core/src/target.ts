@@ -53,11 +53,11 @@ export abstract class SelfBuildGraph<P extends Graph> extends Graph {
 SelfBuildGraph.registerAttributes(SelfBuildGraph as any, {});
 
 @Target.declare(['basic'], {
-  outputName:      AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.attributes.name, 'name of target'),
-  outputFinalName: AttributeTypes.defaultsTo(AttributeTypes.validateString, undefined),
+  outputName:      AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.attributes.name,
+                  'output name of target, defaults to the name of the target'),
+  outputFinalName: AttributeTypes.defaultsTo(AttributeTypes.validateString, undefined,
+                  'final output name of target, defaults to outputName prefixed and suffixed depending of the target'),
   copyFiles:       AttributeTypes.defaultsTo(FileElement.validateFileGroup, []),
-  preTasks:        AttributeTypes.defaultsTo(TaskElement.validateTaskSequence, undefined),
-  postsTasks:      AttributeTypes.defaultsTo(TaskElement.validateTaskSequence, undefined),
 })
 export class Target extends SelfBuildGraph<RootGraph> {
   static providers = createProviderMap<{ new (graph: RootGraph, project: Project, attributes: BuildTargetElement): Target }>('targets');
@@ -96,8 +96,6 @@ export class Target extends SelfBuildGraph<RootGraph> {
   environment: string;
   targetName: string;
 
-  preTasks: Graph | undefined;
-  postsTasks: Graph | undefined;
   copyFiles: FileElement.FileGroup[] = [];
   outputName: string;
   outputFinalName: string | undefined;
