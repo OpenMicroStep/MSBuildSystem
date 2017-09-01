@@ -44,6 +44,13 @@ export interface BuildGraphProviderList<P extends Target, T extends SelfBuildGra
 }
 export function createBuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>>(type: string, defaultCstor?: { new (graph: P) : T }) : BuildGraphProviderList<P, T> {
   let list = new Map<string, { new (graph: P) : T }>();
+  function notes(value) {
+    return [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
+          .concat([...list.keys()].map(name => (<Diagnostic>{
+            type: "note",
+            msg: `found: ${name}`
+          })))
+  }
   function register<S extends T, A>(names: string[], constructor: { new (graph: P) : S, prototype: S & A }, attributes: V.ExtensionsNU<A, Target>) {
     SelfBuildGraph.registerAttributes(constructor, attributes);
     names.forEach(name => list.set(name, constructor));
@@ -58,12 +65,14 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
     let ret: T | undefined = undefined;
     if (v !== undefined) {
       let builder = find(v);
+      if (builder === undefined) {
+        reporter.diagnostic({ type: "error", msg: `unable to find ${type}`, notes: notes(value) });
+        builder = defaultCstor;
+      }
       if (builder !== undefined) {
         ret = new builder(target);
         ret.resolve(reporter, target);
       }
-      else
-        reporter.diagnostic({ type: "error", msg: `unable to find ${type}`});
     }
     return ret;
   }
