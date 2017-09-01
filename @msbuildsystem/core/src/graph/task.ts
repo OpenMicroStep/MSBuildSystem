@@ -18,7 +18,7 @@ export class Task extends Node {
   readonly __extensions: AttributeTypes.Extension<Partial<Target>, Target>; // on the prototype
   readonly __validator: AttributeTypes.ValidatorNU<object, Target>;
 
-  static declare<T extends Task, A>(names: string[], attributes: AttributeTypes.ExtensionsNU<A, Target>) : (cstor: Task.Constructor<T, A>) => void;
+  static declare<T extends Task, A>(names: string[], attributes: AttributeTypes.ExtensionsNU<Partial<A>, Target>) : (cstor: Task.Constructor<T, A>) => void;
   static declare<T extends Task, OA, MA>(names: string[], attributes: AttributeTypes.ExtensionsNU<OA, Target>, map: Task.Map<OA, MA>) : (cstor: Task.Constructor<T, MA>) => void;
   static declare<T extends Task, OA, MA>(names: string[], attributes: AttributeTypes.ExtensionsNU<OA, Target>, map?: Task.Map<OA, MA>) {
     return function register(cstor: Task.Constructor<T, MA>) {
