@@ -1,4 +1,4 @@
-import {Project, Reporter, BuildGraphOptions, RootGraph, Element, AttributeTypes, AttributePath, util, Directory, File, TargetElement} from './index.priv';
+import {Project, Reporter, BuildGraphOptions, RootGraph, Element, ElementDefinition, AttributeTypes, AttributePath, util, Directory, File, TargetElement} from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as fs_extra from 'fs-extra';
@@ -20,6 +20,13 @@ const workspaceDataValidator = AttributeTypes.objectValidator<WorkspaceData, Wor
 
 export class Workspace {
   static globalRoot = new Element('root', 'global', null);
+  static extendGlobalRoot(definition: ElementDefinition) {
+    let reporter: Reporter | null = new Reporter();
+    Element.load(reporter, definition, Workspace.globalRoot, Project.elementFactories);
+    if (reporter.diagnostics.length)
+      console.warn("error while loading global envs", reporter.diagnostics);
+  }
+
   directory: string;
   projects = new Map<string, Project>();
   path: string;
