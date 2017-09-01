@@ -11,6 +11,10 @@ export class CopyTask extends Task {
     super({ type: "copy", name: name }, graph);
   }
 
+  uniqueKey() {
+    return this.steps.map(s => s.path);
+  }
+
   configure(reporter: Reporter, { files }: { files: FileElement.FileGroup[] }) {
     this.willCopyFileGroups(reporter, files, this.target().paths.output);
   }
