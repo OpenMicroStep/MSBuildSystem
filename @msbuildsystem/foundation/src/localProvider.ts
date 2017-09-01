@@ -33,7 +33,7 @@ export interface SafeSpawnParams {
   shell?: boolean;
 };
 
-function toShellArg(arg: string) : string {
+export function toShellArg(arg: string) : string {
   if (/^[a-zA-Z0-9-_]*$/.test(arg))
     return arg;
   if (process.platform === 'win32')
@@ -41,6 +41,7 @@ function toShellArg(arg: string) : string {
   return `'${arg.replace("'", "''")}'`;
 }
 export function safeSpawnProcess(step: Step<{}>, p: SafeSpawnParams) {
+  (step.context.sharedData as any).command = p;
   let method = p.method || 'spawn';
   var options: any = {
     encoding: 'utf8',
