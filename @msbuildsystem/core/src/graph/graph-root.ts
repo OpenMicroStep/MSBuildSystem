@@ -77,12 +77,12 @@ export class RootGraph extends Graph {
       fs.ensureDirSync(defs);
       fs.writeFileSync(path.join(defs, `${target.name}.json`), JSON.stringify(buildTarget, null, 2));
       if (!buildTarget.manual || allowManual)
-        task = this.createTarget_(reporter, buildTarget);
+        task = this._createTarget(reporter, buildTarget);
     }
     return task;
   }
 
-  createTarget_(reporter: Reporter, buildTarget: BuildTargetElement) : Target | undefined {
+  private _createTarget(reporter: Reporter, buildTarget: BuildTargetElement) : Target | undefined {
     let task: Target | undefined;
     let cls = Target.providers.validate.validate(reporter, new AttributePath(buildTarget), buildTarget.type);
     if (cls) {
