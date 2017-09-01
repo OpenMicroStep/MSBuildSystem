@@ -1,4 +1,4 @@
-import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes as V, File} from "./index.priv";
+import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes as V, File, Diagnostic} from "./index.priv";
 import * as semver from 'semver';
 
 export class SemVerProvider {
@@ -6,6 +6,7 @@ export class SemVerProvider {
   constructor(
     public readonly package_name: string,
     public readonly package_version: string,
+    public readonly priority = 1,
   ) {
     if (!semver.valid(package_version))
       console.warn(`invalid semver version ${package_version} for ${package_name}`);
@@ -13,12 +14,14 @@ export class SemVerProvider {
   }
 
   compatibility(query: string) : number {
-    let [name, version] = query.split('@');
-    if (name !== this.package_name)
-      return 0;
-    if (version && !semver.satisfies(this.package_version, version))
-      return 0;
-    return 1;
+    if (query) {
+      let [name, version] = query.split('@');
+      if (name !== this.package_name)
+        return 0;
+      if (version && !semver.satisfies(this.package_version, version))
+        return 0;
+    }
+    return this.priority;
   }
 
   flattenArgs(args: (string | (string | File)[])[]) : string[] {
