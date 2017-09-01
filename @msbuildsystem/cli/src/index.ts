@@ -1,5 +1,5 @@
 let boot_t0 = process.hrtime();
-import { Loader, Workspace, TaskReporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph, Node } from '@openmicrostep/msbuildsystem.core';
+import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph, Node } from '@openmicrostep/msbuildsystem.core';
 import { printReport, ReporterPrinter, mkReport, Report } from './common';
 import { args } from './args';
 import { npm } from './modules';
@@ -97,14 +97,13 @@ function handle_run() {
     results = results && printReport(`Project ${p} load`, project.reporter, perf());
     return project;
   });
-  let reporter = new TaskReporter();
-  workspace.fixDirectoryPendingResolution(reporter);
-  results = results && printReport(`Workspace load`, reporter);
+  workspace.fixDirectoryPendingResolution();
+  results = results && printReport(`Workspace load`, workspace.reporter);
   console.info(`Workspace: ${workspace.directory}`);
   console.info(`Projects: ${[...workspace.projects.values()].map(p => `\n - ${p.path}`).join('')}`);
   if (results) {
     workspace.save();
-    let reporter = new TaskReporter();
+    let reporter = new Reporter();
     let perf = util.performanceCounter();
     let graph = workspace.buildGraph(reporter, {
       environments: args.environments || undefined,
@@ -206,7 +205,7 @@ function handle_run() {
       let provider: TaskDoMapReduce<any, any> | undefined = undefined;
       let ok = true;
       if (args.command === "generate") {
-        let reporter = new TaskReporter();
+        let reporter = new Reporter();
         provider = Task.generators.validate.validate(reporter, new AttributePath('ide'), args.ide);
         ok = !!(provider && printReport('Find generator', reporter));
       }
