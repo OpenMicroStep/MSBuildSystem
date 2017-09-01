@@ -70,9 +70,13 @@ export class Task extends Node {
         this.isActionRequired(step);
       },
       (step) => {
+        if (step.context.runner.options.full) {
+          step.context.lastSuccessStartTime = 0;
+          step.context.lastSuccessEndTime = 0;
+        }
         if (step.context.reporter.failed)
           step.continue();
-        else if (step.context.actionRequired || step.context.runner.options.full || step.context.lastSuccessStartTime === 0)
+        else if (step.context.actionRequired || step.context.lastSuccessStartTime === 0)
           this.doRequiredAction(step);
         else {
           step.context.reporter.logs = step.context.data.logs || "";
