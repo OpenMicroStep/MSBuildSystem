@@ -57,7 +57,7 @@ export class ClangProvider extends SemVerProvider implements CompilerProvider, L
   compile_arguments(reporter: Reporter, attributes: CompileAttributes): string[] {
     let args: string[] = [];
     let compilerOptions = attributes.compilerOptions;
-    args.push('-fdiagnostics-parseable-fixits');
+    args.push('-fdiagnostics-parseable-fixits', '-fdiagnostics-print-source-range-info');
     args.push('-o', attributes.objFile.path);
     args.push('-c', attributes.srcFile.path);
     if (attributes.hmapFile)
