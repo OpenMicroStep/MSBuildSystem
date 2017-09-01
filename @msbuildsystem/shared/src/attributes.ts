@@ -231,14 +231,14 @@ export function oneOf<A0>(v0: Validator<any, A0>, ...validators: Validator<any, 
   return { validate: validateOneOf };
 }
 
-export function defaultsTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: undefined) : Traverse<Validator0<T    >>;
-export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: undefined) : Traverse<Validator <T, A0>>;
-export function defaultsTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: undefined) : Traverse<Validator0<T    >>;
-export function defaultsTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: undefined) : Traverse<Validator <T, A0>>;
-export function defaultsTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: T) : Traverse<ValidatorNU0<T    >>;
-export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: T) : Traverse<ValidatorNU <T, A0>>;
-export function defaultsTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: T) : Traverse<ValidatorNU0<T    >>;
-export function defaultsTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: T) : Traverse<ValidatorNU <T, A0>>;
+export function defaultsTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: undefined, doc?: string) : Traverse<Validator0<T    >>;
+export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: undefined, doc?: string) : Traverse<Validator <T, A0>>;
+export function defaultsTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: undefined, doc?: string) : Traverse<Validator0<T    >>;
+export function defaultsTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: undefined, doc?: string) : Traverse<Validator <T, A0>>;
+export function defaultsTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: T, doc?: string) : Traverse<ValidatorNU0<T    >>;
+export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: T, doc?: string) : Traverse<ValidatorNU <T, A0>>;
+export function defaultsTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: T, doc?: string) : Traverse<ValidatorNU0<T    >>;
+export function defaultsTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: T, doc?: string) : Traverse<ValidatorNU <T, A0>>;
 export function defaultsTo<T    >(validator: Traverse<Validator0  <T    >>, defaultValue: (  ) => T, doc: string) : Traverse<ValidatorNU0<T    >>;
 export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: (a0) => T, doc: string) : Traverse<ValidatorNU <T, A0>>;
 export function defaultsTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: (  ) => T, doc: string) : Traverse<ValidatorNU0<T    >>;
