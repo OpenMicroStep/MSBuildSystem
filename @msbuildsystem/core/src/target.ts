@@ -176,7 +176,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
     for (let dep of this.dependencies) {
       if (dep.environment !== this.environment) {
         flux.setFirstElements([f => {
-          fs.copy(dep.paths.output, this.paths.output, dep.isOutputFileChecker(), err => {
+          fs.copy(dep.paths.output, this.paths.output, { filter: dep.isOutputFileChecker() }, err => {
             f.context.reporter.error(err);
             f.continue();
           });
