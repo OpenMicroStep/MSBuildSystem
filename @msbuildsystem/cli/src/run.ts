@@ -113,6 +113,7 @@ export function handle_run() {
       let width = Math.max(0, stderr.columns -  21 - progress2.length);
       let partdone = Math.floor(done * width / count);
       let stallsTxt = stalls.stalls.length === 0 ? 'none' : stalls.stalls.map(dt => util.Formatter.duration.millisecond.short(dt)).join(', ');
+      updateAverageTaskLoad(tasks.size);
       writelines([
         `Progression: [${"-".repeat(partdone)}${" ".repeat(width - partdone)}] ${progress1}% ${progress2}`,
         `Elapsed: ${util.Formatter.duration.millisecond.short(perf())}, ` +
