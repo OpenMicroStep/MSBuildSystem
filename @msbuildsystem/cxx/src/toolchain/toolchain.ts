@@ -69,7 +69,7 @@ export abstract class Toolchain extends SelfBuildGraph<CXXTarget> {
   abstract mutateLinkerOptions(options: LinkerOptions): void;
   abstract linkFinalName(name: string) : string;
 
-  bundleBasePath() {
+  bundleBasePath(): string {
     if (this.graph instanceof CXXBundle)
       return `bundle`;
     if (this.graph instanceof CXXApplicationBundle)
