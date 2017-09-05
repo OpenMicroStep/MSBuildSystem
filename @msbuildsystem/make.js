@@ -284,12 +284,12 @@ module.exports= {
     "tests-3=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", "-t", "10000", ...tests("dist/3")
     ]) },
-    "coverage-local-3=": { is: "task", components: ["=cmd"], env: { is: "component", NYC_CWD: cwd_test("dist/3") }, cmd: Value([
-      "nyc", "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "-x", "*.tests/**", "mstests",
+    "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: Value([
+      "nyc", "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "-x", "*.tests/**", "mstests", "--cmd", cwd_test("dist/3"),
       "-c", "-t", "20000", ...tests("dist/3")
     ]) },
-    "coveralls-3=": { is: "task", components: ["=cmd"], env: { is: "component", NYC_CWD: cwd_test("dist/3") }, cmd:
-      `nyc --reporter=text-lcov --report-dir ${__dirname}/../dist/coverage -x "*.tests/**" mstests -c -t 20000 ${tests("dist/3").join(' ')} | coveralls`
+    "coveralls-3=": { is: "task", components: ["=cmd"], cmd:
+      `nyc --reporter=text-lcov --report-dir ${__dirname}/../dist/coverage -x "*.tests/**" mstests --cmd ${cwd_test("dist/3")} -c -t 20000 ${tests("dist/3").join(' ')} | coveralls`
     },
 
     "deploy-shared="    : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared"       ]) },
