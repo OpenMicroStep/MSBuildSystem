@@ -56,7 +56,7 @@ export function handle_run() {
       let wasrun = !!(context as any).actionRequired;
       if (context.reporter.diagnostics.length) {
         console.info("DIAGS ∨");
-        console.info(context.reporter.diagnostics.map(d => printer.formatDiagnostic(d)).join('\n'));
+        context.reporter.diagnostics.forEach(d => printer.writeDiagnostic(process.stderr, d));
         console.info("LOGS  ∨");
         console.info(context.reporter.logs);
         console.info(`END ${wasrun ? "X" : "O"} ∧`, where(context.task), (context.lastRunEndTime - context.lastRunStartTime) + 'ms');
@@ -164,7 +164,7 @@ export function handle_run() {
   ]);
 
   function end() {
-    console.log(printer.formatReports('Build', perf()));
+    printer.writeReports(process.stderr, 'Build', perf());
     process.exit(printer.report.stats['error'] + printer.report.stats['fatal error']);
   }
 }
