@@ -68,8 +68,7 @@ export class ReporterPrinter {
     this.totalDiagnosticCount += report.diagnostics.length;
     this.reports.push(report);
   }
-  formatStats() {
-    let stats = this.report.stats;
+  formatStats(stats: Stats = this.report.stats) {
     return ReporterPrinter.types
       .filter(type => stats[type] > 0)
       .map(type => `${stats[type]} ${this.colors[type](type + (stats[type] > 1 ? 's' : ''))}`)
@@ -222,7 +221,7 @@ export class ReporterPrinter {
     else if (!report.failed)
       ret += ` without issues`;
     if (report.diagnostics.length > 0)
-      ret += ` (${this.formatStats()})`;
+      ret += ` (${this.formatStats(report.stats)})`;
     if (report.duration !== undefined)
       ret += ` (took ${util.Formatter.duration.millisecond.short(report.duration)})`;
     return ret;
