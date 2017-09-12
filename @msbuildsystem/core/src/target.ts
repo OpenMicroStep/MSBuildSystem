@@ -160,7 +160,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
   configureExports(reporter: Reporter) {}
 
   exportsPath(absolutePath: string) {
-    return util.pathRelativeToBase(this.paths.output, absolutePath);
+    return util.pathRelativeToBase(this.paths.output, absolutePath) || '.';
   }
 
   buildGraph(reporter: Reporter) {
