@@ -13,8 +13,10 @@ export abstract class Node {
     this.name = name;
     this.graph = graph;
     this.sessionKey = undefined;
-    if (graph)
+    if (graph) {
       graph.inputs.add(this);
+      graph.outputs.add(this);
+    }
   }
 
   /** returns the target that contains this task */
@@ -56,6 +58,7 @@ export abstract class Node {
     if (this.graph !== task.graph)
       throw "Can't add task dependency that is contained in another graph";
     this.graph.inputs.delete(this);
+    this.graph.outputs.delete(task);
     this.dependencies.add(task);
     task.requiredBy.add(this);
   }

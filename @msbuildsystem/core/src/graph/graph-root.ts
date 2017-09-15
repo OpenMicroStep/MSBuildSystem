@@ -15,8 +15,21 @@ export class RootGraph extends Graph {
 
   buildGraph(reporter: Reporter) {
     reporter.transform.push(transformWithCategory('graph'));
-    for (let t of this.iterator(false) as IterableIterator<Target>)
+    for (let t of this.iterator(false) as IterableIterator<Target>) {
       t.buildGraph(reporter);
+      if (t.preTasks) {
+        for (let input of t.inputs) {
+          if (input !== t.preTasks)
+            input.addDependency(t.preTasks);
+        }
+      }
+      if (t.postsTasks) {
+        for (let output of t.outputs) {
+          if (output !== t.postsTasks)
+            t.postsTasks.addDependency(output);
+        }
+      }
+    }
     reporter.transform.pop();
   }
 

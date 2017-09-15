@@ -1,7 +1,9 @@
 import {Node, File, Step, Barrier} from '../index.priv';
 
 export class Graph extends Node {
-  constructor(name: Node.Name, graph: Graph, public inputs: Set<Node> = new Set<Node>()) {
+  /** @internal */ inputs: Set<Node> = new Set<Node>();
+  /** @internal */ outputs: Set<Node> = new Set<Node>();
+  constructor(name: Node.Name, graph: Graph) {
     super(name, graph);
   }
 
