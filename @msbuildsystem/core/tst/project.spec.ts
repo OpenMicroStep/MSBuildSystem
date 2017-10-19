@@ -10,6 +10,7 @@ export class TestTarget extends Target {
   publicHeaders: File[];
   defines:       string[];
   libraries:     string[];
+  mylist:        string[];
 }
 Target.register(["Test"], TestTarget, {
   compiler     : V.defaultsTo(V.validateString, 'default compiler'),
@@ -19,6 +20,7 @@ Target.register(["Test"], TestTarget, {
   publicHeaders: V.defaultsTo(ComponentElement.setAsListValidator(FileElement.validateFile), []),
   defines      : V.defaultsTo(ComponentElement.setAsListValidator(V.validateString), []),
   libraries    : V.defaultsTo(ComponentElement.setAsListValidator(V.validateString), []),
+  mylist       : V.defaultsTo(ComponentElement.setAsListValidator(V.validateString), []),
 });
 
 type Context = {
@@ -160,6 +162,7 @@ function build_graph(f: Flux<Context>) {
     components   : [],
     targets      : [],
     manual       : false,
+    mylist       : ["v2"],
     environment  : {
       is: "environment",
       name: "darwin-i386",

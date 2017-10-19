@@ -23,8 +23,8 @@ export interface InjectionContext {
 
 }*/
 
-const notInjectableKeys = /(^__)|([^\\]=$)|is|name|tags|components|environment|environments/;
-const copiableAsIsKeys = /(^__)|([^\\]=$)|is|name|tags/;
+const notInjectableKeys = /(^__)|([^\\]=$)|^(is|name|tags|components|environment|environments)$/;
+const copiableAsIsKeys = /(^__)|([^\\]=$)|^(is|name|tags)$/;
 
 export function injectDefaultDeep(ctx: InjectionContext, kind: 'components' | 'value') {
   return true;

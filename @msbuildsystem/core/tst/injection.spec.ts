@@ -1,4 +1,8 @@
-import {Reporter, injectElements, AttributePath, BuildTargetElement, Diagnostic, ComponentElement, Element, createInjectionContext, closeInjectionContext} from '@openmicrostep/msbuildsystem.core/index.priv';
+import {
+  Reporter,
+  injectElements, injectDefaultKeep, injectDefaultCopy, createInjectionContext, closeInjectionContext,
+  AttributePath, BuildTargetElement, Diagnostic, ComponentElement, Element
+} from '@openmicrostep/msbuildsystem.core/index.priv';
 import {assert} from 'chai';
 
 const env = { name: "a" };
@@ -58,6 +62,43 @@ function testInjectElement(into: object, element: Element, diags: Diagnostic[], 
   assert.deepEqual(reporter.diagnostics, diags);
   let c = clean(el);
   assert.deepEqual(c, expect);
+}
+
+function inject_default_keep() {
+  let reporter = new Reporter();
+  let ctx = createInjectionContext(reporter, mock_buildtarget());
+  assert.strictEqual(injectDefaultKeep(ctx, "is"), false, `"is" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "name"), false, `"name" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "tags"), false, `"tags" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "components"), false, `"components" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "environment"), false, `"environment" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "environments"), false, `"environments" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "__private"), false, `"__private" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "namespace="), false, `"namespace=" is not injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "not a namespace\\="), true, `"not a namespace\\=" is injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "is not is"), true, `"is not is" is injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "is_"), true, `"is_" is injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "_is"), true, `"_is" is injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "my attribute name"), true, `"my attribute name" is injectable`);
+  assert.strictEqual(injectDefaultKeep(ctx, "my_attribute_name"), true, `"my_attribute_name" is injectable`);
+}
+function inject_default_copy() {
+  let reporter = new Reporter();
+  let ctx = createInjectionContext(reporter, mock_buildtarget());
+  assert.strictEqual(injectDefaultCopy(ctx, "is"), true, `"is" is copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "name"), true, `"name" is copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "tags"), true, `"tags" is copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "__private"), true, `"__private" is copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "namespace="), true, `"namespace=" is copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "components"), false, `"components" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "environment"), false, `"environment" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "environments"), false, `"environments" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "not a namespace\\="), false, `"not a namespace\\=" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "is not is"), false, `"is not is" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "is_"), false, `"is_" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "_is"), false, `"_is" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "my attribute name"), false, `"my attribute name" is not copiable as is`);
+  assert.strictEqual(injectDefaultCopy(ctx, "my_attribute_name"), false, `"my_attribute_name" is not copiable as is`);
 }
 
 function primitive_nocollision() {
@@ -281,6 +322,8 @@ function components_arrsubsubarr() {
 }
 
 export const tests = { name: 'injection', tests: [
+  inject_default_keep,
+  inject_default_copy,
   primitive_nocollision,
   primitive_nocollision_undefined,
   primitive_collision,
