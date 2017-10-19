@@ -31,7 +31,7 @@ export class Report {
       "fatal error": 0,
     };
     this.diagnostics.reduce((prev, current) => {
-      prev[current.type] += 1;
+      prev[current.is] += 1;
       return prev;
     }, this.stats);
     if (this.failed && !this.stats.error && !this.stats["fatal error"])
@@ -100,7 +100,7 @@ export class ReporterPrinter {
       }
       output.write(" ");
     }
-    output.write(this.colors[d.type](d.type) + ': ' + d.msg);
+    output.write(this.colors[d.is](d.is) + ': ' + d.msg);
     if (d.path && showContext && d.row && d.col) {
       let contents = "";
       try {

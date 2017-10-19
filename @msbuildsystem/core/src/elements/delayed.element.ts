@@ -18,7 +18,7 @@ export class DelayedQuery extends DelayedElement {
     let sources = ctx.buildTarget.___root.resolveExports(ctx.reporter, at, ctx.buildTarget, this.gsteps);
     if (sources.length === 0) {
       at.diagnostic(ctx.reporter, {
-        type: "error",
+        is: "error",
         msg: `query '${this.__path()}' is invalid, the external element wasn't found`
       });
     }

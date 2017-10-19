@@ -22,7 +22,7 @@ export class MakeJSElement extends Element {
         i++;
       if (i + 1 >= steps.length)
         attrPath.diagnostic(reporter, {
-          type: "error",
+          is: "error",
           msg: "invalid external group syntax, missing closing '::'"
         });
       else {

@@ -74,12 +74,12 @@ function primitive_nocollision_undefined() {
 
 function primitive_collision() {
   testInjectElements({ a: 1 }, [{ a: 2, b: 3 }, { a: 3, b: 4 }], [
-      { "type": "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
-        { type: "note", msg: 'caused collision while merging', path: "E0.a"},
-        { type: "note", msg: 'while merging', path: "E1.a"}] },
-      { "type": "warning", "msg": "collision: attribute is removed", "path": "I.b", notes: [
-        { type: "note", msg: 'while merging', path: "E0.b" },
-        { type: "note", msg: 'caused collision while merging', path: "E1.b"}] }
+      { is: "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
+        { is: "note", msg: 'caused collision while merging', path: "E0.a"},
+        { is: "note", msg: 'while merging', path: "E1.a"}] },
+      { is: "warning", "msg": "collision: attribute is removed", "path": "I.b", notes: [
+        { is: "note", msg: 'while merging', path: "E0.b" },
+        { is: "note", msg: 'caused collision while merging', path: "E1.b"}] }
     ], {});
 }
 
@@ -97,24 +97,24 @@ function array() {
 
 function array_into() {
   testInjectElements({ a: 2 }, [{ b: 3 }, { a: [3], c: 4 }],
-    [{ "type": "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
-      { type: "note", msg: 'caused collision while merging', path: "E1.a"}] }],
+    [{ is: "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
+      { is: "note", msg: 'caused collision while merging', path: "E1.a"}] }],
     { b: 3, c: 4 });
 }
 
 function array_collision() {
   testInjectElements({ a: [1] }, [{ a: 2, b: 3 }, { a: [3], c: 4 }], [
-    { "type": "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
-      { type: "note", msg: 'caused collision while merging', path: "E0.a"},
-      { type: "note", msg: 'while merging', path: "E1.a"}] },
+    { is: "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
+      { is: "note", msg: 'caused collision while merging', path: "E0.a"},
+      { is: "note", msg: 'while merging', path: "E1.a"}] },
     ], { b: 3, c: 4 });
 }
 
 function array_collision_into() {
   testInjectElements({ }, [{ a: 2, b: 3 }, { a: [3], c: 4 }],
-    [{ "type": "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
-      { type: "note", msg: 'while merging', path: "E0.a"},
-      { type: "note", msg: 'caused collision while merging', path: "E1.a"}] }],
+    [{ is: "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
+      { is: "note", msg: 'while merging', path: "E0.a"},
+      { is: "note", msg: 'caused collision while merging', path: "E1.a"}] }],
     { b: 3, c: 4 });
 }
 
@@ -133,16 +133,16 @@ function byEnvironment_noarray() {
       { aByEnvironment: { "=a": 2 }, bByEnvironment: { "=a": [3] }, c: 3 },
       { aByEnvironment: { "=a": [3], "=b": [4], "=a + b": [5] }, cByEnvironment: { "=a": [4] }, dByEnvironment: 4, e: 5 },
     ], [
-    { "type": "warning", "msg": "not an object: ByEnvironment attribute must be an object (ie: { \"=env\": [values] }), ignoring", "path": "E1.dByEnvironment" },
-    { "type": "warning", "msg": "collision: attribute is removed", "path": "I.b", notes: [
-      { type: "note", msg: `caused collision while merging`, path: "E0.bByEnvironment[=a]" }] },
-    { "type": "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
-      { type: "note", msg: `while merging`, path: "E0.aByEnvironment[=a]" },
-      { type: "note", msg: `caused collision while merging`, path: "E1.aByEnvironment[=a]" },
-      { type: "note", msg: `while merging`, path: "E1.aByEnvironment[=a + b]" }] },
-    { "type": "warning", "msg": "collision: attribute is removed", "path": "I.c", notes: [
-      { type: "note", msg: `while merging`, path: "E0.c" },
-      { type: "note", msg: `caused collision while merging`, path: "E1.cByEnvironment[=a]" }] },
+    { is: "warning", "msg": "not an object: ByEnvironment attribute must be an object (ie: { \"=env\": [values] }), ignoring", "path": "E1.dByEnvironment" },
+    { is: "warning", "msg": "collision: attribute is removed", "path": "I.b", notes: [
+      { is: "note", msg: `caused collision while merging`, path: "E0.bByEnvironment[=a]" }] },
+    { is: "warning", "msg": "collision: attribute is removed", "path": "I.a", notes: [
+      { is: "note", msg: `while merging`, path: "E0.aByEnvironment[=a]" },
+      { is: "note", msg: `caused collision while merging`, path: "E1.aByEnvironment[=a]" },
+      { is: "note", msg: `while merging`, path: "E1.aByEnvironment[=a + b]" }] },
+    { is: "warning", "msg": "collision: attribute is removed", "path": "I.c", notes: [
+      { is: "note", msg: `while merging`, path: "E0.c" },
+      { is: "note", msg: `caused collision while merging`, path: "E1.cByEnvironment[=a]" }] },
     ], {  e: 5 });
 }
 
@@ -169,11 +169,11 @@ function components_collision() {
       mock_component({ c: 4 }, '01'),
     ],
   }, '0'), [
-  { "type": "warning", "msg": "collision: attribute is removed", "path": "I.b", notes: [
-    { type: "note", msg: 'caused collision while merging', path: "00.b"}] },
-  { "type": "warning", "msg": "collision: attribute is removed", "path": "I.c", notes: [
-    { type: "note", msg: 'while merging', path: "001.c"},
-    { type: "note", msg: 'caused collision while merging', path: "01.c"}] },
+  { is: "warning", "msg": "collision: attribute is removed", "path": "I.b", notes: [
+    { is: "note", msg: 'caused collision while merging', path: "00.b"}] },
+  { is: "warning", "msg": "collision: attribute is removed", "path": "I.c", notes: [
+    { is: "note", msg: 'while merging', path: "001.c"},
+    { is: "note", msg: 'caused collision while merging', path: "01.c"}] },
   ], { a: 1 });
 }
 
@@ -209,14 +209,14 @@ function components_sub() {
       }, "01"),
     ]
   }, '0'), [
-  { "type": "warning", "msg": "collision: attribute is removed", "path": "I.a.b", notes: [
-    { type: "note", msg: 'caused collision while merging', path: "0.a.b"},
-    { type: "note", msg: 'while merging', path: "00.a.b"},
-    { type: "note", msg: 'while merging', path: "01.a0.b"}] },
-  { "type": "warning", "msg": "collision: attribute is removed", "path": "I.a.c", notes: [
-    { type: "note", msg: 'while merging', path: "0.a.c"},
-    { type: "note", msg: 'caused collision while merging', path: "00.a.c"},
-    { type: "note", msg: 'while merging', path: "01.a0.c"}] },
+  { is: "warning", "msg": "collision: attribute is removed", "path": "I.a.b", notes: [
+    { is: "note", msg: 'caused collision while merging', path: "0.a.b"},
+    { is: "note", msg: 'while merging', path: "00.a.b"},
+    { is: "note", msg: 'while merging', path: "01.a0.b"}] },
+  { is: "warning", "msg": "collision: attribute is removed", "path": "I.a.c", notes: [
+    { is: "note", msg: 'while merging', path: "0.a.c"},
+    { is: "note", msg: 'caused collision while merging', path: "00.a.c"},
+    { is: "note", msg: 'while merging', path: "01.a0.c"}] },
   ], {
     a: { d: 5, e: 6, f: 7 },
   });

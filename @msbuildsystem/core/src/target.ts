@@ -157,7 +157,7 @@ export class Target extends SelfBuildGraph<RootGraph> {
     path.push('.', '');
     for (let unused of this.unusedAttributes)
       if (!this.usedAttributes.has(unused))
-        path.set(unused).diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
+        path.set(unused).diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
     path.pop(2);
   }
 
@@ -234,7 +234,7 @@ export namespace Target {
         return f.isDirectory ? f as Directory : f.directory();
       }
       else {
-        path.diagnostic(reporter, { type: "warning", msg: "attribute must be a 'file' element or a string" });
+        path.diagnostic(reporter, { is: "warning", msg: "attribute must be a 'file' element or a string" });
       }
       return undefined;
     },

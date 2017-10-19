@@ -35,7 +35,7 @@ export class Reporter {
     }
     if (!d) return;
     this.diagnostics.push(d);
-    if (d.type === "error" || d.type === "fatal error")
+    if (d.is === "error" || d.is === "fatal error")
       this.failed = true;
   }
 
@@ -47,7 +47,7 @@ export class Reporter {
   description() {
     var desc = `${this.diagnostic.length} diagnostics: \n`;
     this.diagnostics.forEach(d => {
-      desc += ` - [${d.type}] ${d.msg}\n`;
+      desc += ` - [${d.is}] ${d.msg}\n`;
     });
     return desc;
   }

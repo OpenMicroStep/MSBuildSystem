@@ -144,7 +144,7 @@ export class File {
         }
       }
       else {
-        path.diagnostic(reporter, { type: "warning", msg: "attribute must be a relative path" });
+        path.diagnostic(reporter, { is: "warning", msg: "attribute must be a relative path" });
       }
       return undefined;
     }
@@ -207,18 +207,18 @@ export class File {
   writeSymlinkOf(step: Flux<{ reporter: Reporter }>, source: File, overwrite: boolean = false) {
     this.ensureDir((err) => {
       if (err) {
-        step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+        step.context.reporter.error(err, { is: "error", msg: err.message, path: this.path });
         return step.continue();
       }
       fs.lstat(this.path, (err, stats) => {
         if (stats && !stats.isSymbolicLink()) {
-          step.context.reporter.diagnostic({ type: "error", msg: "file already exists and is not a symbolic link", path: this.path });
+          step.context.reporter.diagnostic({ is: "error", msg: "file already exists and is not a symbolic link", path: this.path });
           return step.continue();
         }
 
         let create = () => {
           fs.symlink(source.path, this.path, 'junction', (err) => {
-            if (err && (<NodeJS.ErrnoException>err).code !== "EEXIST") step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+            if (err && (<NodeJS.ErrnoException>err).code !== "EEXIST") step.context.reporter.error(err, { is: "error", msg: err.message, path: this.path });
             step.continue();
           });
         };
@@ -226,13 +226,13 @@ export class File {
         if (stats) {
           fs.readlink(this.path, (err, currentTarget) => {
             if (err)
-              step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+              step.context.reporter.error(err, { is: "error", msg: err.message, path: this.path });
             else if (!util.pathAreEquals(currentTarget, source.path)) {
-              step.context.reporter.diagnostic({ type: "error", msg: `file already exists and is a symbolic link to '${currentTarget}'`, path: this.path });
+              step.context.reporter.diagnostic({ is: "error", msg: `file already exists and is a symbolic link to '${currentTarget}'`, path: this.path });
               if (overwrite) {
                 fs.unlink(this.path, (err) => {
                   if (err) {
-                    step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+                    step.context.reporter.error(err, { is: "error", msg: err.message, path: this.path });
                     return step.continue();
                   }
                   create();
@@ -253,7 +253,7 @@ export class File {
   unlink(step: Flux<{ reporter: Reporter }>) {
     fs.unlink(this.path, (err?) => {
       if (err && (<NodeJS.ErrnoException>err).code !== "ENOENT")
-        step.context.reporter.error(err, { type: "error", msg: err.message, path: this.path });
+        step.context.reporter.error(err, { is: "error", msg: err.message, path: this.path });
       step.continue();
     });
   }

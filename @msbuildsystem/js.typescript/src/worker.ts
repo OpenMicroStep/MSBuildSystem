@@ -88,7 +88,7 @@ class TscWorker {
           let { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
           let filename = util.pathNormalized(diagnostic.file.fileName);
           diagnostics.push({
-            type: mapCategory.get(diagnostic.category)!,
+            is: mapCategory.get(diagnostic.category)!,
             col: character + 1,
             row: line + 1,
             msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
@@ -98,7 +98,7 @@ class TscWorker {
         }
         else {
           diagnostics.push({
-            type: mapCategory.get(diagnostic.category)!,
+            is: mapCategory.get(diagnostic.category)!,
             msg: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
             // , diagnostic.code ?
           });

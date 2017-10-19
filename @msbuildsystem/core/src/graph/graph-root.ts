@@ -51,11 +51,11 @@ export class RootGraph extends Graph {
     }
     if (selected === 0) {
       reporter.diagnostic({
-        type: "error",
+        is: "error",
         msg: "no target selected",
         notes: this.workspace.targets().map<Diagnostic>(t => ({
-          type: "note", msg: `possible target: '${t.name}'`,
-          notes: t.environments.map<Diagnostic>(e => ({type: "note", msg: `possible environment: '${e.name}'`}))
+          is: "note", msg: `possible target: '${t.name}'`,
+          notes: t.environments.map<Diagnostic>(e => ({is: "note", msg: `possible environment: '${e.name}'`}))
         }))
       });
     }
@@ -74,7 +74,7 @@ export class RootGraph extends Graph {
       let buildTarget = this.buildTargetElements.find(e => e.__target === target && e.environment === environment);
       if (buildTarget) {
         reporter.diagnostic({
-          type: "error",
+          is: "error",
           msg: `cyclic dependencies between ${requester.__path()} and ${buildTarget.__path()}`,
           path: requester.__path()
         });
@@ -127,13 +127,13 @@ export class RootGraph extends Graph {
     let depTargetElements = this.workspace.targets().filter(t => t.name === name);
     if (depTargetElements.length === 0) {
       at.diagnostic(reporter, {
-        type: "error",
+        is: "error",
         msg: `the target '${name}' is not present in the workspace`
       });
     }
     else if (depTargetElements.length > 1) {
       at.diagnostic(reporter, {
-        type: "error",
+        is: "error",
         msg: `the target '${name}' is present multiple times in the workspace, this shouldn't happen`
       });
     }

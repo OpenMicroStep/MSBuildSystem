@@ -35,23 +35,23 @@ function load_valid_simple(f: Flux<Context>) {
   assert.equal(project.definition!.name, 'MySimpleProject');
   assert.equal(project, workspace.project(__dirname + "/data/simple-project"), "two project at the same path share the same instance");
   assert.deepEqual<Diagnostic[]>(project.reporter.diagnostics, [
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdTime.c"                     , "msg": `file '${project.directory}${path.sep}MSStdTime.c' not found`            },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdTime-win32.c"               , "msg": `file '${project.directory}${path.sep}MSStdTime-win32.c' not found`      },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStd.c"                         , "msg": `file '${project.directory}${path.sep}MSStd.c' not found`                },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStd.h"                         , "msg": `file '${project.directory}${path.sep}MSStd.h' not found`                },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStd_Private.h"                 , "msg": `file '${project.directory}${path.sep}MSStd_Private.h' not found`        },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdShared.c"                   , "msg": `file '${project.directory}${path.sep}MSStdShared.c' not found`          },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdShared-win32.c"             , "msg": `file '${project.directory}${path.sep}MSStdShared-win32.c' not found`    },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdThreads.c"                  , "msg": `file '${project.directory}${path.sep}MSStdThreads.c' not found`         },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdThreads-win32.c"            , "msg": `file '${project.directory}${path.sep}MSStdThreads-win32.c' not found`   },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdBacktrace.c"                , "msg": `file '${project.directory}${path.sep}MSStdBacktrace.c' not found`       },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:MSStdBacktrace-win32.c"          , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-win32.c' not found` },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:unix:MSStdTime-unix.c"           , "msg": `file '${project.directory}${path.sep}MSStdTime-unix.c' not found`       },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:unix:MSStdShared-unix.c"         , "msg": `file '${project.directory}${path.sep}MSStdShared-unix.c' not found`     },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:unix:MSStdThreads-unix.c"        , "msg": `file '${project.directory}${path.sep}MSStdThreads-unix.c' not found`    },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:backtrace:MSStdBacktrace-unix.c" , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-unix.c' not found`  },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:mman:mman.c"                     , "msg": `file '${project.directory}${path.sep}mman.c' not found`                 },
-    { "category": "load", "type": "warning", "path": "MySimpleProject:files:mman:mman.h"                     , "msg": `file '${project.directory}${path.sep}mman.h' not found`                 },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdTime.c"                     , "msg": `file '${project.directory}${path.sep}MSStdTime.c' not found`            },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdTime-win32.c"               , "msg": `file '${project.directory}${path.sep}MSStdTime-win32.c' not found`      },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStd.c"                         , "msg": `file '${project.directory}${path.sep}MSStd.c' not found`                },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStd.h"                         , "msg": `file '${project.directory}${path.sep}MSStd.h' not found`                },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStd_Private.h"                 , "msg": `file '${project.directory}${path.sep}MSStd_Private.h' not found`        },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdShared.c"                   , "msg": `file '${project.directory}${path.sep}MSStdShared.c' not found`          },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdShared-win32.c"             , "msg": `file '${project.directory}${path.sep}MSStdShared-win32.c' not found`    },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdThreads.c"                  , "msg": `file '${project.directory}${path.sep}MSStdThreads.c' not found`         },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdThreads-win32.c"            , "msg": `file '${project.directory}${path.sep}MSStdThreads-win32.c' not found`   },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdBacktrace.c"                , "msg": `file '${project.directory}${path.sep}MSStdBacktrace.c' not found`       },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:MSStdBacktrace-win32.c"          , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-win32.c' not found` },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:unix:MSStdTime-unix.c"           , "msg": `file '${project.directory}${path.sep}MSStdTime-unix.c' not found`       },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:unix:MSStdShared-unix.c"         , "msg": `file '${project.directory}${path.sep}MSStdShared-unix.c' not found`     },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:unix:MSStdThreads-unix.c"        , "msg": `file '${project.directory}${path.sep}MSStdThreads-unix.c' not found`    },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:backtrace:MSStdBacktrace-unix.c" , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-unix.c' not found`  },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:mman:mman.c"                     , "msg": `file '${project.directory}${path.sep}mman.c' not found`                 },
+    { "category": "load", is: "warning", "path": "MySimpleProject:files:mman:mman.h"                     , "msg": `file '${project.directory}${path.sep}mman.h' not found`                 },
   ]);
   f.continue();
 }
@@ -63,35 +63,35 @@ function load_invalid() {
   assert.equal(project.path, projectPath);
   assert.equal(project.definition!.name, 'MyInvalidProject');
   assert.deepEqual<Diagnostic[]>(project.reporter.diagnostics, [
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdTime.c"                     , "msg": `file '${project.directory}${path.sep}MSStdTime.c' not found`            },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdTime-win32.c"               , "msg": `file '${project.directory}${path.sep}MSStdTime-win32.c' not found`      },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStd.c"                         , "msg": `file '${project.directory}${path.sep}MSStd.c' not found`                },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStd.h"                         , "msg": `file '${project.directory}${path.sep}MSStd.h' not found`                },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStd_Private.h"                 , "msg": `file '${project.directory}${path.sep}MSStd_Private.h' not found`        },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdShared.c"                   , "msg": `file '${project.directory}${path.sep}MSStdShared.c' not found`          },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdShared-win32.c"             , "msg": `file '${project.directory}${path.sep}MSStdShared-win32.c' not found`    },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdThreads.c"                  , "msg": `file '${project.directory}${path.sep}MSStdThreads.c' not found`         },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdThreads-win32.c"            , "msg": `file '${project.directory}${path.sep}MSStdThreads-win32.c' not found`   },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdBacktrace.c"                , "msg": `file '${project.directory}${path.sep}MSStdBacktrace.c' not found`       },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:MSStdBacktrace-win32.c"          , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-win32.c' not found` },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:unix:MSStdTime-unix.c"           , "msg": `file '${project.directory}${path.sep}MSStdTime-unix.c' not found`       },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:unix:MSStdShared-unix.c"         , "msg": `file '${project.directory}${path.sep}MSStdShared-unix.c' not found`     },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:unix:MSStdThreads-unix.c"        , "msg": `file '${project.directory}${path.sep}MSStdThreads-unix.c' not found`    },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:unix:MSStdTime-unix.c"           , "msg": `file '${project.directory}${path.sep}MSStdTime-unix.c' not found`       },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:unix:MSStdShared-unix.c"         , "msg": `file '${project.directory}${path.sep}MSStdShared-unix.c' not found`     },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:unix:MSStdThreads-unix.c"        , "msg": `file '${project.directory}${path.sep}MSStdThreads-unix.c' not found`    },
-    { "category": "load", "type": "error"  , "path": "MyInvalidProject:files.elements[12]"                    , "msg": `conflict with an element defined with the same name: 'unix'`  },
-    { "category": "load", "type": "note"   , "path": "MyInvalidProject:files:mman.elements[0].tags"           , "msg": "'tags' could be misused, this key has special meaning for some elements" },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:mman:mman.h"                     , "msg": `file '${project.directory}${path.sep}mman.h' not found`                 },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:backtrace:MSStdBacktrace-unix.c" , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-unix.c' not found`  },
-    { "category": "load", "type": "note"   , "path": "MyInvalidProject:files:mman.elements[0].tags"           , "msg": "'tags' could be misused, this key has special meaning for some elements" },
-    { "category": "load", "type": "warning", "path": "MyInvalidProject:files:mman:mman.h"                     , "msg": `file '${project.directory}${path.sep}mman.h' not found`                 },
-    { "category": "load", "type": "error"  , "path": "MyInvalidProject:files:mman"                            , "msg": "conflict with an element defined with the same name: 'mman'"  },
-    { "category": "load", "type": "error"  , "path": "MyInvalidProject:notanobject"                           , "msg": "an element definition or reference was expected"              },
-    { "category": "load", "type": "error"  , "path": "MyInvalidProject:nois.is"                               , "msg": "'is' attribute must be a string"                              },
-    { "category": "resolve", "type": "warning", "path": "MyInvalidProject:files:mman.elements[0]", "msg": "attribute must be an element, got a {\"name\":\"mman.c\",\"tags\":[\"CompileC\"]}"}, // MyInvalidProject:files.elements[14]
-    { "category": "resolve", "type": "warning", "path": "MyInvalidProject:files:mman.elements[0]", "msg": "attribute must be an element, got a {\"name\":\"mman.c\",\"tags\":[\"CompileC\"]}"}, // MyInvalidProject:files.elements[15]
-    { "category": "resolve", "type": "error"  , "path": "MyInvalidProject:all envs.elements[6]"  , "msg": "elements must be of the same type, expecting environment, got component"          },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdTime.c"                     , "msg": `file '${project.directory}${path.sep}MSStdTime.c' not found`            },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdTime-win32.c"               , "msg": `file '${project.directory}${path.sep}MSStdTime-win32.c' not found`      },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStd.c"                         , "msg": `file '${project.directory}${path.sep}MSStd.c' not found`                },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStd.h"                         , "msg": `file '${project.directory}${path.sep}MSStd.h' not found`                },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStd_Private.h"                 , "msg": `file '${project.directory}${path.sep}MSStd_Private.h' not found`        },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdShared.c"                   , "msg": `file '${project.directory}${path.sep}MSStdShared.c' not found`          },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdShared-win32.c"             , "msg": `file '${project.directory}${path.sep}MSStdShared-win32.c' not found`    },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdThreads.c"                  , "msg": `file '${project.directory}${path.sep}MSStdThreads.c' not found`         },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdThreads-win32.c"            , "msg": `file '${project.directory}${path.sep}MSStdThreads-win32.c' not found`   },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdBacktrace.c"                , "msg": `file '${project.directory}${path.sep}MSStdBacktrace.c' not found`       },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:MSStdBacktrace-win32.c"          , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-win32.c' not found` },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:unix:MSStdTime-unix.c"           , "msg": `file '${project.directory}${path.sep}MSStdTime-unix.c' not found`       },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:unix:MSStdShared-unix.c"         , "msg": `file '${project.directory}${path.sep}MSStdShared-unix.c' not found`     },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:unix:MSStdThreads-unix.c"        , "msg": `file '${project.directory}${path.sep}MSStdThreads-unix.c' not found`    },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:unix:MSStdTime-unix.c"           , "msg": `file '${project.directory}${path.sep}MSStdTime-unix.c' not found`       },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:unix:MSStdShared-unix.c"         , "msg": `file '${project.directory}${path.sep}MSStdShared-unix.c' not found`     },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:unix:MSStdThreads-unix.c"        , "msg": `file '${project.directory}${path.sep}MSStdThreads-unix.c' not found`    },
+    { "category": "load", is: "error"  , "path": "MyInvalidProject:files.elements[12]"                    , "msg": `conflict with an element defined with the same name: 'unix'`  },
+    { "category": "load", is: "note"   , "path": "MyInvalidProject:files:mman.elements[0].tags"           , "msg": "'tags' could be misused, this key has special meaning for some elements" },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:mman:mman.h"                     , "msg": `file '${project.directory}${path.sep}mman.h' not found`                 },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:backtrace:MSStdBacktrace-unix.c" , "msg": `file '${project.directory}${path.sep}MSStdBacktrace-unix.c' not found`  },
+    { "category": "load", is: "note"   , "path": "MyInvalidProject:files:mman.elements[0].tags"           , "msg": "'tags' could be misused, this key has special meaning for some elements" },
+    { "category": "load", is: "warning", "path": "MyInvalidProject:files:mman:mman.h"                     , "msg": `file '${project.directory}${path.sep}mman.h' not found`                 },
+    { "category": "load", is: "error"  , "path": "MyInvalidProject:files:mman"                            , "msg": "conflict with an element defined with the same name: 'mman'"  },
+    { "category": "load", is: "error"  , "path": "MyInvalidProject:notanobject"                           , "msg": "an element definition or reference was expected"              },
+    { "category": "load", is: "error"  , "path": "MyInvalidProject:nois.is"                               , "msg": "'is' attribute must be a string"                              },
+    { "category": "resolve", is: "warning", "path": "MyInvalidProject:files:mman.elements[0]", "msg": "attribute must be an element, got a {\"name\":\"mman.c\",\"tags\":[\"CompileC\"]}"}, // MyInvalidProject:files.elements[14]
+    { "category": "resolve", is: "warning", "path": "MyInvalidProject:files:mman.elements[0]", "msg": "attribute must be an element, got a {\"name\":\"mman.c\",\"tags\":[\"CompileC\"]}"}, // MyInvalidProject:files.elements[15]
+    { "category": "resolve", is: "error"  , "path": "MyInvalidProject:all envs.elements[6]"  , "msg": "elements must be of the same type, expecting environment, got component"          },
   ]);
 }
 function build_graph(f: Flux<Context>) {
@@ -202,7 +202,7 @@ function files(f: Flux<Context>) {
   assert.deepEqual(
     project.resolveElements(reporter, "=files:unix:backtrace").map(f => f.name),
     []);
-  assert.deepEqual(reporter.diagnostics, [{"type": "warning", "msg": "query 'files:unix:backtrace' refer to an element that can't be found, the group 'files:unix:backtrace' is ignored"}]);
+  assert.deepEqual(reporter.diagnostics, [{is: "warning", "msg": "query 'files:unix:backtrace' refer to an element that can't be found, the group 'files:unix:backtrace' is ignored"}]);
   f.continue();
 }
 function components(f: Flux<Context>) {

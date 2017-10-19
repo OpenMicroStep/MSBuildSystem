@@ -34,7 +34,7 @@ function basics() {
   assertState(parser, parser.test('</div>', false)      , { r: '</div>'     , ch: '<' , at: 19, line: 1, atline: 8, atEnd: false });
   assert.deepEqual(parser.reporter.diagnostics, []);
   assertState(parser, parser.consume('</div<')          , { r: '</div<'     , ch: '>' , at: 24, line: 1, atline: 8, atEnd: false });
-  assert.deepEqual<Diagnostic[]>(parser.reporter.diagnostics, [{ type: "error", msg: "expecting: </div<, received: </div>", col: 17, row: 2 }]);
+  assert.deepEqual<Diagnostic[]>(parser.reporter.diagnostics, [{ is: "error", msg: "expecting: </div<, received: </div>", col: 17, row: 2 }]);
 }
 
 function perfs_native(n: number) {

@@ -26,7 +26,7 @@ Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: 
     loadElementFiles(reporter, absolutePath, "", name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
     if (files.length === 0) {
       attrPath.diagnostic(reporter, {
-        type: 'warning',
+        is: "warning",
         msg: `no matching file found`
       }, '.name');
     }
@@ -36,7 +36,7 @@ Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: 
   }
   else {
     attrPath.diagnostic(reporter, {
-      type: 'error',
+      is: "error",
       msg: `'name' attribute is invalid `
        + `('file' elements requires 'name' to be either a string, a regexp or a filter function)`
     }, '.name');
@@ -65,7 +65,7 @@ export class FileElement extends MakeJSElement {
   }
 
   __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
-    attrPath.diagnostic(context.reporter, { type: 'error', msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
+    attrPath.diagnostic(context.reporter, { is: "error", msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
   }
 }
 Element.registerAttributes(FileElement, ['tags'], {});
@@ -100,9 +100,9 @@ function loadElementFile(reporter: Reporter, attrPath: AttributePath, filepath: 
     else if (stats.isDirectory())
       file = File.getShared(filepath, true);
     else
-      attrPath.diagnostic(reporter, { type: 'error', msg: `path '${filepath}' doesn't refer to a file or directory` });
+      attrPath.diagnostic(reporter, { is: "error", msg: `path '${filepath}' doesn't refer to a file or directory` });
   } catch (e) {
-    attrPath.diagnostic(reporter, { type: 'warning', msg: `file '${filepath}' not found` });
+    attrPath.diagnostic(reporter, { is: "warning", msg: `file '${filepath}' not found` });
   }
   if (!file)
     file = File.getShared(filepath);

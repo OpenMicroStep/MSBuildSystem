@@ -24,9 +24,9 @@ export function createProviderList<
   >(type: string) : ProviderList<CSTOR, C> {
   let list = <CSTOR[]>[];
   function notes(value) {
-    return [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
+    return [<Diagnostic>{ is: "note", msg: `while looking for ${type}: ${value}` }]
           .concat(list.map(s => (<Diagnostic>{
-            type: "note",
+            is: "note",
             msg: `found: ${s.name}`
           })))
   }
@@ -58,15 +58,15 @@ export function createProviderList<
     if (builders.length === 1)
       return builders[0];
     else if (builders.length === 0)
-      path.diagnostic(reporter, { type: "error", msg: `unable to find ${type}`, notes: notes(value) });
+      path.diagnostic(reporter, { is: "error", msg: `unable to find ${type}`, notes: notes(value) });
     else
-      path.diagnostic(reporter, { type: "error", msg: `multiple ${type}s found`, notes: notes(value) });
+      path.diagnostic(reporter, { is: "error", msg: `multiple ${type}s found`, notes: notes(value) });
     return undefined;
   }
   function validateBest(reporter: Reporter, path: AttributePath, value: C) : CSTOR | undefined {
     let builder = findBest(value);
     if (!builder)
-      path.diagnostic(reporter, { type: "error", msg: `unable to find ${type}`, notes: notes(value) });
+      path.diagnostic(reporter, { is: "error", msg: `unable to find ${type}`, notes: notes(value) });
     return builder;
   }
   return {
@@ -98,11 +98,11 @@ export function createProviderMap<T>(type: string) : ProviderMap<T> {
         let v = map.get(value);
         if (v === undefined)
           path.diagnostic(reporter, {
-            type: "error",
+            is: "error",
             msg: `unable to find ${type}`,
-            notes: [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
+            notes: [<Diagnostic>{ is: "note", msg: `while looking for ${type}: ${value}` }]
               .concat(Array.from(map.keys()).map(k => (<Diagnostic>{
-                type: "note",
+                is: "note",
                 msg: `found: ${k}`
               })))
           });

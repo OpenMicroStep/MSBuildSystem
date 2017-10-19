@@ -35,7 +35,7 @@ export class HeaderAliasTask extends Task {
 
   willAliasFile(reporter: Reporter, file: File, to: File) {
     if (file.isDirectory || to.isDirectory)
-      reporter.diagnostic({ type: "warning", msg: `willCopyFile doesn't support copying directory, ignoring ${file.path}` });
+      reporter.diagnostic({ is: "warning", msg: `willCopyFile doesn't support copying directory, ignoring ${file.path}` });
     else
       this.steps.push(to, file);
   }

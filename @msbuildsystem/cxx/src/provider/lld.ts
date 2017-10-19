@@ -35,8 +35,8 @@ export class LLDProvider extends SemVerProvider implements LinkerProvider {
           }
           for (let f of remaining) {
             step.context.reporter.diagnostic({
-              type: "error", msg: `framework ${f.substring(0, f.length - ".framework".length)} not found`,
-              notes: dirs.map((d): Diagnostic => ({ type: "note", msg: `not inside: ${d.path}`}))
+              is: "error", msg: `framework ${f.substring(0, f.length - ".framework".length)} not found`,
+              notes: dirs.map((d): Diagnostic => ({ is: "note", msg: `not inside: ${d.path}`}))
             });
           }
           step.continue();

@@ -104,8 +104,8 @@ export class ClangProvider extends SemVerProvider implements CompilerProvider, L
     for (let line of lines) {
       var matches = line.match(rxdiag);
       if (matches) {
-        var d = {
-          type: <any>matches[5],
+        var d: Diagnostic = {
+          is: <any>matches[5],
           path: matches[1],
           row: parseInt(matches[2]),
           col: parseInt(matches[3]),
@@ -117,7 +117,7 @@ export class ClangProvider extends SemVerProvider implements CompilerProvider, L
           fixits: [],
         };
         context = [];
-        if (d.type === "note" && diag)
+        if (d.is === "note" && diag)
           diag.notes!.push(d);
         else {
           diags.push(d);
@@ -126,7 +126,7 @@ export class ClangProvider extends SemVerProvider implements CompilerProvider, L
       }
       else if ((matches = line.match(rxcontext))) {
         context.push({
-          type: "note",
+          is: "note",
           path: matches[1],
           row: parseInt(matches[2]),
           col: 0,

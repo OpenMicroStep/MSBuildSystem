@@ -46,12 +46,12 @@ function handleSimpleElementName(reporter: Reporter, namespaceName: string | und
     if (typeof definitionName === 'string' && definitionName.length > 0)
       namespaceName = definitionName;
     else if (!allowNoName)
-      attrPath.diagnostic(reporter, { type: 'error', msg: `'name' attribute must be a non empty string` });
+      attrPath.diagnostic(reporter, { is: "error", msg: `'name' attribute must be a non empty string` });
     else
       namespaceName = "";
   }
   else if (typeof definitionName === 'string' && namespaceName !== definitionName) {
-    attrPath.diagnostic(reporter, { type: 'error', msg: `'name' attribute is already defined by the namespace with a different value` });
+    attrPath.diagnostic(reporter, { is: "error", msg: `'name' attribute is already defined by the namespace with a different value` });
   }
   return namespaceName;
 }
@@ -166,7 +166,7 @@ export class Element {
         return elements;
       }
     }
-    attrPath.diagnostic(context.reporter, { type: "error", msg: error }, '.is');
+    attrPath.diagnostic(context.reporter, { is: "error", msg: error }, '.is');
     return [];
   }
 
@@ -198,13 +198,13 @@ export class Element {
           this.__loadNamespace(context, n, els, attrPath);
         }
         else {
-          attrPath.diagnostic(context.reporter, { type: 'error', msg: `an element definition or reference was expected` });
+          attrPath.diagnostic(context.reporter, { is: "error", msg: `an element definition or reference was expected` });
         }
       }
       else if (!this.__factoryKeys.has(k)) {
         attrPath.rewrite('.', k);
         if (!(k in this.__extensions) && context.elementFactoriesProviderMap.warningProbableMisuseOfKey.has(k)) {
-          attrPath.diagnostic(context.reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for other element types` });
+          attrPath.diagnostic(context.reporter, { is: "note", msg: `'${k}' could be misused, this key has special meaning for other element types` });
         }
         this[k] = this.__loadValue(context, v, attrPath);
       }
@@ -226,7 +226,7 @@ export class Element {
     if ("is" in object) {
       var subs = Element.instantiate(context, undefined, <ElementDefinition>object, attrPath, this, true);
       if (subs.length !== 1)
-        attrPath.diagnostic(context.reporter, { type: 'error', msg: `definition of multiple elements were only one was expected` });
+        attrPath.diagnostic(context.reporter, { is: "error", msg: `definition of multiple elements were only one was expected` });
       else
         return subs[0];
     }
@@ -235,7 +235,7 @@ export class Element {
     for (var k in object) {
       var v = this.__loadValue(context, object[k], attrPath.set(k));
       if (context.elementFactoriesProviderMap.warningProbableMisuseOfKey.has(k)) {
-        attrPath.diagnostic(context.reporter, { type: 'note', msg: `'${k}' could be misused, this key has special meaning for some elements` });
+        attrPath.diagnostic(context.reporter, { is: "note", msg: `'${k}' could be misused, this key has special meaning for some elements` });
       }
       into[k] = validator ? validator.validate(context.reporter, attrPath, v, this) : v;
     }
@@ -268,7 +268,7 @@ export class Element {
         if (sub && sub.name) {
           var k = Element.name2namespace(sub.name);
           if (k in this)
-            attrPath.diagnostic(context.reporter, { type: 'error', msg: `conflict with an element defined with the same name: '${sub.name}'` });
+            attrPath.diagnostic(context.reporter, { is: "error", msg: `conflict with an element defined with the same name: '${sub.name}'` });
           this[k] = sub;
         }
       }
@@ -280,11 +280,11 @@ export class Element {
   }
   __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
     if (els.length > 1)
-      attrPath.diagnostic(context.reporter, { type: 'warning', msg: `element has been expanded to a multiple elements and can't be referenced` });
+      attrPath.diagnostic(context.reporter, { is: "warning", msg: `element has been expanded to a multiple elements and can't be referenced` });
     if (els.length === 1) {
       name = Element.name2namespace(name);
       if (name in this)
-        attrPath.diagnostic(context.reporter, { type: 'error', msg:  `conflict with an element defined with the same name: '${Element.namespace2name(name)}'` });
+        attrPath.diagnostic(context.reporter, { is: "error", msg:  `conflict with an element defined with the same name: '${Element.namespace2name(name)}'` });
       this[name] = els[0];
     }
   }
@@ -337,13 +337,13 @@ export class Element {
       let ret: Element[] = [];
       this.__resolveElements(reporter, ret, value, attrPath);
       if (ret.length > 1)
-        attrPath.diagnostic(reporter, { type: 'warning', msg: `can't reference multiple elements here`, notes: [
-          { type: "note", msg: "did you forget the [] ?" },
+        attrPath.diagnostic(reporter, { is: "warning", msg: `can't reference multiple elements here`, notes: [
+          { is: "note", msg: "did you forget the [] ?" },
         ]});
       else if (ret.length === 0)
-        attrPath.diagnostic(reporter, { type: 'warning', msg: `must reference at least one element` });
+        attrPath.diagnostic(reporter, { is: "warning", msg: `must reference at least one element` });
       if (Element.isNamespace(key) && ret.length === 1 && ret[0].name && ret[0].name !== Element.namespace2name(key))
-        attrPath.diagnostic(reporter, { type: 'warning', msg: `element alias must have the same name` });
+        attrPath.diagnostic(reporter, { is: "warning", msg: `element alias must have the same name` });
       return ret[0];
     }
     return value;
@@ -412,7 +412,7 @@ export class Element {
       if (step.length === 0) {
         if (steps.length > 1)
           attrPath.diagnostic(reporter, {
-            type: "warning",
+            is: "warning",
             msg: `one the groups is an empty string, the group '${steps.join(':')}' is ignored`,
           });
         break;
@@ -429,7 +429,7 @@ export class Element {
     }
     if (!el) {
       attrPath.diagnostic(reporter, {
-        type: "warning",
+        is: "warning",
         msg: `query '${Element.rebuildQuery({ ...query, groups: [steps] })}' refer to an element that can't be found, the group '${steps.join(':')}' is ignored`,
       });
     }
@@ -451,10 +451,10 @@ export class Element {
     }
     else if (query.method) {
       if (Element.isReserved(query.method))
-        reporter.diagnostic({ type: 'error', msg: `cannot call '${query.method}': method is private`, path: this.__path() });
+        reporter.diagnostic({ is: "error", msg: `cannot call '${query.method}': method is private`, path: this.__path() });
       else {
         if (typeof this[query.method] !== 'function')
-          reporter.diagnostic({ type: 'error', msg: `cannot call '${query.method}': not a method`, path: this.__path() });
+          reporter.diagnostic({ is: "error", msg: `cannot call '${query.method}': not a method`, path: this.__path() });
         else
           into.push(this[query.method]());
       }
@@ -473,7 +473,7 @@ export class Element {
     }
     if (parser.reporter.diagnostics.length) {
       reporter.diagnostic({
-        type: "warning",
+        is: "warning",
         msg: `unable to parse query: ${query}`,
         notes: parser.reporter.diagnostics,
       });
@@ -549,7 +549,7 @@ export namespace Element {
   export const validateElement = {
     validate: function validateElement(reporter: Reporter, path: AttributePath, value: any) {
       if (!(value instanceof Element))
-        path.diagnostic(reporter, { type: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
+        path.diagnostic(reporter, { is: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
       else
         return value;
       return undefined;
@@ -561,7 +561,7 @@ export namespace Element {
       cmp = validateElement.validate(reporter, path, cmp);
       if (cmp !== undefined && isList.indexOf(cmp.is) === -1) {
         path.diagnostic(reporter, {
-          type: 'error',
+          is: "error",
           msg:  `only elements of type ${JSON.stringify(isList)} are accepted, got ${JSON.stringify({is: cmp.is, name: cmp.name})}`
         });
         cmp = undefined;
@@ -577,7 +577,7 @@ export namespace Element {
       if ((value = validateElement.validate(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
         return <T>value;
       if (value !== undefined)
-        path.diagnostic(reporter, { type: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
+        path.diagnostic(reporter, { is: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
       return undefined;
     };
     return { validate: validateElementIs, traverse(lvl, ctx) {
@@ -623,7 +623,7 @@ export namespace Element {
           at.setArrayKey(i);
           if (!(el instanceof Element)) {
             at.diagnostic(reporter, {
-              type: 'error',
+              is: "error",
               msg:  `expecting an element, got ${typeof el}`
             });
           }
@@ -675,7 +675,7 @@ export namespace Element {
             is = el_is;
           let ok = is === el_is;
           if (!ok)
-            at.diagnostic(reporter, { type: 'error', msg:  `elements must be of the same type, expecting ${is}, got ${el_is}` });
+            at.diagnostic(reporter, { is: "error", msg:  `elements must be of the same type, expecting ${is}, got ${el_is}` });
           return ok;
         }
       }

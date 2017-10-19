@@ -140,7 +140,7 @@ Task.generators.register(['compile_commands'], {
     let file = File.getShared(path.join(value[0].directory, "compile_commands.json"));
     console.info(file.path);
     file.writeUtf8File(JSON.stringify(value, null, 2), (err) => {
-      if (err) f.context.reporter.error(err, { type: "error", path: file.path, msg: "unable to write file" });
+      if (err) f.context.reporter.error(err, { is: "error", path: file.path, msg: "unable to write file" });
       f.continue();
     });
   }

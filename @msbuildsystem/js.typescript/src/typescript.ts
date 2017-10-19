@@ -82,7 +82,7 @@ Task.generators.register(['tsconfig'], {
         compilerOptions: value.compilerOptions,
         files: value.files
     }, null, 2), (err) => {
-      if (err) f.context.reporter.error(err, { type: "error", path: value.tsconfig.path, msg: "unable to write file" });
+      if (err) f.context.reporter.error(err, { is: "error", path: value.tsconfig.path, msg: "unable to write file" });
       f.continue();
     });
   }

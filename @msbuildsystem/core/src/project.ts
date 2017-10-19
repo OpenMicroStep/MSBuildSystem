@@ -17,7 +17,7 @@ export class Project {
   workspace: Workspace;
   directory: string;
   path: string;
-  definition: MakeJS.Project | null;
+  definition: MakeJS.Project;
   targets: TargetElement[];
   tree: ProjectElement;
   reporter: Reporter;
@@ -34,49 +34,67 @@ export class Project {
 
   reload() {
     this.reporter = new Reporter();
-    this.definition = null;
+    let fix = true;
     try {
       const makejs = fs.readFileSync(this.path, 'utf8');
-      const sandbox = {
-        __filename: this.path,
-        __dirname: path.dirname(this.path),
-        require: function(module) {
-          if (allowedModules.has(module))
-            return require(module);
-          throw new Error(`module ${module} is not one of: ${[...allowedModules].join(', ')}`);
-        },
-        module: { exports: {} },
-        Value: Element.asValue,
-      };
-      vm.createContext(sandbox);
-      vm.runInContext(makejs, sandbox, { filename: this.path, displayErrors: true });
-      this.definition = <MakeJS.Project>sandbox.module.exports;
-      this.definition.name = this.definition.name || "Unnamed project";
-      if (this.directory === this.workspace.directory)
-        this.reporter.diagnostic({ type: "warning", msg: "it's highly recommended to not use the project folder as workspace folder" });
-      this.loadDefinition(this.reporter);
+      try {
+        const sandbox = {
+          __filename: this.path,
+          __dirname: path.dirname(this.path),
+          require: function (module) {
+            if (allowedModules.has(module))
+              return require(module);
+            throw new Error(`module ${module} is not one of: ${[...allowedModules].join(', ')}`);
+          },
+          module: { exports: {} },
+          Value: Element.asValue,
+        };
+        vm.createContext(sandbox);
+        vm.runInContext(makejs, sandbox, { filename: this.path, displayErrors: true });
+        this.definition = sandbox.module.exports as any;
+        if (typeof this.definition !== 'object') {
+          this.reporter.diagnostic({ is: "error", msg: `make.js must exports a project element` });
+          this.definition = { is: "project", name: this.directory };
+        }
+        if (this.directory === this.workspace.directory)
+          this.reporter.diagnostic({ is: "warning", msg: "it's highly recommended to not use the project folder as workspace folder" });
+        this.loadDefinition(this.reporter);
+        fix = false;
+      }
+      catch (e) {
+        this.reporter.error(e);
+      }
     } catch (e) {
-      this.reporter.error(e);
+      this.reporter.diagnostic({ is: "error", msg: `project definition not found`, path: this.path });
+    }
+    if (fix) {
+      this.definition = { is: "project", name: this.directory };
+      this.targets = [];
+      this.tree = new ProjectElement(this, this.definition.name);
     }
   }
 
   loadDefinition(reporter: Reporter) {
     if (this.definition!.is !== 'project')
-      reporter.diagnostic({ type: 'error', msg: `the root element 'is' attribute must be 'project'`});
+      reporter.diagnostic({ is: "error", msg: `the root element 'is' attribute must be 'project'`});
+    if (!this.definition.name) {
+      reporter.diagnostic({ is: "error", msg: `the root element 'name' attribute must be defined` });
+      this.definition.name = this.directory;
+    }
     this.targets = [];
     this.tree = Element.load(reporter, this.definition!, new ProjectElement(this, this.definition!.name), Project.elementFactories);
     let allTargets = this.workspace.targets();
     this.targets.forEach(target => {
       if (target.environments.length === 0) {
         reporter.diagnostic({
-          type: "error",
+          is: "error",
           msg: "environments list is empty",
           path: `${target.__path()}.environments`
         });
       }
       if (allTargets.indexOf(target) !== allTargets.lastIndexOf(target)) {
         reporter.diagnostic({
-          type: "error",
+          is: "error",
           msg: `the target '${target}' is present multiple times in the workspace, this shouldn't happen`,
           path: `${target.__path()}`
         });

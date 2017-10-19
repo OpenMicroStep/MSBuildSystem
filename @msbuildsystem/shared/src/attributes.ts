@@ -34,7 +34,7 @@ export function superValidateList<T, A0> (
     path.popArray();
   }
   else {
-    path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
+    path.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
   }
 }
 
@@ -67,7 +67,7 @@ export function superValidateObject<T, K, A0>(
 ) : T & { [s: string]: K } {
   at.push('.', '');
   if (typeof attr !== "object") {
-    at.diagnostic(reporter, { type: "warning", msg: `attribute must be a object, got ${typeof attr}`});
+    at.diagnostic(reporter, { is: "warning", msg: `attribute must be a object, got ${typeof attr}`});
     attr = {};
   }
   let k;
@@ -83,7 +83,7 @@ export function superValidateObject<T, K, A0>(
           into[k] = v;
       }
       else {
-        at.diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
+        at.diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
       }
     }
   }
@@ -112,7 +112,7 @@ export const validateAnyToUndefined: Traverse<Validator0<undefined>> = {
 export const validateObject: Traverse<Validator0<object>> = {
   validate: function validateObject(reporter: Reporter, path: AttributePath, value: any) {
     if (typeof value !== "object")
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an object, got ${typeof value}`});
+      path.diagnostic(reporter, { is: "warning", msg: `attribute must be an object, got ${typeof value}`});
     else
       return value;
     return undefined;
@@ -124,7 +124,7 @@ export const validateObject: Traverse<Validator0<object>> = {
 export const validateArray: Traverse<Validator0<any[]>> = {
   validate: function validateArray(reporter: Reporter, path: AttributePath, value: any) {
     if (!Array.isArray(value))
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
+      path.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
     else
       return value;
     return [];
@@ -136,9 +136,9 @@ export const validateArray: Traverse<Validator0<any[]>> = {
 export const validateString: Traverse<Validator0<string>> = {
   validate: function validateString(reporter: Reporter, path: AttributePath, value: any) {
     if (typeof value !== "string")
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a string, got ${typeof value}`});
+      path.diagnostic(reporter, { is: "warning", msg: `attribute must be a string, got ${typeof value}`});
     else if (value.length === 0)
-      path.diagnostic(reporter, { type: "warning", msg: `attribute can't be an empty string`});
+      path.diagnostic(reporter, { is: "warning", msg: `attribute can't be an empty string`});
     else
       return value;
     return undefined;
@@ -150,7 +150,7 @@ export const validateString: Traverse<Validator0<string>> = {
 export const validateAnyString: Traverse<Validator0<string>> = {
   validate: function validateString(reporter: Reporter, path: AttributePath, value: any) {
     if (typeof value !== "string")
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a string, got ${typeof value}`});
+      path.diagnostic(reporter, { is: "warning", msg: `attribute must be a string, got ${typeof value}`});
     else
       return value;
     return undefined;
@@ -163,7 +163,7 @@ export const validateAnyString: Traverse<Validator0<string>> = {
 export const validateBoolean: Traverse<Validator0<boolean>> = {
   validate: function validateBoolean(reporter: Reporter, path: AttributePath, value: any) {
     if (typeof value !== "boolean")
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be a boolean, got ${typeof value}`});
+      path.diagnostic(reporter, { is: "warning", msg: `attribute must be a boolean, got ${typeof value}`});
     else
       return value;
     return undefined;
@@ -221,7 +221,7 @@ export function oneOf<A0>(v0: Validator<any, A0>, ...validators: Validator<any, 
       let diags = reporter.diagnosticsAfter(s0);
       reporter.rollback(s0);
       reporter.diagnostic({
-        type: "warning",
+        is: "warning",
         msg: `attribute must be one of`,
         notes: diags,
       });
@@ -361,7 +361,7 @@ export function createReduceByMergingObjects({ allowMultipleValues }) {
       if (cvalue === dvalue) {}
       else if (cvalue !== undefined && (cvalueIsArr !== dvalueIsArr || cvalueIsObj !== dvalueIsObj)) {
         path.set(key).diagnostic(reporter, {
-          type: "warning",
+          is: "warning",
           msg: `attribute value is incoherent for merging, attribute is ignored`
         });
       }
@@ -382,7 +382,7 @@ export function createReduceByMergingObjects({ allowMultipleValues }) {
       }
       else if (context.keysWithSimpleValue.has(key)) {
         path.set(key).diagnostic(reporter, {
-          type: "warning",
+          is: "warning",
           msg: `attribute value is incoherent for injection, attribute is removed`
         });
       }
@@ -404,7 +404,7 @@ export module AttributeUtil {
 
     if (typeof fn !== "function") {
       path.diagnostic(reporter, {
-        type: "error",
+        is: "error",
         msg: `attribute must be a function with signature ${signature}`
       });
     }
@@ -413,7 +413,7 @@ export module AttributeUtil {
         return fn(...args);
       } catch (e) {
         reporter.error(e, {
-          type: "error",
+          is: "error",
           msg: `attribute must be a function with signature ${signature}`
         });
       }

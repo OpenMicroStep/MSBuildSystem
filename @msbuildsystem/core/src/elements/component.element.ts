@@ -83,7 +83,7 @@ export namespace ComponentElement {
       path.popArray();
     }
     else {
-      path.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
+      path.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
     }
   }
 
@@ -113,7 +113,7 @@ export namespace ComponentElement {
       at.popArray();
     }
     else {
-      at.diagnostic(reporter, { type: "warning", msg: `attribute must be an array`});
+      at.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
     }
   }
 
@@ -146,7 +146,7 @@ export namespace ComponentElement {
         if (isReserved(attr, key)) return undefined;
         else if (objectForKeyValidator) return objectForKeyValidator.validate(reporter, at, value, key);
         else {
-          path.diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
+          path.diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
           return undefined;
         }
       }});

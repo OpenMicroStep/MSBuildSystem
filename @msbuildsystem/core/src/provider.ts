@@ -48,9 +48,9 @@ export interface BuildGraphProviderList<P extends Target, T extends SelfBuildGra
 export function createBuildGraphProviderList<P extends Target, T extends SelfBuildGraph<P>>(type: string, defaultCstor?: { new (graph: P) : T }) : BuildGraphProviderList<P, T> {
   let list = new Map<string, { new (graph: P) : T }>();
   function notes(value) {
-    return [<Diagnostic>{ type: "note", msg: `while looking for ${type}: ${value}` }]
+    return [<Diagnostic>{ is: "note", msg: `while looking for ${type}: ${value}` }]
           .concat([...list.keys()].map(name => (<Diagnostic>{
-            type: "note",
+            is: "note",
             msg: `found: ${name}`
           })))
   }
@@ -69,7 +69,7 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
     if (v !== undefined) {
       let builder = find(v);
       if (builder === undefined) {
-        reporter.diagnostic({ type: "error", msg: `unable to find ${type}`, notes: notes(value) });
+        reporter.diagnostic({ is: "error", msg: `unable to find ${type}`, notes: notes(value) });
         builder = defaultCstor;
       }
       if (builder !== undefined) {

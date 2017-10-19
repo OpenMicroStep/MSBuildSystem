@@ -5,7 +5,7 @@ import {
 
 Project.elementFactories.registerSimple('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: MakeJSElement) => {
   if (!name) {
-    attrPath.diagnostic(reporter, { type: "warning", msg: `target element must have a name` });
+    attrPath.diagnostic(reporter, { is: "warning", msg: `target element must have a name` });
     return undefined;
   }
   let target = new TargetElement(name, parent);
@@ -38,7 +38,7 @@ export class TargetElement extends ComponentElement {
       into.push(...validateEnvList.validate(reporter, new AttributePath(component, '.environments'), envs));
     if ("environmentsByEnvironment" in component) {
       reporter.diagnostic({
-        type: "warning",
+        is: "warning",
         msg: `attribute has no meaning (you can't extends environments after one is selected)`,
         path: `${component.__path()}.environmentsByEnvironment`
       });
@@ -54,14 +54,14 @@ export class TargetElement extends ComponentElement {
     );
     if (compatibleEnvs.length === 0) {
       reporter.diagnostic({
-        type: "error",
+        is: "error",
         msg: `no compatible environment found for target '${this.name}' with build environment '${environment.name}'`,
         path: `${this.__path()}.targets`
       });
     }
     else if (compatibleEnvs.length > 1) {
       reporter.diagnostic({
-        type: "error",
+        is: "error",
         msg: `multiple compatible environments found for target '${this.name}' with build environment '${environment.name}'`,
         path: `${this.__path()}.targets`
       });

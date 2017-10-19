@@ -1,6 +1,6 @@
 
 export interface Diagnostic {
-  type: "note" | "remark" | "warning" | "error" | "fatal error";
+  is: "note" | "remark" | "warning" | "error" | "fatal error";
   msg: string;
   path?: string;
   row?: number;
@@ -28,7 +28,7 @@ export module Diagnostic {
   export function fromError(error: Error, base?: Diagnostic) {
     if (!base) {
       base = {
-        type: "error",
+        is: "fatal error",
         msg: error.message
       };
     }
@@ -41,7 +41,7 @@ export module Diagnostic {
         var m = line.match(RX_STACK);
         if (m) {
           notes.push({
-            type: "note",
+            is: "note",
             msg: m[1]  || "anonymous",
             path: m[2],
             row: parseInt(m[3]),

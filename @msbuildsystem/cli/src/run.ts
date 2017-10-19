@@ -18,6 +18,10 @@ export function handle_run() {
     printer.push(new Report(`Project ${p}`, project.reporter, perf()));
     return project;
   });
+  for (let project of workspace.projects.values()) {
+      if (projects.indexOf(project) === -1)
+          printer.push(new Report(`Project ${project.definition.name}`, project.reporter));
+  }
   workspace.fixDirectoryPendingResolution();
   printer.push(new Report(`Workspace ${workspace.directory}`, workspace.reporter));
   if (printer.report.failed)

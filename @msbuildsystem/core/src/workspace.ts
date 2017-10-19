@@ -71,14 +71,14 @@ export class Workspace {
       if (workspaces.size === 1)
         this.directory = path.join(Workspace.defaultWorkspaceDirectory, workspaces.values().next().value);
       else if (workspaces.size > 1)
-          this.reporter.diagnostic({ type: "error", msg: `cannot determine workspace directory, multiple projects are loaded with no common default workspace name` });
+          this.reporter.diagnostic({ is: "error", msg: `cannot determine workspace directory, multiple projects are loaded with no common default workspace name` });
       else {
         if (names.size === 1)
           this.directory = path.join(Workspace.defaultWorkspaceDirectory, names.values().next().value);
         else if (names.size > 1)
-          this.reporter.diagnostic({ type: "error", msg: `cannot determine workspace directory, multiple projects are loaded with no common default workspace name` });
+          this.reporter.diagnostic({ is: "error", msg: `cannot determine workspace directory, multiple projects are loaded with no common default workspace name` });
         else if (names.size === 0)
-          this.reporter.diagnostic({ type: "error", msg: `cannot determine workspace directory, no projects are loaded with a default workspace name or even a name` });
+          this.reporter.diagnostic({ is: "error", msg: `cannot determine workspace directory, no projects are loaded with a default workspace name or even a name` });
       }
     }
   }

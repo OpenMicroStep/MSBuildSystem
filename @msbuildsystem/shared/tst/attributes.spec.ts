@@ -40,30 +40,30 @@ function validateAnyToUndefined() {
 function validateString() {
   testValidator(AttributeTypes.validateString, 'this is a string', undefined, 'this is a string', []);
   testValidator(AttributeTypes.validateString, { t: 'this is not a string' }, undefined, undefined, [
-    {"type": "warning", "msg": "attribute must be a string, got object" }
+    {is: "warning", "msg": "attribute must be a string, got object" }
   ]);
   testValidator(AttributeTypes.validateString, '', undefined, undefined, [
-    {"type": "warning", "msg": "attribute can't be an empty string" }
+    {is: "warning", "msg": "attribute can't be an empty string" }
   ]);
 }
 function validateAnyString() {
   testValidator(AttributeTypes.validateAnyString, 'this is a string', undefined, 'this is a string', []);
   testValidator(AttributeTypes.validateAnyString, { t: 'this is not a string' }, undefined, undefined, [
-    {"type": "warning", "msg": "attribute must be a string, got object" }
+    {is: "warning", "msg": "attribute must be a string, got object" }
   ]);
   testValidator(AttributeTypes.validateAnyString, '', undefined, '', []);
 }
 function validateObject() {
   testValidator(AttributeTypes.validateObject, { o: 1 }, undefined, { o: 1 }, []);
   testValidator(AttributeTypes.validateObject, 'this is a string', undefined, undefined, [
-    {"type": "warning", "msg": "attribute must be an object, got string" }
+    {is: "warning", "msg": "attribute must be an object, got string" }
   ]);
   testValidator(AttributeTypes.validateObject, {}, undefined, {}, []);
 }
 function validateArray() {
   testValidator(AttributeTypes.validateArray, [1, 2, 3], undefined, [1, 2, 3], []);
   testValidator(AttributeTypes.validateArray, 'this is a string', undefined, [], [
-    {"type": "warning", "msg": "attribute must be an array" }
+    {is: "warning", "msg": "attribute must be an array" }
   ]);
   testValidator(AttributeTypes.validateArray, [], undefined, [], []);
 }
@@ -71,48 +71,48 @@ function validateBoolean() {
   testValidator(AttributeTypes.validateBoolean, true, undefined, true, []);
   testValidator(AttributeTypes.validateBoolean, false, undefined, false, []);
   testValidator(AttributeTypes.validateBoolean, 'this is a string', undefined, undefined, [
-    {"type": "warning", "msg": "attribute must be a boolean, got string" }
+    {is: "warning", "msg": "attribute must be a boolean, got string" }
   ]);
 }
 function validateStringList() {
   testValidator(AttributeTypes.validateStringList, ['this is a string'], undefined, ['this is a string'], []);
   testValidator(AttributeTypes.validateStringList, ['0', '1'], undefined, ['0', '1'], []);
   testValidator(AttributeTypes.validateStringList, [{ t: 'this is not a string' }], undefined, [], [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
   ]);
   testValidator(AttributeTypes.validateStringList, ['0', { t: 'this is not a string' }], undefined, ['0'], [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
   ]);
   testValidator(AttributeTypes.validateStringList, ['0', '', 1], undefined, ['0'], [
-    {"type": "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
-    {"type": "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
+    {is: "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
+    {is: "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
   ]);
   testValidator(AttributeTypes.validateStringList, '', undefined, [], [
-    {"type": "warning", "msg": "attribute must be an array" }
+    {is: "warning", "msg": "attribute must be an array" }
   ]);
 }
 function validateStringSet() {
   testValidator(AttributeTypes.validateStringSet, ['this is a string'], undefined, new Set(['this is a string']), []);
   testValidator(AttributeTypes.validateStringSet, ['0', '1'], undefined, new Set(['0', '1']), []);
   testValidator(AttributeTypes.validateStringSet, [{ t: 'this is not a string' }], undefined, new Set<string>([]), [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
   ]);
   testValidator(AttributeTypes.validateStringSet, ['0', { t: 'this is not a string' }], undefined, new Set(['0']), [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
   ]);
   testValidator(AttributeTypes.validateStringSet, ['0', '', 1], undefined, new Set(['0']), [
-    {"type": "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
-    {"type": "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
+    {is: "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
+    {is: "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
   ]);
   testValidator(AttributeTypes.validateStringSet, '', undefined, new Set([]), [
-    {"type": "warning", "msg": "attribute must be an array" }
+    {is: "warning", "msg": "attribute must be an array" }
   ]);
 }
 
 function chain() {
   testValidator(AttributeTypes.chain(AttributeTypes.validateArray, AttributeTypes.validateStringList), ['this is a string'], undefined, ['this is a string'], []);
   testValidator(AttributeTypes.chain(AttributeTypes.validateArray, AttributeTypes.validateString), ['this is a string'], undefined, undefined, [
-    { "type": "warning", "msg": "attribute must be a string, got object" }
+    { is: "warning", "msg": "attribute must be a string, got object" }
   ]);
 }
 
@@ -120,10 +120,10 @@ function oneOf() {
   testValidator(AttributeTypes.oneOf(AttributeTypes.validateString, AttributeTypes.validateStringList), ['this is a string'], undefined, ['this is a string'], []);
   testValidator(AttributeTypes.oneOf(AttributeTypes.validateString, AttributeTypes.validateStringList), 'this is a string', undefined, 'this is a string', []);
   testValidator(AttributeTypes.oneOf(AttributeTypes.validateString, AttributeTypes.validateStringList), { t: 'this is not a string' }, undefined, undefined, [{
-    "type": "warning", "msg": "attribute must be one of",
+    is: "warning", "msg": "attribute must be one of",
     "notes": [
-      { "type": "warning", "msg": "attribute must be a string, got object" },
-      { "type": "warning", "msg": "attribute must be an array" },
+      { is: "warning", "msg": "attribute must be a string, got object" },
+      { is: "warning", "msg": "attribute must be an array" },
     ]
   }]);
 }
@@ -131,7 +131,7 @@ function defaultsTo() {
   testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), 'this is a string', undefined, 'this is a string', []);
   testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), undefined, undefined, 'default string value', []);
   testValidator(AttributeTypes.defaultsTo(AttributeTypes.validateString, 'default string value'), { t: 'this is not a string' }, undefined, 'default string value', [
-    { "type": "warning", "msg": "attribute must be a string, got object" }
+    { is: "warning", "msg": "attribute must be a string, got object" }
   ]);
 }
 function listValidator() {
@@ -139,17 +139,17 @@ function listValidator() {
   testValidator(validator, ['this is a string'], undefined, ['this is a string'], []);
   testValidator(validator, ['0', '1'], undefined, ['0', '1'], []);
   testValidator(validator, [{ t: 'this is not a string' }], undefined, [], [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
   ]);
   testValidator(validator, ['0', { t: 'this is not a string' }], undefined, ['0'], [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
   ]);
   testValidator(validator, ['0', '', 1], undefined, ['0'], [
-    {"type": "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
-    {"type": "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
+    {is: "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
+    {is: "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
   ]);
   testValidator(validator, '', undefined, [], [
-    {"type": "warning", "msg": "attribute must be an array" }
+    {is: "warning", "msg": "attribute must be an array" }
   ]);
 }
 function setValidator() {
@@ -157,17 +157,17 @@ function setValidator() {
   testValidator(validator, ['this is a string'], undefined, new Set(['this is a string']), []);
   testValidator(validator, ['0', '1'], undefined, new Set(['0', '1']), []);
   testValidator(validator, [{ t: 'this is not a string' }], undefined, new Set([]), [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[0]" }
   ]);
   testValidator(validator, ['0', { t: 'this is not a string' }], undefined, new Set(['0']), [
-    {"type": "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
+    {is: "warning", "msg": "attribute must be a string, got object", "path": "[1]" }
   ]);
   testValidator(validator, ['0', '', 1], undefined, new Set(['0']), [
-    {"type": "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
-    {"type": "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
+    {is: "warning", "msg": "attribute can't be an empty string", "path": "[1]" },
+    {is: "warning", "msg": "attribute must be a string, got number", "path": "[2]" }
   ]);
   testValidator(validator, '', undefined, new Set([]), [
-    {"type": "warning", "msg": "attribute must be an array" }
+    {is: "warning", "msg": "attribute must be an array" }
   ]);
 }
 function objectValidator() {
@@ -182,15 +182,15 @@ function objectValidator() {
   testValidator(validator, { s: 'test', b: true }, undefined, { s: 'test', b: true }, []);
   testValidator(validator, { s: 'test' }, undefined, { s: 'test', b: false }, []);
   testValidator(validator, { s: 0 }, undefined, { s: 'a string', b: false }, [
-    { "type": "warning", "msg": "attribute must be a string, got number", "path": ".s" }
+    { is: "warning", "msg": "attribute must be a string, got number", "path": ".s" }
   ]);
   testValidator(validator, { }, undefined, { s: 'a string', b: false }, []);
   testValidator(validator, { not_defined: 0 }, undefined, { s: 'a string', b: false }, [
-    { "type": "warning", "msg": "attribute is unused", "path": ".not_defined" }
+    { is: "warning", "msg": "attribute is unused", "path": ".not_defined" }
   ]);
   testValidator(validator2, { not_defined: "test" }, undefined, { s: 'a', b: 'b', not_defined: "test" }, []);
   testValidator(validator2, { not_defined: 0 }, undefined, { s: 'a', b: 'b' }, [
-    { "type": "warning", "msg": "attribute must be a string, got number", "path": ".not_defined" }
+    { is: "warning", "msg": "attribute must be a string, got number", "path": ".not_defined" }
   ]);
 }
 

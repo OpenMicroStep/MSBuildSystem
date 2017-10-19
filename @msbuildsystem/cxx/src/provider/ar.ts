@@ -34,11 +34,11 @@ export class ArProvider extends SemVerProvider implements LinkerProvider {
       args.push(objFile.path);
     if (linkerOptions) {
       if (linkerOptions.libraries.length)
-        reporter.diagnostic({ type: "warning", msg: `linkerOptions.libraries should be empty when linker is ar, ignoring` });
+        reporter.diagnostic({ is: "warning", msg: `linkerOptions.libraries should be empty when linker is ar, ignoring` });
       if (linkerOptions.libDirectories.length)
-        reporter.diagnostic({ type: "warning", msg: `linkerOptions.libDirectories should be empty when linker is ar, ignoring` });
+        reporter.diagnostic({ is: "warning", msg: `linkerOptions.libDirectories should be empty when linker is ar, ignoring` });
       if (linkerOptions.frameworkDirectories.length)
-        reporter.diagnostic({ type: "warning", msg: `linkerOptions.frameworkDirectories should be empty when linker is ar, ignoring` });
+        reporter.diagnostic({ is: "warning", msg: `linkerOptions.frameworkDirectories should be empty when linker is ar, ignoring` });
       args.push(...linkerOptions.archives);
       args.push(...this.flattenArgs(linkerOptions.flags));
     }

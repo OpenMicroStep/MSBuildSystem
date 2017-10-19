@@ -7,7 +7,7 @@ function taskValidator<T extends object>(extensions: AttributeTypes.ExtensionsNU
   function validateObject(reporter: Reporter, path: AttributePath, attr: TaskElement, target) {
     return map(reporter, AttributeTypes.superValidateObject(reporter, path, attr, target, {}, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
         if (!attr.__keyMeaning(a0))
-          at.diagnostic(reporter, { type: "warning", msg: `attribute is unused` });
+          at.diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
         return undefined;
       }}));
   };
@@ -106,7 +106,7 @@ export class Task extends Node {
     }
     else {
       step.context.reporter.diagnostic({
-        type: "note",
+        is: "note",
         msg: `task doesn't support "${step.context.runner.action}" action`,
         path: this.toString()
       });

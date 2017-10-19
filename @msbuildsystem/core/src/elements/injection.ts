@@ -59,11 +59,11 @@ function injectAttribute(ctx: InjectionContext,
   }
   else if (byenv) {
     if (!srcValue || typeof srcValue !== "object" || srcValue.constructor !== Object) {
-      srcPath.diagnostic(ctx.reporter, { type: "warning",
+      srcPath.diagnostic(ctx.reporter, { is: "warning",
         msg: `not an object: ByEnvironment attribute must be an object (ie: { "=env": [values] }), ignoring` });
     }
     else if (!(src instanceof Element)) {
-      srcPath.diagnostic(ctx.reporter, { type: "warning",
+      srcPath.diagnostic(ctx.reporter, { is: "warning",
         msg: `not allowed suffix: ByEnvironment attribute outside an element, ignoring` });
     }
     else {
@@ -88,13 +88,13 @@ function injectAttribute(ctx: InjectionContext,
   function collision(msg: string = "collision: attribute is removed") {
     let d = ctx.lcollisions.get(lpath);
     if (!d) {
-      d = {type: "warning", msg: msg, path: dstPath.toString(), notes: [] };
+      d = { is: "warning", msg: msg, path: dstPath.toString(), notes: [] };
       let ccollisionpath = srcPath.toString();
       let pcollisionpath: string;
       for (let [plpath, plobj] of (ctx.lprevious.get(lpath_i) || [])) {
         let plattr = dstAttribute;
         if (plattr in plobj && (pcollisionpath = `${plpath}.${plattr}`) !== ccollisionpath)
-          d.notes.push({ type: "note", msg: "while merging", path: pcollisionpath });
+          d.notes.push({ is: "note", msg: "while merging", path: pcollisionpath });
         plattr += 'ByEnvironment';
         if (plattr in plobj && plobj instanceof Element) {
           let plbyenv = plobj[plattr];
@@ -104,16 +104,16 @@ function injectAttribute(ctx: InjectionContext,
               pcollisionpath = `${plpath}.${plattr}[${envQuery}]`;
               if (pcollisionpath === ccollisionpath)
                 break; // break here to prevent writing notes too soon (use the js object key ordering property)
-              d.notes.push({ type: "note", msg: "while merging", path: pcollisionpath });
+              d.notes.push({ is: "note", msg: "while merging", path: pcollisionpath });
             }
           }
         }
       }
-      d.notes.push({ type: "note", msg: "caused collision while merging", path: ccollisionpath });
+      d.notes.push({ is: "note", msg: "caused collision while merging", path: ccollisionpath });
       ctx.lcollisions.set(lpath, d);
     }
     else {
-      d.notes.push({ type: "note", msg: "while merging", path: srcPath.toString() });
+      d.notes.push({ is: "note", msg: "while merging", path: srcPath.toString() });
     }
     delete dst[dstAttribute];
   }

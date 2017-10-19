@@ -77,7 +77,7 @@ export class Parser {
 
   error(message: string) {
     this.reporter.diagnostic({
-      type: "error",
+      is: "error",
       msg: message,
       row: this.line + 1,
       col: this.at - this.atline + 1
