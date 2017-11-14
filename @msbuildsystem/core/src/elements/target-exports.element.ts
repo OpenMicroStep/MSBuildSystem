@@ -29,5 +29,5 @@ export type TargetExportsDefinition = {
   name: string;
   environment: string;
   components: (ElementDefinition | string)[];
-  "generated=": { is: "component", components: ElementDefinition[] }
+  "generated=": { is: "component", targets: [string], components: ElementDefinition[] }
 }

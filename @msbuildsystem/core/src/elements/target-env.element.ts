@@ -53,7 +53,10 @@ export class BuildTargetElement extends MakeJSElement {
       name: this.name,
       environment: this.environment.name,
       components: ["=generated", ...serialized_exports],
-      "generated=": { is: "component", components: [] }
+      "generated=": { is: "component",
+        targets: [this.name],
+        components: [],
+      }
     };
 
     let at = new AttributePath(this, '');
