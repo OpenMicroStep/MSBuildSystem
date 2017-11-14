@@ -5,7 +5,7 @@ import {
 
 function taskValidator<T extends object>(extensions: AttributeTypes.ExtensionsNU<T, Target>, map: Task.Map<any, any>) : AttributeTypes.ValidatorT<object, Target> {
   function validateObject(reporter: Reporter, path: AttributePath, attr: TaskElement, target) {
-    return map(reporter, AttributeTypes.superValidateObject(reporter, path, attr, target, {}, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
+    return map(reporter, AttributeTypes.superValidateObject(reporter, path, attr, target, {} as any, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
         if (!attr.__keyMeaning(a0))
           at.diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
         return undefined;
