@@ -78,10 +78,10 @@ module.exports= {
       },
       npmPackage: { is: "component",
         dependencies: { is: "component",
-          "chai": "4.0.0-canary.2"
+          "chai": "^4.1.2"
         },
         devDependencies: { is: "component",
-          "@types/chai": "^3.4.29",
+          "@types/chai": "^4.0.4",
           "@types/mocha": "^2.2.28",
           "@types/node": "^6.0.78",
           "@openmicrostep/tests": "^0.1.0"
