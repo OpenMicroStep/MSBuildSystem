@@ -152,7 +152,7 @@ function build_graph(f: Flux<Context>) {
         }]
       }
     ],
-    "generated=": { is: "component", components: [] }
+    "generated=": { is: "component", targets: ["MSStd"], components: [] }
   };
   assert.deepEqual(msstd, {
     is           : 'build-target',
