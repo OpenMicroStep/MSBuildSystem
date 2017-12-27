@@ -12,6 +12,9 @@ function moduleFiles(name) {
   ]}
 }
 
+function cwd_test(workspace) {
+  return `${workspace}/node/node_modules/@openmicrostep`;
+}
 function tests(workspace) { return [
   `msbuildsystem.shared.tests/index.js`,
   `msbuildsystem.core.tests/index.js`,
@@ -282,11 +285,11 @@ module.exports= {
       "mstests", "-c", "-t", "10000", ...tests("dist/3")
     ]) },
     "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: Value([
-      "nyc", "--no-exclude-after-remap", "--cwd", "dist/3/node/node_modules/@openmicrostep", "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "--temp-directory", `${__dirname}/../dist/coverage/nyc_output`, "-x", "*.tests/**", "mstests",
+      "nyc", "--no-exclude-after-remap", "--cwd", cwd_test("dist/3"), "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "--temp-directory", `${__dirname}/../dist/coverage/nyc_output`, "-x", "*.tests/**", "mstests",
       "-c", "-t", "20000", ...tests("dist/3")
     ]) },
     "coveralls-3=": { is: "task", components: ["=cmd"], cmd:
-      `nyc --no-exclude-after-remap --cwd dist/3/node/node_modules/@openmicrostep --reporter=text-lcov --report-dir ${__dirname}/../dist/coverage -x "*.tests/**" mstests -c -t 20000 ${tests("dist/3").join(' ')} | coveralls`
+      `nyc --no-exclude-after-remap --cwd ${cwd_test("dist/3")} --reporter=text-lcov --report-dir ${__dirname}/../dist/coverage -x "*.tests/**" mstests -c -t 20000 ${tests("dist/3").join(' ')} | coveralls`
     },
 
     "deploy-shared="    : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared"       ]) },
