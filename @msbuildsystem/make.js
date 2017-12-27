@@ -265,7 +265,7 @@ module.exports= {
       cwd: "={cwd}.absolutePath",
     },
     'cwd=': { is: 'group', elements: [{ is: 'file', name: "../" }] },
-    "install-deps=": { is: "task", components: ["=cmd"], cmd: "npm install -g -q coveralls nyc@11.1.0 @openmicrostep/tests" },
+    "install-deps=": { is: "task", components: ["=cmd"], cmd: "npm install -g -q coveralls nyc @openmicrostep/tests" },
     "build-1=": { is: "task", components: ["=cmd"], cmd: Value([
       "msbuildsystem", "build", "-p", "@msbuildsystem", "-w", "dist/1/"
     ]) },
@@ -284,12 +284,12 @@ module.exports= {
     "tests-3=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", "-t", "10000", ...tests("dist/3")
     ]) },
-    "coverage-local-3=": { is: "task", components: ["=cmd"], env: { is: "component", NYC_CWD: cwd_test("dist/3") }, cmd: Value([
-      "nyc", "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "--temp-directory", `${__dirname}/../dist/coverage/nyc_output`, "-x", "*.tests/**", "mstests",
+    "coverage-local-3=": { is: "task", components: ["=cmd"], cmd: Value([
+      "nyc", "--no-exclude-after-remap", "--cwd", "dist/3", "--reporter=html", "--report-dir", `${__dirname}/../dist/coverage`, "--temp-directory", `${__dirname}/../dist/coverage/nyc_output`, "-x", "*.tests/**", "mstests",
       "-c", "-t", "20000", ...tests("dist/3")
     ]) },
-    "coveralls-3=": { is: "task", components: ["=cmd"], env: { is: "component", NYC_CWD: cwd_test("dist/3") }, cmd:
-      `nyc --reporter=text-lcov --report-dir ${__dirname}/../dist/coverage -x "*.tests/**" mstests -c -t 20000 ${tests("dist/3").join(' ')} | coveralls`
+    "coveralls-3=": { is: "task", components: ["=cmd"], cmd:
+      `nyc --no-exclude-after-remap --cwd dist/3 --reporter=text-lcov --report-dir ${__dirname}/../dist/coverage -x "*.tests/**" mstests -c -t 20000 ${tests("dist/3").join(' ')} | coveralls`
     },
 
     "deploy-shared="    : { is: "task", components: ["=cmd"], cmd: Value(["npm",  "publish", "dist/3/node/node_modules/@openmicrostep/msbuildsystem.shared"       ]) },
