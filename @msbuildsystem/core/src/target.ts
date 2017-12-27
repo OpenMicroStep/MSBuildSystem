@@ -1,5 +1,5 @@
 import {Project, RootGraph, Reporter, CopyTask,
-  AttributePath, AttributeTypes, TargetExportsDefinition, FileElement,
+  PathReporter, AttributeTypes, TargetExportsDefinition, FileElement,
   Node, Task, Graph, BuildTargetElement, File, Directory, util, GenerateFileTask, Step,
   createProviderMap, ProviderMap, InjectionContext, TaskElement,
 } from './index.priv';
@@ -7,9 +7,9 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 
 function targetValidator<T extends object, A0 extends Target & T>(extensions: AttributeTypes.ExtensionsNU<T, A0>) : AttributeTypes.ValidatorT<void, { target: A0, into: any }> {
-  function validateObject(reporter: Reporter, path: AttributePath, attr: BuildTargetElement, { target, into }:  { target: A0, into: any }) : void {
+  function validateObject(at: PathReporter, attr: BuildTargetElement, { target, into }:  { target: A0, into: any }) : void {
     Object.keys(extensions).forEach(name => target.usedAttributes.add(name));
-    AttributeTypes.superValidateObject(reporter, path, attr, target, into, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
+    AttributeTypes.superValidateObject(at, attr, target, into, extensions, { validate(at: PathReporter, value: any, a0: string) : undefined {
         if (!attr.__keyMeaning(a0))
           target.unusedAttributes.add(a0);
         return undefined;
@@ -43,8 +43,8 @@ export abstract class SelfBuildGraph<P extends Graph> extends Graph {
     super(name, graph);
   }
 
-  resolve(reporter: Reporter, target: Target, path: AttributePath = new AttributePath(target)) {
-    this.__validator.validate(reporter, path, target.attributes, { target: target, into: this });
+  resolve(at: PathReporter, target: Target) {
+    this.__validator.validate(at, target.attributes, { target: target, into: this });
   }
 
   buildGraph(reporter: Reporter) {}
@@ -152,13 +152,13 @@ export class Target extends SelfBuildGraph<RootGraph> {
     return id ? path.join(this.paths.tasks, id) : undefined;
   }
 
-  configure(reporter: Reporter, path: AttributePath) {
-    this.resolve(reporter, this, path);
-    path.push('.', '');
+  configure(at: PathReporter) {
+    this.resolve(at, this);
+    at.push('.', '');
     for (let unused of this.unusedAttributes)
       if (!this.usedAttributes.has(unused))
-        path.set(unused).diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
-    path.pop(2);
+        at.set(unused).diagnostic({ is: "warning", msg: `attribute is unused` });
+    at.pop(2);
   }
 
   configureExports(reporter: Reporter) {}
@@ -221,9 +221,9 @@ export class Target extends SelfBuildGraph<RootGraph> {
 export namespace Target {
   export type Constructor<T extends Target, A> = { new (graph: RootGraph, project: Project, attributes: BuildTargetElement): Target, prototype: T & A };
   export const validateDirectory: AttributeTypes.ValidatorT<Directory, Target> = {
-    validate: function validateDirectory(reporter: Reporter, path: AttributePath, value: any, target: Target) : Directory | undefined {
+    validate: function validateDirectory(at: PathReporter, value: any, target: Target) : Directory | undefined {
       if (typeof value === "string") {
-        let v = AttributeTypes.validateString.validate(reporter, path, value);
+        let v = AttributeTypes.validateString.validate(at, value);
         if (v !== undefined) {
           v = util.pathJoinIfRelative(target.paths.output, v);
           return File.getShared(v, true);
@@ -234,7 +234,7 @@ export namespace Target {
         return f.isDirectory ? f as Directory : f.directory();
       }
       else {
-        path.diagnostic(reporter, { is: "warning", msg: "attribute must be a 'file' element or a string" });
+        at.diagnostic({ is: "warning", msg: "attribute must be a 'file' element or a string" });
       }
       return undefined;
     },

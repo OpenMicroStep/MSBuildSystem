@@ -1,7 +1,7 @@
 import {
   Task, Reporter, SelfBuildGraph, Target, File,
   Flux, Step, StepWithData, ReduceStepContext,
-  AttributeTypes as V, AttributePath, util, ComponentElement,
+  AttributeTypes as V, PathReporter, util, ComponentElement,
 } from '@openmicrostep/msbuildsystem.core';
 import { safeSpawnProcess } from '@openmicrostep/msbuildsystem.foundation';
 import { JSTarget, JSCompilers, NPMInstallTask, NPMPackage } from '@openmicrostep/msbuildsystem.js';
@@ -74,7 +74,7 @@ Task.generators.register(['tsconfig'], {
   map: (v: TSConfigValue) => v.tsconfig,
   reduce: (reporter: Reporter, values: TSConfigValue[]) : TSConfigValue => ({
     tsconfig: values[0].tsconfig,
-    compilerOptions: validator.validate(reporter, new AttributePath('compilerOptions'), values.map(v => v.compilerOptions)) as ts.CompilerOptions || {},
+    compilerOptions: validator.validate(new PathReporter(reporter, 'compilerOptions'), values.map(v => v.compilerOptions)) as ts.CompilerOptions || {},
     files: Array.from(new Set(([] as string[]).concat(...values.map(v => v.files))))
   }),
   run(f: Flux<ReduceStepContext>, value: TSConfigValue) {

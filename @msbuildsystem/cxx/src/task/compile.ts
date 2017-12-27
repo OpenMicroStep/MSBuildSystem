@@ -1,7 +1,7 @@
 import {
   File, Directory,
   Task, Graph, Target, InOutTask, StepWithData, Step, Reporter, Flux, ReduceStepContext, TaskDoMapReduce,
-  AttributeTypes as V, AttributePath,
+  AttributeTypes as V, PathReporter,
   FileElement, ComponentElement} from '@openmicrostep/msbuildsystem.core';
 import {CompilerProviders} from '../index.priv';
 import * as path from 'path';
@@ -111,7 +111,7 @@ export class CompileTask extends InOutTask {
   }
 
   do_generate_compile_commands(step: Step<{ value: CompileCommand[], cmd?: string }>) {
-    let provider = CompilerProviders.validateBest.validate(step.context.reporter, new AttributePath(), this.options.compiler);
+    let provider = CompilerProviders.validateBest.validate(new PathReporter(step.context.reporter), this.options.compiler);
     if (!provider) return step.continue();
     console.info("do_generate_compile_commands");
     step.setFirstElements(step => {
@@ -126,7 +126,7 @@ export class CompileTask extends InOutTask {
   }
 
   do_build(step: StepWithData<{}, {}, { headers: string[] }>) {
-    let provider = CompilerProviders.validateBest.validate(step.context.reporter, new AttributePath(), this.options.compiler);
+    let provider = CompilerProviders.validateBest.validate(new PathReporter(step.context.reporter), this.options.compiler);
     if (!provider) return step.continue();
     provider.do_compile(step, this.attributes);
   }

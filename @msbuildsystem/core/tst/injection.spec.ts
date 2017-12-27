@@ -1,7 +1,7 @@
 import {
   Reporter,
   injectElements, injectDefaultKeep, injectDefaultCopy, createInjectionContext, closeInjectionContext,
-  AttributePath, BuildTargetElement, Diagnostic, ComponentElement, Element
+  PathReporter, BuildTargetElement, Diagnostic, ComponentElement, Element
 } from '@openmicrostep/msbuildsystem.core/index.priv';
 import {assert} from 'chai';
 
@@ -46,7 +46,7 @@ function testInjectElements(into: object, elements: object[], diags: Diagnostic[
   let reporter = new Reporter();
   let el = mock_component(into, 'I');
   let ctx = createInjectionContext(reporter, mock_buildtarget());
-  injectElements(ctx, elements.map((e, i) => mock_component(e, `E${i}`)), el, new AttributePath('I'));
+  injectElements(ctx, elements.map((e, i) => mock_component(e, `E${i}`)), el, new PathReporter(reporter, 'I'));
   closeInjectionContext(ctx);
   assert.deepEqual(reporter.diagnostics, diags);
   let c = clean(el);
@@ -57,7 +57,7 @@ function testInjectElement(into: object, element: Element, diags: Diagnostic[], 
   let reporter = new Reporter();
   let el = mock_component(into, 'I');
   let ctx = createInjectionContext(reporter, mock_buildtarget());
-  injectElements(ctx, [element], el, new AttributePath('I'));
+  injectElements(ctx, [element], el, new PathReporter(reporter, 'I'));
   closeInjectionContext(ctx);
   assert.deepEqual(reporter.diagnostics, diags);
   let c = clean(el);

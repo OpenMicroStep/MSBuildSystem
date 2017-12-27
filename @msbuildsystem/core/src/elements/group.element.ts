@@ -1,9 +1,9 @@
-import {Element, ElementLoadContext, Project, Reporter, MakeJS, AttributeTypes, AttributePath, MakeJSElement, util} from '../index.priv';
+import {Element, ElementLoadContext, Project, Reporter, MakeJS, AttributeTypes, PathReporter, MakeJSElement, util} from '../index.priv';
 
-function createGroup(reporter: Reporter, name: string, definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement) {
+function createGroup(at: PathReporter, name: string, definition: MakeJS.Element, parent: MakeJSElement) {
   let group = new GroupElement('group', name, parent);
   if ("path" in definition) {
-    let p = AttributeTypes.validateString.validate(reporter, attrPath, definition['path']);
+    let p = AttributeTypes.validateString.validate(at, definition['path']);
     p = p && util.pathJoinIfRelative(parent.__absoluteFilepath(), p);
     group.path = p;
   }

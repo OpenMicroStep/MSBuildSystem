@@ -2,13 +2,18 @@ import {Reporter, Diagnostic} from './index';
 
 /** Very fast path management (push, pop) */
 export type AttributePathComponent = ({ __path() : string } | string | number);
-export class AttributePath {
+export class PathReporter {
   /** components of the path that are concatenated by toString() */
-  components: AttributePathComponent[];
+  private components: AttributePathComponent[];
+  readonly reporter: Reporter;
 
-  constructor(...components: AttributePathComponent[]);
-  constructor() {
-    this.reset.apply(this, arguments);
+  constructor(reporter: Reporter, ...components: AttributePathComponent[])
+  constructor(reporter: Reporter) {
+    this.components = [];
+    this.reporter = reporter;
+    var length = arguments.length;
+    for (var i = 1; i < length; i++)
+      this.components.push(arguments[i]);
   }
 
   reset(...components: AttributePathComponent[]) : this;
@@ -62,7 +67,7 @@ export class AttributePath {
   }
 
   copy() {
-    var cpy = new AttributePath();
+    var cpy = new PathReporter(this.reporter);
     cpy.components = this.components.slice(0);
     return cpy;
   }
@@ -75,11 +80,11 @@ export class AttributePath {
     return this.toString();
   }
 
-  diagnostic(reporter: Reporter, d: Diagnostic, ...components: AttributePathComponent[]) {
+  diagnostic(d: Diagnostic, ...components: AttributePathComponent[]) {
     this.push(...components);
     if (this.components.length)
       d.path = this.toString() + (d.path || "");
     this.pop(components.length);
-    reporter.diagnostic(d);
+    this.reporter.diagnostic(d);
   }
 }

@@ -1,4 +1,4 @@
-import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, AttributePath, TaskDoMapReduce, Graph, Node } from '@openmicrostep/msbuildsystem.core';
+import { Loader, Workspace, Reporter, util, Runner, RunnerContext, Async, Task, PathReporter, TaskDoMapReduce, Graph, Node } from '@openmicrostep/msbuildsystem.core';
 import { ReporterPrinter, Report } from './common';
 import { args } from './args';
 import { stallDetector, throttle } from './stall';
@@ -155,7 +155,7 @@ export function handle_run() {
   let provider: TaskDoMapReduce<any, any> | undefined = undefined;
   if (args.command === "generate") {
     let reporter = new Reporter();
-    provider = Task.generators.validate.validate(reporter, new AttributePath('ide'), args.ide);
+    provider = Task.generators.validate.validate(new PathReporter(reporter, 'ide'), args.ide);
     printer.push(new Report(`Generator validation`, reporter));
   }
   if (printer.report.failed)

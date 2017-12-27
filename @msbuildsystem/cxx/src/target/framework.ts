@@ -1,4 +1,4 @@
-import {FileElement, AttributeTypes, Reporter, AttributePath, File, CopyTask, Target} from '@openmicrostep/msbuildsystem.core';
+import {FileElement, AttributeTypes, Reporter, PathReporter, File, CopyTask, Target} from '@openmicrostep/msbuildsystem.core';
 import {
   CXXExportable, PlistInfoTask, HeaderAliasTask, CXXLinkType
 } from '../index.priv';
@@ -45,8 +45,8 @@ export class CXXFramework extends CXXExportable {
   taskPlistInfo?: PlistInfoTask;
   taskCopyBundleResources?: CopyTask;
 
-  configure(reporter: Reporter, path: AttributePath) {
-    super.configure(reporter, path);
+  configure(at: PathReporter) {
+    super.configure(at);
     this.linkType = CXXLinkType.DYNAMIC;
 
     let dir = File.getShared(this.absoluteBundleDirectory(), true);

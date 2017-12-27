@@ -1,4 +1,4 @@
-import {Reporter, AttributePath, Diagnostic, AttributeTypes as V, util} from "./index";
+import {Reporter, PathReporter, Diagnostic, AttributeTypes as V, util} from "./index";
 
 export interface ProviderList<CSTOR, C> {
   list: CSTOR[];
@@ -53,20 +53,20 @@ export function createProviderList<
     }
     return ret;
   }
-  function validate(reporter: Reporter, path: AttributePath, value: C) : CSTOR | undefined {
+  function validate(at: PathReporter, value: C) : CSTOR | undefined {
     let builders = find(value);
     if (builders.length === 1)
       return builders[0];
     else if (builders.length === 0)
-      path.diagnostic(reporter, { is: "error", msg: `unable to find ${type}`, notes: notes(value) });
+      at.diagnostic({ is: "error", msg: `unable to find ${type}`, notes: notes(value) });
     else
-      path.diagnostic(reporter, { is: "error", msg: `multiple ${type}s found`, notes: notes(value) });
+      at.diagnostic({ is: "error", msg: `multiple ${type}s found`, notes: notes(value) });
     return undefined;
   }
-  function validateBest(reporter: Reporter, path: AttributePath, value: C) : CSTOR | undefined {
+  function validateBest(at: PathReporter, value: C) : CSTOR | undefined {
     let builder = findBest(value);
     if (!builder)
-      path.diagnostic(reporter, { is: "error", msg: `unable to find ${type}`, notes: notes(value) });
+      at.diagnostic({ is: "error", msg: `unable to find ${type}`, notes: notes(value) });
     return builder;
   }
   return {
@@ -94,10 +94,10 @@ export function createProviderMap<T>(type: string) : ProviderMap<T> {
     },
     find(name: string) { return map.get(name); },
     validate: {
-      validate(reporter: Reporter, path: AttributePath, value: string) : T | undefined {
+      validate(at: PathReporter, value: string) : T | undefined {
         let v = map.get(value);
         if (v === undefined)
-          path.diagnostic(reporter, {
+          at.diagnostic({
             is: "error",
             msg: `unable to find ${type}`,
             notes: [<Diagnostic>{ is: "note", msg: `while looking for ${type}: ${value}` }]

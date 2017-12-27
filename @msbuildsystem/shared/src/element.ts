@@ -1,5 +1,5 @@
 import {
-  Reporter, AttributePath, AttributeTypes,
+  Reporter, PathReporter, AttributeTypes,
   util, createProviderMap, ProviderMap,
   Diagnostic, Parser
 } from './index';
@@ -10,28 +10,28 @@ export interface ElementDefinition {
   [s: string]: any;
 }
 
-export type ElementFactory = (reporter: Reporter, name: string | undefined,
-  definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName: boolean) => Element[];
-export type SimpleElementFactory = (reporter: Reporter, name: string,
-  definition: ElementDefinition, attrPath: AttributePath, parent: Element) => Element | undefined;
+export type ElementFactory = (at: PathReporter, name: string | undefined,
+  definition: ElementDefinition, parent: Element, allowNoName: boolean) => Element[];
+export type SimpleElementFactory = (at: PathReporter, name: string,
+  definition: ElementDefinition, parent: Element) => Element | undefined;
 export type ElementFactoriesProviderMap = ProviderMap<ElementFactory> & {
   registerSimple(name: string, factory: SimpleElementFactory),
   warningProbableMisuseOfKey: Set<string>,
 };
 export type ElementLoadContext = {
   elementFactoriesProviderMap: ElementFactoriesProviderMap,
-  reporter: Reporter
+  at: PathReporter
 }
 
 export function createElementFactoriesProviderMap(name: string) : ElementFactoriesProviderMap {
   let p = createProviderMap<ElementFactory>(name);
   function registerSimple(name: string, factory: SimpleElementFactory) {
     p.register([name], function simpleElementFactory(
-      reporter: Reporter, name: string | undefined,
-      definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName
+      at: PathReporter, name: string | undefined,
+      definition: ElementDefinition, parent: Element, allowNoName
     ) : Element[] {
-      name = handleSimpleElementName(reporter, name, definition.name, attrPath, allowNoName);
-      let el = name !== undefined ? factory(reporter, name, definition, attrPath, parent) : undefined;
+      name = handleSimpleElementName(at, name, definition.name, allowNoName);
+      let el = name !== undefined ? factory(at, name, definition, parent) : undefined;
       return el ? [el] : [];
     });
   }
@@ -41,24 +41,24 @@ export function createElementFactoriesProviderMap(name: string) : ElementFactori
   });
 }
 
-function handleSimpleElementName(reporter: Reporter, namespaceName: string | undefined, definitionName: string | undefined, attrPath: AttributePath, allowNoName: boolean) {
+function handleSimpleElementName(reporter: PathReporter, namespaceName: string | undefined, definitionName: string | undefined, allowNoName: boolean) {
   if (!namespaceName) {
     if (typeof definitionName === 'string' && definitionName.length > 0)
       namespaceName = definitionName;
     else if (!allowNoName)
-      attrPath.diagnostic(reporter, { is: "error", msg: `'name' attribute must be a non empty string` });
+      reporter.diagnostic({ is: "error", msg: `'name' attribute must be a non empty string` });
     else
       namespaceName = "";
   }
   else if (typeof definitionName === 'string' && namespaceName !== definitionName) {
-    attrPath.diagnostic(reporter, { is: "error", msg: `'name' attribute is already defined by the namespace with a different value` });
+    reporter.diagnostic({ is: "error", msg: `'name' attribute is already defined by the namespace with a different value` });
   }
   return namespaceName;
 }
 
 function elementValidator<T extends object, A0 extends Element & T>(extensions: AttributeTypes.Extensions<T, A0>) : AttributeTypes.ValidatorT<void, Element> {
-  function validateObject(reporter: Reporter, path: AttributePath, attr: Element, element: Element) : void {
-    AttributeTypes.superValidateObject(reporter, path, attr, element, element as any, extensions, AttributeTypes.validateAnyToUndefined);
+  function validateObject(at: PathReporter, attr: Element, element: Element) : void {
+    AttributeTypes.superValidateObject(at, attr, element, element as any, extensions, AttributeTypes.validateAnyToUndefined);
   };
   return { validate: validateObject, traverse: (lvl, ctx) => `object with` };
 }
@@ -132,13 +132,13 @@ export class Element {
   }
 
   static load<T extends Element>(reporter: Reporter, definition: ElementDefinition, root: T, elementFactoriesProviderMap: ElementFactoriesProviderMap) {
-    let context = {
-      elementFactoriesProviderMap: elementFactoriesProviderMap,
-      reporter: reporter
-    };
     reporter.transform.push(Reporter.transformWithCategory('load'));
-    root.__load(context, definition, new AttributePath(root));
+    root.__load({
+      elementFactoriesProviderMap: elementFactoriesProviderMap,
+      at: new PathReporter(reporter, root)
+    }, definition);
     reporter.transform.pop();
+
     reporter.transform.push(Reporter.transformWithCategory('resolve'));
     root.__resolved = false; // force resolution
     root.__resolve(reporter);
@@ -146,7 +146,7 @@ export class Element {
     return root;
   }
 
-  static instantiate(context: ElementLoadContext, name: string | undefined, definition: ElementDefinition, attrPath: AttributePath, parent: Element, allowNoName = false) : Element[] {
+  static instantiate(context: ElementLoadContext, name: string | undefined, definition: ElementDefinition, parent: Element, allowNoName = false) : Element[] {
     var is = definition.is;
     var error: string | undefined;
     if (typeof is !== 'string')
@@ -156,17 +156,17 @@ export class Element {
       if (!factory)
         error = `{ is: '${is}' } attribute must be a valid element type (ie, one of: ${[...context.elementFactoriesProviderMap.map.keys()].join(', ')})`;
       else {
-        attrPath = name ? new AttributePath(parent, ':', name) : attrPath;
-        var elements = factory(context.reporter, name, definition, attrPath, parent, allowNoName);
+        let at = name ? new PathReporter(context.at.reporter, parent, ':', name) : context.at;
+        var elements = factory(at, name, definition, parent, allowNoName);
         for (var element of elements) {
           if (!element.name && elements.length === 1)
-              element.___path = attrPath.toString();
-          element.__load(context, definition, new AttributePath(element));
+              element.___path = at.toString();
+          element.__load({ ...context, at: new PathReporter(at.reporter, element) }, definition);
         }
         return elements;
       }
     }
-    attrPath.diagnostic(context.reporter, { is: "error", msg: error }, '.is');
+    context.at.diagnostic({ is: "error", msg: error }, '.is');
     return [];
   }
 
@@ -182,109 +182,110 @@ export class Element {
 
   ///////////////////
   // Load definitions
-  __load(context: ElementLoadContext, definition: ElementDefinition, attrPath: AttributePath) {
-    attrPath.push('', '');
+  __load(context: ElementLoadContext, definition: ElementDefinition) {
+    context.at.push('', '');
     for (var k in definition) {
       var v = definition[k];
       if (Element.isNamespace(k)) {
         var n = Element.namespace2name(k);
-        attrPath.rewrite(':', n);
+        context.at.rewrite(':', n);
         if (Element.isReference(v)) {
-          this.__loadNamespace(context, n, [v], attrPath);
+          this.__loadNamespace(context, n, [v]);
         }
         else if (typeof v === 'object') {
           // namespace definition
-          var els = Element.instantiate(context, n, v, attrPath, this);
-          this.__loadNamespace(context, n, els, attrPath);
+          var els = Element.instantiate(context, n, v, this);
+          this.__loadNamespace(context, n, els);
         }
         else {
-          attrPath.diagnostic(context.reporter, { is: "error", msg: `an element definition or reference was expected` });
+          context.at.diagnostic({ is: "error", msg: `an element definition or reference was expected` });
         }
       }
       else if (!this.__factoryKeys.has(k)) {
-        attrPath.rewrite('.', k);
+        context.at.rewrite('.', k);
         if (!(k in this.__extensions) && context.elementFactoriesProviderMap.warningProbableMisuseOfKey.has(k)) {
-          attrPath.diagnostic(context.reporter, { is: "note", msg: `'${k}' could be misused, this key has special meaning for other element types` });
+          context.at.diagnostic({ is: "note", msg: `'${k}' could be misused, this key has special meaning for other element types` });
         }
-        this[k] = this.__loadValue(context, v, attrPath);
+        this[k] = this.__loadValue(context, v);
       }
     }
-    attrPath.pop(2);
+    context.at.pop(2);
   }
 
-  __loadValue(context: ElementLoadContext, value: any, attrPath: AttributePath) {
+  __loadValue(context: ElementLoadContext, value: any) {
     let newValue = value;
     if (typeof value === "object") {
       if (Array.isArray(value))
-        newValue = this.__loadArray(context, value, [], attrPath);
+        newValue = this.__loadArray(context, value, []);
       else
-        newValue = this.__loadObject(context, value, {}, attrPath);
+        newValue = this.__loadObject(context, value, {});
     }
     return Element.keepIsValue(value, newValue);
   }
-  __loadObject<T>(context: ElementLoadContext, object: {[s: string]: any}, into: {[s: string]: T}, attrPath: AttributePath, validator?: AttributeTypes.Validator<T, Element>) {
+  __loadObject<T>(context: ElementLoadContext, object: {[s: string]: any}, into: {[s: string]: T}, validator?: AttributeTypes.Validator<T, Element>) {
     if ("is" in object) {
-      var subs = Element.instantiate(context, undefined, <ElementDefinition>object, attrPath, this, true);
+      var subs = Element.instantiate(context, undefined, <ElementDefinition>object, this, true);
       if (subs.length !== 1)
-        attrPath.diagnostic(context.reporter, { is: "error", msg: `definition of multiple elements were only one was expected` });
+        context.at.diagnostic({ is: "error", msg: `definition of multiple elements were only one was expected` });
       else
         return subs[0];
     }
 
-    attrPath.push('.', '');
+    context.at.push('.', '');
     for (var k in object) {
-      var v = this.__loadValue(context, object[k], attrPath.set(k));
+      context.at.set(k);
+      var v = this.__loadValue(context, object[k]);
       if (context.elementFactoriesProviderMap.warningProbableMisuseOfKey.has(k)) {
-        attrPath.diagnostic(context.reporter, { is: "note", msg: `'${k}' could be misused, this key has special meaning for some elements` });
+        context.at.diagnostic({ is: "note", msg: `'${k}' could be misused, this key has special meaning for some elements` });
       }
-      into[k] = validator ? validator.validate(context.reporter, attrPath, v, this) : v;
+      into[k] = validator ? validator.validate(context.at, v, this) : v;
     }
-    attrPath.pop(2);
+    context.at.pop(2);
     return into;
   }
-  __loadArray(context: ElementLoadContext, values: any[], into: any[], attrPath: AttributePath) {
-    attrPath.pushArray();
+  __loadArray(context: ElementLoadContext, values: any[], into: any[]) {
+    context.at.pushArray();
     for (var i = 0, len = values.length; i < len; ++i) {
       var v = values[i];
       if (typeof v === "object") {
-        attrPath.setArrayKey(i);
+        context.at.setArrayKey(i);
         if (Array.isArray(v))
-          into.push(this.__loadArray(context, v, <any[]>[], attrPath));
+          into.push(this.__loadArray(context, v, <any[]>[]));
         else
-          this.__loadObjectInArray(context, v, into, attrPath);
+          this.__loadObjectInArray(context, v, into);
       }
       else {
         into.push(v);
       }
     }
-    attrPath.popArray();
+    context.at.popArray();
     return into;
   }
-  __loadObjectInArray(context: ElementLoadContext, object: {[s: string]: any}, into: any[], attrPath: AttributePath) {
+  __loadObjectInArray(context: ElementLoadContext, object: {[s: string]: any}, into: any[]) {
     if ("is" in object) {
-      var subs = Element.instantiate(context, undefined, <ElementDefinition>object, attrPath, this, true);
+      var subs = Element.instantiate(context, undefined, <ElementDefinition>object, this, true);
       for (var j = 0, jlen = subs.length; j < jlen; ++j) {
         var sub = subs[j];
         if (sub && sub.name) {
           var k = Element.name2namespace(sub.name);
           if (k in this)
-            attrPath.diagnostic(context.reporter, { is: "error", msg: `conflict with an element defined with the same name: '${sub.name}'` });
+            context.at.diagnostic({ is: "error", msg: `conflict with an element defined with the same name: '${sub.name}'` });
           this[k] = sub;
         }
       }
       into.push(...subs);
     }
     else {
-      into.push(this.__loadObject(context, object, {}, attrPath));
+      into.push(this.__loadObject(context, object, {}));
     }
   }
-  __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
+  __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[]) {
     if (els.length > 1)
-      attrPath.diagnostic(context.reporter, { is: "warning", msg: `element has been expanded to a multiple elements and can't be referenced` });
+      context.at.diagnostic({ is: "warning", msg: `element has been expanded to a multiple elements and can't be referenced` });
     if (els.length === 1) {
       name = Element.name2namespace(name);
       if (name in this)
-        attrPath.diagnostic(context.reporter, { is: "error", msg:  `conflict with an element defined with the same name: '${Element.namespace2name(name)}'` });
+        context.at.diagnostic({ is: "error", msg:  `conflict with an element defined with the same name: '${Element.namespace2name(name)}'` });
       this[name] = els[0];
     }
   }
@@ -293,76 +294,77 @@ export class Element {
 
   ///////////////////
   // Resolve elements
-  __resolve(reporter: Reporter, at: AttributePath = new AttributePath(this)) {
+  __resolve(reporter: Reporter) {
     if (!this.__resolved) {
+      let at = new PathReporter(reporter, this);
       this.__resolved = true;
-      this.__resolveWithPath(reporter, at);
-      this.__validate(reporter, at);
+      this.__resolveWithPath(at);
+      this.__validate(at);
     }
   }
-  __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
-    this.__resolveValuesInObject(reporter, this, this, attrPath);
+  __resolveWithPath(at: PathReporter) {
+    this.__resolveValuesInObject(at, this, this);
   }
-  __resolveValueForKey(reporter: Reporter, v, k: string, attrPath: AttributePath) {
+  __resolveValueForKey(at: PathReporter, v, k: string) {
     if (Element.isNamespace(k)) {
-      (v as Element).__resolve(reporter);
+      (v as Element).__resolve(at.reporter);
     }
     else if (Array.isArray(v)) {
-      this[k] = this.__resolveValuesInArray(reporter, v, attrPath);
+      this[k] = this.__resolveValuesInArray(at, v);
     }
     else if (typeof v === 'object') {
-      this[k] = this.__resolveValuesInObject(reporter, v, {}, attrPath);
+      this[k] = this.__resolveValuesInObject(at, v, {});
     }
   }
-  __resolveValuesInObject(reporter: Reporter, object: { [s: string]: any}, into: { [s: string]: any}, attrPath: AttributePath) : { [s: string]: any[]} {
-    attrPath.push('.', '');
+  __resolveValuesInObject(at: PathReporter, object: { [s: string]: any}, into: { [s: string]: any}) : { [s: string]: any[]} {
+    at.push('.', '');
     for (var key in object) { if (Element.isReserved(key)) continue;
       var v = object[key];
-      into[key] = this.__resolveAnyValue(reporter, key, v, attrPath.set(key));
+      into[key] = this.__resolveAnyValue(at, key, v);
     }
-    attrPath.pop(2);
+    at.pop(2);
     return into;
   }
-  __resolveAnyValue(reporter: Reporter, key: string, value, attrPath: AttributePath) {
+  __resolveAnyValue(at: PathReporter, key: string, value) {
     if (typeof value === "object") {
       if (Array.isArray(value))
-        return Element.keepIsValue(value, this.__resolveValuesInArray(reporter, value, attrPath));
+        return Element.keepIsValue(value, this.__resolveValuesInArray(at, value));
       if (value instanceof Element) {
-        value.__resolve(reporter);
+        value.__resolve(at.reporter);
         return value;
       }
-      return Element.keepIsValue(value, this.__resolveValuesInObject(reporter, value, {}, attrPath));
+      return Element.keepIsValue(value, this.__resolveValuesInObject(at, value, {}));
     }
     else if (Element.isReference(value)) {
       let ret: Element[] = [];
-      this.__resolveElements(reporter, ret, value, attrPath);
+      this.__resolveElements(at, ret, value);
       if (ret.length > 1)
-        attrPath.diagnostic(reporter, { is: "warning", msg: `can't reference multiple elements here`, notes: [
+        at.diagnostic({ is: "warning", msg: `can't reference multiple elements here`, notes: [
           { is: "note", msg: "did you forget the [] ?" },
         ]});
       else if (ret.length === 0)
-        attrPath.diagnostic(reporter, { is: "warning", msg: `must reference at least one element` });
+        at.diagnostic({ is: "warning", msg: `must reference at least one element` });
       if (Element.isNamespace(key) && ret.length === 1 && ret[0].name && ret[0].name !== Element.namespace2name(key))
-        attrPath.diagnostic(reporter, { is: "warning", msg: `element alias must have the same name` });
+        at.diagnostic({ is: "warning", msg: `element alias must have the same name` });
       return ret[0];
     }
     return value;
   }
-  __resolveValuesInArray(reporter: Reporter, values: any[], attrPath: AttributePath) : any[] {
+  __resolveValuesInArray(at: PathReporter, values: any[]) : any[] {
     var ret: any[] = [];
-    attrPath.pushArray();
+    at.pushArray();
     for (var i = 0, len = values.length; i < len; ++i)
-      this.__resolveValueInArray(reporter, values[i], ret, attrPath.setArrayKey(i));
-    attrPath.popArray();
+      this.__resolveValueInArray(at.setArrayKey(i), values[i], ret);
+    at.popArray();
     return ret;
   }
-  __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
+  __resolveValueInArray(at: PathReporter, el, ret: any[]) {
     if (Element.isReference(el))
-      this.__resolveElements(reporter, ret, el, attrPath);
+      this.__resolveElements(at, ret, el);
     else if (el instanceof Element)
-      el.__resolveInto(reporter, ret);
+      el.__resolveInto(at.reporter, ret);
     else
-      ret.push(this.__resolveAnyValue(reporter, '', el, attrPath));
+      ret.push(this.__resolveAnyValue(at, '', el));
   }
   __resolveInto(reporter: Reporter, ret: any[]) {
     this.__resolve(reporter);
@@ -373,8 +375,8 @@ export class Element {
 
   ///////////////////
   // Validate
-  __validate(reporter: Reporter, at: AttributePath) {
-    this.__validator.validate(reporter, at, this, this);
+  __validate(at: PathReporter) {
+    this.__validator.validate(at, this, this);
   }
   // Validate
   ///////////////////
@@ -389,7 +391,7 @@ export class Element {
 
   resolveElements(reporter: Reporter, query: string) : Element[] {
     let ret: Element[] = [];
-    this.__resolveElements(reporter, ret, query, undefined);
+    this.__resolveElements(new PathReporter(reporter), ret, query);
     return ret;
   }
 
@@ -405,13 +407,13 @@ export class Element {
     return ok;
   }
 
-  __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], query: Element.Query, attrPath: AttributePath) {
+  __resolveElementsGroup(p: PathReporter, into: Element[], steps: string[], query: Element.Query) {
     let el: Element | undefined = this;
     for (let i = 0; el && i < steps.length; i++) {
       let step = steps[i];
       if (step.length === 0) {
         if (steps.length > 1)
-          attrPath.diagnostic(reporter, {
+          p.diagnostic({
             is: "warning",
             msg: `one the groups is an empty string, the group '${steps.join(':')}' is ignored`,
           });
@@ -428,13 +430,13 @@ export class Element {
       el = found;
     }
     if (!el) {
-      attrPath.diagnostic(reporter, {
+      p.diagnostic({
         is: "warning",
         msg: `query '${Element.rebuildQuery({ ...query, groups: [steps] })}' refer to an element that can't be found, the group '${steps.join(':')}' is ignored`,
       });
     }
     else
-      el.__resolveElementsGroupIn(reporter, into, query);
+      el.__resolveElementsGroupIn(p.reporter, into, query);
   }
   __resolveElementsGroupIn(reporter: Reporter, into: Element[], query: Element.Query) {
     if (this.__passTags(query)) {
@@ -464,12 +466,12 @@ export class Element {
     }
   }
 
-  __resolveElements(reporter: Reporter, into: Element[], query: string, attrPath: AttributePath | undefined = new AttributePath()) {
+  __resolveElements(reporter: PathReporter, into: Element[], query: string) {
     let parser = new Parser(new Reporter(), query);
     let ret = Q.parseQuery(parser);
     if (!parser.reporter.failed) {
       for (let group of ret.groups)
-        this.__resolveElementsGroup(reporter, into, group, ret, attrPath);
+        this.__resolveElementsGroup(reporter, into, group, ret);
     }
     if (parser.reporter.diagnostics.length) {
       reporter.diagnostic({
@@ -547,9 +549,9 @@ export namespace Element {
   }
 
   export const validateElement = {
-    validate: function validateElement(reporter: Reporter, path: AttributePath, value: any) {
+    validate: function validateElement(at: PathReporter, value: any) {
       if (!(value instanceof Element))
-        path.diagnostic(reporter, { is: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
+        at.diagnostic({ is: "warning", msg: `attribute must be an element, got a ${util.limitedDescription(value)}` });
       else
         return value;
       return undefined;
@@ -557,10 +559,10 @@ export namespace Element {
   };
 
   export function elementIsValidator<T extends Element>(isList: string[]) : AttributeTypes.ValidatorT0<T> {
-    function validateElementIs(reporter: Reporter, path: AttributePath, cmp: any) {
-      cmp = validateElement.validate(reporter, path, cmp);
+    function validateElementIs(at: PathReporter, cmp: any) {
+      cmp = validateElement.validate(at, cmp);
       if (cmp !== undefined && isList.indexOf(cmp.is) === -1) {
-        path.diagnostic(reporter, {
+        at.diagnostic({
           is: "error",
           msg:  `only elements of type ${JSON.stringify(isList)} are accepted, got ${JSON.stringify({is: cmp.is, name: cmp.name})}`
         });
@@ -573,11 +575,11 @@ export namespace Element {
     }};
   }
   export function elementValidator<T extends Element>(is: string, cls: { new(...args): T }) : AttributeTypes.ValidatorT0<T> {
-    function validateElementIs(reporter: Reporter, path: AttributePath, value: any) {
-      if ((value = validateElement.validate(reporter, path, value)) !== undefined && value.is === is && value instanceof cls)
+    function validateElementIs(at: PathReporter, value: any) {
+      if ((value = validateElement.validate(at, value)) !== undefined && value.is === is && value instanceof cls)
         return <T>value;
       if (value !== undefined)
-        path.diagnostic(reporter, { is: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
+        at.diagnostic({ is: "warning", msg: `attribute must be a '${is}' element, got a ${value.is}`});
       return undefined;
     };
     return { validate: validateElementIs, traverse(lvl, ctx) {
@@ -606,13 +608,13 @@ export namespace Element {
         ret.push(...this.elements);
       }
 
-      __validate(reporter: Reporter, at: AttributePath) {
-        super.__validate(reporter, at); // force elements: Element[]
+      __validate(at: PathReporter) {
+        super.__validate(at); // force elements: Element[]
         if (this.elements.length > 0)
-          this.__flatten(reporter, at);
+          this.__flatten(at);
       }
 
-      __flatten(reporter: Reporter, at: AttributePath) { // flatten elements
+      __flatten(at: PathReporter) { // flatten elements
         let elements: Element[] = [];
         let groups: GroupElementImpl[] = [];
         let is: string | undefined = undefined;
@@ -622,7 +624,7 @@ export namespace Element {
           let el = this.elements[i];
           at.setArrayKey(i);
           if (!(el instanceof Element)) {
-            at.diagnostic(reporter, {
+            at.diagnostic({
               is: "error",
               msg:  `expecting an element, got ${typeof el}`
             });
@@ -645,7 +647,7 @@ export namespace Element {
         }
 
         function pushGroup(self, sub: GroupElementImpl) {
-          sub.__resolve(reporter); // sub.elements = Element | { elements: Element[], ...attrs }
+          sub.__resolve(at.reporter); // sub.elements = Element | { elements: Element[], ...attrs }
           let subattributes = Object.keys(sub).filter(key => !sub.__keyMeaning(key));
 
           if (subattributes.length > 0) {
@@ -657,7 +659,7 @@ export namespace Element {
               groups.push(mel);
           }
           else {
-            let sat = sub.name ? new AttributePath(sub) : at.push('.elements[', '', ']');
+            let sat = sub.name ? new PathReporter(at.reporter, sub) : at.push('.elements[', '', ']');
             for (let i = 0, len = sub.elements.length; i < len; ++i) {
               let el = sub.elements[i];
               sat.setArrayKey(i);
@@ -675,7 +677,7 @@ export namespace Element {
             is = el_is;
           let ok = is === el_is;
           if (!ok)
-            at.diagnostic(reporter, { is: "error", msg:  `elements must be of the same type, expecting ${is}, got ${el_is}` });
+            at.diagnostic({ is: "error", msg:  `elements must be of the same type, expecting ${is}, got ${el_is}` });
           return ok;
         }
       }

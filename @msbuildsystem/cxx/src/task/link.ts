@@ -1,7 +1,7 @@
 import {
   File, Directory,
   Task, Graph, Target, InOutTask, Step,
-  Reporter, AttributeTypes as V, AttributePath,
+  Reporter, AttributeTypes as V, PathReporter,
   FileElement, ComponentElement} from '@openmicrostep/msbuildsystem.core';
 import {LinkerProviders} from '../index.priv';
 
@@ -80,7 +80,7 @@ export class LinkTask extends InOutTask {
   }
 
   do_build(step: Step) {
-    let provider = LinkerProviders.validateBest.validate(step.context.reporter, new AttributePath(), this.attributes.linkerOptions.linker);
+    let provider = LinkerProviders.validateBest.validate(new PathReporter(step.context.reporter), this.attributes.linkerOptions.linker);
     if (!provider) return step.continue();
     provider.do_link(step, this.attributes);
   }

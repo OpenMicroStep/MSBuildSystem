@@ -1,4 +1,4 @@
-import {Node, Graph, Step, StepWithData, File, AttributePath, InOutTask} from '@openmicrostep/msbuildsystem.core';
+import {Node, Graph, Step, StepWithData, File, PathReporter, InOutTask} from '@openmicrostep/msbuildsystem.core';
 import {ProcessProvider, ProcessProviderConditions, ProcessProviderRequirement, ProcessProviders} from './index';
 
 /** if the argument is an array, the content the array will be concatenated */
@@ -72,7 +72,7 @@ export class ProcessTask extends InOutTask {
   }
 
   do_build(step: Step<{}>) {
-    var provider = ProcessProviders.validate.validate(step.context.reporter, new AttributePath(this.target()), this.provider);
+    var provider = ProcessProviders.validate.validate(new PathReporter(step.context.reporter, this.target()), this.provider);
     if (!provider) {
       step.continue();
     }

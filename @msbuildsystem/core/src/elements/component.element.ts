@@ -1,7 +1,7 @@
-import {Element, MakeJSElement, Project, Reporter, MakeJS, AttributePath, AttributeTypes, DelayedInjection, GroupElement} from '../index.priv';
+import {Element, MakeJSElement, Project, Reporter, MakeJS, PathReporter, AttributeTypes, DelayedInjection, GroupElement} from '../index.priv';
 
-function createComponent(reporter: Reporter, name: string,
-  definition: MakeJS.Element, attrPath: AttributePath, parent: Element
+function createComponent(at: PathReporter, name: string,
+  definition: MakeJS.Element, parent: Element
 ) {
   return new ComponentElement('component', name, parent);
 }
@@ -58,37 +58,37 @@ export namespace ComponentElement {
   }
 
   export const validateAndNormalizeAny: AttributeTypes.Validator0<any> = {
-    validate: function validateAndNormalizeAny(reporter: Reporter, path: AttributePath, value: any) {
+    validate: function validateAndNormalizeAny(at: PathReporter, value: any) {
       return normalize(value);
     }
   };
 
   export function superValidateList<T, A0> (
-    reporter: Reporter, path: AttributePath, attr: any[] | Set<any>, a0: A0,
+    at: PathReporter, attr: any[] | Set<any>, a0: A0,
     validator: AttributeTypes.Validator<T, A0>, push: (t: T) => void,
   ) {
     if (attr instanceof GroupElement) {
-      path = new AttributePath(attr);
+      at = new PathReporter(at.reporter, attr);
       attr = attr.elements as any[];
     }
     if (attr instanceof Array || attr instanceof Set) {
-      path.pushArray();
+      at.pushArray();
       let value: T | undefined;
       let idx = 0;
       for (value of attr) {
-        value = validator.validate(reporter, path.setArrayKey(idx++), value, a0);
+        value = validator.validate(at.setArrayKey(idx++), value, a0);
         if (value !== undefined)
           push(value);
       }
-      path.popArray();
+      at.popArray();
     }
     else {
-      path.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
+      at.diagnostic({ is: "warning", msg: `attribute must be an array`});
     }
   }
 
   export function superValidateGroupList<T, T2 extends object, A0> (
-    reporter: Reporter, at: AttributePath, attr: any[] | Set<any>, a0: A0,
+    at: PathReporter, attr: any[] | Set<any>, a0: A0,
     validateElement: AttributeTypes.Validator<T, A0>, validateGroup: AttributeTypes.ValidatorNU<Group<T, T2>, A0>,
     pushGroup: (t: Group<T, T2>) => void, pushValue: (t: T, idx: number) => void
   ) {
@@ -99,12 +99,12 @@ export namespace ComponentElement {
       for (value of attr) {
         at.setArrayKey(idx);
         if (value instanceof GroupElement) {
-          value = validateGroup.validate(reporter, at, value, a0);
+          value = validateGroup.validate(at, value, a0);
           if (value !== undefined)
             pushGroup(value);
         }
         else {
-          value = validateElement.validate(reporter, at, value, a0);
+          value = validateElement.validate(at, value, a0);
           if (value !== undefined)
             pushValue(value, idx);
         }
@@ -113,16 +113,16 @@ export namespace ComponentElement {
       at.popArray();
     }
     else {
-      at.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
+      at.diagnostic({ is: "warning", msg: `attribute must be an array`});
     }
   }
 
   export function setValidator<T    >(validator: AttributeTypes.ValidatorT0<T    >) : AttributeTypes.ValidatorTNU0<Set<T>    >;
   export function setValidator<T, A0>(validator: AttributeTypes.ValidatorT <T, A0>) : AttributeTypes.ValidatorTNU <Set<T>, A0>;
   export function setValidator<T, A0>(validator: AttributeTypes.ValidatorT <T, A0>) {
-    function validateSet(reporter: Reporter, path: AttributePath, attr, a0: A0) {
+    function validateSet(at: PathReporter, attr, a0: A0) {
       let ret = new Set<T>();
-      superValidateList(reporter, path, attr, a0, validator, ret.add.bind(ret));
+      superValidateList(at, attr, a0, validator, ret.add.bind(ret));
       return ret;
     };
     return { validate: validateSet, traverse: (lvl, ctx) => `set of ${validator.traverse(lvl + 1, ctx)}` };
@@ -131,22 +131,22 @@ export namespace ComponentElement {
   export function setAsListValidator<T    >(validator: AttributeTypes.ValidatorT0<T    >) : AttributeTypes.ValidatorTNU0<T[]    >;
   export function setAsListValidator<T, A0>(validator: AttributeTypes.ValidatorT <T, A0>) : AttributeTypes.ValidatorTNU <T[], A0>;
   export function setAsListValidator<T, A0>(validator: AttributeTypes.ValidatorT <T, A0>) {
-    function validateSet(reporter: Reporter, path: AttributePath, attr, a0: A0) {
+    function validateSet(at: PathReporter, attr, a0: A0) {
       let ret = new Set<T>();
-      superValidateList(reporter, path, attr, a0, validator, ret.add.bind(ret));
+      superValidateList(at, attr, a0, validator, ret.add.bind(ret));
       return [...ret];
     };
     return { validate: validateSet, traverse: (lvl, ctx) => `set of ${validator.traverse(lvl + 1, ctx)}` };
   }
 
   function objectValidatorImpl<T, K, A0>(isReserved: (obj, key: string) => boolean, extensions: AttributeTypes.Extensions<T, A0>, objectForKeyValidator?: AttributeTypes.Validator<K, string>) {
-    function validateObject(reporter: Reporter, path: AttributePath, attr, a0: A0) : T & { [s: string]: K } {
+    function validateObject(at: PathReporter, attr, a0: A0) : T & { [s: string]: K } {
       var ret = <T & { [s: string]: K }>{};
-      AttributeTypes.superValidateObject(reporter, path, attr, a0, ret, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, key: string) : K | undefined {
+      AttributeTypes.superValidateObject(at, attr, a0, ret, extensions, { validate(at: PathReporter, value: any, key: string) : K | undefined {
         if (isReserved(attr, key)) return undefined;
-        else if (objectForKeyValidator) return objectForKeyValidator.validate(reporter, at, value, key);
+        else if (objectForKeyValidator) return objectForKeyValidator.validate(at, value, key);
         else {
-          path.diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
+          at.diagnostic({ is: "warning", msg: `attribute is unused` });
           return undefined;
         }
       }});
@@ -167,20 +167,20 @@ export namespace ComponentElement {
   export function groupValidator<T, T2 extends object, K, A0>(validator: AttributeTypes.ValidatorT<T, A0>, extensions: AttributeTypes.Extensions<T2, A0>, objectForKeyValidator?: AttributeTypes.Validator<K, string>) : AttributeTypes.ValidatorTNU<Group<T, T2 & { [s: string]: K }>[], A0> {
     const validateGroup = objectValidator<Group<T, T2>, K, A0>({ elements: setAsListValidator(validator), ...extensions as any }, objectForKeyValidator);
     const validateGroupDefaults = objectValidator<Group<T, T2>, K, A0>({ elements: AttributeTypes.validateAny, ...extensions as any }, objectForKeyValidator);
-    function validateGroups(reporter: Reporter, path: AttributePath, attr, a0: A0) {
+    function validateGroups(at: PathReporter, attr, a0: A0) {
       let ret: Group<T, T2 & { [s: string]: K }>[] = [];
       let idxs: number[] = [];
       let elements: T[] = [];
-      superValidateGroupList(reporter, path, attr, a0, validator, validateGroup, g => ret.push(g), (v, idx) => {
+      superValidateGroupList(at, attr, a0, validator, validateGroup, g => ret.push(g), (v, idx) => {
         elements.push(v);
         idxs.push(idx);
       });
       if (elements.length) {
-        path.push('[]');
-        let g = validateGroupDefaults.validate(reporter, path, { elements: elements }, a0);
+        at.push('[]');
+        let g = validateGroupDefaults.validate(at, { elements: elements }, a0);
         if (g)
           ret.push(g);
-        path.pop();
+        at.pop();
       }
       return ret;
     };

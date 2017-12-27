@@ -1,7 +1,7 @@
 import {
   File, Directory,
   Task, Graph, Target, InOutTask, Step,
-  Reporter, AttributeTypes as V, AttributePath,
+  Reporter, AttributeTypes as V, PathReporter,
   FileElement, ComponentElement} from '@openmicrostep/msbuildsystem.core';
 import {ResourceCompilerProviders} from '../index.priv';
 
@@ -22,7 +22,7 @@ export class CompileResourceTask extends InOutTask {
   }
 
   do_build(step: Step) {
-    let provider = ResourceCompilerProviders.validateBest.validate(step.context.reporter, new AttributePath(), this.attributes.compiler);
+    let provider = ResourceCompilerProviders.validateBest.validate(new PathReporter(step.context.reporter), this.attributes.compiler);
     if (!provider) return step.continue();
     provider.do_compile_resource(step, this.attributes);
   }

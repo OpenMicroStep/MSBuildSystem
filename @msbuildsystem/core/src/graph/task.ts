@@ -1,13 +1,13 @@
 import {
   Graph, Node, Step, BuildSession, TaskDoMapReduce, Target,
-  createProviderMap, ProviderMap, Reporter, AttributePath, AttributeTypes, TaskElement
+  createProviderMap, ProviderMap, Reporter, PathReporter, AttributeTypes, TaskElement
 } from '../index.priv';
 
 function taskValidator<T extends object>(extensions: AttributeTypes.ExtensionsNU<T, Target>, map: Task.Map<any, any>) : AttributeTypes.ValidatorT<object, Target> {
-  function validateObject(reporter: Reporter, path: AttributePath, attr: TaskElement, target) {
-    return map(reporter, AttributeTypes.superValidateObject(reporter, path, attr, target, {} as any, extensions, { validate(reporter: Reporter, at: AttributePath, value: any, a0: string) : undefined {
+  function validateObject(at: PathReporter, attr: TaskElement, target) {
+    return map(at.reporter, AttributeTypes.superValidateObject(at, attr, target, {} as any, extensions, { validate(at: PathReporter, value: any, a0: string) : undefined {
         if (!attr.__keyMeaning(a0))
-          at.diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
+          at.diagnostic({ is: "warning", msg: `attribute is unused` });
         return undefined;
       }}));
   };

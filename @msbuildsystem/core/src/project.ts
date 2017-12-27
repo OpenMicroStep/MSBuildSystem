@@ -1,5 +1,5 @@
 import {Workspace, util, RootGraph, Reporter, MakeJS,
-  createElementFactoriesProviderMap, AttributePath, ProviderMap,
+  createElementFactoriesProviderMap, PathReporter, ProviderMap,
   Element, ElementDefinition, ProjectElement, TargetElement
 } from './index.priv';
 import * as path from 'path';

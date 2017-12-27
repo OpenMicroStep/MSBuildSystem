@@ -1,10 +1,10 @@
-import {AttributeTypes, Reporter, AttributePath, Diagnostic} from '@openmicrostep/msbuildsystem.shared';
+import {AttributeTypes, Reporter, PathReporter, Diagnostic} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function testValidator<T, A0>(validator: AttributeTypes.Validator<T, A0>, value: any, a0: A0, expected: T | undefined, diagnostics: Diagnostic[]) {
   let reporter = new Reporter();
-  let path = new AttributePath();
-  let v = validator.validate(reporter, path, value, a0);
+  let at = new PathReporter(reporter);
+  let v = validator.validate(at, value, a0);
   if (expected instanceof Set) {
     assert.instanceOf(v, Set);
     expected = <any>Array.from(expected.values());

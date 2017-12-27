@@ -1,4 +1,4 @@
-import {Reporter, AttributePath, createInjectionContext} from '@openmicrostep/msbuildsystem.core/index.priv';
+import {Reporter, PathReporter, createInjectionContext} from '@openmicrostep/msbuildsystem.core/index.priv';
 
 import {newProxyElement, DelayedElement} from '@openmicrostep/msbuildsystem.core/elements/delayed.element';
 import {assert} from 'chai';
@@ -22,7 +22,7 @@ function proxy_element() {
   };
   let reporter = new Reporter();
   let buildTarget: any = {};
-  let res = (<DelayedElement>$2).__delayedResolve(createInjectionContext(reporter, buildTarget), new AttributePath());
+  let res = (<DelayedElement>$2).__delayedResolve(createInjectionContext(reporter, buildTarget), new PathReporter(reporter));
   assert.deepEqual<any>(res, [{
     reporter: reporter,
     query: 'tests',

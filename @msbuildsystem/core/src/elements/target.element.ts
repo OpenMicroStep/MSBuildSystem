@@ -1,11 +1,11 @@
 import {
   Project, Element, ComponentElement, EnvironmentElement, MakeJSElement,
-  Reporter, MakeJS, AttributePath, AttributeTypes,
+  Reporter, MakeJS, PathReporter, AttributeTypes,
 } from '../index.priv';
 
-Project.elementFactories.registerSimple('target', (reporter: Reporter, name: string, definition: MakeJS.Target, attrPath: AttributePath, parent: MakeJSElement) => {
+Project.elementFactories.registerSimple('target', (at: PathReporter, name: string, definition: MakeJS.Target, parent: MakeJSElement) => {
   if (!name) {
-    attrPath.diagnostic(reporter, { is: "warning", msg: `target element must have a name` });
+    at.diagnostic({ is: "warning", msg: `target element must have a name` });
     return undefined;
   }
   let target = new TargetElement(name, parent);
@@ -27,15 +27,15 @@ export class TargetElement extends ComponentElement {
     this.environments = [];
   }
 
-  __resolveWithPath(reporter: Reporter, attrPath: AttributePath) {
-    super.__resolveWithPath(reporter, attrPath);
-    this.environments = this.__resolveEnvironments(reporter, this, []);
+  __resolveWithPath(at: PathReporter) {
+    super.__resolveWithPath(at);
+    this.environments = this.__resolveEnvironments(at.reporter, this, []);
   }
 
   __resolveEnvironments(reporter: Reporter, component: ComponentElement, into: EnvironmentElement[]) {
     let envs = component['environments'];
     if (envs)
-      into.push(...validateEnvList.validate(reporter, new AttributePath(component, '.environments'), envs));
+      into.push(...validateEnvList.validate(new PathReporter(reporter, component, '.environments'), envs));
     if ("environmentsByEnvironment" in component) {
       reporter.diagnostic({
         is: "warning",

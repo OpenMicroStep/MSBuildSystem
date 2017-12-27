@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import {util, Barrier, Flux, Reporter, AttributePath, AttributeTypes} from './index.priv';
+import {util, Barrier, Flux, Reporter, PathReporter, AttributeTypes} from './index.priv';
 
 export class File {
   public path: string;
@@ -135,16 +135,16 @@ export class File {
   }
 
   static validateDirectory: AttributeTypes.Validator<Directory, { directory: string }>  = { 
-    validate(reporter: Reporter, path: AttributePath, value: any, relative: { directory: string }) : Directory | undefined {
+    validate(at: PathReporter, value: any, relative: { directory: string }) : Directory | undefined {
       if (typeof value === "string") {
-        let v = AttributeTypes.validateString.validate(reporter, path, value);
+        let v = AttributeTypes.validateString.validate(at, value);
         if (v !== undefined) {
           v = util.pathJoinIfRelative(relative.directory, v);
           return File.getShared(v, true);
         }
       }
       else {
-        path.diagnostic(reporter, { is: "warning", msg: "attribute must be a relative path" });
+        at.diagnostic({ is: "warning", msg: "attribute must be a relative path" });
       }
       return undefined;
     }

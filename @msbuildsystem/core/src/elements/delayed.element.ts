@@ -1,10 +1,10 @@
-import {Element,  AttributePath, injectionMapValue, InjectionContext} from '../index.priv';
+import {Element, PathReporter, injectionMapValue, InjectionContext} from '../index.priv';
 
 export class DelayedElement extends Element {
   constructor(parent: Element | null) {
     super('delayed', 'delayed', parent);
   }
-  __delayedResolve(ctx: InjectionContext, attrPath: AttributePath) : Element[] {
+  __delayedResolve(ctx: InjectionContext, at: PathReporter) : Element[] {
     throw "must be implemented by subclasses";
   }
 }
@@ -13,17 +13,17 @@ export class DelayedQuery extends DelayedElement {
   constructor(public gsteps: string[], public steps: string[], public tagsQuery: Element.Query, parent: Element | null) {
     super(parent);
   }
-  __delayedResolve(ctx: InjectionContext, at: AttributePath) : Element[] {
+  __delayedResolve(ctx: InjectionContext, at: PathReporter) : Element[] {
     let ret: Element[] = [];
-    let sources = ctx.buildTarget.___root.resolveExports(ctx.reporter, at, ctx.buildTarget, this.gsteps);
+    let sources = ctx.buildTarget.___root.resolveExports(at, ctx.buildTarget, this.gsteps);
     if (sources.length === 0) {
-      at.diagnostic(ctx.reporter, {
+      at.diagnostic({
         is: "error",
         msg: `query '${this.__path()}' is invalid, the external element wasn't found`
       });
     }
     for (let group of sources)
-      group.__resolveElementsGroup(ctx.reporter, ret, this.steps, this.tagsQuery, at);
+      group.__resolveElementsGroup(at, ret, this.steps, this.tagsQuery);
     return ret;
   }
   __path() {
@@ -35,7 +35,7 @@ export class DelayedInjection extends DelayedElement {
   constructor(public query: Element.Query, parent: Element) {
     super(parent);
   }
-  __delayedResolve(ctx: InjectionContext, at: AttributePath) : Element[] {
+  __delayedResolve(ctx: InjectionContext, at: PathReporter) : Element[] {
     let c = { ...ctx };
     if (this.query.explicitAttributes) {
       let explicitAttributes = this.query.explicitAttributes;

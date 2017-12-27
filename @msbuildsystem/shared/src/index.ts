@@ -5,9 +5,10 @@ import * as _path from './path';
 export import path = _path;
 export { Diagnostic } from './diagnostic';
 export * from './reporter';
-export * from './attribute-path';
-import * as _AttributeTypes from './attributes';
-export import AttributeTypes = _AttributeTypes;
+export {PathReporter} from './attribute-path';
+import * as _Validate from './validate';
+export import AttributeTypes = _Validate;
+export import Validate = _Validate;
 
 export * from './provider';
 export * from './barrier';

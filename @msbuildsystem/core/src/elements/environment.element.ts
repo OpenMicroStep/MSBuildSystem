@@ -1,14 +1,14 @@
-import {Element, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath, Project, DelayedQuery} from '../index.priv';
+import {Element, ComponentElement, Reporter, MakeJS, AttributeTypes, PathReporter, Project, DelayedQuery} from '../index.priv';
 
-Project.elementFactories.registerSimple('environment', (reporter: Reporter, name: string,
-  definition: MakeJS.Environment, attrPath: AttributePath, parent: Element
+Project.elementFactories.registerSimple('environment', (at: PathReporter, name: string,
+  definition: MakeJS.Environment, parent: Element
 ) => {
   return new EnvironmentElement(name, parent);
 });
-Project.elementExportsFactories.registerSimple('environment', (reporter: Reporter, name: string,
-  definition: MakeJS.Environment, attrPath: AttributePath, parent: Element
+Project.elementExportsFactories.registerSimple('environment', (at: PathReporter, name: string,
+  definition: MakeJS.Environment, parent: Element
 ) => {
-  attrPath.diagnostic(reporter, { is: "error", msg: "environment elements cannot be exported" });
+  at.diagnostic({ is: "error", msg: "environment elements cannot be exported" });
   return undefined;
 });
 export class EnvironmentElement extends ComponentElement {
@@ -23,9 +23,9 @@ export class EnvironmentElement extends ComponentElement {
 const validateEnvironment = Element.elementValidator('environment', EnvironmentElement);
 const validate = Object.assign(AttributeTypes.chain(
   Element.validateElement,
-  { validate(reporter, path, value: Element) {
+  { validate(at, value: Element) {
     if (value instanceof DelayedQuery) {
-      path.diagnostic(reporter, { is: "warning", msg: `attribute must be a 'environment' element, got a delayed query '${value.__path()}'`});
+      at.diagnostic({ is: "warning", msg: `attribute must be a 'environment' element, got a delayed query '${value.__path()}'`});
       return undefined;
     }
     return value;

@@ -1,7 +1,7 @@
-import {Element, ComponentElement, Reporter, MakeJS, AttributeTypes, AttributePath, Project, Graph, Target, Task, Node} from '../index.priv';
+import {Element, ComponentElement, Reporter, MakeJS, AttributeTypes, PathReporter, Project, Graph, Target, Task, Node} from '../index.priv';
 
-const factory = (reporter: Reporter, name: string,
-  definition: MakeJS.Environment, attrPath: AttributePath, parent: Element
+const factory = (at: PathReporter, name: string,
+  definition: MakeJS.Environment, parent: Element
 ) => {
   return new TaskElement(name, parent);
 };
@@ -21,33 +21,33 @@ export class TaskElement extends ComponentElement {
 }
 export namespace TaskElement {
   const validateAsTask: AttributeTypes.Validator<Task, Graph> = {
-    validate(reporter: Reporter, path: AttributePath, value: any, graph: Graph) : Task | undefined {
-      let e = TaskElement.validate.validate(reporter, path, value);
-      let cstor = e && e.type ? Task.providers.validate.validate(reporter, path, e.type) : undefined;
+    validate(at: PathReporter, value: any, graph: Graph) : Task | undefined {
+      let e = TaskElement.validate.validate(at, value);
+      let cstor = e && e.type ? Task.providers.validate.validate(at, e.type) : undefined;
       let v = cstor && cstor.prototype.__validator;
-      let attrs = v && v.validate(reporter, path, e, graph.target());
+      let attrs = v && v.validate(at, e, graph.target());
       let task = cstor && new cstor(e!.name, graph, attrs);
       return task;
     }
   };
   const validateArrayOfTask = AttributeTypes.listValidator(validateAsTask);
   const validateTaskOrArrayOfTask: AttributeTypes.Validator<Node, Graph> = {
-    validate(reporter: Reporter, path: AttributePath, taskOrArray: any, graph: Graph) : Node | undefined {
+    validate(at: PathReporter, taskOrArray: any, graph: Graph) : Node | undefined {
       if (Array.isArray(taskOrArray)) {
         let g = new Graph({ type: "graph", name: "tasks" }, graph);
-        validateArrayOfTask.validate(reporter, path, taskOrArray, g);
+        validateArrayOfTask.validate(at, taskOrArray, g);
         return g;
       }
       else {
-        return validateAsTask.validate(reporter, path, taskOrArray, graph);
+        return validateAsTask.validate(at, taskOrArray, graph);
       }
     }
   };
   const validateArrayOf = AttributeTypes.listValidator(validateTaskOrArrayOfTask);
   export const validateTaskSequence: AttributeTypes.ValidatorT<Graph, Target> = {
-    validate: function validateArray(reporter: Reporter, path: AttributePath, attr: any, target: Target) {
+    validate: function validateArray(at: PathReporter, attr: any, target: Target) {
       let graph = new Graph({ type: "graph", name: "tasks" }, target);
-      let tasks = validateArrayOf.validate(reporter, path, attr, graph);
+      let tasks = validateArrayOf.validate(at, attr, graph);
       let p: Node | undefined = undefined;
       for (let t of tasks) {
         if (p)

@@ -1,4 +1,4 @@
-import {Project, Reporter, BuildGraphOptions, RootGraph, Element, ElementDefinition, AttributeTypes, AttributePath, util, Directory, File, TargetElement} from './index.priv';
+import {Project, Reporter, BuildGraphOptions, RootGraph, Element, ElementDefinition, AttributeTypes, PathReporter, util, Directory, File, TargetElement} from './index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as fs_extra from 'fs-extra';
@@ -48,7 +48,7 @@ export class Workspace {
     if (!this.isDirectoryPendingResolution()) {
       try {
         let data = JSON.parse(fs.readFileSync(this.path, 'utf8'));
-        let validatedData = workspaceDataValidator.validate(this.reporter, new AttributePath(this.path), data, this);
+        let validatedData = workspaceDataValidator.validate(new PathReporter(this.reporter, this.path), data, this);
         validatedData.projects.forEach(d => this.project(d.path));
       } catch (e) {}
     }

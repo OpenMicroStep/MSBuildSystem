@@ -1,20 +1,20 @@
 import {
-  AttributePath, Reporter, AttributeTypes,
+  PathReporter, Reporter, AttributeTypes,
   SelfBuildGraph, createBuildGraphProviderList, BuildGraphProviderList,
   util
 } from '@openmicrostep/msbuildsystem.core';
 import {JSTarget} from './index';
 
-export function validatePackages(reporter: Reporter, path: AttributePath, value: any) : { [s: string]: any } | undefined {
-  if ((value = AttributeTypes.validateObject.validate(reporter, path, value)) !== undefined) {
-    path.pushArray();
+export function validatePackages(at: PathReporter, value: any) : { [s: string]: any } | undefined {
+  if ((value = AttributeTypes.validateObject.validate(at, value)) !== undefined) {
+    at.pushArray();
     var ret = {};
     for (var k in value) {
-      var r = AttributeTypes.validateString.validate(reporter, path.setArrayKey(k), value[k]);
+      var r = AttributeTypes.validateString.validate(at.setArrayKey(k), value[k]);
       if (r !== undefined)
         ret[k] = r;
     }
-    path.popArray();
+    at.popArray();
     value = ret;
   }
   return value;

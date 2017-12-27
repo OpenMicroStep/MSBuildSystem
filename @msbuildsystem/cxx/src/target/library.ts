@@ -1,4 +1,4 @@
-import {Target, AttributeTypes, Reporter, FileElement, AttributePath, CopyTask} from '@openmicrostep/msbuildsystem.core';
+import {Target, AttributeTypes, Reporter, FileElement, PathReporter, CopyTask} from '@openmicrostep/msbuildsystem.core';
 import {CXXTarget, CXXLinkType} from '../index.priv';
 import * as path from 'path';
 
@@ -29,8 +29,8 @@ export class CXXExportable extends CXXTarget {
 export class CXXLibrary extends CXXExportable {
   static: boolean;
 
-  configure(reporter: Reporter, path: AttributePath) {
-    super.configure(reporter, path);
+  configure(at: PathReporter) {
+    super.configure(at);
     this.linkType = this.static ? CXXLinkType.STATIC : CXXLinkType.DYNAMIC;
   }
 

@@ -1,4 +1,4 @@
-import {Workspace, Project, Target, AttributePath,
+import {Workspace, Project, Target, PathReporter,
   Graph, Reporter, BuildGraphOptions, Diagnostic,
   Element, BuildTargetElement, TargetElement, EnvironmentElement, TargetExportsElement
 } from '../index.priv';
@@ -97,14 +97,14 @@ export class RootGraph extends Graph {
 
   private _createTarget(reporter: Reporter, buildTarget: BuildTargetElement) : Target | undefined {
     let task: Target | undefined;
-    let cls = Target.providers.validate.validate(reporter, new AttributePath(buildTarget), buildTarget.type);
+    let cls = Target.providers.validate.validate(new PathReporter(reporter, buildTarget), buildTarget.type);
     if (cls) {
       task = new cls(this, buildTarget.__root().__project(), buildTarget);
       if (task.attributes.targets.length) {
-        let p = new AttributePath(task, '.targets[', '', ']');
+        let at = new PathReporter(reporter, task, '.targets[', '', ']');
         task.attributes.targets.forEach((targetName, i) => {
-          p.set(i , -2);
-          let depTarget = this.findTarget(reporter, p, buildTarget, targetName, buildTarget.environment);
+          at.set(i , -2);
+          let depTarget = this.findTarget(at, buildTarget, targetName, buildTarget.environment);
           if (depTarget)
             task!.addDependency(depTarget);
         });
@@ -113,7 +113,7 @@ export class RootGraph extends Graph {
     reporter.transform.pop();
     if (task) {
       reporter.transform.push(transformWithCategory('configure'));
-      task.configure(reporter, new AttributePath(task));
+      task.configure(new PathReporter(reporter, task));
       reporter.transform.pop();
       reporter.transform.push(transformWithCategory('exports'));
       task.configureExports(reporter);
@@ -123,16 +123,16 @@ export class RootGraph extends Graph {
     return task;
   }
 
-  findTargetElement(reporter: Reporter, at: AttributePath, name: string) : TargetElement | undefined {
+  findTargetElement(at: PathReporter, name: string) : TargetElement | undefined {
     let depTargetElements = this.workspace.targets().filter(t => t.name === name);
     if (depTargetElements.length === 0) {
-      at.diagnostic(reporter, {
+      at.diagnostic({
         is: "error",
         msg: `the target '${name}' is not present in the workspace`
       });
     }
     else if (depTargetElements.length > 1) {
-      at.diagnostic(reporter, {
+      at.diagnostic({
         is: "error",
         msg: `the target '${name}' is present multiple times in the workspace, this shouldn't happen`
       });
@@ -140,17 +140,17 @@ export class RootGraph extends Graph {
     return depTargetElements[0];
   }
 
-  findTarget(reporter: Reporter, at: AttributePath, requester: BuildTargetElement, name: string, environment: {name: string, compatibleEnvironments: string[]}): Target | undefined {
-    let depTargetElement = this.findTargetElement(reporter, at, name);
+  findTarget(at: PathReporter, requester: BuildTargetElement, name: string, environment: {name: string, compatibleEnvironments: string[]}): Target | undefined {
+    let depTargetElement = this.findTargetElement(at, name);
     if (depTargetElement) {
-      let compatibleEnv = depTargetElement.__compatibleEnvironment(reporter, environment);
+      let compatibleEnv = depTargetElement.__compatibleEnvironment(at.reporter, environment);
       if (compatibleEnv)
-        return this.createTarget(reporter, requester, depTargetElement, compatibleEnv, true);
+        return this.createTarget(at.reporter, requester, depTargetElement, compatibleEnv, true);
     }
     return undefined;
   }
 
-  resolveExports(reporter: Reporter, at: AttributePath, requester: BuildTargetElement, steps: string[]) : TargetExportsElement[] {
+  resolveExports(at: PathReporter, requester: BuildTargetElement, steps: string[]) : TargetExportsElement[] {
     let name = steps[0];
     let env = steps[1] ? { name: steps[1], compatibleEnvironments: [] as string[] } : requester.environment;
     let filter = (e: TargetExportsElement) =>
@@ -158,19 +158,19 @@ export class RootGraph extends Graph {
       (e.environment === env.name || env.compatibleEnvironments.indexOf(e.environment) !== -1);
     let ret = this.exports.filter(filter);
     if (ret.length === 0) {
-      if (this.findTarget(reporter, at, requester, name, env) ||
-          this.loadShared(reporter, at, requester, name, env))
+      if (this.findTarget(at, requester, name, env) ||
+          this.loadShared(at, requester, name, env))
         ret = this.exports.filter(filter);
     }
     return ret;
   }
 
-  loadShared(reporter: Reporter, at: AttributePath, requester: BuildTargetElement, name: string, environment: {name: string, compatibleEnvironments: string[]}) : TargetExportsElement | undefined {
+  loadShared(at: PathReporter, requester: BuildTargetElement, name: string, environment: {name: string, compatibleEnvironments: string[]}) : TargetExportsElement | undefined {
     let envs = [environment.name, ...environment.compatibleEnvironments];
     for (let env of envs) {
       let filename = this.workspace.pathToSharedExports(env, name);
       try  {
-        return this.loadExportsDefinition(reporter, JSON.parse(fs.readFileSync(filename, 'utf8')));
+        return this.loadExportsDefinition(at.reporter, JSON.parse(fs.readFileSync(filename, 'utf8')));
       } catch (e) {}
     }
     return undefined;

@@ -1,13 +1,13 @@
 import {
   Element, ElementLoadContext, MakeJSElement, ComponentElement,
-  AttributeTypes, AttributePath, Project, Target,
+  AttributeTypes, PathReporter, Project, Target,
   File, util, Reporter, MakeJS
 } from '../index.priv';
 import * as path from 'path';
 import * as fs from 'fs';
 
-Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: string,
-  definition: MakeJS.Element, attrPath: AttributePath, parent: MakeJSElement
+Project.elementFactories.register(['file'], (at: PathReporter, namespacename: string,
+  definition: MakeJS.Element, parent: MakeJSElement
 ) => {
   let name = namespacename || definition.name;
   let files: File[] = [];
@@ -23,26 +23,26 @@ Project.elementFactories.register(['file'], (reporter: Reporter, namespacename: 
   let absolutePath = parent.__absoluteFilepath();
   if (typeof name === "function") {
     let depth = (<MakeJS.File>definition).depth;
-    loadElementFiles(reporter, absolutePath, "", name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
+    loadElementFiles(at.reporter, absolutePath, "", name, typeof depth === "number" ? depth : Number.MAX_SAFE_INTEGER, files);
     if (files.length === 0) {
-      attrPath.diagnostic(reporter, {
+      at.diagnostic({
         is: "warning",
         msg: `no matching file found`
       }, '.name');
     }
   }
   else if (typeof name === "string") {
-    loadElementFile(reporter, new AttributePath(parent, ':', name), util.pathJoinIfRelative(absolutePath, name), files);
+    loadElementFile(new PathReporter(at.reporter, parent, ':', name), util.pathJoinIfRelative(absolutePath, name), files);
   }
   else {
-    attrPath.diagnostic(reporter, {
+    at.diagnostic({
       is: "error",
       msg: `'name' attribute is invalid `
        + `('file' elements requires 'name' to be either a string, a regexp or a filter function)`
     }, '.name');
   }
 
-  let tags = "tags" in definition ? AttributeTypes.validateStringList.validate(reporter, attrPath, definition["tags"]) : [];
+  let tags = "tags" in definition ? AttributeTypes.validateStringList.validate(at, definition["tags"]) : [];
   for (let i = 0, len = files.length; i < len; ++i) {
     let file = files[i];
     list.push(new FileElement(typeof name === "string" ? name : null, file, parent, tags));
@@ -64,16 +64,16 @@ export class FileElement extends MakeJSElement {
     return this.__file.path;
   }
 
-  __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[], attrPath: AttributePath) {
-    attrPath.diagnostic(context.reporter, { is: "error", msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
+  __loadNamespace(context: ElementLoadContext, name: string, els: (Element | string)[]) {
+    context.at.diagnostic({ is: "error", msg: `'${name}' can't be an element, 'file' element forbids sub namespace`});
   }
 }
 Element.registerAttributes(FileElement, ['tags'], {});
 export module FileElement {
   export const validate = Element.elementValidator('file', FileElement);
   export const validateFile = {
-    validate(reporter: Reporter, path: AttributePath, value: any) {
-      let element = validate.validate(reporter, path, value);
+    validate(at: PathReporter, value: any) {
+      let element = validate.validate(at, value);
       if (element !== undefined && element.__file)
         return element.__file;
       return undefined;
@@ -91,7 +91,7 @@ export module FileElement {
   );
 }
 
-function loadElementFile(reporter: Reporter, attrPath: AttributePath, filepath: string, files: File[]) {
+function loadElementFile(at: PathReporter, filepath: string, files: File[]) {
   let file: File | undefined = undefined;
   try {
     let stats = fs.statSync(filepath);
@@ -100,9 +100,9 @@ function loadElementFile(reporter: Reporter, attrPath: AttributePath, filepath: 
     else if (stats.isDirectory())
       file = File.getShared(filepath, true);
     else
-      attrPath.diagnostic(reporter, { is: "error", msg: `path '${filepath}' doesn't refer to a file or directory` });
+      at.diagnostic({ is: "error", msg: `path '${filepath}' doesn't refer to a file or directory` });
   } catch (e) {
-    attrPath.diagnostic(reporter, { is: "warning", msg: `file '${filepath}' not found` });
+    at.diagnostic({ is: "warning", msg: `file '${filepath}' not found` });
   }
   if (!file)
     file = File.getShared(filepath);

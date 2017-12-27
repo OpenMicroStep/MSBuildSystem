@@ -1,10 +1,10 @@
-import {Reporter, AttributePath} from './index';
+import {Reporter, PathReporter} from './index';
 
 export type Traverse<V> = V & { traverse(lvl: number, context: object) : any };
-export type Validator    <T, A0> = { validate(reporter: Reporter, path: AttributePath, value: any, a0: A0) : T | undefined };
-export type Validator0   <T    > = { validate(reporter: Reporter, path: AttributePath, value: any        ) : T | undefined };
-export type ValidatorNU  <T, A0> = { validate(reporter: Reporter, path: AttributePath, value: any, a0: A0) : T };
-export type ValidatorNU0 <T    > = { validate(reporter: Reporter, path: AttributePath, value: any        ) : T };
+export type Validator    <T, A0> = { validate(at: PathReporter, value: any, a0: A0) : T | undefined };
+export type Validator0   <T    > = { validate(at: PathReporter, value: any        ) : T | undefined };
+export type ValidatorNU  <T, A0> = { validate(at: PathReporter, value: any, a0: A0) : T };
+export type ValidatorNU0 <T    > = { validate(at: PathReporter, value: any        ) : T };
 export type ValidatorT   <T, A0> = Traverse<Validator<T, A0>  >;
 export type ValidatorT0  <T    > = Traverse<Validator0<T>     >;
 export type ValidatorTNU <T, A0> = Traverse<ValidatorNU<T, A0>>;
@@ -18,72 +18,72 @@ export type ExtensionT   <T, A0> = (ValidatorT <T, A0> | ValidatorTNU <T | undef
 export type Extension0T  <T    > = (ValidatorT0<T    > | ValidatorTNU0<T | undefined    >) & { doc?: string };
 export type ExtensionsT  <T, A0> = { [K in keyof T]: ExtensionT <T[K], A0> };
 export type Extensions0T <T    > = { [K in keyof T]: Extension0T<T[K]    > };
-export type Reducer<T, R, C extends {}> = (reporter: Reporter, path: AttributePath, current: T, previous: R | undefined, context: C) => R;
+export type Reducer<T, R, C extends {}> = (at: PathReporter, current: T, previous: R | undefined, context: C) => R;
 
 export function superValidateList<T, A0> (
-  reporter: Reporter, path: AttributePath, attr: T[], a0: A0,
+  at: PathReporter, attr: T[], a0: A0,
   validator: Validator<T, A0>, push: (T) => void
 ) {
   if (Array.isArray(attr)) {
-    path.pushArray();
+    at.pushArray();
     for (var idx = 0, attrlen = attr.length; idx < attrlen; idx++) {
-      var value = validator.validate(reporter, path.setArrayKey(idx), attr[idx], a0);
+      var value = validator.validate(at.setArrayKey(idx), attr[idx], a0);
       if (value !== undefined)
         push(value);
     }
-    path.popArray();
+    at.popArray();
   }
   else {
-    path.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
+    at.diagnostic({ is: "warning", msg: `attribute must be an array`});
   }
 }
 
 export function superFill<T, A0>(
-  reporter: Reporter, path: AttributePath, attr: any, a0: A0,
+  at: PathReporter, attr: any, a0: A0,
   into: T, extensions: Extensions<T, A0>
 ) : T {
-  path.pushArray();
+  at.pushArray();
   for (var k in extensions) {
     var ext = extensions[k];
     var v = attr[k];
-    path.setArrayKey(k);
-    v = ext.validate(reporter, path, v, a0);
+    at.setArrayKey(k);
+    v = ext.validate(at, v, a0);
     into[k] = v;
   }
-  path.popArray();
+  at.popArray();
   return into;
 }
 
 export function superValidateObject<T, A0>(
-  reporter: Reporter, path: AttributePath, attr: any, a0: A0,
+  at: PathReporter, attr: any, a0: A0,
   into: T, extensions: Extensions<T, A0>) : T;
 export function superValidateObject<T, K, A0>(
-  reporter: Reporter, path: AttributePath, attr: any, a0: A0,
+  at: PathReporter, attr: any, a0: A0,
   into: T & { [s: string]: K }, extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>
 ) : T & { [s: string]: K };
 export function superValidateObject<T, K, A0>(
-  reporter: Reporter, at: AttributePath, attr: any, a0: A0,
+  at: PathReporter, attr: any, a0: A0,
   into: T & { [s: string]: K }, extensions: Extensions<T, A0>, objectForKeyValidator?: Validator<K, string>
 ) : T & { [s: string]: K } {
   at.push('.', '');
   if (typeof attr !== "object") {
-    at.diagnostic(reporter, { is: "warning", msg: `attribute must be a object, got ${typeof attr}`});
+    at.diagnostic({ is: "warning", msg: `attribute must be a object, got ${typeof attr}`});
     attr = {};
   }
   let k;
   for (k in extensions) { // insert all extensions first
-    into[k] = extensions[k].validate(reporter, at.set(k), attr[k], a0) as any;
+    into[k] = extensions[k].validate(at.set(k), attr[k], a0) as any;
   }
   for (k in attr as T) {
     if (!(k in extensions)) {
       at.set(k);
       if (objectForKeyValidator) {
-        let v = objectForKeyValidator.validate(reporter, at, attr[k], k);
+        let v = objectForKeyValidator.validate(at, attr[k], k);
         if (v !== undefined)
           into[k] = v;
       }
       else {
-        at.diagnostic(reporter, { is: "warning", msg: `attribute is unused` });
+        at.diagnostic({ is: "warning", msg: `attribute is unused` });
       }
     }
   }
@@ -92,7 +92,7 @@ export function superValidateObject<T, K, A0>(
 }
 
 export const validateAny: Traverse<Validator0<any>> = {
-  validate: function validateAny(reporter: Reporter, path: AttributePath, value: any) {
+  validate: function validateAny(at: PathReporter, value: any) {
     return value;
   },
   traverse() {
@@ -101,7 +101,7 @@ export const validateAny: Traverse<Validator0<any>> = {
 };
 
 export const validateAnyToUndefined: Traverse<Validator0<undefined>> = {
-  validate: function validateAnyToUndefined(reporter: Reporter, path: AttributePath, value: any) {
+  validate: function validateAnyToUndefined(at: PathReporter, value: any) {
     return undefined;
   },
   traverse() {
@@ -110,9 +110,9 @@ export const validateAnyToUndefined: Traverse<Validator0<undefined>> = {
 };
 
 export const validateObject: Traverse<Validator0<object>> = {
-  validate: function validateObject(reporter: Reporter, path: AttributePath, value: any) {
+  validate: function validateObject(at: PathReporter, value: any) {
     if (typeof value !== "object")
-      path.diagnostic(reporter, { is: "warning", msg: `attribute must be an object, got ${typeof value}`});
+      at.diagnostic({ is: "warning", msg: `attribute must be an object, got ${typeof value}`});
     else
       return value;
     return undefined;
@@ -122,9 +122,9 @@ export const validateObject: Traverse<Validator0<object>> = {
   }
 };
 export const validateArray: Traverse<Validator0<any[]>> = {
-  validate: function validateArray(reporter: Reporter, path: AttributePath, value: any) {
+  validate: function validateArray(at: PathReporter, value: any) {
     if (!Array.isArray(value))
-      path.diagnostic(reporter, { is: "warning", msg: `attribute must be an array`});
+      at.diagnostic({ is: "warning", msg: `attribute must be an array`});
     else
       return value;
     return [];
@@ -134,11 +134,11 @@ export const validateArray: Traverse<Validator0<any[]>> = {
   }
 };
 export const validateString: Traverse<Validator0<string>> = {
-  validate: function validateString(reporter: Reporter, path: AttributePath, value: any) {
+  validate: function validateString(at: PathReporter, value: any) {
     if (typeof value !== "string")
-      path.diagnostic(reporter, { is: "warning", msg: `attribute must be a string, got ${typeof value}`});
+      at.diagnostic({ is: "warning", msg: `attribute must be a string, got ${typeof value}`});
     else if (value.length === 0)
-      path.diagnostic(reporter, { is: "warning", msg: `attribute can't be an empty string`});
+      at.diagnostic({ is: "warning", msg: `attribute can't be an empty string`});
     else
       return value;
     return undefined;
@@ -148,9 +148,9 @@ export const validateString: Traverse<Validator0<string>> = {
   }
 };
 export const validateAnyString: Traverse<Validator0<string>> = {
-  validate: function validateString(reporter: Reporter, path: AttributePath, value: any) {
+  validate: function validateString(at: PathReporter, value: any) {
     if (typeof value !== "string")
-      path.diagnostic(reporter, { is: "warning", msg: `attribute must be a string, got ${typeof value}`});
+      at.diagnostic({ is: "warning", msg: `attribute must be a string, got ${typeof value}`});
     else
       return value;
     return undefined;
@@ -161,9 +161,9 @@ export const validateAnyString: Traverse<Validator0<string>> = {
 };
 
 export const validateBoolean: Traverse<Validator0<boolean>> = {
-  validate: function validateBoolean(reporter: Reporter, path: AttributePath, value: any) {
+  validate: function validateBoolean(at: PathReporter, value: any) {
     if (typeof value !== "boolean")
-      path.diagnostic(reporter, { is: "warning", msg: `attribute must be a boolean, got ${typeof value}`});
+      at.diagnostic({ is: "warning", msg: `attribute must be a boolean, got ${typeof value}`});
     else
       return value;
     return undefined;
@@ -184,11 +184,11 @@ export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2
 export function chain<T0, A0>(v0: Validator<any, A0>, v1: Validator<any, A0>, v2: Validator<any, A0>, v3: Validator<T0, A0>) : Validator<T0, A0>;
 export function chain<A0>(...validators: Validator<any, A0>[]) : Validator<any, A0>;
 export function chain<A0>(v0: Validator<any, A0>, ...validators: Validator<any, A0>[]) {
-  function validateChain(reporter, path: AttributePath, value, a0: A0) {
+  function validateChain(at: PathReporter, value, a0: A0) {
     let i = 0;
-    value = v0.validate(reporter, path, value, a0);
+    value = v0.validate(at, value, a0);
     for (; value !== undefined && i < validators.length; i++)
-      value = validators[i].validate(reporter, path, value, a0);
+      value = validators[i].validate(at, value, a0);
     return value;
   }
   return { validate: validateChain };
@@ -205,22 +205,22 @@ export function oneOf<T0, T1, T2, A0>(v0: Validator<T0, A0>, v1: Validator<T1, A
 export function oneOf<T0, T1, T2, T3, A0>(v0: Validator<T0, A0>, v1: Validator<T1, A0>, v2: Validator<T2, A0>, v3: Validator<T3, A0>) : Validator<T0 | T1 | T2 | T3, A0>;
 export function oneOf<A0>(...validators: Validator<any, A0>[]) : Validator<any, A0>;
 export function oneOf<A0>(v0: Validator<any, A0>, ...validators: Validator<any, A0>[]) {
-  function validateOneOf(reporter: Reporter, path: AttributePath, value, a0: A0) {
-    let s0 = reporter.snapshot();
+  function validateOneOf(at: PathReporter, value, a0: A0) {
+    let s0 = at.reporter.snapshot();
     let si = s0;
-    let rvalue = v0.validate(reporter, path, value, a0);
-    for (let i = 0; reporter.hasChanged(si) && i < validators.length; i++) {
-      si = reporter.snapshot();
-      rvalue = validators[i].validate(reporter, path, value, a0);
+    let rvalue = v0.validate(at, value, a0);
+    for (let i = 0; at.reporter.hasChanged(si) && i < validators.length; i++) {
+      si = at.reporter.snapshot();
+      rvalue = validators[i].validate(at, value, a0);
     }
-    if (!reporter.hasChanged(si)) {
-      reporter.rollback(s0); // value is value, rollback all diagnostics
+    if (!at.reporter.hasChanged(si)) {
+      at.reporter.rollback(s0); // value is value, rollback all diagnostics
       return rvalue;
     }
     else {
-      let diags = reporter.diagnosticsAfter(s0);
-      reporter.rollback(s0);
-      reporter.diagnostic({
+      let diags = at.reporter.diagnosticsAfter(s0);
+      at.reporter.rollback(s0);
+      at.diagnostic({
         is: "warning",
         msg: `attribute must be one of`,
         notes: diags,
@@ -244,8 +244,8 @@ export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defa
 export function defaultsTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: (  ) => T, doc: string) : Traverse<ValidatorNU0<T    >>;
 export function defaultsTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: (a0) => T, doc: string) : Traverse<ValidatorNU <T, A0>>;
 export function defaultsTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: T | ((a0) => T), doc?: string) : Traverse<ValidatorNU <T, A0>> {
-  function validateWithDefaultValue(reporter, path: AttributePath, value, a0: A0) {
-    if (value === undefined || (value = validator.validate(reporter, path, value, a0)) === undefined)
+  function validateWithDefaultValue(at: PathReporter, value, a0: A0) {
+    if (value === undefined || (value = validator.validate(at, value, a0)) === undefined)
       return typeof defaultValue === "function" ? defaultValue(a0) : defaultValue;
     return value;
   }
@@ -270,8 +270,8 @@ export function fallbackTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defa
 export function fallbackTo<T    >(validator: Traverse<ValidatorNU0<T    >>, defaultValue: (  ) => T) : Traverse<ValidatorNU0<T    >>;
 export function fallbackTo<T, A0>(validator: Traverse<ValidatorNU <T, A0>>, defaultValue: (a0) => T) : Traverse<ValidatorNU <T, A0>>;
 export function fallbackTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defaultValue: T | ((a0) => T)) : Traverse<ValidatorNU <T, A0>> {
-  function validateWithFallbackValue(reporter, path: AttributePath, value, a0: A0) {
-    if ((value = validator.validate(reporter, path, value, a0)) === undefined)
+  function validateWithFallbackValue(at: PathReporter, value, a0: A0) {
+    if ((value = validator.validate(at, value, a0)) === undefined)
       return typeof defaultValue === "function" ? defaultValue(a0) : defaultValue;
     return value;
   }
@@ -284,8 +284,8 @@ export function fallbackTo<T, A0>(validator: Traverse<Validator   <T, A0>>, defa
 }
 
 export function functionValidator<A0>(prototype: string) : Validator<void, A0> {
-  function validateFunction(reporter, path: AttributePath, value, a0: A0) {
-    AttributeUtil.safeCall(reporter, value, prototype, null, path, a0);
+  function validateFunction(at: PathReporter, value, a0: A0) {
+    AttributeUtil.safeCall(at, value, prototype, null, a0);
   }
   return { validate: validateFunction };
 }
@@ -293,9 +293,9 @@ export function functionValidator<A0>(prototype: string) : Validator<void, A0> {
 export function listValidator<T>(validator: Validator0<T>) : ValidatorNU0<T[]>;
 export function listValidator<T, A0>(validator: Validator<T, A0>) : ValidatorNU<T[], A0>;
 export function listValidator<T, A0>(validator: Validator<T, A0>) {
-  function validateList(reporter: Reporter, path: AttributePath, attr, a0: A0) : T[] {
+  function validateList(at: PathReporter, attr, a0: A0) : T[] {
     let ret = [];
-    superValidateList(reporter, path, attr, a0, validator, ret.push.bind(ret));
+    superValidateList(at, attr, a0, validator, ret.push.bind(ret));
     return ret;
   };
   return { validate: validateList };
@@ -308,9 +308,9 @@ export function objectValidator<T   , A0>(extensions: Extensions <T, A0>, object
 export function objectValidator<T, K    >(extensions: Extensions0<T   > , objectForKeyValidator: Validator<K        , string>) : ValidatorNU0<T & { [s: string]: K }>;
 export function objectValidator<T, K, A0>(extensions: Extensions <T, A0>, objectForKeyValidator: Validator<K        , string>) : ValidatorNU <T & { [s: string]: K }, A0>;
 export function objectValidator<T, K, A0>(extensions: Extensions <T, A0>, objectForKeyValidator?: Validator<K, string>) {
-  function validateObject(reporter: Reporter, path: AttributePath, attr, a0: A0) : T & { [s: string]: K } {
+  function validateObject(at: PathReporter, attr, a0: A0) : T & { [s: string]: K } {
     var ret = <T & { [s: string]: K }>{};
-    superValidateObject(reporter, path, attr, a0, ret, extensions, objectForKeyValidator);
+    superValidateObject(at, attr, a0, ret, extensions, objectForKeyValidator);
     return ret;
   };
   return { validate: validateObject };
@@ -319,9 +319,9 @@ export function objectValidator<T, K, A0>(extensions: Extensions <T, A0>, object
 export function setValidator<T>(validator: Validator0<T>) : ValidatorNU0<Set<T>>;
 export function setValidator<T, A0>(validator: Validator<T, A0>) : ValidatorNU<Set<T>, A0>;
 export function setValidator<T, A0>(validator: Validator<T, A0>) {
-  function validateSet(reporter: Reporter, path: AttributePath, attr, a0: A0) : Set<T> {
+  function validateSet(at: PathReporter, attr, a0: A0) : Set<T> {
     let ret = new Set<T>();
-    superValidateList(reporter, path, attr, a0, validator, function(value) {
+    superValidateList(at, attr, a0, validator, function(value) {
       ret.add(value);
     });
     return ret;
@@ -332,11 +332,11 @@ export function setValidator<T, A0>(validator: Validator<T, A0>) {
 export function reducedListValidator<T, R, C>(validator: Validator0<T>, reduce: Reducer<T, R, C>) : Validator0<R>;
 export function reducedListValidator<T, R, C, A0>(validator: Validator<T, A0>, reduce: Reducer<T, R, C>) : Validator<R, A0>;
 export function reducedListValidator<T, R, C, A0>(validator: Validator<T, A0>, reduce: Reducer<T, R, C>) {
-  function validateReducedList(reporter: Reporter, path: AttributePath, attr, a0: A0) : R | undefined {
+  function validateReducedList(at: PathReporter, attr, a0: A0) : R | undefined {
     let previous: R | undefined = undefined;
     let context = {};
-    superValidateList(reporter, path, attr, a0, validator, (value) => {
-      previous = reduce(reporter, path, value, previous, <C>context);
+    superValidateList(at, attr, a0, validator, (value) => {
+      previous = reduce(at, value, previous, <C>context);
     });
     return previous;
   };
@@ -344,13 +344,13 @@ export function reducedListValidator<T, R, C, A0>(validator: Validator<T, A0>, r
 }
 
 export function createReduceByMergingObjects({ allowMultipleValues }) {
-  return function reduceByMergingObjects(reporter: Reporter, path: AttributePath, current: object, previous: object | undefined,
+  return function reduceByMergingObjects(at: PathReporter, current: object, previous: object | undefined,
     context: { keysWithSimpleValue?: Set<string>, subContexts?: Map<Object, Object> }) : object {
     if (previous === undefined)
       previous = {};
     if (!context.keysWithSimpleValue)
       context.keysWithSimpleValue = new Set();
-    path.push('.', '');
+    at.push('.', '');
     for (var key in current as any) { // TODO: remove cast to any once tsc 2.3 is released (https://github.com/Microsoft/TypeScript/pull/14195)
       var cvalue = previous[key];
       var dvalue = current[key];
@@ -360,7 +360,7 @@ export function createReduceByMergingObjects({ allowMultipleValues }) {
       var dvalueIsObj = typeof dvalue === "object";
       if (cvalue === dvalue) {}
       else if (cvalue !== undefined && (cvalueIsArr !== dvalueIsArr || cvalueIsObj !== dvalueIsObj)) {
-        path.set(key).diagnostic(reporter, {
+        at.set(key).diagnostic({
           is: "warning",
           msg: `attribute value is incoherent for merging, attribute is ignored`
         });
@@ -378,10 +378,10 @@ export function createReduceByMergingObjects({ allowMultipleValues }) {
         let subcontext = context.subContexts.get(cvalue);
         if (!subcontext)
           context.subContexts.set(cvalue, subcontext = {});
-        reduceByMergingObjects(reporter, path, dvalue, cvalue, subcontext);
+        reduceByMergingObjects(at, dvalue, cvalue, subcontext);
       }
       else if (context.keysWithSimpleValue.has(key)) {
-        path.set(key).diagnostic(reporter, {
+        at.set(key).diagnostic({
           is: "warning",
           msg: `attribute value is incoherent for injection, attribute is removed`
         });
@@ -391,7 +391,7 @@ export function createReduceByMergingObjects({ allowMultipleValues }) {
         previous[key] = dvalue;
       }
     }
-    path.pop(2);
+    at.pop(2);
     return previous;
   };
 }
@@ -399,11 +399,11 @@ export const validateStringList: ValidatorTNU0<string[]> = { ...listValidator(va
 export const validateStringSet: ValidatorTNU0<Set<string>> = { ...setValidator(validateString), traverse: () => 'string list' };
 
 export module AttributeUtil {
-  export function safeCall(reporter: Reporter, fn: Function, signature: string, defaultReturnValue: any, path: AttributePath, ...args) {
+  export function safeCall(at: PathReporter, fn: Function, signature: string, defaultReturnValue: any, ...args) {
     if (!fn) return defaultReturnValue;
 
     if (typeof fn !== "function") {
-      path.diagnostic(reporter, {
+      at.diagnostic({
         is: "error",
         msg: `attribute must be a function with signature ${signature}`
       });
@@ -412,9 +412,10 @@ export module AttributeUtil {
       try {
         return fn(...args);
       } catch (e) {
-        reporter.error(e, {
+        at.reporter.error(e, {
           is: "error",
-          msg: `attribute must be a function with signature ${signature}`
+          msg: `attribute must be a function with signature ${signature}`,
+          path: at.toString(),
         });
       }
     }

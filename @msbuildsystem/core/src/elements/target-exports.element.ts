@@ -1,11 +1,11 @@
 import {
-  ComponentElement, Target, Element, Reporter, AttributePath, AttributeTypes, MakeJS, Project, ElementDefinition
+  ComponentElement, Target, Element, Reporter, PathReporter, AttributeTypes, MakeJS, Project, ElementDefinition
 } from '../index.priv';
 
-function createExportsComponent(reporter: Reporter, name: string,
-  definition: MakeJS.Element, attrPath: AttributePath, parent: Element
+function createExportsComponent(at: PathReporter, name: string,
+  definition: MakeJS.Element, parent: Element
 ) {
-  let env = AttributeTypes.validateString.validate(reporter, attrPath, definition.environment);
+  let env = AttributeTypes.validateString.validate(at, definition.environment);
   return env ? new TargetExportsElement('component', name, env) : undefined;
 }
 Project.elementExportsFactories.registerSimple('target-exports', createExportsComponent);

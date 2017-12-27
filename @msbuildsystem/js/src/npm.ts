@@ -1,7 +1,7 @@
 import {
   Reporter, SelfBuildGraph, Task, AttributeTypes, util,
   Graph, GenerateFileTask, Step, InOutTask, File, Directory,
-  ComponentElement, AttributePath, Target, FileElement,
+  ComponentElement, PathReporter, Target, FileElement,
   createProviderList, ProviderList, Loader,
 } from '@openmicrostep/msbuildsystem.core';
 import {
@@ -192,7 +192,7 @@ export class NPMInstallTask extends Task {
   }
 
   do_build(step: Step) {
-    let npmProvider = NPMProviders.validateBest.validate(step.context.reporter, new AttributePath(), {});
+    let npmProvider = NPMProviders.validateBest.validate(new PathReporter(step.context.reporter), {});
     if (!npmProvider) return step.continue();
 
     npmProvider.do_install(step, {

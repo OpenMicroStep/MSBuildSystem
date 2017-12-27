@@ -1,6 +1,6 @@
 import {
   Element, ComponentElement, EnvironmentElement, MakeJSElement, TargetElement,
-  Reporter, AttributeTypes, AttributePath, RootGraph, TargetExportsDefinition,
+  Reporter, AttributeTypes, PathReporter, RootGraph, TargetExportsDefinition,
   injectElement, createInjectionContext, InjectionContext, closeInjectionContext,
 } from '../index.priv';
 
@@ -40,13 +40,13 @@ export class BuildTargetElement extends MakeJSElement {
     };
     ctx.deep = (ctx, kind) => !(kind === 'components' && ctx.lpath.startsWith('[exports]'));
     ctx.copy = (ctx, attr) => copy(ctx, attr) && !(ctx.lpath.startsWith('[exports]') && Element.isNamespace(attr));
-    injectElement(ctx, environment, new AttributePath(environment), this, new AttributePath(this));
-    injectElement(ctx, target     , new AttributePath(target     ), this, new AttributePath(this));
+    injectElement(ctx, environment, new PathReporter(reporter, environment), this, new PathReporter(reporter, this));
+    injectElement(ctx, target     , new PathReporter(reporter, target     ), this, new PathReporter(reporter, this));
     closeInjectionContext(ctx);
 
-    let atexports = new AttributePath(this, '.exports');
+    let atexports = new PathReporter(reporter, this, '.exports');
     let exports = new Set<Element>();
-    ComponentElement.superValidateList(reporter, atexports, this.exports as any, undefined, Element.validateElement, exports.add.bind(exports));
+    ComponentElement.superValidateList(atexports, this.exports as any, undefined, Element.validateElement, exports.add.bind(exports));
     let serialized_exports = [...exports].map(e => e.toJSON());
     this.exports = {
       is: "target-exports",
@@ -59,10 +59,10 @@ export class BuildTargetElement extends MakeJSElement {
       }
     };
 
-    let at = new AttributePath(this, '');
-    this.type = AttributeTypes.validateString.validate(reporter, at.set('.type'), this.type) || "bad type";
-    this.targets = validateStringList.validate(reporter, at.set('.targets'), this.targets) || [];
-    this.manual = AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false).validate(reporter, at.set('.manual'), this.manual);
+    let at = new PathReporter(reporter, this, '');
+    this.type = AttributeTypes.validateString.validate(at.set('.type'), this.type) || "bad type";
+    this.targets = validateStringList.validate(at.set('.targets'), this.targets) || [];
+    this.manual = AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false).validate(at.set('.manual'), this.manual);
   }
 
   __path() {

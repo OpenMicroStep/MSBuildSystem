@@ -1,8 +1,8 @@
-import {AttributePath} from '@openmicrostep/msbuildsystem.shared';
+import {PathReporter, Reporter} from '@openmicrostep/msbuildsystem.shared';
 import {assert} from 'chai';
 
 function path_tracking() {
-  var p = new AttributePath();
+  var p = new PathReporter(new Reporter());
   assert.strictEqual(p.toString(), '');
   assert.strictEqual(p.push("root").toString(), 'root');
   assert.strictEqual(p.push(":sub").toString(), 'root:sub');
@@ -14,6 +14,6 @@ function path_tracking() {
   assert.strictEqual(p.reset('test', '.', 'test2').toString(), 'test.test2');
 }
 
-export const tests = { name: 'attribute-path', tests: [
+export const tests = { name: 'PathReporter', tests: [
   path_tracking
 ]};

@@ -1,4 +1,4 @@
-import {Target, SelfBuildGraph, Reporter, AttributePath, AttributeTypes as V, File, Diagnostic} from "./index.priv";
+import {Target, SelfBuildGraph, Reporter, PathReporter, AttributeTypes as V, File, Diagnostic} from "./index.priv";
 import * as semver from 'semver';
 
 export class SemVerProvider {
@@ -61,20 +61,20 @@ export function createBuildGraphProviderList<P extends Target, T extends SelfBui
   function find(name: string) {
     return list.get(name);
   }
-  function validate(reporter: Reporter, path: AttributePath, value: any, target: P) : T | undefined {
+  function validate(at: PathReporter, value: any, target: P) : T | undefined {
     if (value === undefined && defaultCstor !== undefined)
       return new defaultCstor(target);
-    let v = V.validateString.validate(reporter, path, value);
+    let v = V.validateString.validate(at, value);
     let ret: T | undefined = undefined;
     if (v !== undefined) {
       let builder = find(v);
       if (builder === undefined) {
-        reporter.diagnostic({ is: "error", msg: `unable to find ${type}`, notes: notes(value) });
+        at.diagnostic({ is: "error", msg: `unable to find ${type}`, notes: notes(value) });
         builder = defaultCstor;
       }
       if (builder !== undefined) {
         ret = new builder(target);
-        ret.resolve(reporter, target);
+        ret.resolve(at, target);
       }
     }
     return ret;

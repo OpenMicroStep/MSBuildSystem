@@ -1,27 +1,27 @@
 import {
   Element, ProjectElement, DelayedElement,
-  Reporter, AttributePath, DelayedQuery, Workspace} from '../index.priv';
+  Reporter, PathReporter, DelayedQuery, Workspace} from '../index.priv';
 
 export class MakeJSElement extends Element {
   __parent: MakeJSElement;
   __absoluteFilepath() : string {
     return this.__parent!.__absoluteFilepath();
   }
-  __resolveValueInArray(reporter: Reporter, el, ret: any[], attrPath: AttributePath) {
+  __resolveValueInArray(at: PathReporter, el, ret: any[]) {
     if (el instanceof DelayedElement && !el.__parent) {
       el.__parent = this;
       ret.push(el);
     }
-    else super.__resolveValueInArray(reporter, el, ret, attrPath);
+    else super.__resolveValueInArray(at, el, ret);
   }
 
-  __resolveElementsGroup(reporter: Reporter, into: Element[], steps: string[], query: Element.Query, attrPath: AttributePath) {
+  __resolveElementsGroup(at: PathReporter, into: Element[], steps: string[], query: Element.Query) {
     if (steps.length >= 5 && steps[0].length === 0 && steps[1].length === 0 && steps[2].length > 0) { // ^::.+
       let i = 3;
       while (i < steps.length && steps[i].length > 0)
         i++;
       if (i + 1 >= steps.length)
-        attrPath.diagnostic(reporter, {
+        at.diagnostic({
           is: "error",
           msg: "invalid external group syntax, missing closing '::'"
         });
@@ -31,13 +31,13 @@ export class MakeJSElement extends Element {
         if (gsteps.length === 1)
           gel = Workspace.globalRoot[`${gsteps[0]}=`];
         if (gel)
-          gel.__resolveElementsGroupIn(reporter, into, query);
+          gel.__resolveElementsGroupIn(at.reporter, into, query);
         else
           into.push(new DelayedQuery(gsteps, steps.slice(i + 1), query, this));
       }
     }
     else {
-      super.__resolveElementsGroup(reporter, into, steps, query, attrPath);
+      super.__resolveElementsGroup(at, into, steps, query);
     }
   }
 }
