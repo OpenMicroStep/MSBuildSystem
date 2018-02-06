@@ -40,7 +40,7 @@ export class TargetElement extends ComponentElement {
       reporter.diagnostic({
         is: "warning",
         msg: `attribute has no meaning (you can't extends environments after one is selected)`,
-        path: `${component.__path()}.environmentsByEnvironment`
+        path: `${(component as ComponentElement).__path()}.environmentsByEnvironment`
       });
     }
     component.components.forEach(c => c.is === 'component' && this.__resolveEnvironments(reporter, c, into));

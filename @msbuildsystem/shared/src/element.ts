@@ -96,7 +96,7 @@ export class Element {
     Object.defineProperties(p, {
       __factoryKeys: { enumerable: false, writable: false, value: fkeys },
       __extensions: { enumerable: false, writable: false, value: extensions },
-      __validator: { enumerable: false, writable: false, value: elementValidator(extensions) },
+      __validator: { enumerable: false, writable: false, value: elementValidator(extensions as AttributeTypes.Extensions<T, object>) },
     });
   }
 

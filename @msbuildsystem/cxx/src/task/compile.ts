@@ -67,7 +67,7 @@ export const compilerExtensions: V.Extensions<CompilerOptions, Target> = {
 
 export const validateCompilerOptions = ComponentElement.objectValidator<CompilerOptions, Target>(compilerExtensions);
 
-@Task.declare(["cxx-compile"], {
+@Task.declare<CompileTask, CompileAttributes>(["cxx-compile"], {
   srcFile: FileElement.validateFile,
   objFile: FileElement.validateFile,
   hmapFile: V.defaultsTo(FileElement.validateFile, undefined),

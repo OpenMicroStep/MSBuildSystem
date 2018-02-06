@@ -191,7 +191,7 @@ export function injectionMapValue(ctx: InjectionContext, srcValue) {
     let v = ctx.map.get(srcValue);
     if (!v) {
       v = util.clone(srcValue, k => ctx.copy(ctx, k));
-      if (!("components" in v)) v.components = [];
+      if (!("components" in v)) (v as ComponentElement).components = [];
       injectElement(ctx, srcValue, new PathReporter(ctx.reporter, srcValue), v, new PathReporter(ctx.reporter, srcValue));
       ctx.map.set(srcValue, v);
     }
