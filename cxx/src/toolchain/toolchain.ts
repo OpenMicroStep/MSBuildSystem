@@ -32,9 +32,9 @@ export abstract class Toolchain extends SelfBuildGraph<CXXTarget> {
     return compileTasks;
   }
 
-  createCompileTask(reporter: Reporter, srcFile: File, options: CompilerOptions) : CompileTask {
+  createCompileTask(reporter: Reporter, srcFile: File, options: CompilerOptions, relativePath?: string) : CompileTask {
     let target = this.graph;
-    let relativePath = path.relative(target.project.directory, srcFile.path);
+    relativePath = relativePath || path.relative(target.project.directory, srcFile.path);
     let dstPath = path.join(target.paths.intermediates, relativePath);
     let objFile = File.getShared(`${dstPath}.o`);
     let hmapFile = File.getShared(`${dstPath}.hmap`);
