@@ -173,11 +173,9 @@ export class ClangProvider extends SemVerProvider implements CompilerProvider, L
         var headers = <string[]>[];
         var lines = content.split("\n");
         for (var i = 1, len = lines.length; i < len; ++i) {
-          var header = lines[i];
+          var header = lines[i].trim();
           if (header.endsWith("\\"))
             header = header.substring(0, header.length - 1).trim();
-          else
-            header = header.trim();
           if (header.length)
             headers.push(header);
         }
@@ -187,7 +185,7 @@ export class ClangProvider extends SemVerProvider implements CompilerProvider, L
     });
   }
 }
-
+/*
 Loader.safeLoadIfOutOfDate<{ semver: string }>({
   name: 'clang',
   uuid: '3FD566D3-540D-490B-814B-4053E7EE3AA7',
@@ -203,3 +201,4 @@ Loader.safeLoadIfOutOfDate<{ semver: string }>({
     LinkerProviders.register(p);
   }
 });
+*/
