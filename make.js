@@ -37,6 +37,11 @@ module.exports= {
     'cxx=':              moduleFiles('cxx'),
     'js=' :              moduleFiles('js'),
     'typescript=':       moduleFiles('js.typescript'),
+    'js.webpack=':       { is: 'group', path: "js.webpack", elements: [
+      { is: 'group', name: "src", path: "src", elements: [
+        { is: 'file', name: "index.ts", tags: ["tsc"] }
+      ]},
+    ]},
   },
   'config=': { is: "group",
     'node=': {
@@ -100,36 +105,6 @@ module.exports= {
     environments: ["=config:node"],
   },
   'targets=': { 'is': 'group',
-    'core=': {
-      is: "target",
-      outputName: '@openmicrostep/msbuildsystem.core',
-      targets: ['shared'],
-      components: ['=base', '=::shared::'],
-      files: ['=files:core:src ? tsc'],
-      npmPackage: { is: "component",
-        dependencies: { is: "component",
-          "semver": "^5.4.1",
-          "fs-extra": "^4.0.1",
-          "source-map-support": "^0.4.0"
-        },
-        devDependencies: { is: "component",
-          "@types/semver": "^5.3.33",
-          "@types/fs-extra": "^4.0.0",
-        },
-      },
-      exports: [{ is: 'component', name: 'cfg',
-        "module=": { is: 'component', components: ['=config:module']       },
-        "tests=" : { is: 'component', components: ['=config:module tests'] },
-      }]
-    },
-    'core tests=': {
-      is: "target",
-      outputName: '@openmicrostep/msbuildsystem.core.tests',
-      targets: ['core'],
-      components: ['=base tests', '=::core::'],
-      files: ['=files:core:tst ? tsc'],
-      copyFiles: [{is: 'group', elements: ['=files:core:tst ? rsc'], dest: 'data', expand: true }]
-    },
     'shared=': {
       is: "target",
       components: ['=base'],
@@ -148,6 +123,36 @@ module.exports= {
       components: ['=base tests', '=::shared::'],
       files: ['=files:shared tests'],
     },
+    'core=': {
+      is: "target",
+      outputName: '@openmicrostep/msbuildsystem.core',
+      targets: ['shared'],
+      components: ['=base', '=::shared::'],
+      files: ['=files:core:src ? tsc'],
+      npmPackage: { is: "component",
+        dependencies: { is: "component",
+          "semver": "^5.5.0",
+          "fs-extra": "^6.0.1",
+          "source-map-support": "^0.5.6"
+        },
+        devDependencies: { is: "component",
+          "@types/semver": "^5.5.0",
+          "@types/fs-extra": "^5.0.2",
+        },
+      },
+      exports: [{ is: 'component', name: 'cfg',
+        "module=": { is: 'component', components: ['=config:module']       },
+        "tests=" : { is: 'component', components: ['=config:module tests'] },
+      }]
+    },
+    'core tests=': {
+      is: "target",
+      outputName: '@openmicrostep/msbuildsystem.core.tests',
+      targets: ['core'],
+      components: ['=base tests', '=::core::'],
+      files: ['=files:core:tst ? tsc'],
+      copyFiles: [{is: 'group', elements: ['=files:core:tst ? rsc'], dest: 'data', expand: true }]
+    },
     'cli=': {
       is: "target",
       outputName: '@openmicrostep/msbuildsystem.cli',
@@ -158,12 +163,11 @@ module.exports= {
       npmPackage: { is: "component",
         bin: { "msbuildsystem": "./bin.js" },
         dependencies: { is: "component",
-          "argparse": "^1.0.9",
-          "chalk": "^1.1.3"
+          "argparse": "^1.0.10",
+          "chalk": "^2.4.1"
         },
         devDependencies: { is: "component",
-          "@types/argparse": "^1.0.30",
-          "@types/chalk": "^0.4.31",
+          "@types/argparse": "^1.0.33",
         },
       }
     },
@@ -227,7 +231,7 @@ module.exports= {
       files: ['=files:typescript:src ? tsc'],
       npmPackage: { is: "component",
         dependencies: { is: "component",
-          "typescript": "^2.2.2",
+          "typescript": "^2.8.3",
         }
       },
     },

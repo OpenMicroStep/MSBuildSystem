@@ -1,5 +1,5 @@
 import { Reporter, TaskReporter, Diagnostic, util } from '@openmicrostep/msbuildsystem.core';
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import * as fs from 'fs';
 
 export type Stats = {
@@ -51,7 +51,7 @@ function indent(indent: string, text: string) {
 
 export class ReporterPrinter {
   static types = ["note", "remark", "warning", "error", "fatal error"];
-  colors = {
+  private colors = {
     "note": chalk.cyan,
     "remark": chalk.cyan,
     "warning": chalk.magenta,
