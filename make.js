@@ -37,11 +37,6 @@ module.exports= {
     'cxx=':              moduleFiles('cxx'),
     'js=' :              moduleFiles('js'),
     'typescript=':       moduleFiles('js.typescript'),
-    'js.webpack=':       { is: 'group', path: "js.webpack", elements: [
-      { is: 'group', name: "src", path: "src", elements: [
-        { is: 'file', name: "index.ts", tags: ["tsc"] }
-      ]},
-    ]},
   },
   'config=': { is: "group",
     'node=': {
@@ -268,7 +263,7 @@ module.exports= {
       components: ["=cmd_no_cwd"],
       cwd: "={cwd}.absolutePath",
     },
-    'cwd=': { is: 'group', elements: [{ is: 'file', name: "../" }] },
+    'cwd=': { is: 'group', elements: [{ is: 'file', name: "." }] },
     "install-deps=": { is: "task", components: ["=cmd"], cmd: "npm install -g -q coveralls nyc @openmicrostep/tests" },
     "build-1=": { is: "task", components: ["=cmd"], cmd: Value([
       "msbuildsystem", "build", "-p", ".", "-w", "dist/1/"
