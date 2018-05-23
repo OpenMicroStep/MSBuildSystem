@@ -16,7 +16,7 @@ export type LocalProcessTaskParams = {
   cwd: AttributeTypes.defaultsTo(AttributeTypes.validateString, (t: Target) => t.paths.output, 'target output'),
   tty: AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false),
   shell: AttributeTypes.defaultsTo(AttributeTypes.validateBoolean, false),
-})
+} as any)
 export class LocalProcessTask extends Task {
   constructor(name: string, graph: Graph, public params: LocalProcessTaskParams) {
     super({ type: 'cmd', name: name }, graph);

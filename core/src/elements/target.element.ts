@@ -36,7 +36,7 @@ export class TargetElement extends ComponentElement {
     let envs = component['environments'];
     if (envs)
       into.push(...validateEnvList.validate(new PathReporter(reporter, component, '.environments'), envs));
-    if ("environmentsByEnvironment" in component) {
+    if ("environmentsByEnvironment" in component as any) {
       reporter.diagnostic({
         is: "warning",
         msg: `attribute has no meaning (you can't extends environments after one is selected)`,

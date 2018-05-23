@@ -72,7 +72,7 @@ export const validateCompilerOptions = ComponentElement.objectValidator<Compiler
   objFile: FileElement.validateFile,
   hmapFile: V.defaultsTo(FileElement.validateFile, undefined),
   compilerOptions: validateCompilerOptions,
-})
+} as any)
 export class CompileTask extends InOutTask {
   options: CompilerOptions;
   constructor(name: string, graph: Graph, public attributes: CompileAttributes) {
