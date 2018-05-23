@@ -50,18 +50,24 @@ export class CopyTask extends Task {
     }
   }
 
-  do_build(step: Step<{}>) {
+  do_build(step: Step<{ actionRequired: boolean }>) {
+    let did = 0;
     let barrier = new Barrier("Copy files", this.steps.length / 2);
     for (let i = 1, len = this.steps.length; i < len; i += 2) {
       let from = this.steps[i];
       let to = this.steps[i - 1];
-      from.copyTo(to, step.context.lastSuccessStartTime, step.context.lastSuccessEndTime, (err) => {
+      from.copyTo(to, step.context.lastSuccessStartTime, step.context.lastSuccessEndTime, (err, copied) => {
+        if (err || copied)
+          did++;
         if (err)
           step.context.reporter.diagnostic({ is: "error", msg: "couldn't copy file: " + err + this});
         barrier.dec();
       });
     }
-    barrier.endWith(step.continue.bind(step));
+    barrier.endWith(() => {
+      step.context.actionRequired = did > 0;
+      step.continue()
+    });
   }
   do_clean(step: Step<{}>) {
     let elements: ((f: Step<{}>) => void)[] = [];

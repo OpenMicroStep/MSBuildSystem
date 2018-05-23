@@ -105,7 +105,8 @@ export class File {
             callback(err, true);
           });
       } else if (err || stats.isFile()) {
-        callback(err, !err && stats['mtime'].getTime() > time);
+        let changed = !err && stats['mtime'].getTime() > time;
+        callback(err, changed);
       } else {
         callback(err, false);
       }
@@ -183,7 +184,7 @@ export class File {
     fs.stat(this.path, cb);
   }
 
-  copyTo(to: File, lastSuccessStartTime: number, lastSuccessEndTime: number, cb: (err?: Error) => void) {
+  copyTo(to: File, lastSuccessStartTime: number, lastSuccessEndTime: number, cb: (err?: Error, copied?: boolean) => void) {
     this.stats((err, stats) => {
       if (err) return cb(err);
       to.stats((err, toStats) => {
@@ -191,13 +192,13 @@ export class File {
          && stats.mtime.getTime() < lastSuccessStartTime
          && toStats.mtime.getTime() < lastSuccessEndTime
         )
-         return cb();
+         return cb(undefined, false);
 
         to.ensureDir((err) => {
           if (err) return cb(err);
           fs.copy(this.path, to.path, (err) => {
             if (err) return cb(err);
-            fs.utimes(to.path, stats.atime.getTime() / 1000, stats.mtime.getTime() / 1000, cb);
+            fs.utimes(to.path, stats.atime.getTime() / 1000, stats.mtime.getTime() / 1000, () => cb(undefined, true));
           });
         });
       });

@@ -48,14 +48,16 @@ export class HeaderAliasTask extends Task {
     }
   }
 
-  do_build(step: Step<{}>) {
+  do_build(step: Step<{ actionRequired: boolean }>) {
+    let did = 0;
     let barrier = new Barrier("Alias files", this.steps.length / 2);
     for (let i = 1, len = this.steps.length; i < len; i += 2) {
       let from = this.steps[i];
       let to = this.steps[i - 1];
-      to.ensure(true, step.context.lastSuccessStartTime, (err, changed) => {
+      to.ensure(true, step.context.lastSuccessEndTime, (err, changed) => {
         if (err) { step.context.reporter.error(err); barrier.dec(); }
         else if (changed) {
+          did++;
           fs.writeFile(to.path, "#import \"" + from.path + "\"\n", { encoding: 'utf8' }, (err) => {
             if (err) { step.context.reporter.error(err); step.continue(); }
             else barrier.dec();
@@ -66,7 +68,10 @@ export class HeaderAliasTask extends Task {
         }
       });
     }
-    barrier.endWith(step.continue.bind(step));
+    barrier.endWith(() => {
+      step.context.actionRequired = did > 0;
+      step.continue()
+    });
   }
 
   do_clean(step: Step<{}>) {
