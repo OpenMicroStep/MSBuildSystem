@@ -6,4 +6,4 @@ node_js:
 script:
   - npm install -q -g @openmicrostep/msbuildsystem.cli
   - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-  - msbuildsystem build -p @msbuildsystem -w dist/travis/ --target bootstrap --env travis --no-progress
+  - msbuildsystem build -p . -w dist/travis/ --target bootstrap --env travis --no-progress

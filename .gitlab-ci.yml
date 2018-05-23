@@ -4,7 +4,7 @@
    - apk add --no-cache git
    - npm install -q -g @openmicrostep/msbuildsystem.cli
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-   - msbuildsystem build -p @msbuildsystem -w dist/gitlab/ --target bootstrap --env gitlab --no-progress
+   - msbuildsystem build -p . -w dist/gitlab/ --target bootstrap --env gitlab --no-progress
 
 build-6:
   <<: *build_tpl
@@ -24,4 +24,4 @@ deploy:
    - apk add --no-cache git
    - npm install -q -g @openmicrostep/msbuildsystem.cli
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-   - msbuildsystem build -p @msbuildsystem -w dist/gitlab/ --target deploy --env gitlab --no-progress
+   - msbuildsystem build -p . -w dist/gitlab/ --target deploy --env gitlab --no-progress

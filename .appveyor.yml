@@ -9,7 +9,7 @@ install:
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
 
 build_script:
-   - msbuildsystem build -p @msbuildsystem -w dist/appveyor/ --target bootstrap --env appveyor --no-progress
+   - msbuildsystem build -p . -w dist/appveyor/ --target bootstrap --env appveyor --no-progress
 
 artifacts:
   - path: dist/3/

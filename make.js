@@ -271,19 +271,19 @@ module.exports= {
     'cwd=': { is: 'group', elements: [{ is: 'file', name: "../" }] },
     "install-deps=": { is: "task", components: ["=cmd"], cmd: "npm install -g -q coveralls nyc @openmicrostep/tests" },
     "build-1=": { is: "task", components: ["=cmd"], cmd: Value([
-      "msbuildsystem", "build", "-p", "@msbuildsystem", "-w", "dist/1/"
+      "msbuildsystem", "build", "-p", ".", "-w", "dist/1/"
     ]) },
     "tests-1=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", ...tests("dist/1")
     ]) },
     "build-2=": { is: "task", components: ["=cmd"], cmd: Value([
-      "node", "dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/2/"
+      "node", "dist/1/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", ".", "-w", "dist/2/"
     ]) },
     "tests-2=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", ...tests("dist/2")
     ]) },
     "build-3=": { is: "task", components: ["=cmd"], cmd: Value([
-      "node", "dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", "@msbuildsystem", "-w", "dist/3/"
+      "node", "dist/2/node/node_modules/@openmicrostep/msbuildsystem.cli/index.js", "build", "-p", ".", "-w", "dist/3/"
     ]) },
     "tests-3=": { is: "task", components: ["=cmd"], cmd: Value([
       "mstests", "-c", "-t", "10000", ...tests("dist/3")
