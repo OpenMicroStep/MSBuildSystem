@@ -226,7 +226,7 @@ module.exports= {
       files: ['=files:typescript:src ? tsc'],
       npmPackage: { is: "component",
         dependencies: { is: "component",
-          "typescript": "^2.8.3",
+          "typescript": "2.8.3",
         }
       },
     },
