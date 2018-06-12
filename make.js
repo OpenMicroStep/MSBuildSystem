@@ -54,7 +54,7 @@ module.exports= {
         "main": "index.js",
         "typings": "index.d.ts",
         devDependencies: { is: "component",
-          "@types/node": "^6.0.78"
+          "@types/node": "9.6.21"
         }
       },
       tsConfig: { is: "component",
@@ -83,7 +83,7 @@ module.exports= {
         devDependencies: { is: "component",
           "@types/chai": "^4.0.4",
           "@types/mocha": "^2.2.28",
-          "@types/node": "^6.0.78",
+          "@types/node": "9.6.21",
           "@openmicrostep/tests": "^0.1.0"
         },
       },
@@ -127,12 +127,12 @@ module.exports= {
       npmPackage: { is: "component",
         dependencies: { is: "component",
           "semver": "^5.5.0",
-          "fs-extra": "^6.0.1",
+          "fs-extra": "6.0.1",
           "source-map-support": "^0.5.6"
         },
         devDependencies: { is: "component",
           "@types/semver": "^5.5.0",
-          "@types/fs-extra": "^5.0.2",
+          "@types/fs-extra": "5.0.3",
         },
       },
       exports: [{ is: 'component', name: 'cfg',
@@ -188,10 +188,10 @@ module.exports= {
       files: ['=files:cxx:src ? tsc'],
       npmPackage: { is: "component",
         dependencies: { is: "component",
-          "fs-extra": "^4.0.1",
+          "fs-extra": "6.0.1",
         },
         devDependencies: { is: "component",
-          "@types/fs-extra": "^4.0.0",
+          "@types/fs-extra": "5.0.3",
         },
       },
     },
