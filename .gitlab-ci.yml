@@ -4,7 +4,6 @@
    - apk add --no-cache git
    - npm install -q -g @openmicrostep/msbuildsystem.cli
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-   - msbuildsystem modules install typescript@2.8.3
    - msbuildsystem build -p . -w dist/gitlab/ --target bootstrap --env gitlab --no-progress
 
 build-6:
@@ -25,5 +24,4 @@ deploy:
    - apk add --no-cache git
    - npm install -q -g @openmicrostep/msbuildsystem.cli
    - msbuildsystem modules install @openmicrostep/msbuildsystem.js.typescript
-   - msbuildsystem modules install typescript@2.8.3
    - msbuildsystem build -p . -w dist/gitlab/ --target deploy --env gitlab --no-progress
