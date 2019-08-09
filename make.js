@@ -78,11 +78,11 @@ module.exports= {
       },
       npmPackage: { is: "component",
         dependencies: { is: "component",
-          "chai": "^4.1.2"
+          "chai": "4.1.2"
         },
         devDependencies: { is: "component",
-          "@types/chai": "^4.0.4",
-          "@types/mocha": "^2.2.28",
+          "@types/chai": "4.1.3",
+          "@types/mocha": "2.2.28",
           "@types/node": "9.6.21",
           "@openmicrostep/tests": "^0.1.0"
         },
@@ -126,12 +126,12 @@ module.exports= {
       files: ['=files:core:src ? tsc'],
       npmPackage: { is: "component",
         dependencies: { is: "component",
-          "semver": "^5.5.0",
+          "semver": "5.5.0",
           "fs-extra": "6.0.1",
-          "source-map-support": "^0.5.6"
+          "source-map-support": "0.5.6"
         },
         devDependencies: { is: "component",
-          "@types/semver": "^5.5.0",
+          "@types/semver": "5.5.0",
           "@types/fs-extra": "5.0.3",
         },
       },
@@ -158,11 +158,11 @@ module.exports= {
       npmPackage: { is: "component",
         bin: { "msbuildsystem": "./bin.js" },
         dependencies: { is: "component",
-          "argparse": "^1.0.10",
-          "chalk": "^2.4.1"
+          "argparse": "1.0.10",
+          "chalk": "2.4.1"
         },
         devDependencies: { is: "component",
-          "@types/argparse": "^1.0.33",
+          "@types/argparse": "1.0.33",
         },
       }
     },
